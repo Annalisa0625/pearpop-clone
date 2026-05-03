@@ -1,0 +1,866 @@
+// File: app/api/orders/checkout/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getBaseUrl, getStripe } from "@/lib/stripe";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+type CheckoutBody = {
+  creator_id?: string;
+  creator_menu_id?: string;
+  product_name?: string;
+  product_url?: string;
+  deadline?: string;
+  requirements?: string;
+  note?: string;
+  has_free_offer?: boolean;
+  wants_secondary_use?: boolean;
+};
+
+type CompanyPlanCode = "free" | "standard" | "global_pro";
+
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "BIF",
+  "CLP",
+  "DJF",
+  "GNF",
+  "JPY",
+  "KMF",
+  "KRW",
+  "MGA",
+  "PYG",
+  "RWF",
+  "UGX",
+  "VND",
+  "VUV",
+  "XAF",
+  "XOF",
+  "XPF",
+]);
+
+async function getAuthenticatedUser(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
+
+  if (!token) {
+    return { user: null, error: "認証トークンがありません" };
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user) {
+    return { user: null, error: "認証に失敗しました" };
+  }
+
+  return { user, error: null };
+}
+
+async function ensureCompanyUser(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "company")
+    .maybeSingle();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return true;
+}
+
+async function ensureNoActiveSuspension(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("user_suspensions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).length === 0;
+}
+
+async function getCompany(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("companies")
+    .select("company_name, contact_email, approval_status")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function getUserState(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("user_states")
+    .select(
+      `
+      user_id,
+      company_profile_completed,
+      company_access_status,
+      company_plan_code,
+      company_subscription_status,
+      monthly_request_limit,
+      monthly_request_used,
+      request_usage_reset_at,
+      stripe_customer_id
+    `
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function upsertUserState(
+  userId: string,
+  patch: Record<string, string | number | boolean | null>
+) {
+  const { error } = await supabaseAdmin
+    .from("user_states")
+    .upsert(
+      {
+        user_id: userId,
+        ...patch,
+      },
+      {
+        onConflict: "user_id",
+      }
+    );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function findOrCreateStripeCustomer(args: {
+  userId: string;
+  email: string;
+  companyName?: string | null;
+  existingCustomerId?: string | null;
+}) {
+  const stripe = getStripe();
+
+  if (args.existingCustomerId) {
+    try {
+      const existingCustomer = await stripe.customers.retrieve(
+        args.existingCustomerId
+      );
+
+      if (!("deleted" in existingCustomer)) {
+        const metadataUserId =
+          existingCustomer.metadata?.supabase_user_id ?? null;
+
+        if (!metadataUserId || metadataUserId === args.userId) {
+          return existingCustomer;
+        }
+      }
+    } catch {
+      // 壊れた customer id は無視して、email + metadata で探し直す
+    }
+  }
+
+  const byEmail = await stripe.customers.list({
+    email: args.email,
+    limit: 20,
+  });
+
+  const matchedByMetadata =
+    byEmail.data.find(
+      (customer) => customer.metadata?.supabase_user_id === args.userId
+    ) ?? null;
+
+  if (matchedByMetadata) {
+    return matchedByMetadata;
+  }
+
+  return stripe.customers.create({
+    email: args.email,
+    name: args.companyName ?? args.email,
+    metadata: {
+      supabase_user_id: args.userId,
+    },
+  });
+}
+
+function cleanCountryInput(value: string | null | undefined) {
+  const raw = (value ?? "").trim();
+  if (!raw) return "";
+
+  const normalized = raw
+    .toLowerCase()
+    .replace(/\u3000/g, " ")
+    .replace(/[_\-/:|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const compact = normalized.replace(/\s+/g, "");
+
+  if (
+    normalized === "日本" ||
+    normalized === "japan" ||
+    normalized === "jp" ||
+    normalized === "jpn" ||
+    normalized.startsWith("jp ") ||
+    compact === "jp日本" ||
+    compact === "japan日本" ||
+    compact.includes("日本")
+  ) {
+    return "japan";
+  }
+
+  if (
+    normalized === "韓国" ||
+    normalized === "korea" ||
+    normalized === "south korea" ||
+    normalized === "republic of korea" ||
+    normalized === "kr" ||
+    normalized.startsWith("kr ") ||
+    compact.includes("韓国")
+  ) {
+    return "korea";
+  }
+
+  if (
+    normalized === "台湾" ||
+    normalized === "taiwan" ||
+    normalized === "tw" ||
+    normalized.startsWith("tw ") ||
+    compact.includes("台湾")
+  ) {
+    return "taiwan";
+  }
+
+  if (
+    normalized === "香港" ||
+    normalized === "hong kong" ||
+    normalized === "hk" ||
+    normalized.startsWith("hk ") ||
+    compact.includes("香港")
+  ) {
+    return "hong_kong";
+  }
+
+  if (
+    normalized === "中国" ||
+    normalized === "china" ||
+    normalized === "cn" ||
+    normalized.startsWith("cn ") ||
+    compact.includes("中国")
+  ) {
+    return "china";
+  }
+
+  if (
+    normalized === "タイ" ||
+    normalized === "thailand" ||
+    normalized === "th" ||
+    normalized.startsWith("th ") ||
+    compact.includes("タイ")
+  ) {
+    return "thailand";
+  }
+
+  if (
+    normalized === "ベトナム" ||
+    normalized === "vietnam" ||
+    normalized === "vn" ||
+    normalized.startsWith("vn ") ||
+    compact.includes("ベトナム")
+  ) {
+    return "vietnam";
+  }
+
+  if (
+    normalized === "インドネシア" ||
+    normalized === "indonesia" ||
+    normalized === "id" ||
+    normalized.startsWith("id ") ||
+    compact.includes("インドネシア")
+  ) {
+    return "indonesia";
+  }
+
+  if (
+    normalized === "フィリピン" ||
+    normalized === "philippines" ||
+    normalized === "ph" ||
+    normalized.startsWith("ph ") ||
+    compact.includes("フィリピン")
+  ) {
+    return "philippines";
+  }
+
+  if (
+    normalized === "マレーシア" ||
+    normalized === "malaysia" ||
+    normalized === "my" ||
+    normalized.startsWith("my ") ||
+    compact.includes("マレーシア")
+  ) {
+    return "malaysia";
+  }
+
+  if (
+    normalized === "シンガポール" ||
+    normalized === "singapore" ||
+    normalized === "sg" ||
+    normalized.startsWith("sg ") ||
+    compact.includes("シンガポール")
+  ) {
+    return "singapore";
+  }
+
+  if (
+    normalized === "インド" ||
+    normalized === "india" ||
+    normalized === "in" ||
+    normalized.startsWith("in ") ||
+    compact.includes("インド")
+  ) {
+    return "india";
+  }
+
+  if (
+    normalized === "アメリカ" ||
+    normalized === "united states" ||
+    normalized === "usa" ||
+    normalized === "us" ||
+    normalized.startsWith("us ") ||
+    compact.includes("アメリカ")
+  ) {
+    return "united_states";
+  }
+
+  if (
+    normalized === "その他" ||
+    normalized === "other" ||
+    compact.includes("その他")
+  ) {
+    return "other";
+  }
+
+  return raw;
+}
+
+function isJapanCountry(value: string | null | undefined) {
+  return cleanCountryInput(value) === "japan";
+}
+
+function normalizePlanCode(value: string | null | undefined): CompanyPlanCode {
+  if (value === "standard" || value === "global_pro") {
+    return value;
+  }
+
+  return "free";
+}
+
+function normalizeCurrency(value: string | null | undefined) {
+  const normalized = (value ?? "JPY").trim().toUpperCase();
+
+  if (!/^[A-Z]{3}$/.test(normalized)) {
+    return "JPY";
+  }
+
+  return normalized;
+}
+
+function toStripeAmount(amount: number, currency: string) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return null;
+  }
+
+  if (ZERO_DECIMAL_CURRENCIES.has(currency)) {
+    return Math.round(amount);
+  }
+
+  return Math.round(amount * 100);
+}
+
+function getPlatformFeeRateBps() {
+  const raw = process.env.ORDER_PLATFORM_FEE_BPS ?? "1000";
+  const parsed = Number(raw);
+
+  if (!Number.isFinite(parsed)) {
+    return 1000;
+  }
+
+  return Math.max(0, Math.min(5000, Math.round(parsed)));
+}
+
+function getString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getNullableString(value: unknown) {
+  const text = getString(value);
+  return text ? text : null;
+}
+
+function getBoolean(value: unknown) {
+  return value === true;
+}
+
+function isDateStringOrNull(value: string | null) {
+  if (!value) return true;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export async function POST(req: NextRequest) {
+  let createdOrderId: string | null = null;
+
+  try {
+    const { user, error: authError } = await getAuthenticatedUser(req);
+
+    if (authError || !user) {
+      return NextResponse.json({ error: authError }, { status: 401 });
+    }
+
+    const isCompany = await ensureCompanyUser(user.id);
+
+    if (!isCompany) {
+      return NextResponse.json(
+        { error: "企業ユーザーのみ注文できます" },
+        { status: 403 }
+      );
+    }
+
+    const canUseOrders = await ensureNoActiveSuspension(user.id);
+
+    if (!canUseOrders) {
+      return NextResponse.json(
+        { error: "現在このアカウントでは注文を開始できません" },
+        { status: 403 }
+      );
+    }
+
+    const company = await getCompany(user.id);
+
+    if (!company) {
+      return NextResponse.json(
+        { error: "企業情報が見つかりませんでした" },
+        { status: 400 }
+      );
+    }
+
+    if (company.approval_status !== "approved") {
+      return NextResponse.json(
+        { error: "審査承認後に注文できます" },
+        { status: 403 }
+      );
+    }
+
+    const userState = await getUserState(user.id);
+
+    if (!userState?.company_profile_completed) {
+      return NextResponse.json(
+        { error: "注文前に企業プロフィールを完了してください" },
+        { status: 403 }
+      );
+    }
+
+    if (userState.company_access_status !== "approved") {
+      return NextResponse.json(
+        { error: "企業アカウントの承認後に注文できます" },
+        { status: 403 }
+      );
+    }
+
+    if (userState.company_subscription_status !== "active") {
+      return NextResponse.json(
+        { error: "注文にはプラン開始が必要です" },
+        { status: 403 }
+      );
+    }
+
+    const monthlyLimit =
+      typeof userState.monthly_request_limit === "number"
+        ? userState.monthly_request_limit
+        : null;
+
+    const monthlyUsed =
+      typeof userState.monthly_request_used === "number"
+        ? userState.monthly_request_used
+        : 0;
+
+    if (monthlyLimit !== null && monthlyUsed >= monthlyLimit) {
+      return NextResponse.json(
+        { error: "今月の注文上限に達しています" },
+        { status: 403 }
+      );
+    }
+
+    const body = (await req.json().catch(() => null)) as CheckoutBody | null;
+
+    if (!body) {
+      return NextResponse.json(
+        { error: "注文内容を取得できませんでした" },
+        { status: 400 }
+      );
+    }
+
+    const creatorId = getString(body.creator_id);
+    const creatorMenuId = getString(body.creator_menu_id);
+    const productName = getString(body.product_name);
+    const productUrl = getNullableString(body.product_url);
+    const deadline = getNullableString(body.deadline);
+    const requirements = getString(body.requirements ?? body.note);
+    const hasFreeOffer = getBoolean(body.has_free_offer);
+    const wantsSecondaryUse = getBoolean(body.wants_secondary_use);
+
+    if (!creatorId) {
+      return NextResponse.json(
+        { error: "クリエイターIDがありません" },
+        { status: 400 }
+      );
+    }
+
+    if (!creatorMenuId) {
+      return NextResponse.json(
+        { error: "注文するメニューを選択してください" },
+        { status: 400 }
+      );
+    }
+
+    if (!productName) {
+      return NextResponse.json(
+        { error: "商品名・案件名を入力してください" },
+        { status: 400 }
+      );
+    }
+
+    if (requirements.length < 10) {
+      return NextResponse.json(
+        { error: "依頼内容・requirements は10文字以上で入力してください" },
+        { status: 400 }
+      );
+    }
+
+    if (!isDateStringOrNull(deadline)) {
+      return NextResponse.json(
+        { error: "納期の日付形式が正しくありません" },
+        { status: 400 }
+      );
+    }
+
+    const { data: creator, error: creatorError } = await supabaseAdmin
+      .from("creators")
+      .select("id, user_id, display_name, approval_status, is_public")
+      .eq("id", creatorId)
+      .eq("approval_status", "approved")
+      .eq("is_public", true)
+      .maybeSingle();
+
+    if (creatorError) {
+      throw creatorError;
+    }
+
+    if (!creator) {
+      return NextResponse.json(
+        { error: "クリエイターが見つかりませんでした" },
+        { status: 404 }
+      );
+    }
+
+    const { data: socialRows, error: socialError } = await supabaseAdmin
+      .from("creator_social_accounts")
+      .select("audience_country")
+      .eq("creator_id", creator.id);
+
+    if (socialError) {
+      throw socialError;
+    }
+
+    const hasJapanAudience = (socialRows ?? []).some((row) =>
+      isJapanCountry(row.audience_country)
+    );
+
+    const planCode = normalizePlanCode(userState.company_plan_code);
+
+    if (
+      (planCode === "free" || planCode === "standard") &&
+      !hasJapanAudience
+    ) {
+      return NextResponse.json(
+        { error: "このクリエイターへの注文にはGlobalProが必要です" },
+        { status: 403 }
+      );
+    }
+
+    const { data: menu, error: menuError } = await supabaseAdmin
+      .from("creator_menus")
+      .select(
+        `
+        id,
+        creator_id,
+        title,
+        description,
+        platform,
+        sns,
+        menu_type,
+        category,
+        price,
+        currency,
+        deliverables,
+        delivery_days,
+        account_url,
+        reference_price_text,
+        allow_secondary_use,
+        notes,
+        is_active
+      `
+      )
+      .eq("id", creatorMenuId)
+      .eq("creator_id", creator.id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (menuError) {
+      throw menuError;
+    }
+
+    if (!menu) {
+      return NextResponse.json(
+        { error: "メニューが見つかりませんでした" },
+        { status: 404 }
+      );
+    }
+
+    if (wantsSecondaryUse && !menu.allow_secondary_use) {
+      return NextResponse.json(
+        { error: "このメニューでは二次利用は許可されていません" },
+        { status: 400 }
+      );
+    }
+
+    const menuPriceAmount =
+      typeof menu.price === "number" ? Math.round(menu.price) : null;
+
+    if (!menuPriceAmount || menuPriceAmount <= 0) {
+      return NextResponse.json(
+        { error: "このメニューには有効な価格が設定されていません" },
+        { status: 400 }
+      );
+    }
+
+    const currency = normalizeCurrency(menu.currency);
+    const stripeAmount = toStripeAmount(menuPriceAmount, currency);
+
+    if (!stripeAmount || stripeAmount <= 0) {
+      return NextResponse.json(
+        { error: "決済金額の計算に失敗しました" },
+        { status: 400 }
+      );
+    }
+
+    const feeRateBps = getPlatformFeeRateBps();
+    const platformFeeAmount = Math.floor((stripeAmount * feeRateBps) / 10000);
+    const creatorPayoutAmount = stripeAmount - platformFeeAmount;
+
+    const email = user.email ?? company.contact_email ?? null;
+
+    if (!email) {
+      return NextResponse.json(
+        { error: "メールアドレスを取得できませんでした" },
+        { status: 400 }
+      );
+    }
+
+    const stripe = getStripe();
+    const baseUrl = getBaseUrl();
+
+    const customer = await findOrCreateStripeCustomer({
+      userId: user.id,
+      email,
+      companyName: company.company_name ?? null,
+      existingCustomerId: userState.stripe_customer_id ?? null,
+    });
+
+    await upsertUserState(user.id, {
+      stripe_customer_id: customer.id,
+    });
+
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from("orders")
+      .insert({
+        b_user_id: user.id,
+        creator_id: creator.id,
+        creator_user_id: creator.user_id,
+        creator_menu_id: menu.id,
+
+        status: "checkout_pending",
+        payment_status: "checkout_pending",
+
+        product_name: productName,
+        product_url: productUrl,
+        requirements,
+        deadline,
+        has_free_offer: hasFreeOffer,
+        wants_secondary_use: wantsSecondaryUse,
+
+        menu_title_snapshot: menu.title,
+        menu_description_snapshot: menu.description,
+        menu_platform_snapshot: menu.platform ?? menu.sns,
+        menu_type_snapshot: menu.menu_type,
+        menu_category_snapshot: menu.category,
+        menu_deliverables_snapshot: menu.deliverables,
+        menu_delivery_days_snapshot: menu.delivery_days,
+        menu_allow_secondary_use_snapshot: !!menu.allow_secondary_use,
+
+        currency,
+        menu_price_amount: menuPriceAmount,
+        stripe_amount: stripeAmount,
+        fee_rate_bps: feeRateBps,
+        platform_fee_amount: platformFeeAmount,
+        creator_payout_amount: creatorPayoutAmount,
+
+        stripe_customer_id: customer.id,
+        stripe_payment_status: "checkout_pending",
+
+        metadata: {
+          source: "orders_checkout_api_v1",
+          plan_code: planCode,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (orderError || !order) {
+      throw orderError ?? new Error("Order creation failed");
+    }
+
+    createdOrderId = order.id;
+
+    await supabaseAdmin.from("order_events").insert({
+      order_id: order.id,
+      actor_user_id: user.id,
+      event_type: "order_checkout_pending_created",
+      event_data: {
+        creator_id: creator.id,
+        creator_user_id: creator.user_id,
+        creator_menu_id: menu.id,
+        currency,
+        menu_price_amount: menuPriceAmount,
+        stripe_amount: stripeAmount,
+      },
+    });
+
+    const successUrl = `${baseUrl}/b/orders/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/b/creators/${creator.id}/request?menuId=${menu.id}&checkout=cancelled`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer: customer.id,
+      client_reference_id: order.id,
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: currency.toLowerCase(),
+            unit_amount: stripeAmount,
+            product_data: {
+              name: menu.title,
+              description: menu.description?.slice(0, 500) ?? undefined,
+              metadata: {
+                creator_id: creator.id,
+                creator_menu_id: menu.id,
+                order_id: order.id,
+              },
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      payment_intent_data: {
+        capture_method: "manual",
+        metadata: {
+          order_id: order.id,
+          supabase_user_id: user.id,
+          b_user_id: user.id,
+          creator_id: creator.id,
+          creator_user_id: creator.user_id,
+          creator_menu_id: menu.id,
+        },
+      },
+      metadata: {
+        order_id: order.id,
+        supabase_user_id: user.id,
+        b_user_id: user.id,
+        creator_id: creator.id,
+        creator_user_id: creator.user_id,
+        creator_menu_id: menu.id,
+      },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      allow_promotion_codes: false,
+    });
+
+    if (!session.url) {
+      throw new Error("Checkout URL was not created");
+    }
+
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        stripe_checkout_session_id: session.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", order.id);
+
+    await supabaseAdmin.from("order_events").insert({
+      order_id: order.id,
+      actor_user_id: user.id,
+      event_type: "stripe_checkout_session_created",
+      event_data: {
+        stripe_checkout_session_id: session.id,
+      },
+    });
+
+    return NextResponse.json({
+      url: session.url,
+      order_id: order.id,
+      checkout_session_id: session.id,
+    });
+  } catch (error) {
+    console.error("orders checkout error", error);
+
+    if (createdOrderId) {
+      await supabaseAdmin.from("order_events").insert({
+        order_id: createdOrderId,
+        actor_user_id: null,
+        event_type: "orders_checkout_error",
+        event_data: {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unknown orders checkout error",
+        },
+      });
+    }
+
+    return NextResponse.json(
+      { error: "注文用Checkoutの作成に失敗しました" },
+      { status: 500 }
+    );
+  }
+}

@@ -1,48 +1,102 @@
+// app/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
-const supabase = createClient(
-  "https://dnegkvwqcufmwubouafd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuZWdrdndxY3VmbXd1Ym91YWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5OTQ3MTcsImV4cCI6MjA2NTU3MDcxN30.7W7Wt2UdKzeex1NnMxXIQ3VjTUxvi0pCo2FUxrEiUvU"
-);
-
-export default function Home() {
-  const [user, setUser] = useState(null);
+export default function RootPage() {
+  const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-    });
-  }, []);
+    const check = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "github" });
-  };
+      if (!user) {
+        router.replace("/home");
+        return;
+      }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
+      const { data: roles, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      if (roleError || !roles || roles.length === 0) {
+        router.replace("/signup/creator-entry");
+        return;
+      }
+
+      const role = roles[0]?.role;
+
+      const { data: userState } = await supabase
+        .from("user_states")
+        .select(
+          `
+            creator_profile_completed,
+            company_profile_completed,
+            onboarding_completed
+          `
+        )
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (role === "creator") {
+        if (!userState) {
+          router.replace("/creator/profile");
+          return;
+        }
+
+        if (!userState.creator_profile_completed) {
+          router.replace("/creator/profile");
+          return;
+        }
+
+        if (!userState.onboarding_completed) {
+          router.replace("/creator/onboarding");
+          return;
+        }
+
+        router.replace("/creator/dashboard");
+        return;
+      }
+
+      if (role === "company") {
+        if (!userState) {
+          router.replace("/b/onboarding");
+          return;
+        }
+
+        if (!userState.company_profile_completed) {
+          router.replace("/b/onboarding");
+          return;
+        }
+
+        if (!userState.onboarding_completed) {
+          router.replace("/b/onboarding");
+          return;
+        }
+
+        router.replace("/b/dashboard");
+        return;
+      }
+
+      if (role === "admin") {
+        router.replace("/admin");
+        return;
+      }
+
+      router.replace("/signup/creator-entry");
+    };
+
+    check();
+  }, [router]);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center">
-      {user ? (
-        <>
-          <h1 className="text-2xl">ようこそ、{user.email} さん！</h1>
-          <button onClick={handleLogout} className="mt-4 px-4 py-2 bg-red-500 text-white rounded">
-            ログアウト
-          </button>
-        </>
-      ) : (
-        <>
-          <h1 className="text-2xl mb-4">Pearpop風MVPへようこそ</h1>
-          <button onClick={handleLogin} className="px-4 py-2 bg-blue-500 text-white rounded">
-            GitHubでログイン
-          </button>
-        </>
-      )}
-    </main>
+    <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+      Loading...
+    </div>
   );
 }
