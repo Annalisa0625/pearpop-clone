@@ -1,164 +1,301 @@
-// app/creator/accepted/[requestId]/page.tsx
+// File: app/creator/accepted/[requestId]/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import ChatEmbed from "@/app/my/chats/[chatId]/ChatEmbed";
+import ChatEmbed from "@/app/components/ChatEmbed";
 
-interface RequestDetail {
+type RequestDetail = {
   id: string;
   product_name: string | null;
   note: string | null;
   deadline: string | null;
   product_url: string | null;
-  completed_post_url: string | null;
+  delivered_post_url: string | null;
+  delivered_at: string | null;
   status: string | null;
+};
 
-  requester: {
-    username: string;
-    avatar_url: string | null;
-  } | null;
+function formatDate(value: string | null | undefined) {
+  if (!value) return "未設定";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("ja-JP");
 }
 
-export default function CreatorAcceptedDetailPage({ params }: any) {
-  const requestId = params.requestId;
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "未設定";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("ja-JP");
+}
+
+export default function CreatorAcceptedDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const requestId = params.requestId as string;
 
   const [detail, setDetail] = useState<RequestDetail | null>(null);
-  const [chatId, setChatId] = useState<string | null>(null);
   const [postUrl, setPostUrl] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const canDeliver = detail?.status === "accepted";
+
+  const statusLabel = useMemo(() => {
+    if (!detail?.status) return "未設定";
+
+    const map: Record<string, string> = {
+      accepted: "進行中",
+      delivered: "納品済み",
+      completed: "完了",
+      rejected: "却下",
+      pending: "承認待ち",
+    };
+
+    return map[detail.status] ?? detail.status;
+  }, [detail?.status]);
 
   const loadDetail = async () => {
+    if (!requestId) return;
+
+    setErrorMessage(null);
+
     const { data, error } = await supabase
       .from("requests")
-      .select(`
+      .select(
+        `
         id,
         product_name,
         note,
         deadline,
         product_url,
-        completed_post_url,
-        status,
-        requester:profiles!requests_b_user_id_fkey (
-          username,
-          avatar_url
-        )
-      `)
+        delivered_post_url,
+        delivered_at,
+        status
+      `
+      )
       .eq("id", requestId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      console.error(error);
+      console.error("creator accepted detail load error:", error);
+      setErrorMessage("案件情報の取得に失敗しました。");
+      setDetail(null);
       return;
     }
 
-    setDetail({
-      ...data,
-      requester: Array.isArray(data.requester)
-        ? data.requester[0]
-        : data.requester,
-    });
+    const nextDetail = (data as RequestDetail | null) ?? null;
 
-    setPostUrl(data.completed_post_url ?? "");
-  };
-
-  const loadChatId = async () => {
-    const { data } = await supabase
-      .from("chats")
-      .select("id")
-      .eq("request_id", requestId)
-      .maybeSingle();
-
-    if (data) setChatId(data.id);
+    setDetail(nextDetail);
+    setPostUrl(nextDetail?.delivered_post_url ?? "");
   };
 
   useEffect(() => {
     const run = async () => {
+      setLoading(true);
       await loadDetail();
-      await loadChatId();
       setLoading(false);
     };
-    run();
+
+    void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
-  // ✅ ここが最重要
-  const submitCompletion = async () => {
-    if (!postUrl.trim()) {
-      alert("投稿URLを入力してください");
+  const submitDelivery = async () => {
+    if (!detail) return;
+
+    const cleanUrl = postUrl.trim();
+
+    if (!cleanUrl) {
+      window.alert("納品URLを入力してください。");
       return;
     }
+
+    if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+      window.alert("納品URLは http:// または https:// で始まるURLにしてください。");
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMessage(null);
+
+    const nowIso = new Date().toISOString();
 
     const { error } = await supabase
       .from("requests")
       .update({
-        completed_post_url: postUrl,
-        completed_by_creator_at: new Date().toISOString(),
-        status: "completed_by_creator",
+        delivered_post_url: cleanUrl,
+        delivered_at: nowIso,
+        status: "delivered",
       })
       .eq("id", requestId);
 
     if (error) {
-      console.error(error);
-      alert("完了報告に失敗しました");
+      console.error("creator legacy delivery error:", error);
+      setErrorMessage("納品に失敗しました。");
+      setSubmitting(false);
       return;
     }
 
-    alert("完了報告を送信しました。企業の確認待ちです。");
+    window.alert("納品URLを提出しました。企業の確認待ちです。");
     await loadDetail();
+    setSubmitting(false);
   };
 
-  if (loading) return <p className="p-4">読み込み中...</p>;
-  if (!detail) return <p className="p-4">データがありません</p>;
+  if (loading) {
+    return <p className="p-4">読み込み中...</p>;
+  }
 
-  return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">案件詳細（C側）</h1>
+  if (!detail) {
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <div className="rounded-2xl border bg-white p-6">
+          <p className="text-sm text-gray-600">
+            {errorMessage ?? "データがありません。"}
+          </p>
 
-      <div className="border rounded p-4 space-y-2">
-        <p className="text-lg font-bold">{detail.product_name}</p>
-        <p>納期: {detail.deadline ?? "未設定"}</p>
-        <p>依頼内容: {detail.note ?? "なし"}</p>
-
-        <p className="font-semibold mt-2">依頼者:</p>
-        <div className="flex items-center space-x-2">
-          <img
-            src={detail.requester?.avatar_url || "/default-avatar.png"}
-            className="w-10 h-10 rounded-full"
-          />
-          <span>{detail.requester?.username}</span>
-        </div>
-      </div>
-
-      {detail.status === "accepted" && (
-        <div className="border rounded p-4 space-y-3">
-          <h2 className="font-semibold">投稿完了報告</h2>
-          <input
-            type="url"
-            className="w-full border px-3 py-2 rounded"
-            placeholder="投稿URLを入力"
-            value={postUrl}
-            onChange={(e) => setPostUrl(e.target.value)}
-          />
           <button
-            onClick={submitCompletion}
-            className="bg-green-600 text-white px-4 py-2 rounded"
+            type="button"
+            onClick={() => router.push("/creator/jobs")}
+            className="mt-4 rounded bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
           >
-            完了報告を送信
+            進行中案件へ戻る
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {detail.status === "completed_by_creator" && (
-        <p className="text-orange-600 font-semibold">
-          企業の確認待ちです
+  return (
+    <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/creator/jobs"
+          className="text-sm font-semibold text-blue-600 hover:underline"
+        >
+          ← 進行中案件へ戻る
+        </Link>
+
+        <Link
+          href="/creator/requests"
+          className="text-sm font-semibold text-blue-600 hover:underline"
+        >
+          承認待ち一覧へ
+        </Link>
+      </div>
+
+      <section className="rounded-2xl border bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold text-green-600">
+          Legacy Request
         </p>
+
+        <h1 className="mt-2 text-2xl font-bold">案件詳細（C側）</h1>
+
+        <div className="mt-5 space-y-3 rounded-2xl bg-gray-50 p-4 text-sm">
+          <p>
+            <span className="font-semibold">商品名：</span>
+            {detail.product_name ?? "案件名なし"}
+          </p>
+
+          <p>
+            <span className="font-semibold">ステータス：</span>
+            {statusLabel}
+          </p>
+
+          <p>
+            <span className="font-semibold">納期：</span>
+            {formatDate(detail.deadline)}
+          </p>
+
+          <p>
+            <span className="font-semibold">商品URL：</span>
+            {detail.product_url ? (
+              <a
+                href={detail.product_url}
+                target="_blank"
+                rel="noreferrer"
+                className="break-all text-blue-600 underline"
+              >
+                {detail.product_url}
+              </a>
+            ) : (
+              "未入力"
+            )}
+          </p>
+
+          <p>
+            <span className="font-semibold">依頼内容：</span>
+            {detail.note ?? "なし"}
+          </p>
+
+          <p>
+            <span className="font-semibold">納品日時：</span>
+            {formatDateTime(detail.delivered_at)}
+          </p>
+        </div>
+      </section>
+
+      {errorMessage ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {(canDeliver || detail.delivered_post_url) && (
+        <section className="rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">納品URL</h2>
+
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            投稿URL、成果物URL、Google Drive URLなど、企業が確認できるURLを入力してください。
+          </p>
+
+          <input
+            type="url"
+            className="mt-4 w-full rounded border px-3 py-2"
+            placeholder="https://..."
+            value={postUrl}
+            onChange={(event) => setPostUrl(event.target.value)}
+          />
+
+          {detail.delivered_post_url ? (
+            <a
+              href={detail.delivered_post_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex text-sm font-semibold text-blue-600 hover:underline"
+            >
+              納品URLを開く
+            </a>
+          ) : null}
+
+          {canDeliver ? (
+            <button
+              type="button"
+              onClick={submitDelivery}
+              disabled={submitting}
+              className="mt-4 rounded bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {submitting ? "送信中..." : "納品URLを提出"}
+            </button>
+          ) : null}
+        </section>
       )}
 
-      {chatId && (
-        <div className="border rounded">
-          <ChatEmbed chatId={chatId} />
-        </div>
-      )}
+      <ChatEmbed requestId={detail.id} title="案件チャット" />
     </div>
   );
 }
