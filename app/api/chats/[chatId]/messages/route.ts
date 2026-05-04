@@ -1,69 +1,230 @@
-//app/api/chats/[chatId]/messages/route.ts
+// File: app/api/chats/[chatId]/messages/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { chatId: string } }
-) {
-  const body = await req.json();
-  const { content } = body;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-  if (!content) {
-    return NextResponse.json({ message: "Content required" }, { status: 400 });
+async function getAuthenticatedUser(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
+
+  if (!token) {
+    return { user: null, error: "認証トークンがありません" };
   }
-
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set() {},
-        remove() {},
-      },
-    }
-  );
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
 
-  if (!user) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  if (error || !user) {
+    return { user: null, error: "認証に失敗しました" };
   }
 
-  const { data: chat } = await supabase
-    .from("chats")
-    .select("*")
-    .eq("id", params.chatId)
-    .single();
+  return { user, error: null };
+}
 
-  if (!chat) {
-    return NextResponse.json({ message: "Chat not found" }, { status: 404 });
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ chatId: string }> }
+) {
+  try {
+    const { chatId } = await context.params;
+
+    if (!chatId) {
+      return NextResponse.json(
+        { error: "chatId がありません" },
+        { status: 400 }
+      );
+    }
+
+    const { user, error: authError } = await getAuthenticatedUser(req);
+
+    if (authError || !user) {
+      return NextResponse.json({ error: authError }, { status: 401 });
+    }
+
+    const { data: chat, error: chatError } = await supabaseAdmin
+      .from("chats")
+      .select("id, company_user_id, creator_user_id")
+      .eq("id", chatId)
+      .maybeSingle();
+
+    if (chatError) {
+      console.error("chat load error:", chatError);
+      return NextResponse.json(
+        { error: "チャット情報の取得に失敗しました" },
+        { status: 500 }
+      );
+    }
+
+    if (!chat) {
+      return NextResponse.json(
+        { error: "チャットが見つかりません" },
+        { status: 404 }
+      );
+    }
+
+    const canAccess =
+      chat.company_user_id === user.id || chat.creator_user_id === user.id;
+
+    if (!canAccess) {
+      return NextResponse.json(
+        { error: "このチャットを見る権限がありません" },
+        { status: 403 }
+      );
+    }
+
+    const { data: messages, error: messagesError } = await supabaseAdmin
+      .from("messages")
+      .select("id, chat_id, sender_user_id, content, created_at")
+      .eq("chat_id", chatId)
+      .order("created_at", { ascending: true });
+
+    if (messagesError) {
+      console.error("messages load error:", messagesError);
+      return NextResponse.json(
+        { error: "メッセージの取得に失敗しました" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      messages: messages ?? [],
+    });
+  } catch (error) {
+    console.error("GET chat messages error:", error);
+    return NextResponse.json(
+      { error: "メッセージの取得に失敗しました" },
+      { status: 500 }
+    );
   }
+}
 
-  if (
-    chat.creator_user_id !== user.id &&
-    chat.company_user_id !== user.id
-  ) {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ chatId: string }> }
+) {
+  try {
+    const { chatId } = await context.params;
+
+    if (!chatId) {
+      return NextResponse.json(
+        { error: "chatId がありません" },
+        { status: 400 }
+      );
+    }
+
+    const { user, error: authError } = await getAuthenticatedUser(req);
+
+    if (authError || !user) {
+      return NextResponse.json({ error: authError }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => null);
+    const content =
+      typeof body?.content === "string" ? body.content.trim() : "";
+
+    if (!content) {
+      return NextResponse.json(
+        { error: "メッセージを入力してください" },
+        { status: 400 }
+      );
+    }
+
+    if (content.length > 2000) {
+      return NextResponse.json(
+        { error: "メッセージは2000文字以内で入力してください" },
+        { status: 400 }
+      );
+    }
+
+    const { data: chat, error: chatError } = await supabaseAdmin
+      .from("chats")
+      .select("id, company_user_id, creator_user_id")
+      .eq("id", chatId)
+      .maybeSingle();
+
+    if (chatError) {
+      console.error("chat load error:", chatError);
+      return NextResponse.json(
+        { error: "チャット情報の取得に失敗しました" },
+        { status: 500 }
+      );
+    }
+
+    if (!chat) {
+      return NextResponse.json(
+        { error: "チャットが見つかりません" },
+        { status: 404 }
+      );
+    }
+
+    const canSend =
+      chat.company_user_id === user.id || chat.creator_user_id === user.id;
+
+    if (!canSend) {
+      return NextResponse.json(
+        { error: "このチャットに送信する権限がありません" },
+        { status: 403 }
+      );
+    }
+
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("messages")
+      .insert({
+        chat_id: chatId,
+        sender_user_id: user.id,
+        content,
+      })
+      .select("id, chat_id, sender_user_id, content, created_at")
+      .single();
+
+    if (insertError) {
+      console.error("message insert error:", insertError);
+      return NextResponse.json(
+        { error: "メッセージの送信に失敗しました" },
+        { status: 500 }
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    const { error: chatUpdateError } = await supabaseAdmin
+      .from("chats")
+      .update({
+        last_message_at: now,
+      })
+      .eq("id", chatId);
+
+    if (chatUpdateError) {
+      console.error("chat last_message_at update error:", chatUpdateError);
+    }
+
+    await supabaseAdmin.from("chat_reads").upsert(
+      {
+        chat_id: chatId,
+        user_id: user.id,
+        last_read_at: now,
+        updated_at: now,
+      },
+      {
+        onConflict: "chat_id,user_id",
+      }
+    );
+
+    return NextResponse.json({
+      message: inserted,
+    });
+  } catch (error) {
+    console.error("POST chat messages error:", error);
+    return NextResponse.json(
+      { error: "メッセージの送信に失敗しました" },
+      { status: 500 }
+    );
   }
-
-  const { error } = await supabase.from("messages").insert({
-    chat_id: chat.id,
-    sender_user_id: user.id,
-    content,
-  });
-
-  if (error) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ message: "sent" });
 }
