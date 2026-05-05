@@ -38,6 +38,11 @@ function normalizeAuthError(message: string, locale: "ja" | "en") {
     : "Login failed. Please check your input and try again.";
 }
 
+function getOAuthRedirectUrl() {
+  if (typeof window === "undefined") return undefined;
+  return `${window.location.origin}/`;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { locale } = useAppLocale();
@@ -49,13 +54,18 @@ export default function LoginPage() {
             badge: "Login",
             title: "ログイン",
             subtitle:
-              "登録済みのメールアドレスとパスワードでログインしてください。",
+              "登録済みのメールアドレスとパスワード、またはGoogleアカウントでログインしてください。",
             emailPlaceholder: "メールアドレス",
             passwordPlaceholder: "パスワード",
             emailRequired: "メールアドレスを入力してください",
             passwordRequired: "パスワードを入力してください",
             login: "ログイン",
             loggingIn: "ログイン中…",
+            googleLogin: "Googleでログイン",
+            googleLoggingIn: "Googleに移動中…",
+            orText: "または",
+            oauthFailed:
+              "Googleログインに失敗しました。時間を置いて再度お試しください。",
             creatorEntry: "クリエイター登録はこちら",
             companyEntry: "企業登録はこちら",
             heroBadge: "Welcome back",
@@ -63,19 +73,25 @@ export default function LoginPage() {
             heroBody:
               "Trendre では、企業がクリエイターを探して直接依頼でき、承認後は案件ページ内でチャット・納品・完了承認まで進められます。",
             point1: "企業は条件を見ながら直接依頼",
-            point2: "クリエイターは参考条件カードを公開",
+            point2: "クリエイターは商品メニューを公開",
             point3: "案件ごとに進行管理を一元化",
           }
         : {
             badge: "Login",
             title: "Login",
-            subtitle: "Sign in with your registered email address and password.",
+            subtitle:
+              "Sign in with your registered email and password, or continue with Google.",
             emailPlaceholder: "Email Address",
             passwordPlaceholder: "Password",
             emailRequired: "Please enter your email address",
             passwordRequired: "Please enter your password",
             login: "Login",
             loggingIn: "Logging in...",
+            googleLogin: "Continue with Google",
+            googleLoggingIn: "Redirecting to Google...",
+            orText: "or",
+            oauthFailed:
+              "Google login failed. Please wait a moment and try again.",
             creatorEntry: "Creator sign up",
             companyEntry: "Company sign up",
             heroBadge: "Welcome back",
@@ -83,7 +99,7 @@ export default function LoginPage() {
             heroBody:
               "With Trendre, companies can discover creators and send direct requests, while both sides can manage chat, delivery, and completion inside each project page.",
             point1: "Companies can send direct requests",
-            point2: "Creators can publish rate cards",
+            point2: "Creators can publish product menus",
             point3: "Projects can be managed in one place",
           },
     [locale]
@@ -92,7 +108,26 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    setOauthLoading(true);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: getOAuthRedirectUrl(),
+      },
+    });
+
+    if (error) {
+      console.error(error);
+      setError(copy.oauthFailed);
+      setOauthLoading(false);
+    }
+  };
 
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -125,6 +160,8 @@ export default function LoginPage() {
     setLoading(false);
     router.replace("/");
   };
+
+  const isSubmitting = loading || oauthLoading;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -161,9 +198,32 @@ export default function LoginPage() {
           <section className="rounded-3xl border bg-white p-6 shadow-sm md:p-8">
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-blue-600">{copy.badge}</p>
-                <h2 className="text-3xl font-bold tracking-tight">{copy.title}</h2>
-                <p className="text-sm leading-7 text-gray-600">{copy.subtitle}</p>
+                <p className="text-sm font-semibold text-blue-600">
+                  {copy.badge}
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {copy.title}
+                </h2>
+                <p className="text-sm leading-7 text-gray-600">
+                  {copy.subtitle}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isSubmitting}
+                className="flex w-full items-center justify-center rounded-xl border bg-white px-4 py-3 font-semibold text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {oauthLoading ? copy.googleLoggingIn : copy.googleLogin}
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-gray-200" />
+                <span className="text-xs font-semibold text-gray-400">
+                  {copy.orText}
+                </span>
+                <div className="h-px flex-1 bg-gray-200" />
               </div>
 
               <div className="space-y-3">
@@ -174,6 +234,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border px-4 py-3"
                   autoComplete="email"
+                  disabled={isSubmitting}
                 />
 
                 <input
@@ -183,17 +244,20 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-xl border px-4 py-3"
                   autoComplete="current-password"
+                  disabled={isSubmitting}
                 />
               </div>
 
               {error && (
-                <p className="whitespace-pre-wrap text-sm text-red-600">{error}</p>
+                <p className="whitespace-pre-wrap text-sm text-red-600">
+                  {error}
+                </p>
               )}
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white disabled:opacity-50"
+                disabled={isSubmitting}
+                className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? copy.loggingIn : copy.login}
               </button>
