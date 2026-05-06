@@ -46,6 +46,10 @@ type OrderRow = {
   creator_user_id: string;
   menu_title_snapshot: string | null;
   menu_price_amount: number | null;
+  buyer_marketplace_fee_rate_bps: number | null;
+  buyer_marketplace_fee_amount: number | null;
+  buyer_total_amount: number | null;
+  stripe_amount: number | null;
   currency: string | null;
   revision_requested_at: string | null;
   revision_count: number | null;
@@ -72,6 +76,10 @@ type JobItem = {
   creator_avatar_url: string | null;
   menu_title?: string | null;
   menu_price_amount?: number | null;
+  buyer_marketplace_fee_rate_bps?: number | null;
+  buyer_marketplace_fee_amount?: number | null;
+  buyer_total_amount?: number | null;
+  stripe_amount?: number | null;
   currency?: string | null;
   revision_requested_at?: string | null;
   revision_count?: number | null;
@@ -150,6 +158,11 @@ function formatPrice(
       ? `$${value.toLocaleString()}`
       : `¥${value.toLocaleString()}`;
   }
+}
+
+function formatBps(value: number | null | undefined) {
+  if (value == null) return "";
+  return `${value / 100}%`;
 }
 
 function getStatusMeta(status: string, locale: "ja" | "en") {
@@ -256,6 +269,10 @@ export default function JobsListPage() {
             productName: "商品名",
             menu: "メニュー",
             price: "価格",
+            buyerFeeRate: "B側手数料率",
+            marketplaceFee: "Trendre marketplace fee",
+            buyerTotal: "お支払い合計",
+            stripeAmount: "Stripe決済額",
             deliveredUrl: "納品URLあり",
             revisionRequested: "修正依頼中",
             revisionCount: "修正回数",
@@ -279,6 +296,10 @@ export default function JobsListPage() {
             productName: "Product",
             menu: "Menu",
             price: "Price",
+            buyerFeeRate: "Buyer fee rate",
+            marketplaceFee: "Trendre marketplace fee",
+            buyerTotal: "Payment total",
+            stripeAmount: "Stripe amount",
             deliveredUrl: "Delivered URL submitted",
             revisionRequested: "Revision requested",
             revisionCount: "Revision count",
@@ -363,6 +384,10 @@ export default function JobsListPage() {
           creator_user_id,
           menu_title_snapshot,
           menu_price_amount,
+          buyer_marketplace_fee_rate_bps,
+          buyer_marketplace_fee_amount,
+          buyer_total_amount,
+          stripe_amount,
           currency,
           revision_requested_at,
           revision_count,
@@ -473,6 +498,10 @@ export default function JobsListPage() {
         creator_avatar_url: creator?.avatar_url ?? null,
         menu_title: order.menu_title_snapshot,
         menu_price_amount: order.menu_price_amount,
+        buyer_marketplace_fee_rate_bps: order.buyer_marketplace_fee_rate_bps,
+        buyer_marketplace_fee_amount: order.buyer_marketplace_fee_amount,
+        buyer_total_amount: order.buyer_total_amount,
+        stripe_amount: order.stripe_amount,
         currency: order.currency,
         revision_requested_at: order.revision_requested_at,
         revision_count: order.revision_count,
@@ -693,15 +722,80 @@ export default function JobsListPage() {
                     </p>
                   ) : null}
 
-                  {job.menu_price_amount != null ? (
-                    <p className="mt-1 text-sm text-gray-600">
-                      {copy.price}:{" "}
-                      {formatPrice(
-                        job.menu_price_amount,
-                        job.currency,
-                        safeLocale
-                      )}
-                    </p>
+                  {job.kind === "order" ? (
+                    <div className="mt-3 grid gap-2 rounded-xl border bg-white p-3 text-sm md:grid-cols-2">
+                      {job.menu_price_amount != null ? (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {copy.price}
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatPrice(
+                              job.menu_price_amount,
+                              job.currency,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {job.buyer_marketplace_fee_rate_bps != null ? (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {copy.buyerFeeRate}
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatBps(job.buyer_marketplace_fee_rate_bps)}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {job.buyer_marketplace_fee_amount != null ? (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {copy.marketplaceFee}
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatPrice(
+                              job.buyer_marketplace_fee_amount,
+                              job.currency,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {job.buyer_total_amount != null ? (
+                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 md:col-span-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                            {copy.buyerTotal}
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-blue-900">
+                            {formatPrice(
+                              job.buyer_total_amount,
+                              job.currency,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {job.stripe_amount != null &&
+                      job.stripe_amount !== job.buyer_total_amount ? (
+                        <div className="md:col-span-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {copy.stripeAmount}
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatPrice(
+                              job.stripe_amount,
+                              job.currency,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
 
