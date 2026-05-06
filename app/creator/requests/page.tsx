@@ -42,6 +42,9 @@ type OrderRow = {
   requirements: string;
   menu_title_snapshot: string | null;
   menu_price_amount: number | null;
+  creator_transaction_fee_rate_bps: number | null;
+  creator_transaction_fee_amount: number | null;
+  creator_payout_amount: number | null;
   currency: string | null;
   creator_accept_deadline: string | null;
 };
@@ -57,6 +60,9 @@ type PendingItem =
       deadline: string | null;
       menu_title: string | null;
       amount: number | null;
+      creator_transaction_fee_rate_bps: number | null;
+      creator_transaction_fee_amount: number | null;
+      creator_payout_amount: number | null;
       currency: string | null;
       creator_accept_deadline: string | null;
       chat: ChatRow | null;
@@ -71,6 +77,9 @@ type PendingItem =
       deadline: string | null;
       menu_title: null;
       amount: null;
+      creator_transaction_fee_rate_bps: null;
+      creator_transaction_fee_amount: null;
+      creator_payout_amount: null;
       currency: "JPY";
       creator_accept_deadline: null;
       chat: ChatRow | null;
@@ -124,6 +133,20 @@ function formatPrice(
 
     return `¥${value.toLocaleString()}`;
   }
+}
+
+function formatRateBps(value: number | null | undefined) {
+  if (value == null) return "-";
+  return `${value / 100}%`;
+}
+
+function formatNegativePrice(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+  locale: "ja" | "en"
+) {
+  if (value == null) return locale === "ja" ? "未設定" : "Not set";
+  return `-${formatPrice(value, currency, locale)}`;
 }
 
 function getOrderStatusLabel(
@@ -203,6 +226,9 @@ export default function CreatorRequestsPage() {
             paymentAuthorized: "支払い方法確認済み",
             menu: "メニュー",
             price: "価格",
+            creatorFeeRate: "C側手数料率",
+            transactionFee: "Trendre transaction fee",
+            creatorPayout: "受取予定額",
             creatorDeadline: "承認期限",
             creatorDeadlineExpired: "承認期限切れ",
             notSet: "未設定",
@@ -228,6 +254,9 @@ export default function CreatorRequestsPage() {
             paymentAuthorized: "Payment authorized",
             menu: "Menu",
             price: "Price",
+            creatorFeeRate: "Creator fee rate",
+            transactionFee: "Trendre transaction fee",
+            creatorPayout: "Expected payout",
             creatorDeadline: "Approval deadline",
             creatorDeadlineExpired: "Approval expired",
             notSet: "Not set",
@@ -298,6 +327,9 @@ export default function CreatorRequestsPage() {
           requirements,
           menu_title_snapshot,
           menu_price_amount,
+          creator_transaction_fee_rate_bps,
+          creator_transaction_fee_amount,
+          creator_payout_amount,
           currency,
           creator_accept_deadline
         `
@@ -325,7 +357,7 @@ export default function CreatorRequestsPage() {
       (request) => (request.status ?? "pending") === "pending"
     );
 
-    const orders = (orderRes.data ?? []) as OrderRow[];
+    const orders = (orderRes.data ?? []) as unknown as OrderRow[];
 
     const orderIds = orders.map((order) => order.id);
     const legacyRequestIds = legacyPendingRows.map((request) => request.id);
@@ -398,6 +430,9 @@ export default function CreatorRequestsPage() {
         deadline: request.deadline,
         menu_title: null,
         amount: null,
+        creator_transaction_fee_rate_bps: null,
+        creator_transaction_fee_amount: null,
+        creator_payout_amount: null,
         currency: "JPY",
         creator_accept_deadline: null,
         chat: legacyChatMap.get(request.id) ?? null,
@@ -415,6 +450,9 @@ export default function CreatorRequestsPage() {
         deadline: order.deadline,
         menu_title: order.menu_title_snapshot,
         amount: order.menu_price_amount,
+        creator_transaction_fee_rate_bps: order.creator_transaction_fee_rate_bps,
+        creator_transaction_fee_amount: order.creator_transaction_fee_amount,
+        creator_payout_amount: order.creator_payout_amount,
         currency: order.currency,
         creator_accept_deadline: order.creator_accept_deadline,
         chat: orderChatMap.get(order.id) ?? null,
@@ -655,6 +693,41 @@ export default function CreatorRequestsPage() {
                       </p>
                       <p className="mt-1 font-semibold text-gray-900">
                         {formatPrice(item.amount, item.currency, safeLocale)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {copy.creatorFeeRate}
+                      </p>
+                      <p className="mt-1 font-semibold text-gray-900">
+                        {formatRateBps(item.creator_transaction_fee_rate_bps)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {copy.transactionFee}
+                      </p>
+                      <p className="mt-1 font-semibold text-red-700">
+                        {formatNegativePrice(
+                          item.creator_transaction_fee_amount,
+                          item.currency,
+                          safeLocale
+                        )}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {copy.creatorPayout}
+                      </p>
+                      <p className="mt-1 text-base font-bold text-green-700">
+                        {formatPrice(
+                          item.creator_payout_amount,
+                          item.currency,
+                          safeLocale
+                        )}
                       </p>
                     </div>
 
