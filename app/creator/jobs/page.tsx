@@ -43,6 +43,9 @@ type OrderRow = {
   menu_title_snapshot: string | null;
   menu_price_amount: number | null;
   currency: string | null;
+  creator_transaction_fee_rate_bps: number | null;
+  creator_transaction_fee_amount: number | null;
+  creator_payout_amount: number | null;
   revision_requested_at: string | null;
   revision_note: string | null;
   revision_count: number | null;
@@ -68,6 +71,9 @@ type JobItem = {
   menu_title?: string | null;
   menu_price_amount?: number | null;
   currency?: string | null;
+  creator_transaction_fee_rate_bps?: number | null;
+  creator_transaction_fee_amount?: number | null;
+  creator_payout_amount?: number | null;
   revision_requested_at?: string | null;
   revision_note?: string | null;
   revision_count?: number | null;
@@ -129,6 +135,22 @@ function formatPrice(
       ? `$${value.toLocaleString()}`
       : `¥${value.toLocaleString()}`;
   }
+}
+
+function formatSignedFee(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+  locale: "ja" | "en"
+) {
+  if (value == null) return "";
+
+  const formatted = formatPrice(Math.abs(value), currency, locale);
+  return value === 0 ? formatted : `-${formatted}`;
+}
+
+function formatBps(value: number | null | undefined) {
+  if (value == null) return "";
+  return `${value / 100}%`;
 }
 
 function getTimestamp(value: string | null | undefined) {
@@ -242,6 +264,9 @@ export default function CreatorJobsPage() {
             deadline: "期限",
             menu: "メニュー",
             price: "価格",
+            transactionFeeRate: "C側手数料率",
+            transactionFee: "Trendre transaction fee",
+            payoutAmount: "受取予定額",
             deliveredUrl: "納品URLあり",
             revisionActionRequired: "修正対応が必要",
             revisionCount: "修正回数",
@@ -265,6 +290,9 @@ export default function CreatorJobsPage() {
             deadline: "Deadline",
             menu: "Menu",
             price: "Price",
+            transactionFeeRate: "Creator fee rate",
+            transactionFee: "Trendre transaction fee",
+            payoutAmount: "Estimated payout",
             deliveredUrl: "Delivered URL submitted",
             revisionActionRequired: "Revision needed",
             revisionCount: "Revision count",
@@ -359,6 +387,9 @@ export default function CreatorJobsPage() {
           menu_title_snapshot,
           menu_price_amount,
           currency,
+          creator_transaction_fee_rate_bps,
+          creator_transaction_fee_amount,
+          creator_payout_amount,
           revision_requested_at,
           revision_note,
           revision_count,
@@ -384,7 +415,7 @@ export default function CreatorJobsPage() {
       return;
     }
 
-    const orders = (orderRows ?? []) as OrderRow[];
+    const orders = (orderRows ?? []) as unknown as OrderRow[];
     const orderIds = orders.map((order) => order.id);
 
     let orderChatMap = new Map<string, ChatRow>();
@@ -443,6 +474,9 @@ export default function CreatorJobsPage() {
       menu_title: order.menu_title_snapshot,
       menu_price_amount: order.menu_price_amount,
       currency: order.currency,
+      creator_transaction_fee_rate_bps: order.creator_transaction_fee_rate_bps,
+      creator_transaction_fee_amount: order.creator_transaction_fee_amount,
+      creator_payout_amount: order.creator_payout_amount,
       revision_requested_at: order.revision_requested_at,
       revision_note: order.revision_note,
       revision_count: order.revision_count,
@@ -669,38 +703,95 @@ export default function CreatorJobsPage() {
                     {item.product_name ?? copy.unnamedProduct}
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                  <div className="mt-3 grid gap-3 rounded-2xl bg-gray-50 p-4 text-sm md:grid-cols-2">
                     {item.deadline ? (
-                      <span>
-                        {copy.deadline}: {formatDate(item.deadline, safeLocale)}
-                      </span>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {copy.deadline}
+                        </p>
+                        <p className="mt-1 font-semibold text-gray-900">
+                          {formatDate(item.deadline, safeLocale)}
+                        </p>
+                      </div>
                     ) : null}
 
                     {item.menu_title ? (
-                      <span>
-                        {copy.menu}: {item.menu_title}
-                      </span>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {copy.menu}
+                        </p>
+                        <p className="mt-1 font-semibold text-gray-900">
+                          {item.menu_title}
+                        </p>
+                      </div>
                     ) : null}
 
-                    {item.menu_price_amount != null ? (
-                      <span>
-                        {copy.price}:{" "}
-                        {formatPrice(
-                          item.menu_price_amount,
-                          item.currency,
-                          safeLocale
-                        )}
-                      </span>
+                    {item.kind === "order" ? (
+                      <>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {copy.price}
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatPrice(
+                              item.menu_price_amount,
+                              item.currency,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {copy.transactionFeeRate}
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatBps(item.creator_transaction_fee_rate_bps)}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {copy.transactionFee}
+                          </p>
+                          <p className="mt-1 font-semibold text-red-600">
+                            {formatSignedFee(
+                              item.creator_transaction_fee_amount,
+                              item.currency,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl border border-green-100 bg-green-50 p-3 md:col-span-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+                            {copy.payoutAmount}
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-green-700">
+                            {formatPrice(
+                              item.creator_payout_amount,
+                              item.currency,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+                      </>
                     ) : null}
 
                     {item.status === "revision_requested" &&
                     item.revision_count != null ? (
-                      <span>
-                        {copy.revisionCount}: {item.revision_count}/
-                        {item.max_revision_count ?? 1}
-                      </span>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {copy.revisionCount}
+                        </p>
+                        <p className="mt-1 font-semibold text-gray-900">
+                          {item.revision_count}/{item.max_revision_count ?? 1}
+                        </p>
+                      </div>
                     ) : null}
+                  </div>
 
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                     {item.delivered_post_url ? (
                       <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
                         {copy.deliveredUrl}
