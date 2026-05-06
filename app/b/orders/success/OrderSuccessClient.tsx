@@ -41,7 +41,7 @@ export default function OrderSuccessPage() {
               "Stripeで支払い方法の確認が完了したか確認しています。画面を閉じずにお待ちください。",
             successTitle: "注文が送信されました",
             successBody:
-              "支払い方法の確認が完了しました。クリエイターが48時間以内に承認すると決済が確定し、案件が開始されます。",
+              "支払い方法の確認が完了しました。クリエイターが72時間以内に承認すると決済が確定し、案件が開始されます。",
             pendingTitle: "注文確認中です",
             pendingBody:
               "Stripeの確認結果を取得しましたが、まだ注文状態の確定待ちです。しばらくしてから再度確認してください。",
@@ -63,7 +63,7 @@ export default function OrderSuccessPage() {
               "We are confirming whether Stripe completed the payment authorization. Please keep this page open.",
             successTitle: "Order submitted",
             successBody:
-              "Your payment method has been authorized. If the creator accepts within 48 hours, the payment will be captured and the job will start.",
+              "Your payment method has been authorized. If the creator accepts within 72 hours, the payment will be captured and the job will start.",
             pendingTitle: "Order is being checked",
             pendingBody:
               "We received the Stripe result, but the order status is not finalized yet. Please check again later.",
