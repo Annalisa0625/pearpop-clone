@@ -4,6 +4,10 @@
     {
       "path": "/api/admin/orders/auto-complete-due",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/admin/orders/auto-cancel-unaccepted",
+      "schedule": "30 0 * * *"
     }
   ]
 }
