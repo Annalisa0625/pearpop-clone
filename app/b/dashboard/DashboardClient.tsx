@@ -66,9 +66,9 @@ function formatDate(value: string | null) {
 }
 
 function getPlanLabel(plan: CompanyPlanCode) {
-  if (plan === "standard") return "Standard";
-  if (plan === "global_pro") return "GlobalPro";
-  return "Free";
+  if (plan === "standard") return "Pro";
+  if (plan === "global_pro") return "Premium";
+  return "Basic";
 }
 
 function getApprovalBadge(status: ApprovalStatus) {
@@ -98,7 +98,7 @@ function getSubscriptionBadge(
 ) {
   if (rawPlanCode === "free") {
     return {
-      label: "Free",
+      label: "Basic",
       className: "bg-purple-100 text-purple-700",
     };
   }
@@ -503,13 +503,13 @@ export default function CompanyDashboardPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-base font-semibold text-blue-600">
-              Japan Market Dashboard
+              Company Dashboard
             </p>
             <h1 className="mt-2 text-[28px] font-bold text-slate-900">
               {dashboard.companyName}
             </h1>
             <p className="mt-3 text-base leading-8 text-slate-600">
-              日本市場向けのクリエイター活用、注文・依頼状況、進行中案件をまとめて確認できます。
+              クリエイター活用、注文・依頼状況、進行中案件をまとめて確認できます。
             </p>
           </div>
 
@@ -539,7 +539,7 @@ export default function CompanyDashboardPage() {
             依頼送信にはプラン開始が必要です
           </h2>
           <p className="mt-3 text-base leading-8 text-slate-600">
-            クリエイターの閲覧は利用できます。日本市場向けの依頼送信や案件進行は、プラン開始後に解放されます。
+            クリエイターの閲覧は利用できます。依頼送信や案件進行は、プラン開始後に解放されます。
           </p>
           <div className="mt-6">
             <Link
@@ -675,7 +675,7 @@ export default function CompanyDashboardPage() {
                 クリエイターを探す
               </p>
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                日本市場向けの施策に合うクリエイターや公開メニューを確認します。
+                クリエイターや公開メニューを確認します。
               </p>
             </Link>
 
@@ -711,7 +711,7 @@ export default function CompanyDashboardPage() {
                 料金プランを確認する
               </p>
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                日本市場向けの活用規模に応じて Free / Standard / GlobalPro を確認できます。
+                Basic / Pro / Premium の機能・件数・手数料率を確認できます。
               </p>
             </Link>
           </div>
@@ -724,16 +724,16 @@ export default function CompanyDashboardPage() {
               ・件数は旧 requests と新 orders の両方を合算して表示しています。
             </p>
             <p>
-              ・課金済みプランは user_states.company_plan_code を基準に表示しています。
+              ・プラン表示は内部コード free / standard / global_pro を Basic / Pro / Premium に読み替えています。
             </p>
             <p>
               ・利用状態は user_states.company_subscription_status を基準に表示しています。
             </p>
             <p>
-              ・Standard は日本市場向けの継続運用に向いており、GlobalPro はより広い視聴者層を持つクリエイターにも依頼できます。
+              ・Pro は継続利用・高度検索・レポート向け、Premium は取引手数料5%・分析強化・優先サポート向けです。
             </p>
             <p>
-              ・Free は月5件までを前提に動作し、上限がある場合は monthly_request_limit を表示します。
+              ・Basic は月5件までを前提に動作し、Pro / Premium は注文・依頼数無制限を想定しています。
             </p>
           </div>
         </div>
