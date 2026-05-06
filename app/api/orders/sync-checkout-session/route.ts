@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
         order.status === "checkout_pending" ||
         order.payment_status === "checkout_pending";
 
-      const creatorAcceptDeadline = shouldSetDeadline ? addHoursIso(48) : null;
+      const creatorAcceptDeadline = shouldSetDeadline ? addHoursIso(72) : null;
 
       const patch: Record<string, string | null> = {
         status: "authorized_pending_creator",
@@ -193,6 +193,7 @@ export async function POST(req: NextRequest) {
           stripe_payment_intent_id: paymentIntentInfo.id,
           stripe_payment_intent_status: paymentIntentStatus,
           creator_accept_deadline: creatorAcceptDeadline,
+          creator_accept_window_hours: 72,
         },
       });
 
