@@ -42,6 +42,15 @@ type OrderDetail = {
   platform_fee_amount: number;
   creator_payout_amount: number;
 
+  buyer_plan_code_snapshot: string | null;
+  buyer_plan_public_name_snapshot: string | null;
+  buyer_marketplace_fee_rate_bps: number | null;
+  buyer_marketplace_fee_amount: number | null;
+  buyer_total_amount: number | null;
+  creator_transaction_fee_rate_bps: number | null;
+  creator_transaction_fee_amount: number | null;
+  platform_gross_revenue_amount: number | null;
+
   creator_accept_deadline: string | null;
   authorized_at: string | null;
   accepted_at: string | null;
@@ -118,6 +127,35 @@ function formatPrice(
 
     return `¥${value.toLocaleString()}`;
   }
+}
+
+function formatBpsPercent(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(Number(value))) return "-";
+
+  const percent = Number(value) / 100;
+  return `${percent.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })}%`;
+}
+
+function formatPlanName(value: string | null | undefined, locale: "ja" | "en") {
+  if (!value) return "-";
+
+  const normalized = value.toLowerCase();
+
+  if (normalized === "basic" || normalized === "free") {
+    return "Basic";
+  }
+
+  if (normalized === "pro" || normalized === "standard") {
+    return "Pro";
+  }
+
+  if (normalized === "premium" || normalized === "global_pro") {
+    return "Premium";
+  }
+
+  return locale === "ja" ? value : value;
 }
 
 function formatDeliveryDays(
@@ -370,11 +408,15 @@ export default function CompanyOrderDetailPage() {
             maxRevisionCount: "修正依頼上限",
             autoCompleteAt: "自動完了予定日時",
             completedReason: "完了理由",
-            money: "金額情報",
+            money: "支払い金額内訳",
+            buyerPlan: "購入時プラン",
             menuPrice: "メニュー価格",
+            buyerMarketplaceFee: "Trendre marketplace fee",
+            buyerFeeRate: "B側手数料率",
+            buyerTotal: "お支払い合計",
             stripeAmount: "Stripe決済額",
-            platformFee: "プラットフォーム手数料",
-            creatorPayout: "クリエイター予定報酬",
+            amountNote:
+              "Stripe Checkoutでは、メニュー価格にTrendre marketplace feeを加えた合計額を仮押さえしています。クリエイターが承認すると決済が確定します。",
             deliveredPostUrl: "納品URL",
             openDeliveredUrl: "納品URLを開く",
             completeTitle: "納品確認・完了",
@@ -475,11 +517,15 @@ export default function CompanyOrderDetailPage() {
             maxRevisionCount: "Revision Limit",
             autoCompleteAt: "Auto Complete At",
             completedReason: "Completed Reason",
-            money: "Amount Information",
+            money: "Payment Breakdown",
+            buyerPlan: "Plan at Purchase",
             menuPrice: "Menu Price",
+            buyerMarketplaceFee: "Trendre marketplace fee",
+            buyerFeeRate: "Buyer Fee Rate",
+            buyerTotal: "Payment Total",
             stripeAmount: "Stripe Amount",
-            platformFee: "Platform Fee",
-            creatorPayout: "Creator Payout",
+            amountNote:
+              "Stripe Checkout authorizes the total of the creator menu price plus Trendre marketplace fee. The payment is captured only after the creator accepts.",
             deliveredPostUrl: "Delivered URL",
             openDeliveredUrl: "Open Delivered URL",
             completeTitle: "Review Delivery / Complete",
@@ -572,6 +618,14 @@ export default function CompanyOrderDetailPage() {
         stripe_amount,
         platform_fee_amount,
         creator_payout_amount,
+        buyer_plan_code_snapshot,
+        buyer_plan_public_name_snapshot,
+        buyer_marketplace_fee_rate_bps,
+        buyer_marketplace_fee_amount,
+        buyer_total_amount,
+        creator_transaction_fee_rate_bps,
+        creator_transaction_fee_amount,
+        platform_gross_revenue_amount,
         creator_accept_deadline,
         authorized_at,
         accepted_at,
@@ -786,6 +840,21 @@ export default function CompanyOrderDetailPage() {
     order.status === "delivered" &&
     order.payment_status === "captured" &&
     !!order.delivered_post_url;
+
+  const buyerMarketplaceFeeAmount =
+    order.buyer_marketplace_fee_amount ??
+    Math.max(0, Number(order.stripe_amount ?? 0) - Number(order.menu_price_amount ?? 0));
+
+  const buyerTotalAmount =
+    order.buyer_total_amount ??
+    order.stripe_amount ??
+    Number(order.menu_price_amount ?? 0) + buyerMarketplaceFeeAmount;
+
+  const buyerMarketplaceFeeRateBps =
+    order.buyer_marketplace_fee_rate_bps ??
+    (order.menu_price_amount
+      ? Math.round((buyerMarketplaceFeeAmount / order.menu_price_amount) * 10000)
+      : null);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
@@ -1162,8 +1231,20 @@ export default function CompanyOrderDetailPage() {
 
           <div className="rounded-3xl border bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold">{copy.money}</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              {copy.amountNote}
+            </p>
 
             <div className="mt-5 space-y-3">
+              <Field
+                label={copy.buyerPlan}
+                value={formatPlanName(
+                  order.buyer_plan_public_name_snapshot ??
+                    order.buyer_plan_code_snapshot,
+                  safeLocale
+                )}
+              />
+
               <Field
                 label={copy.menuPrice}
                 value={formatPrice(
@@ -1174,27 +1255,32 @@ export default function CompanyOrderDetailPage() {
               />
 
               <Field
+                label={copy.buyerFeeRate}
+                value={formatBpsPercent(buyerMarketplaceFeeRateBps)}
+              />
+
+              <Field
+                label={copy.buyerMarketplaceFee}
+                value={formatPrice(
+                  buyerMarketplaceFeeAmount,
+                  order.currency,
+                  safeLocale
+                )}
+              />
+
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  {copy.buyerTotal}
+                </p>
+                <p className="mt-2 text-xl font-bold text-blue-950">
+                  {formatPrice(buyerTotalAmount, order.currency, safeLocale)}
+                </p>
+              </div>
+
+              <Field
                 label={copy.stripeAmount}
                 value={formatPrice(
                   order.stripe_amount,
-                  order.currency,
-                  safeLocale
-                )}
-              />
-
-              <Field
-                label={copy.platformFee}
-                value={formatPrice(
-                  order.platform_fee_amount,
-                  order.currency,
-                  safeLocale
-                )}
-              />
-
-              <Field
-                label={copy.creatorPayout}
-                value={formatPrice(
-                  order.creator_payout_amount,
                   order.currency,
                   safeLocale
                 )}
