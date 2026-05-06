@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getBaseUrl, getStripe } from "@/lib/stripe";
+import {
+  calculateOrderFees,
+  normalizeInternalPlanCode,
+} from "@/lib/orders/fees";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,8 +22,6 @@ type CheckoutBody = {
   has_free_offer?: boolean;
   wants_secondary_use?: boolean;
 };
-
-type CompanyPlanCode = "free" | "standard" | "global_pro";
 
 const ZERO_DECIMAL_CURRENCIES = new Set([
   "BIF",
@@ -203,178 +205,6 @@ async function findOrCreateStripeCustomer(args: {
   });
 }
 
-function cleanCountryInput(value: string | null | undefined) {
-  const raw = (value ?? "").trim();
-  if (!raw) return "";
-
-  const normalized = raw
-    .toLowerCase()
-    .replace(/\u3000/g, " ")
-    .replace(/[_\-/:|]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const compact = normalized.replace(/\s+/g, "");
-
-  if (
-    normalized === "日本" ||
-    normalized === "japan" ||
-    normalized === "jp" ||
-    normalized === "jpn" ||
-    normalized.startsWith("jp ") ||
-    compact === "jp日本" ||
-    compact === "japan日本" ||
-    compact.includes("日本")
-  ) {
-    return "japan";
-  }
-
-  if (
-    normalized === "韓国" ||
-    normalized === "korea" ||
-    normalized === "south korea" ||
-    normalized === "republic of korea" ||
-    normalized === "kr" ||
-    normalized.startsWith("kr ") ||
-    compact.includes("韓国")
-  ) {
-    return "korea";
-  }
-
-  if (
-    normalized === "台湾" ||
-    normalized === "taiwan" ||
-    normalized === "tw" ||
-    normalized.startsWith("tw ") ||
-    compact.includes("台湾")
-  ) {
-    return "taiwan";
-  }
-
-  if (
-    normalized === "香港" ||
-    normalized === "hong kong" ||
-    normalized === "hk" ||
-    normalized.startsWith("hk ") ||
-    compact.includes("香港")
-  ) {
-    return "hong_kong";
-  }
-
-  if (
-    normalized === "中国" ||
-    normalized === "china" ||
-    normalized === "cn" ||
-    normalized.startsWith("cn ") ||
-    compact.includes("中国")
-  ) {
-    return "china";
-  }
-
-  if (
-    normalized === "タイ" ||
-    normalized === "thailand" ||
-    normalized === "th" ||
-    normalized.startsWith("th ") ||
-    compact.includes("タイ")
-  ) {
-    return "thailand";
-  }
-
-  if (
-    normalized === "ベトナム" ||
-    normalized === "vietnam" ||
-    normalized === "vn" ||
-    normalized.startsWith("vn ") ||
-    compact.includes("ベトナム")
-  ) {
-    return "vietnam";
-  }
-
-  if (
-    normalized === "インドネシア" ||
-    normalized === "indonesia" ||
-    normalized === "id" ||
-    normalized.startsWith("id ") ||
-    compact.includes("インドネシア")
-  ) {
-    return "indonesia";
-  }
-
-  if (
-    normalized === "フィリピン" ||
-    normalized === "philippines" ||
-    normalized === "ph" ||
-    normalized.startsWith("ph ") ||
-    compact.includes("フィリピン")
-  ) {
-    return "philippines";
-  }
-
-  if (
-    normalized === "マレーシア" ||
-    normalized === "malaysia" ||
-    normalized === "my" ||
-    normalized.startsWith("my ") ||
-    compact.includes("マレーシア")
-  ) {
-    return "malaysia";
-  }
-
-  if (
-    normalized === "シンガポール" ||
-    normalized === "singapore" ||
-    normalized === "sg" ||
-    normalized.startsWith("sg ") ||
-    compact.includes("シンガポール")
-  ) {
-    return "singapore";
-  }
-
-  if (
-    normalized === "インド" ||
-    normalized === "india" ||
-    normalized === "in" ||
-    normalized.startsWith("in ") ||
-    compact.includes("インド")
-  ) {
-    return "india";
-  }
-
-  if (
-    normalized === "アメリカ" ||
-    normalized === "united states" ||
-    normalized === "usa" ||
-    normalized === "us" ||
-    normalized.startsWith("us ") ||
-    compact.includes("アメリカ")
-  ) {
-    return "united_states";
-  }
-
-  if (
-    normalized === "その他" ||
-    normalized === "other" ||
-    compact.includes("その他")
-  ) {
-    return "other";
-  }
-
-  return raw;
-}
-
-function isJapanCountry(value: string | null | undefined) {
-  return cleanCountryInput(value) === "japan";
-}
-
-function normalizePlanCode(value: string | null | undefined): CompanyPlanCode {
-  if (value === "standard" || value === "global_pro") {
-    return value;
-  }
-
-  return "free";
-}
-
 function normalizeCurrency(value: string | null | undefined) {
   const normalized = (value ?? "JPY").trim().toUpperCase();
 
@@ -397,17 +227,6 @@ function toStripeAmount(amount: number, currency: string) {
   return Math.round(amount * 100);
 }
 
-function getPlatformFeeRateBps() {
-  const raw = process.env.ORDER_PLATFORM_FEE_BPS ?? "1000";
-  const parsed = Number(raw);
-
-  if (!Number.isFinite(parsed)) {
-    return 1000;
-  }
-
-  return Math.max(0, Math.min(5000, Math.round(parsed)));
-}
-
 function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -424,6 +243,11 @@ function getBoolean(value: unknown) {
 function isDateStringOrNull(value: string | null) {
   if (!value) return true;
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isPaidPlan(planCode: string | null | undefined) {
+  const normalized = normalizeInternalPlanCode(planCode);
+  return normalized === "standard" || normalized === "global_pro";
 }
 
 export async function POST(req: NextRequest) {
@@ -471,6 +295,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userState = await getUserState(user.id);
+    const planCode = normalizeInternalPlanCode(userState?.company_plan_code);
 
     if (!userState?.company_profile_completed) {
       return NextResponse.json(
@@ -486,9 +311,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (userState.company_subscription_status !== "active") {
+    // Basicは無料プランなので、subscription_statusがactiveでなくても注文可能。
+    // Pro/Premium相当の内部プランだけ、月額課金がactiveであることを要求する。
+    if (
+      isPaidPlan(planCode) &&
+      userState.company_subscription_status !== "active"
+    ) {
       return NextResponse.json(
-        { error: "注文にはプラン開始が必要です" },
+        { error: "有料プランの利用には月額課金の有効化が必要です" },
         { status: 403 }
       );
     }
@@ -582,31 +412,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: socialRows, error: socialError } = await supabaseAdmin
-      .from("creator_social_accounts")
-      .select("audience_country")
-      .eq("creator_id", creator.id);
-
-    if (socialError) {
-      throw socialError;
-    }
-
-    const hasJapanAudience = (socialRows ?? []).some((row) =>
-      isJapanCountry(row.audience_country)
-    );
-
-    const planCode = normalizePlanCode(userState.company_plan_code);
-
-    if (
-      (planCode === "free" || planCode === "standard") &&
-      !hasJapanAudience
-    ) {
-      return NextResponse.json(
-        { error: "このクリエイターへの注文にはGlobalProが必要です" },
-        { status: 403 }
-      );
-    }
-
     const { data: menu, error: menuError } = await supabaseAdmin
       .from("creator_menus")
       .select(
@@ -653,8 +458,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const menuPriceAmount =
-      typeof menu.price === "number" ? Math.round(menu.price) : null;
+    const menuPriceNumber = Number(menu.price);
+    const menuPriceAmount = Number.isFinite(menuPriceNumber)
+      ? Math.round(menuPriceNumber)
+      : null;
 
     if (!menuPriceAmount || menuPriceAmount <= 0) {
       return NextResponse.json(
@@ -664,7 +471,21 @@ export async function POST(req: NextRequest) {
     }
 
     const currency = normalizeCurrency(menu.currency);
-    const stripeAmount = toStripeAmount(menuPriceAmount, currency);
+
+    // 初期MVPは「日本CがJPYで出す → 日本BがJPYで買う」に固定。
+    if (currency !== "JPY") {
+      return NextResponse.json(
+        { error: "現在のMVPではJPYメニューのみ注文できます" },
+        { status: 400 }
+      );
+    }
+
+    const fees = calculateOrderFees({
+      menuPriceAmount,
+      buyerPlanCode: planCode,
+    });
+
+    const stripeAmount = toStripeAmount(fees.buyerTotalAmount, currency);
 
     if (!stripeAmount || stripeAmount <= 0) {
       return NextResponse.json(
@@ -672,10 +493,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    const feeRateBps = getPlatformFeeRateBps();
-    const platformFeeAmount = Math.floor((stripeAmount * feeRateBps) / 10000);
-    const creatorPayoutAmount = stripeAmount - platformFeeAmount;
 
     const email = user.email ?? company.contact_email ?? null;
 
@@ -700,48 +517,67 @@ export async function POST(req: NextRequest) {
       stripe_customer_id: customer.id,
     });
 
+    const orderInsert = {
+      b_user_id: user.id,
+      creator_id: creator.id,
+      creator_user_id: creator.user_id,
+      creator_menu_id: menu.id,
+
+      status: "checkout_pending",
+      payment_status: "checkout_pending",
+      payment_flow: "manual_capture",
+
+      product_name: productName,
+      product_url: productUrl,
+      requirements,
+      deadline,
+      has_free_offer: hasFreeOffer,
+      wants_secondary_use: wantsSecondaryUse,
+
+      menu_title_snapshot: menu.title,
+      menu_description_snapshot: menu.description,
+      menu_platform_snapshot: menu.platform ?? menu.sns,
+      menu_type_snapshot: menu.menu_type,
+      menu_category_snapshot: menu.category,
+      menu_deliverables_snapshot: menu.deliverables,
+      menu_delivery_days_snapshot: menu.delivery_days,
+      menu_allow_secondary_use_snapshot: !!menu.allow_secondary_use,
+
+      currency,
+      menu_price_amount: fees.menuPriceAmount,
+      stripe_amount: stripeAmount,
+
+      buyer_plan_code_snapshot: fees.buyerPlanCodeSnapshot,
+      buyer_plan_public_name_snapshot: fees.buyerPlanPublicNameSnapshot,
+      buyer_marketplace_fee_rate_bps: fees.buyerMarketplaceFeeRateBps,
+      buyer_marketplace_fee_amount: fees.buyerMarketplaceFeeAmount,
+      buyer_total_amount: fees.buyerTotalAmount,
+
+      creator_transaction_fee_rate_bps: fees.creatorTransactionFeeRateBps,
+      creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
+      platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
+
+      // 既存画面・既存APIとの後方互換用。
+      fee_rate_bps: fees.buyerMarketplaceFeeRateBps,
+      platform_fee_amount: fees.platformGrossRevenueAmount,
+      creator_payout_amount: fees.creatorPayoutAmount,
+
+      stripe_customer_id: customer.id,
+      stripe_payment_status: "checkout_pending",
+
+      metadata: {
+        source: "orders_checkout_api_v2_collabstr_like_fees",
+        plan_code: planCode,
+        plan_public_name: fees.buyerPlanPublicNameSnapshot,
+        payment_flow: "manual_capture",
+        buyer_marketplace_fee_rate_bps: fees.buyerMarketplaceFeeRateBps,
+        creator_transaction_fee_rate_bps: fees.creatorTransactionFeeRateBps,
+      },
+    };
+
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
-      .insert({
-        b_user_id: user.id,
-        creator_id: creator.id,
-        creator_user_id: creator.user_id,
-        creator_menu_id: menu.id,
-
-        status: "checkout_pending",
-        payment_status: "checkout_pending",
-
-        product_name: productName,
-        product_url: productUrl,
-        requirements,
-        deadline,
-        has_free_offer: hasFreeOffer,
-        wants_secondary_use: wantsSecondaryUse,
-
-        menu_title_snapshot: menu.title,
-        menu_description_snapshot: menu.description,
-        menu_platform_snapshot: menu.platform ?? menu.sns,
-        menu_type_snapshot: menu.menu_type,
-        menu_category_snapshot: menu.category,
-        menu_deliverables_snapshot: menu.deliverables,
-        menu_delivery_days_snapshot: menu.delivery_days,
-        menu_allow_secondary_use_snapshot: !!menu.allow_secondary_use,
-
-        currency,
-        menu_price_amount: menuPriceAmount,
-        stripe_amount: stripeAmount,
-        fee_rate_bps: feeRateBps,
-        platform_fee_amount: platformFeeAmount,
-        creator_payout_amount: creatorPayoutAmount,
-
-        stripe_customer_id: customer.id,
-        stripe_payment_status: "checkout_pending",
-
-        metadata: {
-          source: "orders_checkout_api_v1",
-          plan_code: planCode,
-        },
-      })
+      .insert(orderInsert as never)
       .select("id")
       .single();
 
@@ -760,37 +596,67 @@ export async function POST(req: NextRequest) {
         creator_user_id: creator.user_id,
         creator_menu_id: menu.id,
         currency,
-        menu_price_amount: menuPriceAmount,
+        menu_price_amount: fees.menuPriceAmount,
+        buyer_marketplace_fee_amount: fees.buyerMarketplaceFeeAmount,
+        buyer_total_amount: fees.buyerTotalAmount,
+        creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
+        creator_payout_amount: fees.creatorPayoutAmount,
+        platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
         stripe_amount: stripeAmount,
+        payment_flow: "manual_capture",
       },
     });
 
     const successUrl = `${baseUrl}/b/orders/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/b/creators/${creator.id}/request?menuId=${menu.id}&checkout=cancelled`;
 
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: currency.toLowerCase(),
+          unit_amount: toStripeAmount(fees.menuPriceAmount, currency)!,
+          product_data: {
+            name: menu.title,
+            description: menu.description?.slice(0, 500) ?? undefined,
+            metadata: {
+              creator_id: creator.id,
+              creator_menu_id: menu.id,
+              order_id: order.id,
+              item_type: "creator_menu",
+            },
+          },
+        },
+        quantity: 1,
+      },
+    ];
+
+    if (fees.buyerMarketplaceFeeAmount > 0) {
+      lineItems.push({
+        price_data: {
+          currency: currency.toLowerCase(),
+          unit_amount: toStripeAmount(
+            fees.buyerMarketplaceFeeAmount,
+            currency
+          )!,
+          product_data: {
+            name: "Trendre marketplace fee",
+            description: `Buyer marketplace fee (${fees.buyerMarketplaceFeeRateBps / 100}%)`,
+            metadata: {
+              order_id: order.id,
+              item_type: "buyer_marketplace_fee",
+            },
+          },
+        },
+        quantity: 1,
+      });
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer: customer.id,
       client_reference_id: order.id,
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: currency.toLowerCase(),
-            unit_amount: stripeAmount,
-            product_data: {
-              name: menu.title,
-              description: menu.description?.slice(0, 500) ?? undefined,
-              metadata: {
-                creator_id: creator.id,
-                creator_menu_id: menu.id,
-                order_id: order.id,
-              },
-            },
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       payment_intent_data: {
         capture_method: "manual",
         metadata: {
@@ -800,6 +666,19 @@ export async function POST(req: NextRequest) {
           creator_id: creator.id,
           creator_user_id: creator.user_id,
           creator_menu_id: menu.id,
+          payment_flow: "manual_capture",
+          menu_price_amount: String(fees.menuPriceAmount),
+          buyer_marketplace_fee_amount: String(
+            fees.buyerMarketplaceFeeAmount
+          ),
+          buyer_total_amount: String(fees.buyerTotalAmount),
+          creator_transaction_fee_amount: String(
+            fees.creatorTransactionFeeAmount
+          ),
+          creator_payout_amount: String(fees.creatorPayoutAmount),
+          platform_gross_revenue_amount: String(
+            fees.platformGrossRevenueAmount
+          ),
         },
       },
       metadata: {
@@ -809,6 +688,7 @@ export async function POST(req: NextRequest) {
         creator_id: creator.id,
         creator_user_id: creator.user_id,
         creator_menu_id: menu.id,
+        payment_flow: "manual_capture",
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -824,7 +704,7 @@ export async function POST(req: NextRequest) {
       .update({
         stripe_checkout_session_id: session.id,
         updated_at: new Date().toISOString(),
-      })
+      } as never)
       .eq("id", order.id);
 
     await supabaseAdmin.from("order_events").insert({
@@ -833,6 +713,13 @@ export async function POST(req: NextRequest) {
       event_type: "stripe_checkout_session_created",
       event_data: {
         stripe_checkout_session_id: session.id,
+        checkout_amount: stripeAmount,
+        menu_price_amount: fees.menuPriceAmount,
+        buyer_marketplace_fee_amount: fees.buyerMarketplaceFeeAmount,
+        buyer_total_amount: fees.buyerTotalAmount,
+        creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
+        creator_payout_amount: fees.creatorPayoutAmount,
+        platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
       },
     });
 
@@ -840,6 +727,15 @@ export async function POST(req: NextRequest) {
       url: session.url,
       order_id: order.id,
       checkout_session_id: session.id,
+      amount: {
+        currency,
+        menu_price_amount: fees.menuPriceAmount,
+        buyer_marketplace_fee_amount: fees.buyerMarketplaceFeeAmount,
+        buyer_total_amount: fees.buyerTotalAmount,
+        creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
+        creator_payout_amount: fees.creatorPayoutAmount,
+        platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
+      },
     });
   } catch (error) {
     console.error("orders checkout error", error);
