@@ -46,6 +46,10 @@ type OrderRow = {
   creator_user_id: string;
   menu_title_snapshot: string | null;
   menu_price_amount: number | null;
+  buyer_marketplace_fee_rate_bps: number | null;
+  buyer_marketplace_fee_amount: number | null;
+  buyer_total_amount: number | null;
+  stripe_amount: number | null;
   currency: string | null;
   creator_accept_deadline: string | null;
 };
@@ -68,6 +72,10 @@ type PendingItem =
       payment_status: string;
       menu_title: string | null;
       amount: number | null;
+      buyer_marketplace_fee_rate_bps: number | null;
+      buyer_marketplace_fee_amount: number | null;
+      buyer_total_amount: number | null;
+      stripe_amount: number | null;
       currency: string | null;
       creator_accept_deadline: string | null;
       chat: ChatRow | null;
@@ -83,6 +91,10 @@ type PendingItem =
       payment_status: null;
       menu_title: null;
       amount: null;
+      buyer_marketplace_fee_rate_bps: null;
+      buyer_marketplace_fee_amount: null;
+      buyer_total_amount: null;
+      stripe_amount: null;
       currency: "JPY";
       creator_accept_deadline: null;
       chat: ChatRow | null;
@@ -145,6 +157,12 @@ function formatPrice(
     if (safeCurrency === "USD") return `$${value.toLocaleString()}`;
     return `¥${value.toLocaleString()}`;
   }
+}
+
+function formatBps(value: number | null | undefined) {
+  if (value == null) return "-";
+  const percent = value / 100;
+  return `${Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(2)}%`;
 }
 
 function getOrderStatusLabel(
@@ -236,6 +254,11 @@ export default function RequestsListPage() {
             sentAt: "送信日",
             menu: "メニュー",
             price: "価格",
+            menuPrice: "メニュー価格",
+            buyerFeeRate: "B側手数料率",
+            marketplaceFee: "Trendre marketplace fee",
+            buyerTotal: "お支払い合計",
+            stripeAmount: "Stripe決済額",
             creatorDeadline: "承認期限",
             creatorDeadlineExpired: "承認期限切れ",
             detail: "詳細を見る",
@@ -260,6 +283,11 @@ export default function RequestsListPage() {
             sentAt: "Sent At",
             menu: "Menu",
             price: "Price",
+            menuPrice: "Menu price",
+            buyerFeeRate: "Buyer fee rate",
+            marketplaceFee: "Trendre marketplace fee",
+            buyerTotal: "Payment total",
+            stripeAmount: "Stripe amount",
             creatorDeadline: "Approval deadline",
             creatorDeadlineExpired: "Approval expired",
             detail: "View Details",
@@ -331,6 +359,10 @@ export default function RequestsListPage() {
           creator_user_id,
           menu_title_snapshot,
           menu_price_amount,
+          buyer_marketplace_fee_rate_bps,
+          buyer_marketplace_fee_amount,
+          buyer_total_amount,
+          stripe_amount,
           currency,
           creator_accept_deadline
         `
@@ -452,6 +484,10 @@ export default function RequestsListPage() {
         payment_status: order.payment_status,
         menu_title: order.menu_title_snapshot,
         amount: order.menu_price_amount,
+        buyer_marketplace_fee_rate_bps: order.buyer_marketplace_fee_rate_bps,
+        buyer_marketplace_fee_amount: order.buyer_marketplace_fee_amount,
+        buyer_total_amount: order.buyer_total_amount,
+        stripe_amount: order.stripe_amount,
         currency: order.currency,
         creator_accept_deadline: order.creator_accept_deadline,
         chat: orderChatMap.get(order.id) ?? null,
@@ -459,20 +495,24 @@ export default function RequestsListPage() {
     });
 
     const legacyItems: PendingItem[] = legacyRequests.map((request) => ({
-      kind: "legacy_request",
-      id: request.id,
-      created_at: request.created_at,
-      product_name: request.product_name,
-      creator_name: request.creators?.display_name ?? copy.unnamedCreator,
-      creator_avatar_url: request.creators?.avatar_url ?? null,
-      status: request.status,
-      payment_status: null,
-      menu_title: null,
-      amount: null,
-      currency: "JPY",
-      creator_accept_deadline: null,
-      chat: legacyChatMap.get(request.id) ?? null,
-    }));
+  kind: "legacy_request",
+  id: request.id,
+  created_at: request.created_at,
+  product_name: request.product_name,
+  creator_name: request.creators?.display_name ?? copy.unnamedCreator,
+  creator_avatar_url: request.creators?.avatar_url ?? null,
+  status: request.status,
+  payment_status: null,
+  menu_title: null,
+  amount: null,
+  currency: "JPY",
+  buyer_marketplace_fee_rate_bps: null,
+  buyer_marketplace_fee_amount: null,
+  buyer_total_amount: null,
+  stripe_amount: null,
+  creator_accept_deadline: null,
+  chat: legacyChatMap.get(request.id) ?? null,
+}));
 
     const nextItems = [...orderItems, ...legacyItems].sort((a, b) => {
       const aUnread = isUnreadChat(a.chat, user.id) ? 1 : 0;
@@ -709,10 +749,54 @@ export default function RequestsListPage() {
 
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.price}
+                          {copy.menuPrice}
                         </p>
                         <p className="mt-1 font-semibold text-gray-900">
                           {formatPrice(item.amount, item.currency, safeLocale)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {copy.marketplaceFee}
+                        </p>
+                        <p className="mt-1 font-semibold text-gray-900">
+                          {formatPrice(
+                            item.buyer_marketplace_fee_amount,
+                            item.currency,
+                            safeLocale
+                          )}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {copy.buyerFeeRate}
+                        </p>
+                        <p className="mt-1 font-semibold text-gray-900">
+                          {formatBps(item.buyer_marketplace_fee_rate_bps)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                          {copy.buyerTotal}
+                        </p>
+                        <p className="mt-1 text-base font-bold text-blue-700">
+                          {formatPrice(
+                            item.buyer_total_amount ?? item.stripe_amount,
+                            item.currency,
+                            safeLocale
+                          )}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {copy.stripeAmount}
+                        </p>
+                        <p className="mt-1 font-semibold text-gray-900">
+                          {formatPrice(item.stripe_amount, item.currency, safeLocale)}
                         </p>
                       </div>
 
