@@ -34,6 +34,10 @@ type OrderDetail = {
 
   currency: string;
   menu_price_amount: number;
+  creator_transaction_fee_rate_bps: number | null;
+  creator_transaction_fee_amount: number | null;
+  creator_payout_amount: number | null;
+  platform_gross_revenue_amount: number | null;
   creator_accept_deadline: string | null;
 
   authorized_at: string | null;
@@ -101,6 +105,14 @@ function formatPrice(
 
     return `¥${value.toLocaleString()}`;
   }
+}
+
+function formatBps(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "-";
+  }
+
+  return `${value / 100}%`;
 }
 
 function formatDeliveryDays(
@@ -301,6 +313,13 @@ export default function CreatorOrderDetailPage() {
             revisionCount: "修正依頼回数",
             autoCompleteAt: "自動完了予定日時",
             completedReason: "完了理由",
+            payoutInfo: "報酬受け取り予定",
+            payoutInfoBody:
+              "注文完了後、Trendre transaction feeを差し引いた金額が受取予定額です。実際の振込はStripe Connect設定・支払いサイクルに従います。",
+            menuPrice: "メニュー価格",
+            creatorTransactionFeeRate: "C側手数料率",
+            creatorTransactionFee: "Trendre transaction fee",
+            creatorPayout: "受取予定額",
             revisionInfoTitle: "修正依頼内容",
             revisionInfoBody:
               "企業から届いた修正依頼です。元の注文要件に沿う範囲で対応してください。追加作業や別パターン作成はチャットで相談してください。",
@@ -394,6 +413,13 @@ export default function CreatorOrderDetailPage() {
             revisionCount: "Revision Count",
             autoCompleteAt: "Auto Complete At",
             completedReason: "Completed Reason",
+            payoutInfo: "Estimated Creator Payout",
+            payoutInfoBody:
+              "After the order is completed, your estimated payout is the menu price minus the Trendre transaction fee. The actual payout follows your Stripe Connect setup and payout schedule.",
+            menuPrice: "Menu Price",
+            creatorTransactionFeeRate: "Creator Fee Rate",
+            creatorTransactionFee: "Trendre transaction fee",
+            creatorPayout: "Estimated Payout",
             revisionInfoTitle: "Revision Request",
             revisionInfoBody:
               "This is the revision request from the company. Please revise within the original order requirements.",
@@ -480,6 +506,10 @@ export default function CreatorOrderDetailPage() {
         menu_allow_secondary_use_snapshot,
         currency,
         menu_price_amount,
+        creator_transaction_fee_rate_bps,
+        creator_transaction_fee_amount,
+        creator_payout_amount,
+        platform_gross_revenue_amount,
         creator_accept_deadline,
         authorized_at,
         accepted_at,
@@ -652,6 +682,15 @@ export default function CreatorOrderDetailPage() {
       </div>
     );
   }
+
+  const creatorTransactionFeeRateBps =
+    order.creator_transaction_fee_rate_bps ?? 1500;
+  const creatorTransactionFeeAmount =
+    order.creator_transaction_fee_amount ??
+    Math.floor((order.menu_price_amount * creatorTransactionFeeRateBps) / 10000);
+  const creatorPayoutAmount =
+    order.creator_payout_amount ??
+    Math.max(0, order.menu_price_amount - creatorTransactionFeeAmount);
 
   const canAct =
     order.status === "authorized_pending_creator" &&
@@ -994,6 +1033,47 @@ export default function CreatorOrderDetailPage() {
                   safeLocale
                 )}
               />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold">{copy.payoutInfo}</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              {copy.payoutInfoBody}
+            </p>
+
+            <div className="mt-5 space-y-3">
+              <Field
+                label={copy.menuPrice}
+                value={formatPrice(
+                  order.menu_price_amount,
+                  order.currency,
+                  safeLocale
+                )}
+              />
+
+              <Field
+                label={copy.creatorTransactionFeeRate}
+                value={formatBps(creatorTransactionFeeRateBps)}
+              />
+
+              <Field
+                label={copy.creatorTransactionFee}
+                value={`-${formatPrice(
+                  creatorTransactionFeeAmount,
+                  order.currency,
+                  safeLocale
+                )}`}
+              />
+
+              <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+                  {copy.creatorPayout}
+                </p>
+                <p className="mt-2 text-2xl font-bold text-green-900">
+                  {formatPrice(creatorPayoutAmount, order.currency, safeLocale)}
+                </p>
+              </div>
             </div>
           </div>
 
