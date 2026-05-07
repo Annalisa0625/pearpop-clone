@@ -55,6 +55,12 @@ type OrderDetail = {
   max_revision_count: number | null;
   auto_complete_at: string | null;
   completed_reason: string | null;
+
+  transfer_status: string | null;
+  stripe_transfer_id: string | null;
+  transferred_at: string | null;
+  transfer_attempted_at: string | null;
+  transfer_failed_reason: string | null;
 };
 
 function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
@@ -192,6 +198,30 @@ function completedReasonLabel(value: string | null, locale: "ja" | "en") {
   return locale === "ja" ? ja[value] ?? value : en[value] ?? value;
 }
 
+function transferStatusLabel(value: string | null, locale: "ja" | "en") {
+  const normalized = value || "not_started";
+
+  const ja: Record<string, string> = {
+    not_started: "未送金",
+    pending: "送金処理中",
+    transferred: "送金済み",
+    failed: "送金失敗",
+    skipped: "送金保留",
+  };
+
+  const en: Record<string, string> = {
+    not_started: "Not started",
+    pending: "Processing",
+    transferred: "Transferred",
+    failed: "Failed",
+    skipped: "On hold",
+  };
+
+  return locale === "ja"
+    ? ja[normalized] ?? normalized
+    : en[normalized] ?? normalized;
+}
+
 function statusClass(status: string) {
   if (status === "authorized_pending_creator") {
     return "bg-blue-50 text-blue-700 ring-blue-200";
@@ -224,21 +254,47 @@ function statusClass(status: string) {
   return "bg-gray-50 text-gray-700 ring-gray-200";
 }
 
+function transferStatusClass(status: string | null) {
+  if (status === "transferred") {
+    return "bg-green-50 text-green-700 ring-green-200";
+  }
+
+  if (status === "pending") {
+    return "bg-blue-50 text-blue-700 ring-blue-200";
+  }
+
+  if (status === "failed") {
+    return "bg-red-50 text-red-700 ring-red-200";
+  }
+
+  if (status === "skipped") {
+    return "bg-amber-50 text-amber-700 ring-amber-200";
+  }
+
+  return "bg-gray-50 text-gray-700 ring-gray-200";
+}
+
+function shortId(value: string | null | undefined) {
+  if (!value) return "-";
+  if (value.length <= 14) return value;
+  return `${value.slice(0, 8)}...${value.slice(-4)}`;
+}
+
 function Field({
   label,
   value,
 }: {
   label: string;
-  value: string | number | null | undefined;
+  value: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl bg-gray-50 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
         {label}
       </p>
-      <p className="mt-2 whitespace-pre-line text-sm font-semibold text-gray-900">
+      <div className="mt-2 whitespace-pre-line text-sm font-semibold text-gray-900">
         {value ?? "-"}
-      </p>
+      </div>
     </div>
   );
 }
@@ -313,13 +369,25 @@ export default function CreatorOrderDetailPage() {
             revisionCount: "修正依頼回数",
             autoCompleteAt: "自動完了予定日時",
             completedReason: "完了理由",
-            payoutInfo: "報酬受け取り予定",
+            payoutInfo: "報酬・送金情報",
             payoutInfoBody:
-              "注文完了後、Trendre transaction feeを差し引いた金額が受取予定額です。実際の振込はStripe Connect設定・支払いサイクルに従います。",
+              "Trendre transaction feeを差し引いた受取予定額と、Stripe Connectによる送金状態を確認できます。",
             menuPrice: "メニュー価格",
             creatorTransactionFeeRate: "C側手数料率",
             creatorTransactionFee: "Trendre transaction fee",
             creatorPayout: "受取予定額",
+            transferStatus: "送金状態",
+            transferredAt: "送金日時",
+            transferAttemptedAt: "送金処理日時",
+            transferId: "Transfer ID",
+            transferFailedReason: "送金失敗理由",
+            payoutHistory: "報酬・送金履歴を見る",
+            payoutTransferredBody:
+              "この注文の報酬はStripe Connectで送金済みです。",
+            payoutPendingBody:
+              "この注文は完了済みですが、送金処理はまだ完了していません。通常は日次の自動処理で反映されます。",
+            payoutNotCompletedBody:
+              "注文が完了すると、受取予定額と送金状態が確定します。",
             revisionInfoTitle: "修正依頼内容",
             revisionInfoBody:
               "企業から届いた修正依頼です。元の注文要件に沿う範囲で対応してください。追加作業や別パターン作成はチャットで相談してください。",
@@ -413,13 +481,25 @@ export default function CreatorOrderDetailPage() {
             revisionCount: "Revision Count",
             autoCompleteAt: "Auto Complete At",
             completedReason: "Completed Reason",
-            payoutInfo: "Estimated Creator Payout",
+            payoutInfo: "Payout & Transfer",
             payoutInfoBody:
-              "After the order is completed, your estimated payout is the menu price minus the Trendre transaction fee. The actual payout follows your Stripe Connect setup and payout schedule.",
+              "Review your estimated payout after the Trendre transaction fee and the Stripe Connect transfer status.",
             menuPrice: "Menu Price",
             creatorTransactionFeeRate: "Creator Fee Rate",
             creatorTransactionFee: "Trendre transaction fee",
             creatorPayout: "Estimated Payout",
+            transferStatus: "Transfer Status",
+            transferredAt: "Transferred At",
+            transferAttemptedAt: "Transfer Attempted At",
+            transferId: "Transfer ID",
+            transferFailedReason: "Transfer Failure Reason",
+            payoutHistory: "View payout history",
+            payoutTransferredBody:
+              "The payout for this order has been transferred through Stripe Connect.",
+            payoutPendingBody:
+              "This order is completed, but the payout transfer has not completed yet. It is usually processed by the daily automated job.",
+            payoutNotCompletedBody:
+              "Once this order is completed, the payout amount and transfer status will be finalized.",
             revisionInfoTitle: "Revision Request",
             revisionInfoBody:
               "This is the revision request from the company. Please revise within the original order requirements.",
@@ -427,8 +507,7 @@ export default function CreatorOrderDetailPage() {
             redeliveryTitle: "Submit Revised Delivery URL",
             deliveryBody:
               "Enter a URL the company can review, such as a post URL, deliverable URL, or Google Drive URL.",
-            redeliveryBody:
-              "Enter the revised URL the company can review.",
+            redeliveryBody: "Enter the revised URL the company can review.",
             deliveredPostUrl: "Delivery URL",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "Open Delivery URL",
@@ -524,7 +603,12 @@ export default function CreatorOrderDetailPage() {
         revision_count,
         max_revision_count,
         auto_complete_at,
-        completed_reason
+        completed_reason,
+        transfer_status,
+        stripe_transfer_id,
+        transferred_at,
+        transfer_attempted_at,
+        transfer_failed_reason
       `
       )
       .eq("id", orderId)
@@ -705,6 +789,14 @@ export default function CreatorOrderDetailPage() {
     ].includes(order.status) && order.payment_status === "captured";
 
   const isRevisionRequested = order.status === "revision_requested";
+  const isCompleted = order.status === "completed";
+  const isTransferred = order.transfer_status === "transferred";
+
+  const payoutNoticeBody = !isCompleted
+    ? copy.payoutNotCompletedBody
+    : isTransferred
+      ? copy.payoutTransferredBody
+      : copy.payoutPendingBody;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
@@ -749,6 +841,14 @@ export default function CreatorOrderDetailPage() {
 
             <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-200">
               {order.payment_status}
+            </span>
+
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${transferStatusClass(
+                order.transfer_status
+              )}`}
+            >
+              {transferStatusLabel(order.transfer_status, safeLocale)}
             </span>
           </div>
         </div>
@@ -1042,6 +1142,10 @@ export default function CreatorOrderDetailPage() {
               {copy.payoutInfoBody}
             </p>
 
+            <div className="mt-5 rounded-2xl border bg-gray-50 p-4 text-sm leading-6 text-gray-700">
+              {payoutNoticeBody}
+            </div>
+
             <div className="mt-5 space-y-3">
               <Field
                 label={copy.menuPrice}
@@ -1074,6 +1178,52 @@ export default function CreatorOrderDetailPage() {
                   {formatPrice(creatorPayoutAmount, order.currency, safeLocale)}
                 </p>
               </div>
+
+              <Field
+                label={copy.transferStatus}
+                value={
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${transferStatusClass(
+                      order.transfer_status
+                    )}`}
+                  >
+                    {transferStatusLabel(order.transfer_status, safeLocale)}
+                  </span>
+                }
+              />
+
+              <Field
+                label={copy.transferredAt}
+                value={formatDateTime(order.transferred_at, safeLocale)}
+              />
+
+              <Field
+                label={copy.transferAttemptedAt}
+                value={formatDateTime(order.transfer_attempted_at, safeLocale)}
+              />
+
+              <Field
+                label={copy.transferId}
+                value={shortId(order.stripe_transfer_id)}
+              />
+
+              {order.transfer_failed_reason ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                    {copy.transferFailedReason}
+                  </p>
+                  <p className="mt-2 whitespace-pre-line break-words text-sm font-semibold text-red-900">
+                    {order.transfer_failed_reason}
+                  </p>
+                </div>
+              ) : null}
+
+              <Link
+                href="/creator/payouts"
+                className="inline-flex w-full items-center justify-center rounded-2xl border px-5 py-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                {copy.payoutHistory}
+              </Link>
             </div>
           </div>
 
@@ -1147,10 +1297,10 @@ export default function CreatorOrderDetailPage() {
                 {actionLoading === "deliver"
                   ? copy.delivering
                   : isRevisionRequested
-                  ? copy.redeliver
-                  : order.status === "delivered"
-                  ? copy.updateDelivery
-                  : copy.deliver}
+                    ? copy.redeliver
+                    : order.status === "delivered"
+                      ? copy.updateDelivery
+                      : copy.deliver}
               </button>
             </div>
           ) : null}
