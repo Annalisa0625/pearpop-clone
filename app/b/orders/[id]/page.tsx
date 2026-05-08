@@ -841,20 +841,34 @@ export default function CompanyOrderDetailPage() {
     order.payment_status === "captured" &&
     !!order.delivered_post_url;
 
-  const buyerMarketplaceFeeAmount =
-    order.buyer_marketplace_fee_amount ??
-    Math.max(0, Number(order.stripe_amount ?? 0) - Number(order.menu_price_amount ?? 0));
+  const menuPriceAmount = Number(order.menu_price_amount ?? 0);
+  const stripeAmount = Number(order.stripe_amount ?? 0);
+
+  const fallbackBuyerMarketplaceFeeAmount = Math.max(
+    0,
+    stripeAmount - menuPriceAmount
+  );
 
   const buyerTotalAmount =
-    order.buyer_total_amount ??
-    order.stripe_amount ??
-    Number(order.menu_price_amount ?? 0) + buyerMarketplaceFeeAmount;
+    order.buyer_total_amount != null && order.buyer_total_amount > 0
+      ? order.buyer_total_amount
+      : stripeAmount > 0
+        ? stripeAmount
+        : menuPriceAmount + fallbackBuyerMarketplaceFeeAmount;
+
+  const buyerMarketplaceFeeAmount =
+    order.buyer_marketplace_fee_amount != null &&
+    order.buyer_marketplace_fee_amount > 0
+      ? order.buyer_marketplace_fee_amount
+      : Math.max(0, buyerTotalAmount - menuPriceAmount);
 
   const buyerMarketplaceFeeRateBps =
-    order.buyer_marketplace_fee_rate_bps ??
-    (order.menu_price_amount
-      ? Math.round((buyerMarketplaceFeeAmount / order.menu_price_amount) * 10000)
-      : null);
+    order.buyer_marketplace_fee_rate_bps != null &&
+    order.buyer_marketplace_fee_rate_bps > 0
+      ? order.buyer_marketplace_fee_rate_bps
+      : menuPriceAmount > 0
+        ? Math.round((buyerMarketplaceFeeAmount / menuPriceAmount) * 10000)
+        : null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
