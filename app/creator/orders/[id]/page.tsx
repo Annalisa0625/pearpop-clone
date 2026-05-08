@@ -767,15 +767,26 @@ export default function CreatorOrderDetailPage() {
     );
   }
 
-  const creatorTransactionFeeRateBps =
+   const creatorTransactionFeeRateBps =
     order.creator_transaction_fee_rate_bps ?? 1500;
-  const creatorTransactionFeeAmount =
-    order.creator_transaction_fee_amount ??
-    Math.floor((order.menu_price_amount * creatorTransactionFeeRateBps) / 10000);
-  const creatorPayoutAmount =
-    order.creator_payout_amount ??
-    Math.max(0, order.menu_price_amount - creatorTransactionFeeAmount);
 
+  const fallbackCreatorTransactionFeeAmount = Math.floor(
+    (order.menu_price_amount * creatorTransactionFeeRateBps) / 10000
+  );
+
+  const creatorPayoutAmount =
+    order.creator_payout_amount != null
+      ? order.creator_payout_amount
+      : Math.max(
+          0,
+          order.menu_price_amount - fallbackCreatorTransactionFeeAmount
+        );
+
+  const creatorTransactionFeeAmount =
+    order.creator_transaction_fee_amount != null &&
+    order.creator_transaction_fee_amount > 0
+      ? order.creator_transaction_fee_amount
+      : Math.max(0, order.menu_price_amount - creatorPayoutAmount);
   const canAct =
     order.status === "authorized_pending_creator" &&
     order.payment_status === "authorized";
