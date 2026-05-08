@@ -767,11 +767,11 @@ export default function CreatorOrderDetailPage() {
     );
   }
 
-   const creatorTransactionFeeRateBps =
+     const storedCreatorTransactionFeeRateBps =
     order.creator_transaction_fee_rate_bps ?? 1500;
 
   const fallbackCreatorTransactionFeeAmount = Math.floor(
-    (order.menu_price_amount * creatorTransactionFeeRateBps) / 10000
+    (order.menu_price_amount * storedCreatorTransactionFeeRateBps) / 10000
   );
 
   const creatorPayoutAmount =
@@ -787,6 +787,19 @@ export default function CreatorOrderDetailPage() {
     order.creator_transaction_fee_amount > 0
       ? order.creator_transaction_fee_amount
       : Math.max(0, order.menu_price_amount - creatorPayoutAmount);
+
+  const effectiveCreatorTransactionFeeRateBps =
+    order.menu_price_amount > 0
+      ? Math.round(
+          (creatorTransactionFeeAmount / order.menu_price_amount) * 10000
+        )
+      : storedCreatorTransactionFeeRateBps;
+
+  const displayCreatorTransactionFeeRateBps =
+    order.creator_transaction_fee_amount != null &&
+    order.creator_transaction_fee_amount > 0
+      ? storedCreatorTransactionFeeRateBps
+      : effectiveCreatorTransactionFeeRateBps;
   const canAct =
     order.status === "authorized_pending_creator" &&
     order.payment_status === "authorized";
@@ -1166,10 +1179,9 @@ export default function CreatorOrderDetailPage() {
                   safeLocale
                 )}
               />
-
               <Field
                 label={copy.creatorTransactionFeeRate}
-                value={formatBps(creatorTransactionFeeRateBps)}
+                value={formatBps(displayCreatorTransactionFeeRateBps)}
               />
 
               <Field
