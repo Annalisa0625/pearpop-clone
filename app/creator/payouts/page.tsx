@@ -252,9 +252,10 @@ export default function CreatorPayoutsPage() {
   const [starting, setStarting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [returnNotice, setReturnNotice] = useState<"return" | "refresh" | null>(
+    const [returnNotice, setReturnNotice] = useState<"return" | "refresh" | null>(
     null
   );
+  const [signupMode, setSignupMode] = useState(false);
 
   const copy = useMemo(
     () =>
@@ -533,12 +534,16 @@ export default function CreatorPayoutsPage() {
 
       setCreator(creatorRow as CreatorPayoutState);
 
-      const params = new URLSearchParams(window.location.search);
+            const params = new URLSearchParams(window.location.search);
       const connectParam = params.get("connect");
+      const fromParam = params.get("from");
+      const requiredParam = params.get("required");
 
       if (connectParam === "return" || connectParam === "refresh") {
         setReturnNotice(connectParam);
       }
+
+      setSignupMode(fromParam === "signup" || requiredParam === "connect");
 
       const accessToken = await getAccessTokenOrRedirect();
 
@@ -676,10 +681,18 @@ export default function CreatorPayoutsPage() {
                 {copy.eyebrow}
               </p>
               <h1 className="mt-3 text-2xl font-black tracking-tight text-gray-900 sm:text-4xl">
-                {copy.title}
+                                {signupMode && safeLocale === "ja"
+                  ? "最後のステップ：報酬受け取り設定"
+                  : signupMode
+                    ? "Last step: Set up payouts"
+                    : copy.title}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-                {copy.subtitle}
+                               {signupMode && safeLocale === "ja"
+                  ? "案件完了後に安全に報酬を受け取るため、Stripe Expressで本人確認と振込先登録を完了してください。この設定が完了すると、企業から注文を受けられるようになります。"
+                  : signupMode
+                    ? "Complete Stripe Express onboarding so you can safely receive payouts after completed orders. Once this is complete, your creator account can start receiving orders."
+                    : copy.subtitle}
               </p>
             </div>
 
@@ -808,6 +821,17 @@ export default function CreatorPayoutsPage() {
                 {refreshing ? copy.refreshing : copy.refresh}
               </button>
             </div>
+
+            {isReady ? (
+              <Link
+                href="/creator/dashboard"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-green-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-green-700 sm:w-auto"
+              >
+                {safeLocale === "ja"
+                  ? "登録を完了してダッシュボードへ進む"
+                  : "Complete setup and go to dashboard"}
+              </Link>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-4">
