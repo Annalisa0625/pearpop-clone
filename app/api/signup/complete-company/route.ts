@@ -26,10 +26,6 @@ function getBearerToken(req: Request) {
   return token?.trim() || null;
 }
 
-function isValidHttpUrl(value: string) {
-  return /^https?:\/\/.+/i.test(value.trim());
-}
-
 function validateCommonInput(body: CompleteCompanyBody) {
   if (!body.company_name?.trim()) {
     return "会社名を入力してください";
@@ -39,7 +35,7 @@ function validateCommonInput(body: CompleteCompanyBody) {
     return "会社HP URL または ECサイト URL を入力してください";
   }
 
-  if (!isValidHttpUrl(body.website_url)) {
+  if (!/^https?:\/\/.+/i.test(body.website_url.trim())) {
     return "URLは http:// または https:// から入力してください";
   }
 
@@ -71,7 +67,7 @@ async function ensureCompanyRecords(args: {
   const { data: existingCompany, error: existingCompanyError } =
     await supabaseAdmin
       .from("companies")
-      .select("id, approval_status")
+      .select("id")
       .eq("user_id", args.userId)
       .maybeSingle();
 
@@ -79,28 +75,48 @@ async function ensureCompanyRecords(args: {
     throw existingCompanyError;
   }
 
-  if (!existingCompany) {
-    const { error: companyError } = await supabaseAdmin
+  if (existingCompany?.id) {
+    const { error: updateCompanyError } = await supabaseAdmin
       .from("companies")
-      .insert({
-        user_id: args.userId,
+      .update({
         company_name: args.companyName,
         contact_email: args.email,
         website_url: args.websiteUrl,
         phone_number: args.phoneNumber,
         usage_purpose: args.usagePurpose,
-        approval_status: "pending",
-      });
+        approval_status: "approved",
+        updated_at: nowIso,
+      })
+      .eq("id", existingCompany.id);
+
+    if (updateCompanyError) {
+      throw updateCompanyError;
+    }
+  } else {
+    const { error: companyError } = await supabaseAdmin.from("companies").insert({
+      user_id: args.userId,
+      company_name: args.companyName,
+      contact_email: args.email,
+      website_url: args.websiteUrl,
+      phone_number: args.phoneNumber,
+      usage_purpose: args.usagePurpose,
+      approval_status: "approved",
+    });
 
     if (companyError) {
       throw companyError;
     }
   }
 
-  const { error: roleError } = await supabaseAdmin.from("user_roles").upsert({
-    user_id: args.userId,
-    role: "company",
-  });
+  const { error: roleError } = await supabaseAdmin.from("user_roles").upsert(
+    {
+      user_id: args.userId,
+      role: "company",
+    },
+    {
+      onConflict: "user_id,role",
+    }
+  );
 
   if (roleError) {
     throw roleError;
@@ -109,16 +125,19 @@ async function ensureCompanyRecords(args: {
   const { error: stateError } = await supabaseAdmin.from("user_states").upsert(
     {
       user_id: args.userId,
+
       creator_profile_completed: false,
       company_profile_completed: true,
-      onboarding_completed: false,
-      company_access_status: existingCompany?.approval_status === "approved"
-        ? "approved"
-        : "pending_approval",
+      onboarding_completed: true,
+
+      company_access_status: "approved",
       company_plan_code: "free",
       company_subscription_status: "inactive",
+
       monthly_request_limit: 5,
       monthly_request_used: 0,
+      request_usage_reset_at: nowIso,
+
       terms_agreed_at: nowIso,
       privacy_agreed_at: nowIso,
       terms_version: TERMS_VERSION,
@@ -135,7 +154,10 @@ async function ensureCompanyRecords(args: {
   }
 }
 
-async function completeWithExistingSession(req: Request, body: CompleteCompanyBody) {
+async function completeWithExistingSession(
+  req: Request,
+  body: CompleteCompanyBody
+) {
   const token = getBearerToken(req);
 
   if (!token) return null;
@@ -234,8 +256,7 @@ async function completeWithEmailPassword(body: CompleteCompanyBody) {
   });
 }
 
-// 旧メールリンク方式も念のため残す。
-// company-entry は /signup/company にリダイレクト済みなので、通常は使わない。
+// 旧メールリンク方式の互換。company-entry は /signup/company へ移行済みなので通常は使わない。
 async function completeWithLegacyToken(body: CompleteCompanyBody) {
   if (!body.token) return null;
 
@@ -342,9 +363,6 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("complete company signup error", error);
 
-    return NextResponse.json(
-      { error: "internal error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "internal error" }, { status: 500 });
   }
 }
