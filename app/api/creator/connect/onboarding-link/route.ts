@@ -13,6 +13,15 @@ type AuthResult = {
   error: string | null;
 };
 
+type CreatorForConnect = {
+  id: string;
+  user_id: string;
+  display_name: string | null;
+  full_name: string | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_completed: boolean | null;
+};
+
 async function getAuthenticatedUser(req: NextRequest): Promise<AuthResult> {
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ")
@@ -51,9 +60,111 @@ function isStripeResourceMissing(error: unknown) {
 }
 
 function getConnectOnboardingCompleted(account: Stripe.Account) {
-  // 初期実装では「本人確認情報提出済み」かつ「payout可能」を完了扱いにする。
-  // 今後、charges_enabled / requirements などもDBに保存したくなったら拡張する。
   return Boolean(account.details_submitted && account.payouts_enabled);
+}
+
+function normalizeName(value: string | null | undefined) {
+  return value?.trim() || "";
+}
+
+function splitJapaneseName(name: string) {
+  const clean = name.trim();
+
+  if (!clean) {
+    return {
+      firstName: undefined,
+      lastName: undefined,
+    };
+  }
+
+  const parts = clean.split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return {
+      lastName: parts[0],
+      firstName: parts.slice(1).join(" "),
+    };
+  }
+
+  return {
+    lastName: clean,
+    firstName: undefined,
+  };
+}
+
+function buildBusinessProfile(baseUrl: string): Stripe.AccountCreateParams.BusinessProfile {
+  return {
+    url: baseUrl,
+    // 7311 = Advertising Services.
+    // クリエイターがPR投稿・UGC制作を提供する用途に一番近い。
+    mcc: "7311",
+    product_description:
+      "Creator provides sponsored social media posts, short videos, and UGC content for brands through Trendre.",
+  };
+}
+
+function buildAccountCreateParams({
+  user,
+  creator,
+  baseUrl,
+}: {
+  user: User;
+  creator: CreatorForConnect;
+  baseUrl: string;
+}): Stripe.AccountCreateParams {
+  const fullName = normalizeName(creator.full_name || creator.display_name);
+  const { firstName, lastName } = splitJapaneseName(fullName);
+
+  return {
+    type: "express",
+    country: "JP",
+    email: user.email ?? undefined,
+    business_type: "individual",
+    business_profile: buildBusinessProfile(baseUrl),
+    individual: {
+      email: user.email ?? undefined,
+      first_name: firstName,
+      last_name: lastName,
+    },
+    capabilities: {
+      transfers: {
+        requested: true,
+      },
+    },
+    metadata: {
+      app: "trendre",
+      supabase_user_id: user.id,
+      creator_id: creator.id,
+    },
+  };
+}
+
+function buildAccountUpdateParams({
+  user,
+  creator,
+  baseUrl,
+}: {
+  user: User;
+  creator: CreatorForConnect;
+  baseUrl: string;
+}): Stripe.AccountUpdateParams {
+  const fullName = normalizeName(creator.full_name || creator.display_name);
+  const { firstName, lastName } = splitJapaneseName(fullName);
+
+  return {
+    email: user.email ?? undefined,
+    business_profile: buildBusinessProfile(baseUrl),
+    individual: {
+      email: user.email ?? undefined,
+      first_name: firstName,
+      last_name: lastName,
+    },
+    metadata: {
+      app: "trendre",
+      supabase_user_id: user.id,
+      creator_id: creator.id,
+    },
+  };
 }
 
 // ルート存在確認用。
@@ -96,13 +207,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: creator, error: creatorError } = await supabaseAdmin
+    const { data: creatorRow, error: creatorError } = await supabaseAdmin
       .from("creators")
       .select(
         `
         id,
         user_id,
         display_name,
+        full_name,
         stripe_account_id,
         stripe_onboarding_completed
       `
@@ -114,13 +226,14 @@ export async function POST(req: NextRequest) {
       throw creatorError;
     }
 
-    if (!creator) {
+    if (!creatorRow) {
       return NextResponse.json(
         { error: "クリエイター情報が見つかりませんでした" },
         { status: 404 }
       );
     }
 
+    const creator = creatorRow as CreatorForConnect;
     const stripe = getStripe();
     const baseUrl = getBaseUrl();
 
@@ -144,29 +257,28 @@ export async function POST(req: NextRequest) {
     }
 
     if (!stripeAccountId || !stripeAccount) {
-      stripeAccount = await stripe.accounts.create({
-        type: "express",
-        country: "JP",
-        email: user.email ?? undefined,
-        business_type: "individual",
-        capabilities: {
-          transfers: {
-            requested: true,
-          },
-        },
-        metadata: {
-          app: "trendre",
-          supabase_user_id: user.id,
-          creator_id: creator.id,
-        },
-      });
+      stripeAccount = await stripe.accounts.create(
+        buildAccountCreateParams({
+          user,
+          creator,
+          baseUrl,
+        })
+      );
 
       stripeAccountId = stripeAccount.id;
+    } else {
+      // 既存アカウントでも、business_profileなど不足しやすい項目を補完する。
+      stripeAccount = (await stripe.accounts.update(
+        stripeAccountId,
+        buildAccountUpdateParams({
+          user,
+          creator,
+          baseUrl,
+        })
+      )) as Stripe.Account;
     }
 
-    const onboardingCompleted =
-      getConnectOnboardingCompleted(stripeAccount);
-
+    const onboardingCompleted = getConnectOnboardingCompleted(stripeAccount);
     const nowIso = new Date().toISOString();
 
     const { error: updateError } = await supabaseAdmin
@@ -187,6 +299,9 @@ export async function POST(req: NextRequest) {
       type: "account_onboarding",
       refresh_url: `${baseUrl}/creator/payouts?connect=refresh`,
       return_url: `${baseUrl}/creator/payouts?connect=return`,
+      collection_options: {
+        fields: "currently_due",
+      },
     });
 
     return NextResponse.json({
