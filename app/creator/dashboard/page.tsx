@@ -56,6 +56,7 @@ type CreatorProfile = {
   response_language: string | null;
   sub_categories: string[] | null;
   approval_status: string;
+  stripe_onboarding_completed: boolean | null;
 };
 
 type BadgeTone = "gray" | "yellow" | "blue" | "green" | "red" | "purple";
@@ -520,7 +521,7 @@ export default function CreatorDashboardPage() {
           supabase
             .from("creators")
             .select(
-              "id, user_id, display_name, full_name, avatar_url, cover_image_url, category, bio, country, prefecture, city, content_language, response_language, sub_categories, approval_status"
+              "id, user_id, display_name, full_name, avatar_url, cover_image_url, category, bio, country, prefecture, city, content_language, response_language, sub_categories, approval_status, stripe_onboarding_completed"
             )
             .eq("user_id", user.id)
             .maybeSingle(),
@@ -561,6 +562,11 @@ export default function CreatorDashboardPage() {
           setCreator(null);
           setCoverImageUrl(metadataCover);
           setLoading(false);
+          return;
+        }
+
+        if (!creatorRow.stripe_onboarding_completed) {
+          window.location.href = "/creator/payouts?required=connect";
           return;
         }
 
