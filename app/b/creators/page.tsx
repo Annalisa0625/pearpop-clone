@@ -20,6 +20,7 @@ type CreatorRow = {
   id: string;
   display_name?: string | null;
   category?: string | null;
+  stripe_onboarding_completed?: boolean | null;
   creator_social_accounts?: SocialAccountRow[] | null;
 };
 
@@ -51,9 +52,9 @@ function normalizeSubscriptionStatus(
 }
 
 function getPlanLabel(plan: CompanyPlanCode) {
-  if (plan === "standard") return "Standard";
-  if (plan === "global_pro") return "GlobalPro";
-  return "Free";
+  if (plan === "standard") return "Pro";
+  if (plan === "global_pro") return "Premium";
+  return "Basic";
 }
 
 function cleanCountryInput(value: string | null | undefined) {
@@ -364,12 +365,12 @@ export default function CompanyCreatorsPage() {
 
   const planDescription = useMemo(() => {
     if (displayPlanCode === "global_pro") {
-      return "より広い視聴者層まで / 無制限";
+      return "全クリエイター閲覧 / 無制限";
     }
     if (displayPlanCode === "standard") {
-      return "日本市場向け / 無制限";
+      return "国内クリエイター閲覧 / 無制限";
     }
-    return "日本市場向け / 月5件まで";
+    return "国内クリエイター閲覧 / 月5件まで";
   }, [displayPlanCode]);
 
   const canAccessOverseas = useMemo(() => {
@@ -445,6 +446,7 @@ export default function CompanyCreatorsPage() {
               id,
               display_name,
               category,
+              stripe_onboarding_completed,
               creator_social_accounts (
                 platform,
                 url,
@@ -454,6 +456,7 @@ export default function CompanyCreatorsPage() {
               `
             )
             .eq("approval_status", "approved")
+            .eq("stripe_onboarding_completed", true)
             .order("created_at", { ascending: false }),
         ]);
 
@@ -475,25 +478,27 @@ export default function CompanyCreatorsPage() {
 
         const rows = (creatorsResult.data ?? []) as CreatorRow[];
 
-        const nextCreators: CreatorCard[] = rows.map((row) => {
-          const socials = Array.isArray(row.creator_social_accounts)
-            ? row.creator_social_accounts
-            : [];
+        const nextCreators: CreatorCard[] = rows
+          .filter((row) => row.stripe_onboarding_completed === true)
+          .map((row) => {
+            const socials = Array.isArray(row.creator_social_accounts)
+              ? row.creator_social_accounts
+              : [];
 
-          const primary = socials[0] ?? null;
-          const requiresGlobalPro = socials.some(
-            (social) => !isJapanAudience(social.audience_country)
-          );
+            const primary = socials[0] ?? null;
+            const requiresGlobalPro = socials.some(
+              (social) => !isJapanAudience(social.audience_country)
+            );
 
-          return {
-            id: row.id,
-            displayName: row.display_name?.trim() || "クリエイター",
-            category: row.category?.trim() || null,
-            primaryPlatform: primary?.platform?.trim() || null,
-            primaryAudienceCountry: primary?.audience_country?.trim() || null,
-            requiresGlobalPro,
-          };
-        });
+            return {
+              id: row.id,
+              displayName: row.display_name?.trim() || "クリエイター",
+              category: row.category?.trim() || null,
+              primaryPlatform: primary?.platform?.trim() || null,
+              primaryAudienceCountry: primary?.audience_country?.trim() || null,
+              requiresGlobalPro,
+            };
+          });
 
         if (isMounted) {
           setPlanCodeRaw(normalizePlanCode(userState?.company_plan_code ?? null));
@@ -539,13 +544,13 @@ export default function CompanyCreatorsPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-base font-semibold text-blue-600">
-              Japan Market Creator Search
+              Creator Search
             </p>
             <h1 className="mt-2 text-[28px] font-bold text-slate-900">
               クリエイター一覧
             </h1>
             <p className="mt-3 text-base leading-8 text-slate-600">
-              日本市場向けの施策に合うクリエイターを探し、参考条件カードや詳細情報を確認できます。
+              報酬受け取り設定が完了しており、企業から注文を受けられるクリエイターだけを表示しています。
             </p>
           </div>
 
@@ -577,17 +582,17 @@ export default function CompanyCreatorsPage() {
             </h2>
             <p className="mt-4 text-base leading-8 text-slate-700">
               {displayPlanCode === "global_pro"
-                ? "GlobalProでは、日本市場向けの施策に加えて、より広い視聴者層を持つクリエイターにも依頼できます。"
+                ? "Premiumでは、国内外を含むより広い視聴者層を持つクリエイターにも依頼できます。"
                 : displayPlanCode === "standard"
-                ? "Standardでは、日本市場向けの施策に合うクリエイターへ継続的に依頼できます。より広い視聴者層を持つクリエイターへの依頼には GlobalPro が必要です。"
-                : "Freeでは、日本市場向けの候補探索と少数の依頼から始められます。月5件まで送信でき、より広い視聴者層を持つクリエイターへの依頼には GlobalPro が必要です。"}
+                  ? "Proでは、国内市場向けの施策に合うクリエイターへ継続的に依頼できます。より広い視聴者層を持つクリエイターへの依頼には Premium が必要です。"
+                  : "Basicでは、国内市場向けの候補探索と少数の依頼から始められます。月5件まで送信でき、より広い視聴者層を持つクリエイターへの依頼には Premium が必要です。"}
             </p>
           </section>
 
           <section className="space-y-5">
             {creators.length === 0 ? (
               <div className="rounded-[32px] border border-slate-200 bg-white p-7 text-slate-600">
-                まだ表示できるクリエイターがいません。
+                現在、表示できるクリエイターはいません。報酬受け取り設定が完了したクリエイターのみ表示されます。
               </div>
             ) : (
               creators.map((creator, index) => {
@@ -638,7 +643,7 @@ export default function CompanyCreatorsPage() {
                       {showGlobalBadge && (
                         <div className="shrink-0">
                           <span className="rounded-full bg-red-100 px-4 py-2 text-sm font-semibold text-red-600">
-                            GlobalProが必要
+                            Premiumが必要
                           </span>
                         </div>
                       )}
