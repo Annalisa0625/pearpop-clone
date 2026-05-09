@@ -54,6 +54,34 @@ function validateCommonInput(body: CompleteCompanyBody) {
   return null;
 }
 
+async function ensureCompanyRole(userId: string) {
+  const { data: existingRole, error: existingRoleError } = await supabaseAdmin
+    .from("user_roles")
+    .select("id, role")
+    .eq("user_id", userId)
+    .eq("role", "company")
+    .maybeSingle();
+
+  if (existingRoleError) {
+    throw existingRoleError;
+  }
+
+  if (existingRole) {
+    return;
+  }
+
+  const { error: roleInsertError } = await supabaseAdmin
+    .from("user_roles")
+    .insert({
+      user_id: userId,
+      role: "company",
+    });
+
+  if (roleInsertError) {
+    throw roleInsertError;
+  }
+}
+
 async function ensureCompanyRecords(args: {
   userId: string;
   email: string;
@@ -93,34 +121,24 @@ async function ensureCompanyRecords(args: {
       throw updateCompanyError;
     }
   } else {
-    const { error: companyError } = await supabaseAdmin.from("companies").insert({
-      user_id: args.userId,
-      company_name: args.companyName,
-      contact_email: args.email,
-      website_url: args.websiteUrl,
-      phone_number: args.phoneNumber,
-      usage_purpose: args.usagePurpose,
-      approval_status: "approved",
-    });
+    const { error: companyError } = await supabaseAdmin
+      .from("companies")
+      .insert({
+        user_id: args.userId,
+        company_name: args.companyName,
+        contact_email: args.email,
+        website_url: args.websiteUrl,
+        phone_number: args.phoneNumber,
+        usage_purpose: args.usagePurpose,
+        approval_status: "approved",
+      });
 
     if (companyError) {
       throw companyError;
     }
   }
 
-  const { error: roleError } = await supabaseAdmin.from("user_roles").upsert(
-    {
-      user_id: args.userId,
-      role: "company",
-    },
-    {
-      onConflict: "user_id,role",
-    }
-  );
-
-  if (roleError) {
-    throw roleError;
-  }
+  await ensureCompanyRole(args.userId);
 
   const { error: stateError } = await supabaseAdmin.from("user_states").upsert(
     {
@@ -221,26 +239,46 @@ async function completeWithEmailPassword(body: CompleteCompanyBody) {
 
   const email = body.email.trim();
 
-  const { data: createdUser, error: createError } =
-    await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: body.password,
-      email_confirm: true,
-      user_metadata: {
-        role: "company",
-        company_name: body.company_name?.trim() ?? "",
-      },
-    });
+  const { data: existingUsers, error: listError } =
+    await supabaseAdmin.auth.admin.listUsers();
 
-  if (createError || !createdUser?.user) {
-    return NextResponse.json(
-      { error: createError?.message ?? "ユーザー作成に失敗しました" },
-      { status: 500 }
-    );
+  if (listError) {
+    throw listError;
+  }
+
+  const existingUser =
+    existingUsers.users.find(
+      (item) => item.email?.toLowerCase() === email.toLowerCase()
+    ) ?? null;
+
+  let userId: string;
+
+  if (existingUser) {
+    userId = existingUser.id;
+  } else {
+    const { data: createdUser, error: createError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: body.password,
+        email_confirm: true,
+        user_metadata: {
+          role: "company",
+          company_name: body.company_name?.trim() ?? "",
+        },
+      });
+
+    if (createError || !createdUser?.user) {
+      return NextResponse.json(
+        { error: createError?.message ?? "ユーザー作成に失敗しました" },
+        { status: 500 }
+      );
+    }
+
+    userId = createdUser.user.id;
   }
 
   await ensureCompanyRecords({
-    userId: createdUser.user.id,
+    userId,
     email,
     companyName: body.company_name!.trim(),
     websiteUrl: body.website_url!.trim(),
@@ -250,8 +288,8 @@ async function completeWithEmailPassword(body: CompleteCompanyBody) {
 
   return NextResponse.json({
     success: true,
-    mode: "email_password",
-    user_id: createdUser.user.id,
+    mode: existingUser ? "email_password_existing_user" : "email_password",
+    user_id: userId,
     email,
   });
 }
