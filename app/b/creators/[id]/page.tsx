@@ -14,6 +14,7 @@ type Creator = {
   avatar_url: string | null;
   category: string | null;
   user_id: string;
+  stripe_onboarding_completed: boolean | null;
 };
 
 type MenuCard = {
@@ -344,11 +345,11 @@ function getPlanLabel(
 ) {
   switch (plan) {
     case "free":
-      return "Free";
+      return "Basic";
     case "standard":
-      return "Standard";
+      return "Pro";
     case "global_pro":
-      return "GlobalPro";
+      return "Premium";
     default:
       return locale === "ja" ? "未設定" : "Not set";
   }
@@ -508,11 +509,11 @@ export default function CreatorDetailPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            notFound: "クリエイターが見つかりません。",
+            notFound: "クリエイターが見つかりません。現在注文受付できない状態の可能性があります。",
             planSuffix: "プラン",
             japanAudience: "日本市場向け",
             broaderAudience: "より広い視聴者層",
-            globalProRequired: "GlobalProが必要",
+            globalProRequired: "Premiumが必要",
             requestAvailable: "注文可能",
             platforms: "対応SNS",
             mainAudience: "主な視聴者",
@@ -539,25 +540,26 @@ export default function CreatorDetailPage() {
             orderMenu: "このメニューを注文する",
             billingRequiredBody: "注文にはプラン開始が必要です。",
             upgradeExtraBody:
-              "このクリエイターはより広い視聴者層を持つため、注文には GlobalPro が必要です。",
+              "このクリエイターはより広い視聴者層を持つため、注文には Premium が必要です。",
             freeUpgradeBody:
-              "Freeプランでは、日本市場向けの候補探索から始められます。",
+              "Basicプランでは、国内市場向けの候補探索から始められます。",
             standardUpgradeBody:
-              "Standardプランでは、日本市場向けの継続施策に合うクリエイターへ注文できます。",
+              "Proプランでは、国内市場向けの継続施策に合うクリエイターへ注文できます。",
             genericUpgradeBody:
               "このクリエイターへの注文には上位プランが必要です。",
-            checkGlobalPro: "GlobalProを確認する",
+            checkGlobalPro: "Premiumを確認する",
             checkBilling: "料金プランを見る",
             temporaryNotice:
               "現在は注文フロー移行中のため、次の画面では既存の依頼フォームを利用します。今後、checkoutとrequirements提出に置き換える予定です。",
           }
         : {
             loading: "Loading...",
-            notFound: "Creator not found.",
+            notFound:
+              "Creator not found. This creator may not be ready to receive orders.",
             planSuffix: "",
             japanAudience: "Japan market fit",
             broaderAudience: "Broader audience reach",
-            globalProRequired: "GlobalPro required",
+            globalProRequired: "Premium required",
             requestAvailable: "Order available",
             platforms: "Platforms",
             mainAudience: "Main audience",
@@ -584,14 +586,14 @@ export default function CreatorDetailPage() {
             orderMenu: "Order This Menu",
             billingRequiredBody: "Starting a plan is required before ordering.",
             upgradeExtraBody:
-              "This creator has broader audience reach, so GlobalPro is required to order.",
+              "This creator has broader audience reach, so Premium is required to order.",
             freeUpgradeBody:
-              "With the Free plan, you can start by exploring creators for Japan-focused campaigns.",
+              "With the Basic plan, you can start by exploring creators for Japan-focused campaigns.",
             standardUpgradeBody:
-              "With the Standard plan, you can order from creators who fit Japan-focused campaigns.",
+              "With the Pro plan, you can order from creators who fit Japan-focused campaigns.",
             genericUpgradeBody:
               "A higher-tier plan is required to order from this creator.",
-            checkGlobalPro: "Check GlobalPro",
+            checkGlobalPro: "Check Premium",
             checkBilling: "View Billing Plans",
             temporaryNotice:
               "The order flow is being migrated. For now, the next screen uses the existing request form. It will later be replaced with checkout and requirements submission.",
@@ -692,10 +694,13 @@ export default function CreatorDetailPage() {
 
       const { data: creatorData, error: creatorError } = await supabase
         .from("creators")
-        .select("id, display_name, avatar_url, category, user_id")
+        .select(
+          "id, display_name, avatar_url, category, user_id, stripe_onboarding_completed"
+        )
         .eq("id", creatorId)
         .eq("is_public", true)
         .eq("approval_status", "approved")
+        .eq("stripe_onboarding_completed", true)
         .maybeSingle();
 
       if (!isMounted) return;
@@ -839,7 +844,30 @@ export default function CreatorDetailPage() {
   };
 
   if (loading) return <p className="p-6">{copy.loading}</p>;
-  if (!creator) return <p className="p-6">{copy.notFound}</p>;
+
+  if (!creator) {
+    return (
+      <div className="mx-auto max-w-3xl p-4 md:p-6">
+        <section className="rounded-3xl border bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {copy.notFound}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-gray-600">
+            {safeLocale === "ja"
+              ? "このクリエイターは現在、報酬受け取り設定または公開準備が完了していないため、企業側には表示されません。"
+              : "This creator is not currently visible to companies because payout setup or public readiness is not complete."}
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/b/creators")}
+            className="mt-5 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            {safeLocale === "ja" ? "クリエイター一覧へ戻る" : "Back to creators"}
+          </button>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
@@ -931,8 +959,8 @@ export default function CreatorDetailPage() {
               {isFree
                 ? copy.freeUpgradeBody
                 : isStandard
-                ? copy.standardUpgradeBody
-                : copy.genericUpgradeBody}{" "}
+                  ? copy.standardUpgradeBody
+                  : copy.genericUpgradeBody}{" "}
               {copy.upgradeExtraBody}
             </p>
           ) : (
@@ -1099,8 +1127,8 @@ export default function CreatorDetailPage() {
                       {gate.needsUpgradeForRegion
                         ? copy.checkGlobalPro
                         : gate.needsBilling
-                        ? copy.checkBilling
-                        : copy.orderMenu}
+                          ? copy.checkBilling
+                          : copy.orderMenu}
                     </button>
                   </div>
                 </div>
