@@ -6,6 +6,13 @@ import { getStripe } from "@/lib/stripe";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+type CreatorConnectState = {
+  id: string;
+  user_id: string;
+  stripe_account_id: string | null;
+  stripe_onboarding_completed: boolean | null;
+};
+
 async function getAuthenticatedUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ")
@@ -94,6 +101,40 @@ export async function POST(
       );
     }
 
+    const { data: creator, error: creatorError } = await supabaseAdmin
+      .from("creators")
+      .select(
+        `
+        id,
+        user_id,
+        stripe_account_id,
+        stripe_onboarding_completed
+      `
+      )
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (creatorError) {
+      throw creatorError;
+    }
+
+    const creatorConnectState = (creator ?? null) as CreatorConnectState | null;
+
+    if (
+      !creatorConnectState ||
+      !creatorConnectState.stripe_account_id ||
+      creatorConnectState.stripe_onboarding_completed !== true
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "報酬受け取り設定が未完了です。Stripe Expressの本人確認・振込先登録を完了してから注文を承認してください。",
+          redirect_to: "/creator/payouts?required=connect",
+        },
+        { status: 403 }
+      );
+    }
+
     if (
       order.status !== "authorized_pending_creator" ||
       order.payment_status !== "authorized"
@@ -177,6 +218,7 @@ export async function POST(
       event_data: {
         stripe_payment_intent_id: order.stripe_payment_intent_id,
         stripe_payment_intent_status: capturedPaymentIntent.status,
+        creator_stripe_account_id: creatorConnectState.stripe_account_id,
       },
     });
 
