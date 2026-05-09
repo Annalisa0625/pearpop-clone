@@ -395,10 +395,21 @@ export async function POST(req: NextRequest) {
 
     const { data: creator, error: creatorError } = await supabaseAdmin
       .from("creators")
-      .select("id, user_id, display_name, approval_status, is_public")
+      .select(
+        `
+        id,
+        user_id,
+        display_name,
+        approval_status,
+        is_public,
+        stripe_account_id,
+        stripe_onboarding_completed
+      `
+      )
       .eq("id", creatorId)
       .eq("approval_status", "approved")
       .eq("is_public", true)
+      .eq("stripe_onboarding_completed", true)
       .maybeSingle();
 
     if (creatorError) {
@@ -409,6 +420,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "クリエイターが見つかりませんでした" },
         { status: 404 }
+      );
+    }
+
+    if (
+      !creator.stripe_account_id ||
+      creator.stripe_onboarding_completed !== true
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "このクリエイターは現在、報酬受け取り設定が未完了のため注文できません。",
+        },
+        { status: 403 }
       );
     }
 
