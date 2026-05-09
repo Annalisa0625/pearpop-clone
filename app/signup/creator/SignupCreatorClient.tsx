@@ -696,14 +696,18 @@ export default function SignupCreatorClient() {
 
       if (!session?.user) return;
 
-      const { data: existingCreator } = await supabase
+            const { data: existingCreator } = await supabase
         .from("creators")
-        .select("id")
+        .select("id, stripe_onboarding_completed")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
       if (existingCreator) {
-        router.replace("/creator/dashboard");
+        router.replace(
+          existingCreator.stripe_onboarding_completed
+            ? "/creator/dashboard"
+            : "/creator/payouts?from=signup"
+        );
         return;
       }
 
@@ -1195,8 +1199,8 @@ export default function SignupCreatorClient() {
         });
       }
 
-      localStorage.removeItem(STORAGE_KEY);
-      router.replace("/creator/dashboard");
+            localStorage.removeItem(STORAGE_KEY);
+      router.replace("/creator/payouts?from=signup");
     } catch (e) {
       console.error(e);
       setError(copy.signupFailed);
