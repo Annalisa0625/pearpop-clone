@@ -2,8 +2,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 
 type LocaleOption = {
@@ -57,10 +58,17 @@ function LocaleTabs({
   );
 }
 
+function getOAuthRedirectUrl() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}/signup/company?oauth=1`;
+}
+
 export default function SignupCompanyClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const token = searchParams.get("token");
+  const hasOAuthReturn = searchParams.get("oauth") === "1";
   const { locale, setLocale } = useAppLocale();
 
   const copy = useMemo(
@@ -68,9 +76,9 @@ export default function SignupCompanyClient() {
       locale === "ja"
         ? {
             badge: "Company Signup",
-            title: "企業本登録",
+            title: "企業登録",
             subtitle:
-              "まずは基本情報のみ登録してください。詳細情報や請求関連情報は必要なタイミングで追加できます。",
+              "Googleまたはメールアドレスで企業アカウントを作成します。登録後、審査が完了すると注文機能を利用できます。",
             companyName: "会社名",
             companyNamePlaceholder: "例：株式会社〇〇 / 〇〇合同会社",
             websiteUrl: "会社HP URL または ECサイト URL",
@@ -81,6 +89,8 @@ export default function SignupCompanyClient() {
             phoneNumberPlaceholder: "例：03-1234-5678",
             usagePurpose: "利用目的",
             usagePurposeHelp: "審査や今後の案内に使用します。",
+            email: "メールアドレス",
+            emailPlaceholder: "company@example.com",
             password: "パスワード",
             passwordPlaceholder: "12文字以上",
             confirmPassword: "パスワード（確認）",
@@ -90,7 +100,9 @@ export default function SignupCompanyClient() {
             terms: "利用規約",
             privacy: "プライバシーポリシー",
             agreementNoteSuffix: "をご確認ください。",
-            submit: "登録する",
+            google: "Googleで企業登録",
+            oauthConnected: "Googleアカウント連携済み",
+            submit: "企業アカウントを作成する",
             submitting: "登録中...",
             selectPlease: "選択してください",
             invalidUrl: "無効なURLです",
@@ -101,18 +113,23 @@ export default function SignupCompanyClient() {
               "URLは http:// または https:// から入力してください",
             phoneRequired: "電話番号を入力してください",
             usageRequired: "利用目的を選択してください",
+            emailRequired: "メールアドレスを入力してください",
+            emailInvalid: "メールアドレスの形式が正しくありません",
             passwordTooShort: "パスワードは12文字以上必要です",
             passwordMismatch: "パスワードが一致しません",
             agreeRequired:
               "利用規約とプライバシーポリシーへの同意が必要です",
             signupFailed: "登録に失敗しました",
             networkError: "通信エラーが発生しました",
+            googleFailed: "Google登録を開始できませんでした",
+            pendingRedirect:
+              "登録申請を受け付けました。審査完了までお待ちください。",
           }
         : {
             badge: "Company Signup",
             title: "Company Registration",
             subtitle:
-              "Please enter only the basic information first. More detailed company and billing information can be added later when needed.",
+              "Create a company account with Google or email. After registration, ordering becomes available once your account is approved.",
             companyName: "Company Name",
             companyNamePlaceholder: "Example: Example Inc. / Example LLC",
             websiteUrl: "Company Website or Store URL",
@@ -124,6 +141,8 @@ export default function SignupCompanyClient() {
             usagePurpose: "Usage Purpose",
             usagePurposeHelp:
               "This will be used for review and future guidance.",
+            email: "Email",
+            emailPlaceholder: "company@example.com",
             password: "Password",
             passwordPlaceholder: "12 characters or more",
             confirmPassword: "Confirm Password",
@@ -133,7 +152,9 @@ export default function SignupCompanyClient() {
             terms: "Terms of Service",
             privacy: "Privacy Policy",
             agreementNoteSuffix: "before registering.",
-            submit: "Create Account",
+            google: "Sign up with Google",
+            oauthConnected: "Google account connected",
+            submit: "Create Company Account",
             submitting: "Creating...",
             selectPlease: "Please select",
             invalidUrl: "Invalid URL",
@@ -144,12 +165,17 @@ export default function SignupCompanyClient() {
               "The URL must start with http:// or https://",
             phoneRequired: "Please enter your phone number",
             usageRequired: "Please select a usage purpose",
+            emailRequired: "Please enter your email address",
+            emailInvalid: "Please enter a valid email address",
             passwordTooShort: "Password must be at least 12 characters",
             passwordMismatch: "Passwords do not match",
             agreeRequired:
               "You must agree to the Terms of Service and Privacy Policy",
             signupFailed: "Failed to complete registration",
             networkError: "A network error occurred",
+            googleFailed: "Failed to start Google signup",
+            pendingRedirect:
+              "Your registration request has been received. Please wait for approval.",
           },
     [locale]
   );
@@ -158,20 +184,79 @@ export default function SignupCompanyClient() {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [usagePurpose, setUsagePurpose] = useState("");
+  const [email, setEmail] = useState("");
+  const [oauthEmail, setOauthEmail] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agree, setAgree] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
+
+  const isOAuthMode = Boolean(oauthEmail);
+
+  useEffect(() => {
+    const hydrateSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) return;
+
+      const userEmail = session.user.email ?? "";
+
+      if (userEmail) {
+        setOauthEmail(userEmail);
+        setEmail((prev) => prev || userEmail);
+      }
+
+      const { data: existingCompany } = await supabase
+        .from("companies")
+        .select("id, approval_status")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (existingCompany) {
+        router.replace(
+          existingCompany.approval_status === "approved"
+            ? "/b/dashboard"
+            : "/signup/pending"
+        );
+      }
+    };
+
+    if (hasOAuthReturn) {
+      void hydrateSession();
+    } else {
+      void hydrateSession();
+    }
+  }, [hasOAuthReturn, router, supabase]);
+
+  const handleGoogleSignup = async () => {
+    setError(null);
+    setOauthLoading(true);
+
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: getOAuthRedirectUrl(),
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message || copy.googleFailed);
+        setOauthLoading(false);
+      }
+    } catch {
+      setError(copy.googleFailed);
+      setOauthLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setError(null);
-
-    if (!token) {
-      setError(copy.invalidUrl);
-      return;
-    }
 
     if (!companyName.trim()) {
       setError(copy.companyNameRequired);
@@ -198,14 +283,28 @@ export default function SignupCompanyClient() {
       return;
     }
 
-    if (password.length < 12) {
-      setError(copy.passwordTooShort);
-      return;
-    }
+    if (!isOAuthMode) {
+      if (!email.trim()) {
+        setError(copy.emailRequired);
+        return;
+      }
 
-    if (password !== confirmPassword) {
-      setError(copy.passwordMismatch);
-      return;
+      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+      if (!emailValid) {
+        setError(copy.emailInvalid);
+        return;
+      }
+
+      if (password.length < 12) {
+        setError(copy.passwordTooShort);
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError(copy.passwordMismatch);
+        return;
+      }
     }
 
     if (!agree) {
@@ -216,18 +315,31 @@ export default function SignupCompanyClient() {
     setLoading(true);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token ?? null;
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+      }
+
       const res = await fetch("/api/signup/complete-company", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
-          token,
+          token: token || undefined,
+          email: isOAuthMode ? oauthEmail : email.trim(),
           company_name: companyName.trim(),
           website_url: websiteUrl.trim(),
           phone_number: phoneNumber.trim(),
           usage_purpose: usagePurpose,
-          password,
+          password: isOAuthMode ? undefined : password,
           agreed_to_terms: true,
           agreed_to_privacy: true,
         }),
@@ -238,6 +350,13 @@ export default function SignupCompanyClient() {
       if (!res.ok) {
         setError(data?.error ?? copy.signupFailed);
         return;
+      }
+
+      if (!isOAuthMode) {
+        await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
       }
 
       router.replace("/signup/pending");
@@ -261,6 +380,64 @@ export default function SignupCompanyClient() {
             <h1 className="text-2xl font-bold">{copy.title}</h1>
             <p className="mt-2 text-sm text-gray-600">{copy.subtitle}</p>
           </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignup}
+            disabled={loading || oauthLoading}
+            className="w-full rounded-xl border border-gray-300 bg-white py-3 font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60"
+          >
+            {oauthLoading ? copy.submitting : copy.google}
+          </button>
+
+          {isOAuthMode ? (
+            <div className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-green-900">
+              <p className="font-semibold">{copy.oauthConnected}</p>
+              <p className="mt-1">{oauthEmail}</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{copy.email}</label>
+                <input
+                  type="email"
+                  className="w-full rounded-lg border px-3 py-2"
+                  placeholder={copy.emailPlaceholder}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{copy.password}</label>
+                  <input
+                    type="password"
+                    className="w-full rounded-lg border px-3 py-2"
+                    placeholder={copy.passwordPlaceholder}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {copy.confirmPassword}
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full rounded-lg border px-3 py-2"
+                    placeholder={copy.confirmPasswordPlaceholder}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">{copy.companyName}</label>
@@ -310,32 +487,6 @@ export default function SignupCompanyClient() {
             <p className="text-xs text-gray-500">{copy.usagePurposeHelp}</p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{copy.password}</label>
-              <input
-                type="password"
-                className="w-full rounded-lg border px-3 py-2"
-                placeholder={copy.passwordPlaceholder}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {copy.confirmPassword}
-              </label>
-              <input
-                type="password"
-                className="w-full rounded-lg border px-3 py-2"
-                placeholder={copy.confirmPasswordPlaceholder}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <label className="flex items-start gap-2 text-sm">
               <input
@@ -372,7 +523,7 @@ export default function SignupCompanyClient() {
 
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || oauthLoading}
             className="w-full rounded-lg bg-black py-3 font-semibold text-white disabled:opacity-60"
           >
             {loading ? copy.submitting : copy.submit}

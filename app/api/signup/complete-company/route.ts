@@ -5,190 +5,343 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 const TERMS_VERSION = "2026-03-29-v1";
 const PRIVACY_VERSION = "2026-03-29-v1";
 
-export async function POST(req: Request) {
-  try {
-    const {
-      token,
-      company_name,
-      website_url,
-      phone_number,
-      usage_purpose,
-      password,
-      agreed_to_terms,
-      agreed_to_privacy,
-    } = await req.json();
+type CompleteCompanyBody = {
+  token?: string;
+  email?: string;
+  password?: string;
+  company_name?: string;
+  website_url?: string;
+  phone_number?: string;
+  usage_purpose?: string;
+  agreed_to_terms?: boolean;
+  agreed_to_privacy?: boolean;
+};
 
-    if (!token) {
-      return NextResponse.json({ error: "token required" }, { status: 400 });
-    }
+function getBearerToken(req: Request) {
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
 
-    if (!company_name?.trim()) {
-      return NextResponse.json(
-        { error: "会社名を入力してください" },
-        { status: 400 }
-      );
-    }
+  return token?.trim() || null;
+}
 
-    if (!website_url?.trim()) {
-      return NextResponse.json(
-        { error: "会社HP URL または ECサイト URL を入力してください" },
-        { status: 400 }
-      );
-    }
+function isValidHttpUrl(value: string) {
+  return /^https?:\/\/.+/i.test(value.trim());
+}
 
-    if (!/^https?:\/\/.+/i.test(website_url.trim())) {
-      return NextResponse.json(
-        { error: "URLは http:// または https:// から入力してください" },
-        { status: 400 }
-      );
-    }
+function validateCommonInput(body: CompleteCompanyBody) {
+  if (!body.company_name?.trim()) {
+    return "会社名を入力してください";
+  }
 
-    if (!phone_number?.trim()) {
-      return NextResponse.json(
-        { error: "電話番号を入力してください" },
-        { status: 400 }
-      );
-    }
+  if (!body.website_url?.trim()) {
+    return "会社HP URL または ECサイト URL を入力してください";
+  }
 
-    if (!usage_purpose?.trim()) {
-      return NextResponse.json(
-        { error: "利用目的を選択してください" },
-        { status: 400 }
-      );
-    }
+  if (!isValidHttpUrl(body.website_url)) {
+    return "URLは http:// または https:// から入力してください";
+  }
 
-    if (!password || password.length < 12) {
-      return NextResponse.json(
-        { error: "パスワードは12文字以上必要です" },
-        { status: 400 }
-      );
-    }
+  if (!body.phone_number?.trim()) {
+    return "電話番号を入力してください";
+  }
 
-    if (!agreed_to_terms || !agreed_to_privacy) {
-      return NextResponse.json(
-        { error: "利用規約とプライバシーポリシーへの同意が必要です" },
-        { status: 400 }
-      );
-    }
+  if (!body.usage_purpose?.trim()) {
+    return "利用目的を選択してください";
+  }
 
-    const { data: signup } = await supabaseAdmin
-      .from("signup_tokens")
-      .select("email, role, expires_at, used_at")
-      .eq("token", token)
+  if (!body.agreed_to_terms || !body.agreed_to_privacy) {
+    return "利用規約とプライバシーポリシーへの同意が必要です";
+  }
+
+  return null;
+}
+
+async function ensureCompanyRecords(args: {
+  userId: string;
+  email: string;
+  companyName: string;
+  websiteUrl: string;
+  phoneNumber: string;
+  usagePurpose: string;
+}) {
+  const nowIso = new Date().toISOString();
+
+  const { data: existingCompany, error: existingCompanyError } =
+    await supabaseAdmin
+      .from("companies")
+      .select("id, approval_status")
+      .eq("user_id", args.userId)
       .maybeSingle();
 
-    if (!signup) {
-      return NextResponse.json(
-        { error: "無効なトークンです" },
-        { status: 400 }
-      );
-    }
+  if (existingCompanyError) {
+    throw existingCompanyError;
+  }
 
-    if (signup.used_at) {
-      return NextResponse.json(
-        { error: "このURLは既に使用されています" },
-        { status: 400 }
-      );
-    }
-
-    if (new Date(signup.expires_at) < new Date()) {
-      return NextResponse.json(
-        { error: "トークンの有効期限が切れています" },
-        { status: 400 }
-      );
-    }
-
-    if (signup.role !== "company") {
-      return NextResponse.json(
-        { error: "このURLは企業登録用ではありません" },
-        { status: 400 }
-      );
-    }
-
-    const { data: createdUser, error: createError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: signup.email,
-        password,
-        email_confirm: true,
-      });
-
-    if (createError || !createdUser?.user) {
-      return NextResponse.json(
-        { error: createError?.message ?? "ユーザー作成に失敗しました" },
-        { status: 500 }
-      );
-    }
-
-    const userId = createdUser.user.id;
-
+  if (!existingCompany) {
     const { error: companyError } = await supabaseAdmin
       .from("companies")
       .insert({
-        user_id: userId,
-        company_name: company_name.trim(),
-        contact_email: signup.email,
-        website_url: website_url.trim(),
-        phone_number: phone_number.trim(),
-        usage_purpose: usage_purpose.trim(),
+        user_id: args.userId,
+        company_name: args.companyName,
+        contact_email: args.email,
+        website_url: args.websiteUrl,
+        phone_number: args.phoneNumber,
+        usage_purpose: args.usagePurpose,
         approval_status: "pending",
       });
 
     if (companyError) {
-      return NextResponse.json(
-        { error: companyError.message ?? "企業情報作成に失敗しました" },
-        { status: 500 }
-      );
+      throw companyError;
     }
+  }
 
-    const { error: roleError } = await supabaseAdmin.from("user_roles").upsert({
-      user_id: userId,
-      role: "company",
-    });
+  const { error: roleError } = await supabaseAdmin.from("user_roles").upsert({
+    user_id: args.userId,
+    role: "company",
+  });
 
-    if (roleError) {
-      return NextResponse.json(
-        { error: roleError.message ?? "ロール作成に失敗しました" },
-        { status: 500 }
-      );
-    }
+  if (roleError) {
+    throw roleError;
+  }
 
-    const nowIso = new Date().toISOString();
-
-    const { error: stateError } = await supabaseAdmin.from("user_states").upsert({
-      user_id: userId,
+  const { error: stateError } = await supabaseAdmin.from("user_states").upsert(
+    {
+      user_id: args.userId,
       creator_profile_completed: false,
-      company_profile_completed: false,
+      company_profile_completed: true,
       onboarding_completed: false,
-      company_access_status: "pending_approval",
+      company_access_status: existingCompany?.approval_status === "approved"
+        ? "approved"
+        : "pending_approval",
+      company_plan_code: "free",
       company_subscription_status: "inactive",
+      monthly_request_limit: 5,
+      monthly_request_used: 0,
       terms_agreed_at: nowIso,
       privacy_agreed_at: nowIso,
       terms_version: TERMS_VERSION,
       privacy_version: PRIVACY_VERSION,
+      updated_at: nowIso,
+    },
+    {
+      onConflict: "user_id",
+    }
+  );
+
+  if (stateError) {
+    throw stateError;
+  }
+}
+
+async function completeWithExistingSession(req: Request, body: CompleteCompanyBody) {
+  const token = getBearerToken(req);
+
+  if (!token) return null;
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user) {
+    return NextResponse.json({ error: "認証に失敗しました" }, { status: 401 });
+  }
+
+  const email = user.email;
+
+  if (!email) {
+    return NextResponse.json(
+      { error: "メールアドレスを取得できませんでした" },
+      { status: 400 }
+    );
+  }
+
+  await ensureCompanyRecords({
+    userId: user.id,
+    email,
+    companyName: body.company_name!.trim(),
+    websiteUrl: body.website_url!.trim(),
+    phoneNumber: body.phone_number!.trim(),
+    usagePurpose: body.usage_purpose!.trim(),
+  });
+
+  return NextResponse.json({
+    success: true,
+    mode: "oauth_or_existing_session",
+    user_id: user.id,
+    email,
+  });
+}
+
+async function completeWithEmailPassword(body: CompleteCompanyBody) {
+  if (!body.email?.trim()) {
+    return NextResponse.json(
+      { error: "メールアドレスを入力してください" },
+      { status: 400 }
+    );
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())) {
+    return NextResponse.json(
+      { error: "メールアドレスの形式が正しくありません" },
+      { status: 400 }
+    );
+  }
+
+  if (!body.password || body.password.length < 12) {
+    return NextResponse.json(
+      { error: "パスワードは12文字以上必要です" },
+      { status: 400 }
+    );
+  }
+
+  const email = body.email.trim();
+
+  const { data: createdUser, error: createError } =
+    await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: body.password,
+      email_confirm: true,
+      user_metadata: {
+        role: "company",
+        company_name: body.company_name?.trim() ?? "",
+      },
     });
 
-    if (stateError) {
-      return NextResponse.json(
-        { error: stateError.message ?? "ユーザー状態作成に失敗しました" },
-        { status: 500 }
-      );
+  if (createError || !createdUser?.user) {
+    return NextResponse.json(
+      { error: createError?.message ?? "ユーザー作成に失敗しました" },
+      { status: 500 }
+    );
+  }
+
+  await ensureCompanyRecords({
+    userId: createdUser.user.id,
+    email,
+    companyName: body.company_name!.trim(),
+    websiteUrl: body.website_url!.trim(),
+    phoneNumber: body.phone_number!.trim(),
+    usagePurpose: body.usage_purpose!.trim(),
+  });
+
+  return NextResponse.json({
+    success: true,
+    mode: "email_password",
+    user_id: createdUser.user.id,
+    email,
+  });
+}
+
+// 旧メールリンク方式も念のため残す。
+// company-entry は /signup/company にリダイレクト済みなので、通常は使わない。
+async function completeWithLegacyToken(body: CompleteCompanyBody) {
+  if (!body.token) return null;
+
+  if (!body.password || body.password.length < 12) {
+    return NextResponse.json(
+      { error: "パスワードは12文字以上必要です" },
+      { status: 400 }
+    );
+  }
+
+  const { data: signup } = await supabaseAdmin
+    .from("signup_tokens")
+    .select("email, role, expires_at, used_at")
+    .eq("token", body.token)
+    .maybeSingle();
+
+  if (!signup) {
+    return NextResponse.json(
+      { error: "無効なトークンです" },
+      { status: 400 }
+    );
+  }
+
+  if (signup.used_at) {
+    return NextResponse.json(
+      { error: "このURLは既に使用されています" },
+      { status: 400 }
+    );
+  }
+
+  if (new Date(signup.expires_at) < new Date()) {
+    return NextResponse.json(
+      { error: "トークンの有効期限が切れています" },
+      { status: 400 }
+    );
+  }
+
+  if (signup.role !== "company") {
+    return NextResponse.json(
+      { error: "このURLは企業登録用ではありません" },
+      { status: 400 }
+    );
+  }
+
+  const { data: createdUser, error: createError } =
+    await supabaseAdmin.auth.admin.createUser({
+      email: signup.email,
+      password: body.password,
+      email_confirm: true,
+      user_metadata: {
+        role: "company",
+        company_name: body.company_name?.trim() ?? "",
+      },
+    });
+
+  if (createError || !createdUser?.user) {
+    return NextResponse.json(
+      { error: createError?.message ?? "ユーザー作成に失敗しました" },
+      { status: 500 }
+    );
+  }
+
+  await ensureCompanyRecords({
+    userId: createdUser.user.id,
+    email: signup.email,
+    companyName: body.company_name!.trim(),
+    websiteUrl: body.website_url!.trim(),
+    phoneNumber: body.phone_number!.trim(),
+    usagePurpose: body.usage_purpose!.trim(),
+  });
+
+  const nowIso = new Date().toISOString();
+
+  await supabaseAdmin
+    .from("signup_tokens")
+    .update({ used_at: nowIso })
+    .eq("token", body.token);
+
+  return NextResponse.json({
+    success: true,
+    mode: "legacy_token",
+    user_id: createdUser.user.id,
+    email: signup.email,
+  });
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = (await req.json()) as CompleteCompanyBody;
+
+    const commonError = validateCommonInput(body);
+
+    if (commonError) {
+      return NextResponse.json({ error: commonError }, { status: 400 });
     }
 
-    const { error: tokenError } = await supabaseAdmin
-      .from("signup_tokens")
-      .update({ used_at: nowIso })
-      .eq("token", token);
+    const legacyResult = await completeWithLegacyToken(body);
+    if (legacyResult) return legacyResult;
 
-    if (tokenError) {
-      return NextResponse.json(
-        { error: tokenError.message ?? "トークン更新に失敗しました" },
-        { status: 500 }
-      );
-    }
+    const sessionResult = await completeWithExistingSession(req, body);
+    if (sessionResult) return sessionResult;
 
-    return NextResponse.json({ success: true });
+    return await completeWithEmailPassword(body);
   } catch (error) {
-    console.error(error);
+    console.error("complete company signup error", error);
+
     return NextResponse.json(
       { error: "internal error" },
       { status: 500 }
