@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getStripe } from "@/lib/stripe";
+import { getBaseUrl, getStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,6 +11,15 @@ export const revalidate = 0;
 type AuthResult = {
   user: User | null;
   error: string | null;
+};
+
+type CreatorForConnectStatus = {
+  id: string;
+  user_id: string;
+  display_name: string | null;
+  full_name: string | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_completed: boolean | null;
 };
 
 async function getAuthenticatedUser(req: NextRequest): Promise<AuthResult> {
@@ -45,6 +54,67 @@ function maskStripeAccountId(value: string | null) {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
+function buildBusinessProfile(baseUrl: string) {
+  return {
+    url: baseUrl,
+    // 7311 = Advertising Services
+    mcc: "7311",
+    product_description:
+      "Creator provides sponsored social media posts, short videos, and UGC content for brands through Trendre.",
+  };
+}
+
+function shouldPatchBusinessProfile(account: Stripe.Account) {
+  const profile = account.business_profile;
+
+  return (
+    !profile?.mcc ||
+    !profile?.url ||
+    !profile?.product_description
+  );
+}
+
+function getRequirements(account: Stripe.Account) {
+  return {
+    currently_due: account.requirements?.currently_due ?? [],
+    past_due: account.requirements?.past_due ?? [],
+    eventually_due: account.requirements?.eventually_due ?? [],
+    pending_verification: account.requirements?.pending_verification ?? [],
+    disabled_reason: account.requirements?.disabled_reason ?? null,
+  };
+}
+
+function getBusinessProfileDebug(account: Stripe.Account) {
+  return {
+    mcc: account.business_profile?.mcc ?? null,
+    url: account.business_profile?.url ?? null,
+    product_description: account.business_profile?.product_description ?? null,
+    name: account.business_profile?.name ?? null,
+    support_url: account.business_profile?.support_url ?? null,
+    support_email: account.business_profile?.support_email ?? null,
+    support_phone: account.business_profile?.support_phone ?? null,
+  };
+}
+
+function getIndividualDebug(account: Stripe.Account) {
+  return {
+    has_individual: Boolean(account.individual),
+    first_name: account.individual?.first_name ?? null,
+    last_name: account.individual?.last_name ?? null,
+    email: account.individual?.email ?? null,
+    phone: account.individual?.phone ?? null,
+    dob_day_provided: Boolean(account.individual?.dob?.day),
+    dob_month_provided: Boolean(account.individual?.dob?.month),
+    dob_year_provided: Boolean(account.individual?.dob?.year),
+    address_city_provided: Boolean(account.individual?.address?.city),
+    address_line1_provided: Boolean(account.individual?.address?.line1),
+    address_postal_code_provided: Boolean(
+      account.individual?.address?.postal_code
+    ),
+    verification_status: account.individual?.verification?.status ?? null,
+  };
+}
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
@@ -62,13 +132,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: authError }, { status: 401 });
     }
 
-    const { data: creator, error: creatorError } = await supabaseAdmin
+    const { data: creatorRow, error: creatorError } = await supabaseAdmin
       .from("creators")
       .select(
         `
         id,
         user_id,
         display_name,
+        full_name,
         stripe_account_id,
         stripe_onboarding_completed
       `
@@ -80,12 +151,14 @@ export async function POST(req: NextRequest) {
       throw creatorError;
     }
 
-    if (!creator) {
+    if (!creatorRow) {
       return NextResponse.json(
         { error: "クリエイター情報が見つかりませんでした" },
         { status: 404 }
       );
     }
+
+    const creator = creatorRow as CreatorForConnectStatus;
 
     if (!creator.stripe_account_id) {
       return NextResponse.json({
@@ -99,18 +172,61 @@ export async function POST(req: NextRequest) {
         payouts_enabled: false,
         requirements_currently_due: [],
         requirements_past_due: [],
+        requirements_eventually_due: [],
+        requirements_pending_verification: [],
         disabled_reason: null,
+        business_profile: {
+          mcc: null,
+          url: null,
+          product_description: null,
+          name: null,
+          support_url: null,
+          support_email: null,
+          support_phone: null,
+        },
+        individual_debug: {
+          has_individual: false,
+          first_name: null,
+          last_name: null,
+          email: null,
+          phone: null,
+          dob_day_provided: false,
+          dob_month_provided: false,
+          dob_year_provided: false,
+          address_city_provided: false,
+          address_line1_provided: false,
+          address_postal_code_provided: false,
+          verification_status: null,
+        },
+        patched_business_profile: false,
       });
     }
 
     const stripe = getStripe();
+    const baseUrl = getBaseUrl();
 
-    const account = (await stripe.accounts.retrieve(
+    let account = (await stripe.accounts.retrieve(
       creator.stripe_account_id
     )) as Stripe.Account;
 
+    let patchedBusinessProfile = false;
+
+    if (shouldPatchBusinessProfile(account)) {
+      account = (await stripe.accounts.update(creator.stripe_account_id, {
+        business_profile: buildBusinessProfile(baseUrl),
+        metadata: {
+          app: "trendre",
+          supabase_user_id: user.id,
+          creator_id: creator.id,
+        },
+      })) as Stripe.Account;
+
+      patchedBusinessProfile = true;
+    }
+
     const onboardingCompleted = getConnectOnboardingCompleted(account);
     const nowIso = new Date().toISOString();
+    const requirements = getRequirements(account);
 
     const { error: updateError } = await supabaseAdmin
       .from("creators")
@@ -133,9 +249,20 @@ export async function POST(req: NextRequest) {
       details_submitted: Boolean(account.details_submitted),
       charges_enabled: Boolean(account.charges_enabled),
       payouts_enabled: Boolean(account.payouts_enabled),
-      requirements_currently_due: account.requirements?.currently_due ?? [],
-      requirements_past_due: account.requirements?.past_due ?? [],
-      disabled_reason: account.requirements?.disabled_reason ?? null,
+
+      requirements_currently_due: requirements.currently_due,
+      requirements_past_due: requirements.past_due,
+      requirements_eventually_due: requirements.eventually_due,
+      requirements_pending_verification: requirements.pending_verification,
+      disabled_reason: requirements.disabled_reason,
+
+      business_profile: getBusinessProfileDebug(account),
+      individual_debug: getIndividualDebug(account),
+      patched_business_profile: patchedBusinessProfile,
+
+      // 調査用。UI側で使う必要はない。
+      debug_note:
+        "business_profile fields are returned to verify whether Stripe received mcc/url/product_description.",
     });
   } catch (error) {
     console.error("creator connect status error", error);
