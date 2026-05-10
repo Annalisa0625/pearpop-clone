@@ -358,16 +358,26 @@ function getPlatformLabel(value: string | null | undefined) {
   return value?.trim() || "SNS未設定";
 }
 
-function getPlatformMark(value: string | null | undefined) {
+function getPlatformShortLabel(value: string | null | undefined) {
   const normalized = normalizePlatform(value);
 
-  if (normalized.includes("instagram")) return "IG";
-  if (normalized.includes("tiktok")) return "TT";
-  if (normalized.includes("youtube")) return "YT";
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("tiktok")) return "TikTok";
+  if (normalized.includes("youtube")) return "YouTube";
   if (normalized === "x" || normalized.includes("twitter")) return "X";
   if (normalized.includes("ugc")) return "UGC";
 
-  return "SNS";
+  return value?.trim() || "SNS";
+}
+
+function formatFollowerLabel(
+  platform: string | null | undefined,
+  followerRange: string | null | undefined
+) {
+  const range = followerRange?.trim();
+  if (!range) return null;
+
+  return `${getPlatformShortLabel(platform)}・${range}`;
 }
 
 function getCreatorInitial(name: string) {
@@ -469,7 +479,9 @@ function FilterButton({
           : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
       }`}
     >
-      <span>{label}: {value}</span>
+      <span>
+        {label}: {value}
+      </span>
       <ChevronDownIcon />
     </button>
   );
@@ -486,7 +498,6 @@ export default function CompanyCreatorsPage() {
         ? {
             loading: "読み込み中...",
             fetchError: "クリエイター一覧の取得に失敗しました。",
-            searchEyebrow: "Creator Search",
             platform: "Platform",
             categoryKeyword: "Category / Keyword",
             keywordPlaceholder: "キーワード、カテゴリ、SNS、メニュー名で検索",
@@ -499,15 +510,12 @@ export default function CompanyCreatorsPage() {
             noCreatorsTitle: "表示できるクリエイターがいません",
             noCreatorsBody:
               "検索条件を変更するか、報酬受け取り設定が完了したクリエイターの追加をお待ちください。",
-            basicLimit: "Basicでは月5件まで注文できます。",
             creatorFallback: "Creator",
             noSns: "SNS未設定",
-            priceUnset: "-",
           }
         : {
             loading: "Loading...",
             fetchError: "Failed to load creators.",
-            searchEyebrow: "Creator Search",
             platform: "Platform",
             categoryKeyword: "Category / Keyword",
             keywordPlaceholder: "Search keywords, categories, SNS, or menu names",
@@ -520,10 +528,8 @@ export default function CompanyCreatorsPage() {
             noCreatorsTitle: "No creators found",
             noCreatorsBody:
               "Try changing your search filters or wait for more creators to complete payout setup.",
-            basicLimit: "Basic can place up to 5 orders per month.",
             creatorFallback: "Creator",
             noSns: "SNS not set",
-            priceUnset: "-",
           },
     [safeLocale]
   );
@@ -983,21 +989,15 @@ export default function CompanyCreatorsPage() {
 
       {!error ? (
         <section className="space-y-5">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-[28px] font-black tracking-tight text-slate-950">
-                {copy.creators}
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {safeLocale === "ja"
-                  ? `${filteredCreators.length.toLocaleString()} ${copy.countSuffix}`
-                  : `${filteredCreators.length.toLocaleString()} ${copy.countSuffix}`}
-              </p>
-            </div>
-
-            <div className="hidden text-right text-sm text-slate-500 md:block">
-              {copy.basicLimit}
-            </div>
+          <div>
+            <h2 className="text-[28px] font-black tracking-tight text-slate-950">
+              {copy.creators}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {safeLocale === "ja"
+                ? `${filteredCreators.length.toLocaleString()} ${copy.countSuffix}`
+                : `${filteredCreators.length.toLocaleString()} ${copy.countSuffix}`}
+            </p>
           </div>
 
           {filteredCreators.length === 0 ? (
@@ -1024,6 +1024,10 @@ export default function CompanyCreatorsPage() {
 
                 const isSaved = savedCreatorIds.includes(creator.id);
                 const isSaving = savingCreatorId === creator.id;
+                const followerLabel = formatFollowerLabel(
+                  creator.primaryPlatform,
+                  creator.followerRange
+                );
 
                 return (
                   <Link
@@ -1080,10 +1084,9 @@ export default function CompanyCreatorsPage() {
                         {isSaved ? "♥" : "♡"}
                       </button>
 
-                      {creator.followerRange ? (
+                      {followerLabel ? (
                         <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-900 backdrop-blur">
-                          {getPlatformMark(creator.primaryPlatform)}{" "}
-                          {creator.followerRange}
+                          {followerLabel}
                         </div>
                       ) : null}
                     </div>
