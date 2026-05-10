@@ -612,7 +612,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             >
               <button
                 type="button"
-                onClick={openProfileMenu}
+                onClick={() => setMenuOpen((prev) => !prev)}
                 onFocus={openProfileMenu}
                 className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50"
                 aria-haspopup="menu"
@@ -625,60 +625,58 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               </button>
 
               {menuOpen ? (
-                <div
-                  className="absolute right-0 top-full z-50 mt-3 w-56 overflow-hidden rounded-2xl border bg-white shadow-2xl"
-                  onMouseEnter={openProfileMenu}
-                  onMouseLeave={closeProfileMenu}
-                >
-                  <div className="border-b px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Company
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-gray-900">
-                      {copy.consoleTitle}
-                    </p>
+                <div className="absolute right-0 top-full z-50 w-56 pt-1">
+                  <div className="overflow-hidden rounded-2xl border bg-white shadow-2xl">
+                    <div className="border-b px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Company
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-gray-900">
+                        {copy.consoleTitle}
+                      </p>
+                    </div>
+
+                    <Link
+                      href="/b/profile"
+                      onClick={closeProfileMenu}
+                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      {copy.profile}
+                    </Link>
+
+                    <Link
+                      href="/b/requests"
+                      onClick={closeProfileMenu}
+                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      {copy.requests}
+                    </Link>
+
+                    <Link
+                      href="/b/jobs"
+                      onClick={closeProfileMenu}
+                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      {copy.jobs}
+                    </Link>
+
+                    <Link
+                      href="/b/billing"
+                      onClick={closeProfileMenu}
+                      className="block border-t px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      {copy.billing}
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                      className="block w-full px-4 py-3 text-left text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {loggingOut ? copy.loggingOut : copy.logout}
+                    </button>
                   </div>
-
-                  <Link
-                    href="/b/profile"
-                    onClick={closeProfileMenu}
-                    className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                  >
-                    {copy.profile}
-                  </Link>
-
-                  <Link
-                    href="/b/requests"
-                    onClick={closeProfileMenu}
-                    className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                  >
-                    {copy.requests}
-                  </Link>
-
-                  <Link
-                    href="/b/jobs"
-                    onClick={closeProfileMenu}
-                    className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                  >
-                    {copy.jobs}
-                  </Link>
-
-                  <Link
-                    href="/b/billing"
-                    onClick={closeProfileMenu}
-                    className="block border-t px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                  >
-                    {copy.billing}
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    disabled={loggingOut}
-                    className="block w-full px-4 py-3 text-left text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {loggingOut ? copy.loggingOut : copy.logout}
-                  </button>
                 </div>
               ) : null}
             </div>
