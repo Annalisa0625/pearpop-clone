@@ -57,7 +57,7 @@ function validateCommonInput(body: CompleteCompanyBody) {
 async function ensureCompanyRole(userId: string) {
   const { data: existingRole, error: existingRoleError } = await supabaseAdmin
     .from("user_roles")
-    .select("id, role")
+    .select("role")
     .eq("user_id", userId)
     .eq("role", "company")
     .maybeSingle();
