@@ -82,6 +82,64 @@ async function ensureCompanyRole(userId: string) {
   }
 }
 
+async function ensureUserState(userId: string) {
+  const nowIso = new Date().toISOString();
+
+  const statePayload = {
+    creator_profile_completed: false,
+    company_profile_completed: true,
+    onboarding_completed: true,
+
+    company_access_status: "approved",
+    company_plan_code: "free",
+    company_subscription_status: "inactive",
+
+    monthly_request_limit: 5,
+    monthly_request_used: 0,
+    request_usage_reset_at: nowIso,
+
+    terms_agreed_at: nowIso,
+    privacy_agreed_at: nowIso,
+    terms_version: TERMS_VERSION,
+    privacy_version: PRIVACY_VERSION,
+    updated_at: nowIso,
+  };
+
+  const { data: existingState, error: existingStateError } = await supabaseAdmin
+    .from("user_states")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingStateError) {
+    throw existingStateError;
+  }
+
+  if (existingState) {
+    const { error: updateStateError } = await supabaseAdmin
+      .from("user_states")
+      .update(statePayload)
+      .eq("user_id", userId);
+
+    if (updateStateError) {
+      throw updateStateError;
+    }
+
+    return;
+  }
+
+  const { error: insertStateError } = await supabaseAdmin
+    .from("user_states")
+    .insert({
+      user_id: userId,
+      ...statePayload,
+    });
+
+  if (insertStateError) {
+    throw insertStateError;
+  }
+}
+
 async function ensureCompanyRecords(args: {
   userId: string;
   email: string;
@@ -139,37 +197,7 @@ async function ensureCompanyRecords(args: {
   }
 
   await ensureCompanyRole(args.userId);
-
-  const { error: stateError } = await supabaseAdmin.from("user_states").upsert(
-    {
-      user_id: args.userId,
-
-      creator_profile_completed: false,
-      company_profile_completed: true,
-      onboarding_completed: true,
-
-      company_access_status: "approved",
-      company_plan_code: "free",
-      company_subscription_status: "inactive",
-
-      monthly_request_limit: 5,
-      monthly_request_used: 0,
-      request_usage_reset_at: nowIso,
-
-      terms_agreed_at: nowIso,
-      privacy_agreed_at: nowIso,
-      terms_version: TERMS_VERSION,
-      privacy_version: PRIVACY_VERSION,
-      updated_at: nowIso,
-    },
-    {
-      onConflict: "user_id",
-    }
-  );
-
-  if (stateError) {
-    throw stateError;
-  }
+  await ensureUserState(args.userId);
 }
 
 async function completeWithExistingSession(
@@ -215,6 +243,20 @@ async function completeWithExistingSession(
   });
 }
 
+async function findExistingUserByEmail(email: string) {
+  const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+
+  if (error) {
+    throw error;
+  }
+
+  return (
+    data.users.find(
+      (item) => item.email?.toLowerCase() === email.toLowerCase()
+    ) ?? null
+  );
+}
+
 async function completeWithEmailPassword(body: CompleteCompanyBody) {
   if (!body.email?.trim()) {
     return NextResponse.json(
@@ -238,18 +280,7 @@ async function completeWithEmailPassword(body: CompleteCompanyBody) {
   }
 
   const email = body.email.trim();
-
-  const { data: existingUsers, error: listError } =
-    await supabaseAdmin.auth.admin.listUsers();
-
-  if (listError) {
-    throw listError;
-  }
-
-  const existingUser =
-    existingUsers.users.find(
-      (item) => item.email?.toLowerCase() === email.toLowerCase()
-    ) ?? null;
+  const existingUser = await findExistingUserByEmail(email);
 
   let userId: string;
 
