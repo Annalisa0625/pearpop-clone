@@ -664,30 +664,39 @@ export default function CreatorDetailPage() {
         const isCompany = (roles ?? []).some((r) => r.role === "company");
         const isSuspended = (activeSuspensions ?? []).length > 0;
 
-        const canSendRequests =
+        const companyPlanCode =
+          (userState?.company_plan_code as
+            | "free"
+            | "standard"
+            | "global_pro"
+            | null) ?? "free";
+
+        const companyAccountReady =
           isCompany &&
           !isSuspended &&
           !!userState?.company_profile_completed &&
-          userState?.company_access_status === "approved" &&
-          userState?.company_subscription_status === "active";
+          userState?.company_access_status === "approved";
+
+        // MVP仕様:
+        // Basic/free は月額課金なしで注文可能。
+        // Pro/Premium相当の有料プランだけ subscription_status=active を要求する。
+        const isPaidPlan =
+          companyPlanCode === "standard" || companyPlanCode === "global_pro";
+
+        const canSendRequests =
+          companyAccountReady &&
+          (!isPaidPlan || userState?.company_subscription_status === "active");
 
         const needsBilling =
-          isCompany &&
-          !isSuspended &&
-          !!userState?.company_profile_completed &&
-          userState?.company_access_status === "approved" &&
+          companyAccountReady &&
+          isPaidPlan &&
           userState?.company_subscription_status !== "active";
 
         nextGate = {
           isLoggedIn: true,
           canSendRequests,
           needsBilling,
-          companyPlanCode:
-            (userState?.company_plan_code as
-              | "free"
-              | "standard"
-              | "global_pro"
-              | null) ?? null,
+          companyPlanCode,
           needsUpgradeForRegion: false,
         };
       }
