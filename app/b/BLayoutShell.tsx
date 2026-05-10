@@ -231,26 +231,26 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     () => [
       {
         href: "/b/dashboard",
-        label: locale === "ja" ? "Home" : "Home",
+        label: "Home",
       },
       {
         href: "/b/creators",
-        label: locale === "ja" ? "Search" : "Search",
+        label: "Search",
       },
       {
         href: "/b/requests",
-        label: locale === "ja" ? "Pending" : "Pending",
+        label: "Pending",
       },
       {
         href: "/b/jobs",
-        label: locale === "ja" ? "Jobs" : "Jobs",
+        label: "Jobs",
       },
       {
         href: "/b/billing",
-        label: locale === "ja" ? "Pricing" : "Pricing",
+        label: "Pricing",
       },
     ],
-    [locale]
+    []
   );
 
   const loadUnreadBadges = useCallback(async () => {
@@ -535,6 +535,14 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     }
   };
 
+  const closeProfileMenu = () => {
+    setMenuOpen(false);
+  };
+
+  const openProfileMenu = () => {
+    setMenuOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {limitReason && (
@@ -597,10 +605,15 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               </Link>
             ) : null}
 
-            <div className="relative">
+            <div
+              className="relative"
+              onMouseEnter={openProfileMenu}
+              onMouseLeave={closeProfileMenu}
+            >
               <button
                 type="button"
-                onClick={() => setMenuOpen((prev) => !prev)}
+                onClick={openProfileMenu}
+                onFocus={openProfileMenu}
                 className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
@@ -612,7 +625,11 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               </button>
 
               {menuOpen ? (
-                <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-2xl border bg-white shadow-2xl">
+                <div
+                  className="absolute right-0 top-full z-50 mt-3 w-56 overflow-hidden rounded-2xl border bg-white shadow-2xl"
+                  onMouseEnter={openProfileMenu}
+                  onMouseLeave={closeProfileMenu}
+                >
                   <div className="border-b px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                       Company
@@ -624,7 +641,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
                   <Link
                     href="/b/profile"
-                    onClick={() => setMenuOpen(false)}
+                    onClick={closeProfileMenu}
                     className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                   >
                     {copy.profile}
@@ -632,7 +649,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
                   <Link
                     href="/b/requests"
-                    onClick={() => setMenuOpen(false)}
+                    onClick={closeProfileMenu}
                     className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                   >
                     {copy.requests}
@@ -640,7 +657,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
                   <Link
                     href="/b/jobs"
-                    onClick={() => setMenuOpen(false)}
+                    onClick={closeProfileMenu}
                     className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                   >
                     {copy.jobs}
@@ -648,7 +665,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
                   <Link
                     href="/b/billing"
-                    onClick={() => setMenuOpen(false)}
+                    onClick={closeProfileMenu}
                     className="block border-t px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                   >
                     {copy.billing}
