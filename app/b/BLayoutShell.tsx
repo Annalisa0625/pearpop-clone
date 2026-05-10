@@ -93,10 +93,10 @@ function LocaleSwitcher({
   setLocale: (locale: AppLocale) => void;
 }) {
   const baseClass =
-    "rounded-lg border px-3 py-2 text-sm font-medium transition";
+    "rounded-full border px-3 py-2 text-sm font-semibold transition";
   const activeClass = "border-gray-900 bg-gray-900 text-white";
   const inactiveClass =
-    "border-gray-300 bg-white text-gray-700 hover:bg-gray-100";
+    "border-gray-200 bg-white text-gray-700 hover:bg-gray-50";
 
   return (
     <div className="flex items-center gap-2">
@@ -133,6 +133,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const [loggingOut, setLoggingOut] = useState(false);
   const [limitReason, setLimitReason] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState<UnreadState>({
     requests: false,
     jobs: false,
@@ -140,11 +141,19 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
+  // クリエイター検索・詳細・注文導線は、管理画面ではなくマーケットプレイス風に見せる
+  const isMarketplaceBrowsing =
+    pathname === "/b/creators" ||
+    pathname.startsWith("/b/creators/");
+
+  const showSidebar = !isOnboarding && !isMarketplaceBrowsing;
+
   const copy = useMemo(
     () =>
       locale === "ja"
         ? {
             consoleTitle: "Company Console",
+            brandTitle: "Trendre",
             companyNavigation: "Company Navigation",
             billing: "料金プラン",
             loggingOut: "ログアウト中...",
@@ -156,9 +165,15 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             limitReasonLabel: "制限理由",
             limitBody:
               "※ ログイン・既存案件の操作は可能ですが、新規取引は行えません。",
+            profile: "プロフィール",
+            requests: "承認待ち",
+            jobs: "進行中案件",
+            account: "アカウント設定",
+            search: "クリエイター検索",
           }
         : {
             consoleTitle: "Company Console",
+            brandTitle: "Trendre",
             companyNavigation: "Company Navigation",
             billing: "Billing",
             loggingOut: "Logging out...",
@@ -170,6 +185,11 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             limitReasonLabel: "Reason",
             limitBody:
               "You can log in and manage existing jobs, but you cannot start new transactions.",
+            profile: "Profile",
+            requests: "Pending",
+            jobs: "Active Jobs",
+            account: "Account",
+            search: "Search",
           },
     [locale]
   );
@@ -205,6 +225,32 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       },
     ],
     [locale, t]
+  );
+
+  const marketplaceTopNavItems = useMemo(
+    () => [
+      {
+        href: "/b/dashboard",
+        label: locale === "ja" ? "Home" : "Home",
+      },
+      {
+        href: "/b/creators",
+        label: locale === "ja" ? "Search" : "Search",
+      },
+      {
+        href: "/b/requests",
+        label: locale === "ja" ? "Pending" : "Pending",
+      },
+      {
+        href: "/b/jobs",
+        label: locale === "ja" ? "Jobs" : "Jobs",
+      },
+      {
+        href: "/b/billing",
+        label: locale === "ja" ? "Pricing" : "Pricing",
+      },
+    ],
+    [locale]
   );
 
   const loadUnreadBadges = useCallback(async () => {
@@ -504,41 +550,131 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
       <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link
-              href="/b/dashboard"
-              className="text-lg font-bold tracking-tight"
+              href="/b/creators"
+              className="text-xl font-black tracking-tight"
             >
-              {copy.consoleTitle}
+              {isMarketplaceBrowsing ? copy.brandTitle : copy.consoleTitle}
             </Link>
+
             <span className="hidden rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 md:inline-flex">
               B
             </span>
           </div>
 
+          {isMarketplaceBrowsing ? (
+            <nav className="hidden items-center gap-7 md:flex">
+              {marketplaceTopNavItems.map((item) => {
+                const active = isActivePath(pathname, item.href);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`text-sm font-semibold transition ${
+                      active
+                        ? "border-b-2 border-black pb-1 text-black"
+                        : "text-gray-700 hover:text-black"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : null}
+
           <div className="flex items-center gap-2">
             <LocaleSwitcher locale={locale} setLocale={setLocale} />
 
-            <Link
-              href="/b/billing"
-              className="hidden rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 md:inline-flex"
-            >
-              {copy.billing}
-            </Link>
+            {!isMarketplaceBrowsing ? (
+              <Link
+                href="/b/billing"
+                className="hidden rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 md:inline-flex"
+              >
+                {copy.billing}
+              </Link>
+            ) : null}
 
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-            >
-              {loggingOut ? copy.loggingOut : copy.logout}
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+              >
+                <span className="hidden md:inline">B</span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-700">
+                  B
+                </span>
+              </button>
+
+              {menuOpen ? (
+                <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-2xl border bg-white shadow-2xl">
+                  <div className="border-b px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Company
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-gray-900">
+                      {copy.consoleTitle}
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/b/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                  >
+                    {copy.profile}
+                  </Link>
+
+                  <Link
+                    href="/b/requests"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                  >
+                    {copy.requests}
+                  </Link>
+
+                  <Link
+                    href="/b/jobs"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                  >
+                    {copy.jobs}
+                  </Link>
+
+                  <Link
+                    href="/b/billing"
+                    onClick={() => setMenuOpen(false)}
+                    className="block border-t px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                  >
+                    {copy.billing}
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                    className="block w-full px-4 py-3 text-left text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {loggingOut ? copy.loggingOut : copy.logout}
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 md:px-6">
-        {!isOnboarding && (
+      <div
+        className={`mx-auto flex w-full gap-6 px-4 py-6 md:px-6 ${
+          isMarketplaceBrowsing ? "max-w-7xl" : "max-w-7xl"
+        }`}
+      >
+        {showSidebar ? (
           <aside className="hidden w-64 shrink-0 md:block">
             <div className="sticky top-24 rounded-3xl border bg-white p-4 shadow-sm">
               <p className="mb-3 px-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -548,7 +684,9 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               <nav className="space-y-1">
                 {navItems.map((item) => {
                   const active = isActivePath(pathname, item.href);
-                  const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
+                  const showUnread = item.badgeKey
+                    ? unread[item.badgeKey]
+                    : false;
 
                   return (
                     <Link
@@ -575,7 +713,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           </aside>
-        )}
+        ) : null}
 
         <main className="min-w-0 flex-1">
           {children}
