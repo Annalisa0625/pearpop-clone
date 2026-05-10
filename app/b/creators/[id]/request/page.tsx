@@ -86,25 +86,25 @@ function isPaidPlan(value: string | null | undefined) {
   return plan === "standard" || plan === "global_pro";
 }
 
+function getBuyerFeeRateBps(planCode: GateState["companyPlanCode"]) {
+  return planCode === "global_pro" ? 500 : 1000;
+}
+
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return Array.from(
     new Set(values.map((v) => (v ?? "").trim()).filter(Boolean))
   );
 }
 
-function getPlanLabel(
-  planCode: GateState["companyPlanCode"],
-  locale: "ja" | "en"
-) {
+function getPlanLabel(planCode: GateState["companyPlanCode"]) {
   switch (planCode) {
-    case "free":
-      return "Basic";
     case "standard":
       return "Pro";
     case "global_pro":
       return "Premium";
+    case "free":
     default:
-      return locale === "ja" ? "Basic" : "Basic";
+      return "Basic";
   }
 }
 
@@ -181,6 +181,25 @@ function formatPrice(
   return locale === "ja" ? "未設定" : "Not set";
 }
 
+function formatPlainPrice(
+  value: number,
+  currency: string | null | undefined,
+  locale: "ja" | "en"
+) {
+  const safeCurrency = currency || "JPY";
+
+  try {
+    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+      style: "currency",
+      currency: safeCurrency,
+      maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
+    }).format(value);
+  } catch {
+    if (safeCurrency === "USD") return `$${value.toLocaleString()}`;
+    return `¥${value.toLocaleString()}`;
+  }
+}
+
 function formatDeliveryDays(
   value: number | null,
   locale: "ja" | "en",
@@ -208,12 +227,24 @@ function menuTypeLabel(
   return labels[value || ""]?.[locale] || fallback;
 }
 
+function getPlatformIcon(value: string | null | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  if (normalized.includes("instagram")) return "◎";
+  if (normalized.includes("tiktok")) return "♪";
+  if (normalized.includes("youtube")) return "▶";
+  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
+  if (normalized.includes("ugc")) return "▣";
+
+  return "●";
+}
+
 function Badge({
   children,
   tone = "gray",
 }: {
   children: ReactNode;
-  tone?: "gray" | "blue" | "green" | "yellow" | "purple" | "red";
+  tone?: "gray" | "blue" | "green" | "yellow" | "purple" | "red" | "black";
 }) {
   const styles = {
     gray: "bg-gray-100 text-gray-700",
@@ -222,6 +253,7 @@ function Badge({
     yellow: "bg-yellow-100 text-yellow-800",
     purple: "bg-purple-100 text-purple-700",
     red: "bg-red-100 text-red-700",
+    black: "bg-slate-950 text-white",
   };
 
   return (
@@ -230,6 +262,29 @@ function Badge({
     >
       {children}
     </span>
+  );
+}
+
+function Row({
+  label,
+  value,
+  bold,
+}: {
+  label: string;
+  value: ReactNode;
+  bold?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm text-slate-500">{label}</span>
+      <span
+        className={`text-right text-sm ${
+          bold ? "font-black text-slate-950" : "font-semibold text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 
@@ -268,21 +323,20 @@ export default function CreatorRequestPage() {
             backToCreator: "クリエイター詳細へ戻る",
             mainAudience: "主な視聴者",
             notSet: "未設定",
+            pageStep: "1",
+            pageStepLabel: "Place Order",
             pageTitle: "注文内容を入力",
             pageSubtitle:
-              "選択したメニューをもとに、商品情報・希望内容・納期を入力します。次の画面で支払い方法を確認し、クリエイター承認待ちの注文を作成します。",
-            creatorInfo: "クリエイター情報",
+              "支払いは72時間保持されます。クリエイターが承認した場合のみ決済が確定し、辞退または期限切れの場合は請求されません。",
+            creatorInfo: "Creator",
             platforms: "対応SNS",
-            planStatus: "現在のプラン状況",
             currentPlan: "現在プラン",
-            sentThisMonth: "今月の注文数",
             remainingThisMonth: "残り注文可能数",
             nextReset: "次回リセット目安",
             unlimited: "無制限",
-            selectedMenu: "選択中のメニュー",
+            selectedMenu: "Selected package",
             selectMenu: "注文するメニュー",
             noMenus: "公開メニューがありません。",
-            menuType: "種別",
             price: "価格",
             delivery: "納期",
             deliverables: "納品物",
@@ -291,8 +345,8 @@ export default function CreatorRequestPage() {
             notAllowed: "不可",
             notes: "注意事項",
             none: "なし",
-            productInfo: "商品・案件情報",
-            productName: "商品名・案件名（必須）",
+            productInfo: "Requirements",
+            productName: "商品名・案件名",
             productNamePlaceholder: "例：新作美容液PR",
             productUrl: "商品URL",
             productUrlPlaceholder: "https://...",
@@ -301,7 +355,7 @@ export default function CreatorRequestPage() {
             wantsSecondaryUse: "二次利用を希望する",
             secondaryUseUnavailable:
               "このメニューでは二次利用は許可されていません。",
-            requirements: "注文内容・requirements（必須・10文字以上）",
+            requirements: "注文内容・requirements",
             requirementsPlaceholder:
               "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現、参考イメージなどを記入してください。",
             productRequired: "商品名・案件名を入力してください。",
@@ -315,10 +369,16 @@ export default function CreatorRequestPage() {
             checkoutUrlMissing: "Checkout URLを取得できませんでした。",
             submitting: "Checkout作成中...",
             limitReachedButton: "上限に達しています",
-            submitButton: "注文内容を確認して決済へ進む",
+            submitButton: "Checkoutへ進む",
             pieces: "件",
             orderNotice:
-              "次の画面でカードの与信枠を確保します。クリエイターが72時間以内に承認した場合のみ決済が確定し、辞退または期限切れの場合は請求が確定しません。",
+              "次の画面でカードの与信枠を確保します。クリエイターが72時間以内に承認した場合のみ決済が確定します。",
+            orderSummary: "Order Summary",
+            menuPrice: "メニュー価格",
+            marketplaceFee: "Trendre marketplace fee",
+            total: "お支払い合計",
+            paymentProtection:
+              "Payment Protection: クリエイターが辞退した場合、請求は確定しません。",
           }
         : {
             loading: "Loading...",
@@ -341,40 +401,39 @@ export default function CreatorRequestPage() {
             backToCreator: "Back to Creator Detail",
             mainAudience: "Main audience",
             notSet: "Not set",
-            pageTitle: "Enter Order Requirements",
+            pageStep: "1",
+            pageStepLabel: "Place Order",
+            pageTitle: "Place Order",
             pageSubtitle:
-              "Enter product details, requirements, and timing based on the selected menu. On the next screen, your payment method will be authorized and the order will wait for creator approval.",
-            creatorInfo: "Creator Information",
+              "Your payment will be held for 72 hours. It will only be captured if the creator accepts.",
+            creatorInfo: "Creator",
             platforms: "Platforms",
-            planStatus: "Current Plan Status",
             currentPlan: "Current Plan",
-            sentThisMonth: "Orders this month",
             remainingThisMonth: "Remaining orders",
             nextReset: "Next reset",
             unlimited: "Unlimited",
-            selectedMenu: "Selected Menu",
-            selectMenu: "Menu to Order",
+            selectedMenu: "Selected package",
+            selectMenu: "Menu to order",
             noMenus: "No public menus are available.",
-            menuType: "Type",
             price: "Price",
             delivery: "Delivery",
             deliverables: "Deliverables",
-            secondaryUse: "Secondary Use",
+            secondaryUse: "Secondary use",
             allowed: "Allowed",
             notAllowed: "Not allowed",
             notes: "Notes",
             none: "None",
-            productInfo: "Product / Campaign Information",
-            productName: "Product or Campaign Name (required)",
+            productInfo: "Requirements",
+            productName: "Product or campaign name",
             productNamePlaceholder: "Example: New skincare serum PR",
             productUrl: "Product URL",
             productUrlPlaceholder: "https://...",
-            deadline: "Preferred Deadline",
+            deadline: "Preferred deadline",
             freeOffer: "Product will be provided for free",
             wantsSecondaryUse: "Request secondary use",
             secondaryUseUnavailable:
               "Secondary use is not allowed for this menu.",
-            requirements: "Order Requirements (required, 10+ characters)",
+            requirements: "Order requirements",
             requirementsPlaceholder:
               "Describe key selling points, requested content, preferred format, expressions to avoid, reference ideas, and any important details.",
             productRequired: "Please enter a product or campaign name.",
@@ -388,10 +447,16 @@ export default function CreatorRequestPage() {
             checkoutUrlMissing: "Checkout URL was not returned.",
             submitting: "Creating Checkout...",
             limitReachedButton: "Limit Reached",
-            submitButton: "Review Order and Continue to Payment",
+            submitButton: "Continue to Checkout",
             pieces: "",
             orderNotice:
-              "Your card will be authorized on the next screen. The payment will only be captured if the creator accepts within 72 hours. If the creator declines or the deadline expires, the charge will not be finalized.",
+              "Your card will be authorized on the next screen. The payment will only be captured if the creator accepts within 72 hours.",
+            orderSummary: "Order Summary",
+            menuPrice: "Menu price",
+            marketplaceFee: "Trendre marketplace fee",
+            total: "Total",
+            paymentProtection:
+              "Payment Protection: If the creator declines, the charge will not be finalized.",
           },
     [safeLocale]
   );
@@ -626,6 +691,12 @@ export default function CreatorRequestPage() {
   const selectedMenu =
     menus.find((menu) => menu.id === form.creator_menu_id) ?? null;
 
+  const menuPriceAmount =
+    typeof selectedMenu?.price === "number" ? selectedMenu.price : 0;
+  const buyerFeeRateBps = getBuyerFeeRateBps(gate.companyPlanCode);
+  const buyerFeeAmount = Math.round((menuPriceAmount * buyerFeeRateBps) / 10000);
+  const buyerTotalAmount = menuPriceAmount + buyerFeeAmount;
+
   const remainingRequests =
     gate.monthlyRequestLimit === null
       ? null
@@ -817,112 +888,127 @@ export default function CreatorRequestPage() {
     submitting || reachedLimit || !selectedMenu || !gate.canSendRequests;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-600">@{creator.display_name}</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">
+    <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
+      <div className="mb-8 border-b pb-4">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-400 bg-emerald-50 font-bold text-emerald-600">
+            {copy.pageStep}
+          </span>
+          <span className="font-semibold text-slate-900">
+            {copy.pageStepLabel}
+          </span>
+        </div>
+      </div>
+
+      <section className="mb-10">
+        <h1 className="text-3xl font-black tracking-tight text-slate-950">
           {copy.pageTitle}
         </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+        <p className="mt-3 max-w-5xl text-base leading-7 text-slate-600">
           {copy.pageSubtitle}
         </p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-3xl border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold">{copy.creatorInfo}</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">{copy.mainAudience}</p>
-              <p className="mt-2 text-lg font-bold">
-                {audienceCountryLabels.length > 0
-                  ? audienceCountryLabels.join(" / ")
-                  : copy.notSet}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">{copy.platforms}</p>
-              <p className="mt-2 text-lg font-bold">
-                {platforms.length > 0 ? platforms.join(" / ") : copy.notSet}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold">{copy.planStatus}</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">{copy.currentPlan}</p>
-              <p className="mt-2 text-lg font-bold">
-                {getPlanLabel(gate.companyPlanCode, safeLocale)}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">{copy.remainingThisMonth}</p>
-              <p className="mt-2 text-lg font-bold">
-                {remainingRequests === null
-                  ? copy.unlimited
-                  : `${remainingRequests.toLocaleString(
-                      safeLocale === "ja" ? "ja-JP" : "en-US"
-                    )}${copy.pieces}`}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border bg-gray-50 p-4 sm:col-span-2">
-              <p className="text-sm text-gray-500">{copy.nextReset}</p>
-              <p className="mt-2 text-lg font-bold">
-                {formatDate(gate.requestUsageResetAt, safeLocale)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {reachedLimit ? (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
-          {copy.freeLimitReached}
-        </div>
-      ) : null}
-
-      {errorMsg ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-700">
-          {errorMsg}
-        </div>
-      ) : null}
-
-      <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
-        <div className="space-y-6">
-          <section className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold">{copy.selectMenu}</h2>
+      <form onSubmit={onSubmit} className="grid gap-10 lg:grid-cols-[1fr_0.88fr]">
+        <div className="space-y-8">
+          <section>
+            <h2 className="text-xl font-black text-slate-950">
+              {copy.selectMenu}
+            </h2>
 
             {menus.length === 0 ? (
-              <p className="mt-4 text-sm text-gray-500">{copy.noMenus}</p>
+              <p className="mt-4 text-sm text-slate-500">{copy.noMenus}</p>
             ) : (
-              <div className="mt-4">
-                <select
-                  value={form.creator_menu_id}
-                  onChange={(e) => handleMenuChange(e.target.value)}
-                  className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-                >
-                  {menus.map((menu) => (
-                    <option key={menu.id} value={menu.id}>
-                      {menu.title}
-                    </option>
-                  ))}
-                </select>
+              <div className="mt-4 space-y-3">
+                {menus.map((menu) => {
+                  const isSelected = form.creator_menu_id === menu.id;
+                  const price = formatPrice(
+                    menu.price,
+                    menu.currency,
+                    menu.reference_price_text,
+                    safeLocale
+                  );
+
+                  return (
+                    <button
+                      key={menu.id}
+                      type="button"
+                      onClick={() => handleMenuChange(menu.id)}
+                      className={`w-full rounded-[16px] border bg-white p-5 text-left transition hover:border-slate-400 ${
+                        isSelected
+                          ? "border-slate-950 shadow-sm"
+                          : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl">◉</span>
+                            <h3 className="truncate text-xl font-black text-slate-950">
+                              {menu.title}
+                            </h3>
+                          </div>
+
+                          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+                            {menu.description?.trim() ||
+                              menu.deliverables?.trim() ||
+                              copy.none}
+                          </p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Badge tone="blue">
+                              {menu.platform || menu.sns || copy.notSet}
+                            </Badge>
+                            <Badge tone="purple">
+                              {menuTypeLabel(
+                                menu.menu_type,
+                                safeLocale,
+                                copy.notSet
+                              )}
+                            </Badge>
+                            {menu.delivery_days != null ? (
+                              <Badge tone="green">
+                                {copy.delivery}:{" "}
+                                {formatDeliveryDays(
+                                  menu.delivery_days,
+                                  safeLocale,
+                                  copy.notSet
+                                )}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-4">
+                          <span className="text-xl font-black text-slate-950">
+                            {price}
+                          </span>
+                          <span
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border ${
+                              isSelected
+                                ? "border-slate-950 bg-slate-950 text-white"
+                                : "border-slate-300 bg-white text-transparent"
+                            }`}
+                          >
+                            ✓
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>
 
-          <section className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold">{copy.productInfo}</h2>
+          <section className="border-t pt-8">
+            <h2 className="text-xl font-black text-slate-950">
+              {copy.productInfo}
+            </h2>
 
             <div className="mt-5 space-y-5">
               <div>
-                <label className="mb-1 block text-sm font-semibold">
+                <label className="mb-1 block text-sm font-semibold text-slate-900">
                   {copy.productName}
                 </label>
                 <input
@@ -933,14 +1019,14 @@ export default function CreatorRequestPage() {
                       product_name: e.target.value,
                     }))
                   }
-                  className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-950"
                   placeholder={copy.productNamePlaceholder}
                   required
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-semibold">
+                <label className="mb-1 block text-sm font-semibold text-slate-900">
                   {copy.productUrl}
                 </label>
                 <input
@@ -952,13 +1038,13 @@ export default function CreatorRequestPage() {
                       product_url: e.target.value,
                     }))
                   }
-                  className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-950"
                   placeholder={copy.productUrlPlaceholder}
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-semibold">
+                <label className="mb-1 block text-sm font-semibold text-slate-900">
                   {copy.deadline}
                 </label>
                 <input
@@ -970,11 +1056,11 @@ export default function CreatorRequestPage() {
                       deadline: e.target.value,
                     }))
                   }
-                  className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-950"
                 />
               </div>
 
-              <label className="flex items-center gap-3 rounded-2xl border bg-gray-50 p-4 text-sm font-semibold">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold">
                 <input
                   type="checkbox"
                   checked={form.has_free_offer}
@@ -989,7 +1075,7 @@ export default function CreatorRequestPage() {
                 {copy.freeOffer}
               </label>
 
-              <div className="rounded-2xl border bg-gray-50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <label className="flex items-center gap-3 text-sm font-semibold">
                   <input
                     type="checkbox"
@@ -1007,14 +1093,14 @@ export default function CreatorRequestPage() {
                 </label>
 
                 {!selectedMenu?.allow_secondary_use ? (
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs text-slate-500">
                     {copy.secondaryUseUnavailable}
                   </p>
                 ) : null}
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-semibold">
+                <label className="mb-1 block text-sm font-semibold text-slate-900">
                   {copy.requirements}
                 </label>
                 <textarea
@@ -1025,8 +1111,8 @@ export default function CreatorRequestPage() {
                       note: e.target.value,
                     }))
                   }
-                  className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-                  rows={7}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-950"
+                  rows={8}
                   placeholder={copy.requirementsPlaceholder}
                   required
                 />
@@ -1035,41 +1121,29 @@ export default function CreatorRequestPage() {
           </section>
         </div>
 
-        <aside className="space-y-6">
-          <section className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold">{copy.selectedMenu}</h2>
+        <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+          <section className="rounded-[10px] border border-slate-200 bg-white p-5 shadow-lg">
+            <h2 className="text-xl font-black text-slate-950">
+              {copy.orderSummary}
+            </h2>
 
             {selectedMenu ? (
-              <div className="mt-4 space-y-4">
-                <div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge tone="blue">
-                      {selectedMenu.platform ||
-                        selectedMenu.sns ||
-                        copy.notSet}
-                    </Badge>
-                    <Badge tone="purple">
-                      {menuTypeLabel(
-                        selectedMenu.menu_type,
-                        safeLocale,
-                        copy.notSet
-                      )}
-                    </Badge>
-                    {selectedMenu.category ? (
-                      <Badge tone="gray">{selectedMenu.category}</Badge>
-                    ) : null}
+              <div className="mt-5 space-y-5">
+                <div className="flex items-start gap-4 border-b border-slate-100 pb-5">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-2xl">
+                    ◉
                   </div>
 
-                  <h3 className="mt-3 text-xl font-bold">
-                    {selectedMenu.title}
-                  </h3>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-black text-slate-950">
+                      {selectedMenu.title}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      @{creator.display_name}
+                    </p>
+                  </div>
 
-                <div className="rounded-2xl bg-gray-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {copy.price}
-                  </p>
-                  <p className="mt-2 text-2xl font-bold">
+                  <p className="shrink-0 text-base font-black text-slate-950">
                     {formatPrice(
                       selectedMenu.price,
                       selectedMenu.currency,
@@ -1077,69 +1151,113 @@ export default function CreatorRequestPage() {
                       safeLocale
                     )}
                   </p>
-                  <p className="mt-2 text-sm text-gray-600">
-                    {copy.delivery}:{" "}
-                    <span className="font-semibold text-gray-900">
-                      {formatDeliveryDays(
-                        selectedMenu.delivery_days,
-                        safeLocale,
-                        copy.notSet
-                      )}
-                    </span>
-                  </p>
                 </div>
 
-                <div className="rounded-2xl border p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {copy.deliverables}
-                  </p>
-                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">
-                    {selectedMenu.deliverables?.trim() || copy.none}
-                  </p>
+                <div className="space-y-3 border-b border-slate-100 pb-5">
+                  <Row
+                    label={copy.menuPrice}
+                    value={formatPlainPrice(
+                      menuPriceAmount,
+                      selectedMenu.currency,
+                      safeLocale
+                    )}
+                  />
+
+                  <Row
+                    label={copy.marketplaceFee}
+                    value={formatPlainPrice(
+                      buyerFeeAmount,
+                      selectedMenu.currency,
+                      safeLocale
+                    )}
+                  />
+
+                  <Row
+                    label={copy.total}
+                    value={formatPlainPrice(
+                      buyerTotalAmount,
+                      selectedMenu.currency,
+                      safeLocale
+                    )}
+                    bold
+                  />
                 </div>
 
-                <div className="rounded-2xl border p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {copy.secondaryUse}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-gray-900">
-                    {selectedMenu.allow_secondary_use
-                      ? copy.allowed
-                      : copy.notAllowed}
-                  </p>
+                <div className="space-y-3">
+                  <Row
+                    label={copy.delivery}
+                    value={formatDeliveryDays(
+                      selectedMenu.delivery_days,
+                      safeLocale,
+                      copy.notSet
+                    )}
+                  />
+
+                  <Row
+                    label={copy.secondaryUse}
+                    value={
+                      selectedMenu.allow_secondary_use
+                        ? copy.allowed
+                        : copy.notAllowed
+                    }
+                  />
+
+                  <Row
+                    label={copy.currentPlan}
+                    value={getPlanLabel(gate.companyPlanCode)}
+                  />
                 </div>
 
-                {selectedMenu.notes?.trim() ? (
-                  <div className="rounded-2xl border p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {copy.notes}
-                    </p>
-                    <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">
-                      {selectedMenu.notes}
-                    </p>
-                  </div>
-                ) : null}
+                <button
+                  type="submit"
+                  disabled={disableSubmit}
+                  className="mt-6 w-full rounded-xl bg-slate-950 px-5 py-4 text-base font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting
+                    ? copy.submitting
+                    : reachedLimit
+                      ? copy.limitReachedButton
+                      : copy.submitButton}
+                </button>
+
+                <div className="my-5 flex items-center gap-4">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-sm text-slate-400">or</span>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => router.push(`/b/creators/${creator.id}`)}
+                  className="w-full text-center text-sm font-black text-slate-800 underline underline-offset-4 transition hover:text-slate-950"
+                >
+                  {copy.backToCreator}
+                </button>
+
+                <p className="mt-5 text-center text-sm leading-6 text-slate-500">
+                  ⓘ {copy.paymentProtection}
+                </p>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-gray-500">{copy.noMenus}</p>
+              <p className="mt-4 text-sm text-slate-500">{copy.noMenus}</p>
             )}
           </section>
 
-          <section className="rounded-3xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-800">
+          {errorMsg ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-700">
+              {errorMsg}
+            </div>
+          ) : null}
+
+          {reachedLimit ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
+              {copy.freeLimitReached}
+            </div>
+          ) : null}
+
+          <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-800">
             {copy.orderNotice}
           </section>
-
-          <button
-            type="submit"
-            disabled={disableSubmit}
-            className="w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting
-              ? copy.submitting
-              : reachedLimit
-                ? copy.limitReachedButton
-                : copy.submitButton}
-          </button>
         </aside>
       </form>
     </div>
