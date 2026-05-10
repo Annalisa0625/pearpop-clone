@@ -43,6 +43,8 @@ type SocialAccount = {
   creator_id: string;
   platform: string | null;
   audience_country: string | null;
+  follower_range: string | null;
+  url: string | null;
 };
 
 type CompanyGateState = {
@@ -50,28 +52,11 @@ type CompanyGateState = {
   canSendRequests: boolean;
   needsBilling: boolean;
   companyPlanCode: "free" | "standard" | "global_pro" | null;
-  needsUpgradeForRegion: boolean;
 };
 
-function Avatar({ name, src }: { name: string; src: string | null }) {
-  const initial = (name?.trim()?.[0] ?? "C").toUpperCase();
-
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className="h-20 w-20 rounded-full border object-cover"
-      />
-    );
-  }
-
-  return (
-    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-200 font-bold text-gray-700">
-      {initial}
-    </div>
-  );
-}
+type SavedCreatorRow = {
+  creator_id: string;
+};
 
 function cleanCountryInput(value: string | null | undefined) {
   const raw = (value ?? "").trim();
@@ -329,30 +314,10 @@ function cleanCountryInput(value: string | null | undefined) {
   return raw;
 }
 
-function isJapanCountry(value: string | null | undefined) {
-  return cleanCountryInput(value) === "japan";
-}
-
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return Array.from(
     new Set(values.map((v) => (v ?? "").trim()).filter(Boolean))
   );
-}
-
-function getPlanLabel(
-  plan: CompanyGateState["companyPlanCode"],
-  locale: "ja" | "en"
-) {
-  switch (plan) {
-    case "free":
-      return "Basic";
-    case "standard":
-      return "Pro";
-    case "global_pro":
-      return "Premium";
-    default:
-      return locale === "ja" ? "未設定" : "Not set";
-  }
 }
 
 function getCountryLabel(
@@ -418,6 +383,55 @@ function getCountryLabel(
     : enMap[cleaned] ?? ((country ?? "").trim() || "Unknown");
 }
 
+function normalizePlatform(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function getPlatformLabel(value: string | null | undefined) {
+  const normalized = normalizePlatform(value);
+
+  if (!normalized) return "SNS";
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("tiktok")) return "TikTok";
+  if (normalized.includes("youtube")) return "YouTube";
+  if (normalized === "x" || normalized.includes("twitter")) return "X";
+  if (normalized.includes("ugc")) return "UGC";
+
+  return value?.trim() || "SNS";
+}
+
+function getPlatformIcon(value: string | null | undefined) {
+  const normalized = normalizePlatform(value);
+
+  if (normalized.includes("instagram")) return "◎";
+  if (normalized.includes("tiktok")) return "♪";
+  if (normalized.includes("youtube")) return "▶";
+  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
+  if (normalized.includes("ugc")) return "▣";
+
+  return "●";
+}
+
+function getCreatorInitial(name: string) {
+  return (name || "C").trim().slice(0, 1).toUpperCase();
+}
+
+function getPlanLabel(
+  plan: CompanyGateState["companyPlanCode"],
+  locale: "ja" | "en"
+) {
+  switch (plan) {
+    case "free":
+      return "Basic";
+    case "standard":
+      return "Pro";
+    case "global_pro":
+      return "Premium";
+    default:
+      return locale === "ja" ? "未設定" : "Not set";
+  }
+}
+
 function formatPrice(
   value: number | null,
   currency: string | null | undefined,
@@ -476,23 +490,118 @@ function Badge({
   tone = "gray",
 }: {
   children: ReactNode;
-  tone?: "gray" | "blue" | "green" | "yellow" | "purple" | "red";
+  tone?: "gray" | "blue" | "green" | "yellow" | "purple" | "red" | "black";
 }) {
   const styles = {
-    gray: "bg-gray-100 text-gray-700",
-    blue: "bg-blue-100 text-blue-700",
-    green: "bg-green-100 text-green-700",
-    yellow: "bg-yellow-100 text-yellow-800",
-    purple: "bg-purple-100 text-purple-700",
-    red: "bg-red-100 text-red-700",
+    gray: "bg-slate-100 text-slate-700",
+    blue: "bg-blue-50 text-blue-700",
+    green: "bg-emerald-50 text-emerald-700",
+    yellow: "bg-amber-50 text-amber-800",
+    purple: "bg-purple-50 text-purple-700",
+    red: "bg-rose-50 text-rose-700",
+    black: "bg-slate-950 text-white",
   };
 
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${styles[tone]}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${styles[tone]}`}
     >
       {children}
     </span>
+  );
+}
+
+function HeroTile({
+  creator,
+  index,
+  src,
+}: {
+  creator: Creator;
+  index: number;
+  src: string | null;
+}) {
+  const gradients = [
+    "from-slate-950 via-slate-700 to-slate-300",
+    "from-orange-500 via-amber-400 to-yellow-200",
+    "from-blue-500 via-violet-400 to-pink-200",
+  ];
+
+  if (src) {
+    return (
+      <div className="relative h-full w-full overflow-hidden bg-slate-100">
+        <img
+          src={src}
+          alt={creator.display_name}
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/10" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${
+        gradients[index % gradients.length]
+      }`}
+    >
+      <div className="text-center">
+        <div className="text-7xl font-black tracking-tight text-white drop-shadow-sm md:text-8xl">
+          {getCreatorInitial(creator.display_name)}
+        </div>
+        <div className="mt-3 text-xs font-bold uppercase tracking-[0.35em] text-white/70">
+          Trendre Creator
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Avatar({ name, src }: { name: string; src: string | null }) {
+  const initial = getCreatorInitial(name);
+
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-orange-500 text-2xl font-black text-white shadow-lg">
+      {initial}
+    </div>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M5 7.5 10 12l5-4.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="m4.5 10.4 3.4 3.4 7.6-8.1"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -509,94 +618,90 @@ export default function CreatorDetailPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            notFound: "クリエイターが見つかりません。現在注文受付できない状態の可能性があります。",
-            planSuffix: "プラン",
-            japanAudience: "日本市場向け",
-            broaderAudience: "より広い視聴者層",
-            globalProRequired: "Premiumが必要",
-            requestAvailable: "注文可能",
-            platforms: "対応SNS",
-            mainAudience: "主な視聴者",
-            notSet: "未設定",
-            profileTitle: "クリエイター概要",
-            profileBody:
-              "公開プロフィールとメニューを確認し、条件に合うメニューを選んで注文へ進めます。",
-            menuSectionTitle: "公開メニュー",
-            menuSectionBody:
-              "このクリエイターが企業向けに公開している購入・注文可能なメニューです。価格、納期、納品物を確認して注文できます。",
+            notFound:
+              "クリエイターが見つかりません。現在注文受付できない状態の可能性があります。",
+            backToCreators: "クリエイター一覧へ戻る",
+            creatorUnavailable:
+              "このクリエイターは現在、報酬受け取り設定または公開準備が完了していないため、企業側には表示されません。",
+            share: "Share",
+            save: "Save",
+            saved: "Saved",
+            copied: "URL copied",
+            invite: "注文へ進む",
+            followers: "Followers",
+            mainAudience: "Main audience",
+            profileFallback:
+              "このクリエイターの公開プロフィールとメニューを確認し、条件に合うメニューを選んで注文できます。",
+            packages: "Packages",
+            all: "All",
             noMenus: "公開中のメニューがありません。",
-            price: "価格",
+            priceNotSet: "価格未設定",
             delivery: "納期",
             deliverables: "納品物",
             secondaryUse: "二次利用",
             allowed: "許可",
             notAllowed: "不可",
             none: "なし",
-            menuType: "種別",
-            accountUrl: "対象アカウント",
-            openAccount: "アカウントを開く",
-            viewAllMenus: "すべてのメニューを見る",
-            viewMenuDetail: "メニュー詳細を見る",
-            orderMenu: "このメニューを注文する",
-            billingRequiredBody: "注文にはプラン開始が必要です。",
-            upgradeExtraBody:
-              "このクリエイターはより広い視聴者層を持つため、注文には Premium が必要です。",
-            freeUpgradeBody:
-              "Basicプランでは、国内市場向けの候補探索から始められます。",
-            standardUpgradeBody:
-              "Proプランでは、国内市場向けの継続施策に合うクリエイターへ注文できます。",
-            genericUpgradeBody:
-              "このクリエイターへの注文には上位プランが必要です。",
-            checkGlobalPro: "Premiumを確認する",
+            selectedPackage: "選択中のメニュー",
+            choosePackage: "メニューを選択",
+            orderButton: "注文へ進む",
+            negotiate: "条件を相談する",
+            howItWorks: "支払いはStripeで保護され、クリエイター承認後に案件が開始します。",
+            billingRequired:
+              "このプランの注文機能を使うには、有料プランの有効化が必要です。",
             checkBilling: "料金プランを見る",
-            temporaryNotice:
-              "現在は注文フロー移行中のため、次の画面では既存の依頼フォームを利用します。今後、checkoutとrequirements提出に置き換える予定です。",
+            audience: "Audience",
+            audienceNote:
+              "詳細な分析データは今後、SNS連携・実績データに応じて表示予定です。",
+            portfolio: "Portfolio",
+            portfolioNote:
+              "投稿実績やサンプル動画は、今後クリエイターのポートフォリオ機能として追加できます。",
+            plan: "Plan",
+            notSet: "Not set",
           }
         : {
             loading: "Loading...",
             notFound:
               "Creator not found. This creator may not be ready to receive orders.",
-            planSuffix: "",
-            japanAudience: "Japan market fit",
-            broaderAudience: "Broader audience reach",
-            globalProRequired: "Premium required",
-            requestAvailable: "Order available",
-            platforms: "Platforms",
+            backToCreators: "Back to creators",
+            creatorUnavailable:
+              "This creator is not currently visible to companies because payout setup or public readiness is not complete.",
+            share: "Share",
+            save: "Save",
+            saved: "Saved",
+            copied: "URL copied",
+            invite: "Order now",
+            followers: "Followers",
             mainAudience: "Main audience",
-            notSet: "Not set",
-            profileTitle: "Creator Overview",
-            profileBody:
+            profileFallback:
               "Review this creator's public profile and menus, then choose a menu that fits your campaign.",
-            menuSectionTitle: "Public Menus",
-            menuSectionBody:
-              "These are the menus this creator offers for companies to purchase or order. Review price, delivery timing, and deliverables before ordering.",
+            packages: "Packages",
+            all: "All",
             noMenus: "There are no public menus.",
-            price: "Price",
+            priceNotSet: "Price not set",
             delivery: "Delivery",
             deliverables: "Deliverables",
-            secondaryUse: "Secondary Use",
+            secondaryUse: "Secondary use",
             allowed: "Allowed",
             notAllowed: "Not allowed",
             none: "None",
-            menuType: "Type",
-            accountUrl: "Account",
-            openAccount: "Open account",
-            viewAllMenus: "View All Menus",
-            viewMenuDetail: "View Menu Detail",
-            orderMenu: "Order This Menu",
-            billingRequiredBody: "Starting a plan is required before ordering.",
-            upgradeExtraBody:
-              "This creator has broader audience reach, so Premium is required to order.",
-            freeUpgradeBody:
-              "With the Basic plan, you can start by exploring creators for Japan-focused campaigns.",
-            standardUpgradeBody:
-              "With the Pro plan, you can order from creators who fit Japan-focused campaigns.",
-            genericUpgradeBody:
-              "A higher-tier plan is required to order from this creator.",
-            checkGlobalPro: "Check Premium",
-            checkBilling: "View Billing Plans",
-            temporaryNotice:
-              "The order flow is being migrated. For now, the next screen uses the existing request form. It will later be replaced with checkout and requirements submission.",
+            selectedPackage: "Selected package",
+            choosePackage: "Choose package",
+            orderButton: "Continue to order",
+            negotiate: "Negotiate a package",
+            howItWorks:
+              "Payments are protected by Stripe. The project starts after creator approval.",
+            billingRequired:
+              "Your paid plan must be active before using this order flow.",
+            checkBilling: "View billing plans",
+            audience: "Audience",
+            audienceNote:
+              "Detailed analytics can be displayed later based on SNS connections and performance data.",
+            portfolio: "Portfolio",
+            portfolioNote:
+              "Past work and sample videos can be added later as the creator portfolio feature.",
+            plan: "Plan",
+            notSet: "Not set",
           },
     [safeLocale]
   );
@@ -605,13 +710,17 @@ export default function CreatorDetailPage() {
   const [menuCards, setMenuCards] = useState<MenuCard[]>([]);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMenuId, setSelectedMenuId] = useState<string>("");
+  const [activePackageTab, setActivePackageTab] = useState("all");
   const [gate, setGate] = useState<CompanyGateState>({
     isLoggedIn: false,
     canSendRequests: false,
     needsBilling: false,
     companyPlanCode: null,
-    needsUpgradeForRegion: false,
   });
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   useEffect(() => {
     if (!creatorId) return;
@@ -632,7 +741,6 @@ export default function CreatorDetailPage() {
         canSendRequests: false,
         needsBilling: false,
         companyPlanCode: null,
-        needsUpgradeForRegion: false,
       };
 
       if (user) {
@@ -640,6 +748,7 @@ export default function CreatorDetailPage() {
           { data: roles },
           { data: userState },
           { data: activeSuspensions },
+          { data: savedRows },
         ] = await Promise.all([
           supabase.from("user_roles").select("role").eq("user_id", user.id),
           supabase
@@ -659,6 +768,11 @@ export default function CreatorDetailPage() {
             .select("id")
             .eq("user_id", user.id)
             .eq("is_active", true),
+          supabase
+            .from("saved_creators")
+            .select("creator_id")
+            .eq("b_user_id", user.id)
+            .eq("creator_id", creatorId),
         ]);
 
         const isCompany = (roles ?? []).some((r) => r.role === "company");
@@ -677,9 +791,6 @@ export default function CreatorDetailPage() {
           !!userState?.company_profile_completed &&
           userState?.company_access_status === "approved";
 
-        // MVP仕様:
-        // Basic/free は月額課金なしで注文可能。
-        // Pro/Premium相当の有料プランだけ subscription_status=active を要求する。
         const isPaidPlan =
           companyPlanCode === "standard" || companyPlanCode === "global_pro";
 
@@ -697,8 +808,11 @@ export default function CreatorDetailPage() {
           canSendRequests,
           needsBilling,
           companyPlanCode,
-          needsUpgradeForRegion: false,
         };
+
+        if (isMounted) {
+          setIsSaved(((savedRows ?? []) as SavedCreatorRow[]).length > 0);
+        }
       }
 
       const { data: creatorData, error: creatorError } = await supabase
@@ -760,42 +874,25 @@ export default function CreatorDetailPage() {
           .order("created_at", { ascending: false }),
         supabase
           .from("creator_social_accounts")
-          .select("id, creator_id, platform, audience_country")
+          .select(
+            "id, creator_id, platform, audience_country, follower_range, url"
+          )
           .eq("creator_id", creatorData.id),
       ]);
 
       if (!isMounted) return;
 
-      if (menuError) {
-        console.error("menu load error:", menuError);
-        setMenuCards([]);
-      } else {
-        setMenuCards((menuData as MenuCard[]) ?? []);
-      }
+      const nextMenus = menuError ? [] : ((menuData as MenuCard[]) ?? []);
+      const nextSocials = socialError
+        ? []
+        : ((socialData as SocialAccount[]) ?? []);
 
-      if (socialError) {
-        console.error("social load error:", socialError);
-        setSocialAccounts([]);
-      } else {
-        setSocialAccounts((socialData as SocialAccount[]) ?? []);
-      }
+      if (menuError) console.error("menu load error:", menuError);
+      if (socialError) console.error("social load error:", socialError);
 
-      const hasJapanAudience = ((socialData as SocialAccount[]) ?? []).some(
-        (row) => isJapanCountry(row.audience_country)
-      );
-
-      if (
-        (nextGate.companyPlanCode === "free" ||
-          nextGate.companyPlanCode === "standard") &&
-        !hasJapanAudience
-      ) {
-        nextGate = {
-          ...nextGate,
-          canSendRequests: false,
-          needsUpgradeForRegion: true,
-        };
-      }
-
+      setMenuCards(nextMenus);
+      setSocialAccounts(nextSocials);
+      setSelectedMenuId((prev) => prev || nextMenus[0]?.id || "");
       setGate(nextGate);
       setLoading(false);
     };
@@ -807,19 +904,42 @@ export default function CreatorDetailPage() {
     };
   }, [creatorId, supabase]);
 
+  const packageTabs = useMemo(() => {
+    const platforms = uniqueNonEmpty(
+      menuCards.map((menu) => menu.platform || menu.sns)
+    );
+
+    return ["all", ...platforms];
+  }, [menuCards]);
+
+  const filteredMenus = useMemo(() => {
+    if (activePackageTab === "all") return menuCards;
+
+    return menuCards.filter(
+      (menu) =>
+        normalizePlatform(menu.platform || menu.sns) ===
+        normalizePlatform(activePackageTab)
+    );
+  }, [menuCards, activePackageTab]);
+
+  const selectedMenu = useMemo(() => {
+    return (
+      menuCards.find((menu) => menu.id === selectedMenuId) ??
+      filteredMenus[0] ??
+      menuCards[0] ??
+      null
+    );
+  }, [menuCards, filteredMenus, selectedMenuId]);
+
+  const platforms = uniqueNonEmpty(socialAccounts.map((s) => s.platform));
   const audienceCountries = uniqueNonEmpty(
     socialAccounts.map((s) => s.audience_country)
   );
   const audienceCountryLabels = audienceCountries.map((country) =>
     getCountryLabel(country, safeLocale)
   );
-  const platforms = uniqueNonEmpty(socialAccounts.map((s) => s.platform));
-  const hasJapanAudience = socialAccounts.some((s) =>
-    isJapanCountry(s.audience_country)
-  );
-
-  const isFree = gate.companyPlanCode === "free";
-  const isStandard = gate.companyPlanCode === "standard";
+  const primarySocial = socialAccounts[0] ?? null;
+  const followerLabel = primarySocial?.follower_range?.trim() || "—";
 
   const goToBilling = () => {
     if (!creator) return;
@@ -844,7 +964,7 @@ export default function CreatorDetailPage() {
       return;
     }
 
-    if (gate.needsUpgradeForRegion || gate.needsBilling) {
+    if (gate.needsBilling) {
       goToBilling();
       return;
     }
@@ -852,26 +972,82 @@ export default function CreatorDetailPage() {
     router.push("/b/dashboard");
   };
 
-  if (loading) return <p className="p-6">{copy.loading}</p>;
+  const toggleSaveCreator = async () => {
+    if (!creator || saving) return;
+
+    setSaving(true);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      if (isSaved) {
+        const { error } = await supabase
+          .from("saved_creators")
+          .delete()
+          .eq("b_user_id", user.id)
+          .eq("creator_id", creator.id);
+
+        if (error) throw error;
+        setIsSaved(false);
+      } else {
+        const { error } = await supabase.from("saved_creators").insert({
+          b_user_id: user.id,
+          creator_id: creator.id,
+        });
+
+        if (error) throw error;
+        setIsSaved(true);
+      }
+    } catch (e) {
+      console.error("save creator error:", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const shareCreator = async () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1600);
+    } catch (e) {
+      console.error("share error:", e);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
+        <p className="text-sm text-slate-500">{copy.loading}</p>
+      </div>
+    );
+  }
 
   if (!creator) {
     return (
-      <div className="mx-auto max-w-3xl p-4 md:p-6">
-        <section className="rounded-3xl border bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold tracking-tight">
+      <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-black tracking-tight text-slate-950">
             {copy.notFound}
           </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
-            {safeLocale === "ja"
-              ? "このクリエイターは現在、報酬受け取り設定または公開準備が完了していないため、企業側には表示されません。"
-              : "This creator is not currently visible to companies because payout setup or public readiness is not complete."}
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            {copy.creatorUnavailable}
           </p>
           <button
             type="button"
             onClick={() => router.push("/b/creators")}
-            className="mt-5 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
           >
-            {safeLocale === "ja" ? "クリエイター一覧へ戻る" : "Back to creators"}
+            {copy.backToCreators}
           </button>
         </section>
       </div>
@@ -879,279 +1055,440 @@ export default function CreatorDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar name={creator.display_name} src={creator.avatar_url} />
+    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <h1 className="text-xl font-black tracking-tight text-slate-950 md:text-2xl">
+          {creator.category || "Influencer / Content Creator"}
+        </h1>
 
-            <div>
-              <p className="text-sm font-semibold text-blue-600">
-                Creator Profile
-              </p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight">
-                @{creator.display_name}
-              </h1>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={shareCreator}
+            className="text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+          >
+            {shareCopied ? copy.copied : `↗ ${copy.share}`}
+          </button>
 
-              {creator.category ? (
-                <p className="mt-1 text-sm text-gray-500">
-                  {creator.category}
+          <button
+            type="button"
+            onClick={toggleSaveCreator}
+            disabled={saving}
+            className="text-sm font-semibold text-slate-700 transition hover:text-slate-950 disabled:opacity-60"
+          >
+            {isSaved ? `♥ ${copy.saved}` : `♡ ${copy.save}`}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleOrderClick(selectedMenu?.id)}
+            className="hidden rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg md:inline-flex"
+          >
+            {copy.invite}
+          </button>
+        </div>
+      </div>
+
+      <section className="overflow-hidden rounded-[6px] bg-white">
+        <div className="grid h-[300px] gap-1 md:h-[420px] md:grid-cols-3">
+          <HeroTile creator={creator} index={0} src={creator.avatar_url} />
+          <HeroTile creator={creator} index={1} src={null} />
+          <div className="relative">
+            <HeroTile creator={creator} index={2} src={creator.avatar_url} />
+            <button
+              type="button"
+              className="absolute bottom-4 right-4 rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-950 shadow-lg"
+            >
+              ▦ Show Photos
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-10 lg:grid-cols-[1fr_410px]">
+        <main className="min-w-0">
+          <section className="border-b border-slate-200 py-6">
+            <div className="flex items-start gap-4">
+              <Avatar name={creator.display_name} src={creator.avatar_url} />
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-2xl font-black tracking-tight text-slate-950">
+                    {creator.display_name}
+                  </h2>
+                  <span className="text-lg text-amber-400">★</span>
+                  <span className="text-sm font-bold text-slate-900">5.0</span>
+                </div>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {audienceCountryLabels.length > 0
+                    ? audienceCountryLabels.join(" / ")
+                    : copy.notSet}
                 </p>
-              ) : null}
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="purple">
-                  {getPlanLabel(gate.companyPlanCode, safeLocale)}
-                  {copy.planSuffix}
-                </Badge>
-
-                {hasJapanAudience ? (
-                  <Badge tone="green">{copy.japanAudience}</Badge>
-                ) : (
-                  <Badge tone="purple">{copy.broaderAudience}</Badge>
-                )}
-
-                {gate.needsUpgradeForRegion ? (
-                  <Badge tone="red">{copy.globalProRequired}</Badge>
-                ) : gate.canSendRequests ? (
-                  <Badge tone="blue">{copy.requestAvailable}</Badge>
-                ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {socialAccounts.length > 0 ? (
+                    socialAccounts.map((account) => (
+                      <a
+                        key={account.id}
+                        href={account.url || "#"}
+                        target={account.url ? "_blank" : undefined}
+                        rel={account.url ? "noreferrer" : undefined}
+                        onClick={(e) => {
+                          if (!account.url) e.preventDefault();
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700"
+                      >
+                        <span>{getPlatformIcon(account.platform)}</span>
+                        <span>
+                          {account.follower_range?.trim() ||
+                            getPlatformLabel(account.platform)}
+                        </span>
+                      </a>
+                    ))
+                  ) : (
+                    <Badge>{copy.notSet}</Badge>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => router.push(`/b/creators/${creator.id}/menus`)}
-            className="rounded-2xl border bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            {copy.viewAllMenus}
-          </button>
-        </div>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-3xl border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold">{copy.profileTitle}</h2>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
-            {copy.profileBody}
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              {copy.platforms}
+            <p className="mt-5 max-w-3xl whitespace-pre-line text-base leading-8 text-slate-700">
+              {copy.profileFallback}
             </p>
-            <p className="mt-2 text-sm font-semibold text-gray-900">
-              {platforms.length > 0 ? platforms.join(" / ") : copy.notSet}
-            </p>
-          </div>
+          </section>
 
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              {copy.mainAudience}
-            </p>
-            <p className="mt-2 text-sm font-semibold text-gray-900">
-              {audienceCountryLabels.length > 0
-                ? audienceCountryLabels.join(" / ")
-                : copy.notSet}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {(gate.needsUpgradeForRegion || gate.needsBilling) && (
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
-          {gate.needsUpgradeForRegion ? (
-            <p className="text-sm font-medium leading-7 text-amber-900">
-              {isFree
-                ? copy.freeUpgradeBody
-                : isStandard
-                  ? copy.standardUpgradeBody
-                  : copy.genericUpgradeBody}{" "}
-              {copy.upgradeExtraBody}
-            </p>
-          ) : (
-            <p className="text-sm font-medium leading-7 text-amber-900">
-              {copy.billingRequiredBody}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={goToBilling}
-            className="mt-4 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            {gate.needsUpgradeForRegion
-              ? copy.checkGlobalPro
-              : copy.checkBilling}
-          </button>
-        </section>
-      )}
-
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">
-              {copy.menuSectionTitle}
+          <section className="border-b border-slate-200 py-8">
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              {copy.packages}
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-              {copy.menuSectionBody}
-            </p>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => router.push(`/b/creators/${creator.id}/menus`)}
-            className="rounded-2xl border bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            {copy.viewAllMenus}
-          </button>
-        </div>
+            <div className="mt-5 flex flex-wrap gap-7 border-b border-slate-200">
+              {packageTabs.map((tab) => {
+                const active = activePackageTab === tab;
+                const label =
+                  tab === "all" ? copy.all : getPlatformLabel(tab);
 
-        {menuCards.length === 0 ? (
-          <div className="mt-5 rounded-2xl border bg-gray-50 p-6 text-sm text-gray-500">
-            {copy.noMenus}
-          </div>
-        ) : (
-          <div className="mt-5 grid gap-4">
-            {menuCards.slice(0, 3).map((menu) => {
-              const platformLabel = menu.platform || menu.sns || copy.notSet;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActivePackageTab(tab)}
+                    className={`-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-black transition ${
+                      active
+                        ? "border-slate-950 text-slate-950"
+                        : "border-transparent text-slate-500 hover:text-slate-950"
+                    }`}
+                  >
+                    {tab !== "all" ? (
+                      <span>{getPlatformIcon(tab)}</span>
+                    ) : null}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
 
-              return (
-                <div
-                  key={menu.id}
-                  className="rounded-3xl border bg-white p-5 shadow-sm"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap gap-2">
-                        <Badge tone="blue">{platformLabel}</Badge>
-                        <Badge tone="purple">
-                          {menuTypeLabel(
-                            menu.menu_type,
-                            safeLocale,
-                            copy.notSet
-                          )}
-                        </Badge>
-                        {menu.category ? (
-                          <Badge tone="gray">{menu.category}</Badge>
-                        ) : null}
+            {filteredMenus.length === 0 ? (
+              <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-sm text-slate-500">
+                {copy.noMenus}
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3">
+                {filteredMenus.map((menu) => {
+                  const isSelected = selectedMenu?.id === menu.id;
+                  const platformLabel = menu.platform || menu.sns || copy.notSet;
+                  const price = formatPrice(
+                    menu.price,
+                    menu.currency,
+                    menu.reference_price_text,
+                    safeLocale
+                  );
+
+                  return (
+                    <button
+                      key={menu.id}
+                      type="button"
+                      onClick={() => setSelectedMenuId(menu.id)}
+                      className={`w-full rounded-[16px] border bg-white p-5 text-left transition hover:border-slate-400 ${
+                        isSelected
+                          ? "border-slate-950 shadow-sm"
+                          : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl">
+                              {getPlatformIcon(platformLabel)}
+                            </span>
+                            <h3 className="truncate text-xl font-black text-slate-950">
+                              {menu.title}
+                            </h3>
+                          </div>
+
+                          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+                            {menu.description?.trim() ||
+                              menu.deliverables?.trim() ||
+                              copy.none}
+                          </p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Badge>
+                              {getPlatformLabel(platformLabel)}
+                            </Badge>
+                            <Badge tone="blue">
+                              {menuTypeLabel(
+                                menu.menu_type,
+                                safeLocale,
+                                copy.notSet
+                              )}
+                            </Badge>
+                            {menu.delivery_days != null ? (
+                              <Badge tone="green">
+                                {copy.delivery}:{" "}
+                                {formatDeliveryDays(
+                                  menu.delivery_days,
+                                  safeLocale,
+                                  copy.notSet
+                                )}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-4">
+                          <span className="text-xl font-black text-slate-950">
+                            {price}
+                          </span>
+                          <span
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border ${
+                              isSelected
+                                ? "border-slate-950 bg-slate-950 text-white"
+                                : "border-slate-300 bg-white text-transparent"
+                            }`}
+                          >
+                            <CheckIcon />
+                          </span>
+                        </div>
                       </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-                      <h3 className="mt-3 text-xl font-bold tracking-tight">
-                        {menu.title}
-                      </h3>
+          <section className="border-b border-slate-200 py-8">
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              {copy.audience}
+            </h2>
 
-                      {menu.description ? (
-                        <p className="mt-2 line-clamp-2 whitespace-pre-line text-sm leading-6 text-gray-600">
-                          {menu.description}
-                        </p>
-                      ) : null}
-                    </div>
+            <div className="mt-6 grid gap-8 md:grid-cols-2">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  {copy.mainAudience}
+                </h3>
 
-                    <div className="rounded-2xl bg-gray-50 p-4 lg:min-w-[220px]">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.price}
-                      </p>
-                      <p className="mt-2 text-2xl font-bold">
-                        {formatPrice(
-                          menu.price,
-                          menu.currency,
-                          menu.reference_price_text,
-                          safeLocale
-                        )}
-                      </p>
-                      <p className="mt-2 text-sm text-gray-600">
-                        {copy.delivery}:{" "}
-                        <span className="font-semibold text-gray-900">
-                          {formatDeliveryDays(
-                            menu.delivery_days,
-                            safeLocale,
-                            copy.notSet
-                          )}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.deliverables}
-                      </p>
-                      <p className="mt-2 line-clamp-3 whitespace-pre-line text-sm leading-6 text-gray-700">
-                        {menu.deliverables?.trim() || copy.none}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.secondaryUse}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-gray-900">
-                        {menu.allow_secondary_use
-                          ? copy.allowed
-                          : copy.notAllowed}
-                      </p>
-
-                      {menu.account_url ? (
-                        <a
-                          href={menu.account_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-flex text-sm font-semibold text-blue-600 hover:underline"
-                        >
-                          {copy.openAccount}
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {(gate.needsUpgradeForRegion || gate.needsBilling) && (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                      {gate.needsUpgradeForRegion
-                        ? copy.upgradeExtraBody
-                        : copy.billingRequiredBody}
-                    </div>
+                <div className="mt-5 space-y-4">
+                  {audienceCountryLabels.length > 0 ? (
+                    audienceCountryLabels.map((country, index) => (
+                      <div key={`${country}-${index}`}>
+                        <div className="mb-2 flex justify-between text-sm font-semibold">
+                          <span>{country}</span>
+                          <span>
+                            {Math.max(
+                              10,
+                              Math.round(100 / audienceCountryLabels.length)
+                            )}
+                            %
+                          </span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-blue-300"
+                            style={{
+                              width: `${Math.max(
+                                10,
+                                Math.round(100 / audienceCountryLabels.length)
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">{copy.notSet}</p>
                   )}
+                </div>
+              </div>
 
-                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(`/b/creators/${creator.id}/menus/${menu.id}`)
-                      }
-                      className="rounded-2xl border bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                    >
-                      {copy.viewMenuDetail}
-                    </button>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  {copy.followers}
+                </h3>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOrderClick(menu.id)}
-                      className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      {gate.needsUpgradeForRegion
-                        ? copy.checkGlobalPro
-                        : gate.needsBilling
-                          ? copy.checkBilling
-                          : copy.orderMenu}
-                    </button>
+                <div className="mt-5 grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-3xl font-black text-slate-950">
+                      {followerLabel}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {copy.followers}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-3xl font-black text-slate-950">—</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Average Views
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-3xl font-black text-slate-950">—</p>
+                    <p className="mt-1 text-sm text-slate-500">Engagement</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        {menuCards.length > 0 ? (
-          <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-            {copy.temporaryNotice}
+                <p className="mt-5 text-sm leading-7 text-slate-500">
+                  {copy.audienceNote}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="py-8">
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              {copy.portfolio}
+            </h2>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-3">
+              {[0, 1, 2].map((index) => (
+                <div
+                  key={index}
+                  className="aspect-[9/12] overflow-hidden rounded-[16px] bg-slate-100"
+                >
+                  <HeroTile creator={creator} index={index} src={index === 0 ? creator.avatar_url : null} />
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-5 text-sm leading-7 text-slate-500">
+              {copy.portfolioNote}
+            </p>
+          </section>
+        </main>
+
+        <aside className="lg:relative">
+          <div className="sticky top-28 rounded-[10px] border border-slate-200 bg-white p-5 shadow-lg">
+            {selectedMenu ? (
+              <>
+                <p className="text-3xl font-black tracking-tight text-slate-950">
+                  {formatPrice(
+                    selectedMenu.price,
+                    selectedMenu.currency,
+                    selectedMenu.reference_price_text,
+                    safeLocale
+                  )}
+                </p>
+
+                <div className="relative mt-5">
+                  <select
+                    value={selectedMenu.id}
+                    onChange={(e) => setSelectedMenuId(e.target.value)}
+                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 py-3 pr-10 text-base font-black text-slate-950 outline-none transition focus:border-slate-950"
+                  >
+                    {menuCards.map((menu) => (
+                      <option key={menu.id} value={menu.id}>
+                        {getPlatformIcon(menu.platform || menu.sns)} {menu.title}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                    <ChevronDownIcon />
+                  </div>
+                </div>
+
+                <p className="mt-4 text-sm leading-6 text-slate-500">
+                  {selectedMenu.description?.trim() ||
+                    selectedMenu.deliverables?.trim() ||
+                    copy.none}
+                </p>
+
+                <div className="mt-4 grid gap-3 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-slate-500">{copy.delivery}</span>
+                    <span className="font-bold text-slate-950">
+                      {formatDeliveryDays(
+                        selectedMenu.delivery_days,
+                        safeLocale,
+                        copy.notSet
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-slate-500">{copy.secondaryUse}</span>
+                    <span className="font-bold text-slate-950">
+                      {selectedMenu.allow_secondary_use
+                        ? copy.allowed
+                        : copy.notAllowed}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-slate-500">{copy.plan}</span>
+                    <span className="font-bold text-slate-950">
+                      {getPlanLabel(gate.companyPlanCode, safeLocale)}
+                    </span>
+                  </div>
+                </div>
+
+                {gate.needsBilling ? (
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                    {copy.billingRequired}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => handleOrderClick(selectedMenu.id)}
+                  className="mt-5 w-full rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 text-base font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  {gate.needsBilling ? copy.checkBilling : copy.orderButton}
+                </button>
+
+                <div className="my-5 flex items-center gap-4">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-sm text-slate-400">or</span>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleOrderClick(undefined)}
+                  className="w-full text-center text-sm font-black text-slate-800 underline underline-offset-4 transition hover:text-slate-950"
+                >
+                  {copy.negotiate}
+                </button>
+
+                <p className="mt-6 text-center text-sm leading-6 text-slate-500">
+                  ⓘ {copy.howItWorks}
+                </p>
+              </>
+            ) : (
+              <div className="py-10 text-center">
+                <p className="text-lg font-black text-slate-950">
+                  {copy.choosePackage}
+                </p>
+                <p className="mt-2 text-sm text-slate-500">{copy.noMenus}</p>
+              </div>
+            )}
           </div>
-        ) : null}
-      </section>
+        </aside>
+      </div>
     </div>
   );
 }
