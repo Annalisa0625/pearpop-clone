@@ -2,12 +2,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
 
-type FilterMenu = "platform" | "category" | "location" | "contentType" | "followers" | null;
+type FilterMenu =
+  | "platform"
+  | "mainCategory"
+  | "categoryFilter"
+  | "location"
+  | "contentType"
+  | "followers"
+  | null;
 
 type SocialAccountRow = {
   platform?: string | null;
@@ -691,7 +698,7 @@ function FilterChip({
         </span>
       ) : null}
       <span>{label}</span>
-      {value ? <span className="text-slate-400">{value}</span> : null}
+      {value ? <span className="max-w-[150px] truncate opacity-70">{value}</span> : null}
       <ChevronDownIcon />
     </button>
   );
@@ -702,11 +709,11 @@ function OptionDropdown({
   children,
 }: {
   widthClass?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div
-      className={`absolute left-0 top-[calc(100%+10px)] z-50 overflow-hidden rounded-[28px] border border-slate-100 bg-white p-2 shadow-[rgba(0,0,0,0.14)_0_24px_60px_-24px] ${widthClass}`}
+      className={`absolute left-0 top-[calc(100%+10px)] z-[80] overflow-hidden rounded-[28px] border border-slate-100 bg-white p-2 shadow-[rgba(0,0,0,0.14)_0_24px_60px_-24px] ${widthClass}`}
     >
       {children}
     </div>
@@ -719,7 +726,7 @@ function PlainOption({
   onClick,
 }: {
   active: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -734,6 +741,97 @@ function PlainOption({
     >
       {children}
     </button>
+  );
+}
+
+function CategoryPanel({
+  categoryOptions,
+  categoryFilter,
+  setCategoryFilter,
+  setOpenFilter,
+  copy,
+}: {
+  categoryOptions: string[];
+  categoryFilter: string;
+  setCategoryFilter: (value: string) => void;
+  setOpenFilter: (value: FilterMenu) => void;
+  copy: {
+    any: string;
+    availableCategories: string;
+    popular: string;
+  };
+}) {
+  const available = categoryOptions.filter(Boolean);
+
+  return (
+    <div className="px-3 py-2">
+      {available.length > 0 ? (
+        <>
+          <p className="mb-3 text-xs font-black uppercase tracking-wide text-slate-400">
+            {copy.availableCategories}
+          </p>
+
+          <div className="mb-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCategoryFilter("all");
+                setOpenFilter(null);
+              }}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                categoryFilter === "all"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+              }`}
+            >
+              {copy.any}
+            </button>
+
+            {available.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => {
+                  setCategoryFilter(category);
+                  setOpenFilter(null);
+                }}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                  normalizeText(categoryFilter) === normalizeText(category)
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <p className="mb-3 text-xs font-black uppercase tracking-wide text-slate-400">
+        {copy.popular}
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        {POPULAR_CATEGORIES.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => {
+              setCategoryFilter(category);
+              setOpenFilter(null);
+            }}
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              normalizeText(categoryFilter) === normalizeText(category)
+                ? "bg-slate-900 text-white"
+                : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -862,7 +960,6 @@ function CreatorCardItem({
     topCreator: string;
     menu: string;
     menus: string;
-    priceFrom: string;
     noLocation: string;
   };
   onToggleSave: (creatorId: string) => void;
@@ -951,7 +1048,8 @@ function CreatorCardItem({
               )}
             </p>
             <p className="mt-1 text-xs font-medium text-slate-400">
-              {creator.menuCount} {creator.menuCount === 1 ? copy.menu : copy.menus}
+              {creator.menuCount}{" "}
+              {creator.menuCount === 1 ? copy.menu : copy.menus}
             </p>
           </div>
         </div>
@@ -979,7 +1077,6 @@ export default function CompanyCreatorsPage() {
             countSuffix: "件のクリエイター",
             clearAll: "Clear All",
             clear: "Clear",
-            clearKeyword: "Clear keyword",
             noCreatorsTitle: "表示できるクリエイターがいません",
             noCreatorsBody:
               "検索条件を変更するか、報酬受け取り設定が完了したクリエイターの追加をお待ちください。",
@@ -995,17 +1092,14 @@ export default function CompanyCreatorsPage() {
             age: "Age",
             ethnicity: "Ethnicity",
             language: "Language",
-            premiumOnly: "Premium",
             minPrice: "Min Price",
             maxPrice: "Max Price",
             save: "Save",
             popular: "Popular",
-            allCategories: "All categories",
-            allPlatforms: "All platforms",
+            availableCategories: "Available categories",
             allLocations: "All locations",
             menu: "menu",
             menus: "menus",
-            priceFrom: "from",
             noLocation: "Location not set",
             search: "Search",
           }
@@ -1020,7 +1114,6 @@ export default function CompanyCreatorsPage() {
             countSuffix: "creators",
             clearAll: "Clear All",
             clear: "Clear",
-            clearKeyword: "Clear keyword",
             noCreatorsTitle: "No creators found",
             noCreatorsBody:
               "Try changing your search filters or wait for more creators to complete payout setup.",
@@ -1036,17 +1129,14 @@ export default function CompanyCreatorsPage() {
             age: "Age",
             ethnicity: "Ethnicity",
             language: "Language",
-            premiumOnly: "Premium",
             minPrice: "Min Price",
             maxPrice: "Max Price",
             save: "Save",
             popular: "Popular",
-            allCategories: "All categories",
-            allPlatforms: "All platforms",
+            availableCategories: "Available categories",
             allLocations: "All locations",
             menu: "menu",
             menus: "menus",
-            priceFrom: "from",
             noLocation: "Location not set",
             search: "Search",
           },
@@ -1457,7 +1547,7 @@ export default function CompanyCreatorsPage() {
 
   return (
     <div className="space-y-9 pb-10">
-      <section className="mx-auto max-w-5xl rounded-[32px] border border-slate-100 bg-white p-3 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0] md:p-4">
+      <section className="relative z-50 mx-auto max-w-5xl rounded-[32px] border border-slate-100 bg-white p-3 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0] md:p-4">
         <div className="grid gap-0 md:grid-cols-[220px_1fr_64px]">
           <div className="relative border-b border-slate-100 p-4 md:border-b-0 md:border-r">
             <button
@@ -1524,21 +1614,50 @@ export default function CompanyCreatorsPage() {
             <label className="block text-sm font-black text-slate-950">
               {copy.category}
             </label>
-            <input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder={copy.keywordPlaceholder}
-              className="mt-1 w-full bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
-            />
 
-            {keyword ? (
-              <button
-                type="button"
-                onClick={() => setKeyword("")}
-                className="absolute right-4 top-1/2 hidden -translate-y-1/2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 transition hover:bg-slate-200 md:block"
-              >
-                {copy.clear}
-              </button>
+            <div className="flex items-center gap-3">
+              <input
+                value={keyword}
+                onFocus={() => setOpenFilter("mainCategory")}
+                onClick={() => setOpenFilter("mainCategory")}
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  setOpenFilter("mainCategory");
+                }}
+                placeholder={
+                  categoryFilter === "all"
+                    ? copy.keywordPlaceholder
+                    : categoryFilter
+                }
+                className="mt-1 w-full bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
+              />
+
+              {categoryFilter !== "all" ? (
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter("all")}
+                  className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200 md:inline-flex"
+                >
+                  {categoryFilter}
+                  <span className="ml-2">×</span>
+                </button>
+              ) : null}
+            </div>
+
+            {openFilter === "mainCategory" ? (
+              <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
+                <CategoryPanel
+                  categoryOptions={categoryOptions}
+                  categoryFilter={categoryFilter}
+                  setCategoryFilter={setCategoryFilter}
+                  setOpenFilter={setOpenFilter}
+                  copy={{
+                    any: copy.any,
+                    availableCategories: copy.availableCategories,
+                    popular: copy.popular,
+                  }}
+                />
+              </OptionDropdown>
             ) : null}
           </div>
 
@@ -1556,8 +1675,8 @@ export default function CompanyCreatorsPage() {
         </div>
       </section>
 
-      <section className="relative">
-        <div className="flex gap-3 overflow-x-auto pb-2">
+      <section className="relative z-30">
+        <div className="flex flex-wrap gap-3">
           <div className="relative shrink-0">
             <FilterChip
               label={copy.contentType}
@@ -1705,83 +1824,24 @@ export default function CompanyCreatorsPage() {
               active={categoryFilter !== "all"}
               onClick={() =>
                 setOpenFilter((prev) =>
-                  prev === "category" ? null : "category"
+                  prev === "categoryFilter" ? null : "categoryFilter"
                 )
               }
             />
 
-            {openFilter === "category" ? (
+            {openFilter === "categoryFilter" ? (
               <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
-                <div className="px-3 py-2">
-                  <p className="mb-3 text-xs font-black uppercase tracking-wide text-slate-400">
-                    {copy.popular}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCategoryFilter("all");
-                        setOpenFilter(null);
-                      }}
-                      className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                        categoryFilter === "all"
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-                      }`}
-                    >
-                      {copy.any}
-                    </button>
-
-                    {POPULAR_CATEGORIES.map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        onClick={() => {
-                          setCategoryFilter(category);
-                          setOpenFilter(null);
-                        }}
-                        className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                          normalizeText(categoryFilter) ===
-                          normalizeText(category)
-                            ? "bg-slate-900 text-white"
-                            : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-                        }`}
-                      >
-                        {category}
-                      </button>
-                    ))}
-                  </div>
-
-                  {categoryOptions.length > 0 ? (
-                    <>
-                      <p className="mb-3 mt-5 text-xs font-black uppercase tracking-wide text-slate-400">
-                        {copy.allCategories}
-                      </p>
-
-                      <div className="flex flex-wrap gap-2">
-                        {categoryOptions.map((category) => (
-                          <button
-                            key={category}
-                            type="button"
-                            onClick={() => {
-                              setCategoryFilter(category);
-                              setOpenFilter(null);
-                            }}
-                            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                              normalizeText(categoryFilter) ===
-                              normalizeText(category)
-                                ? "bg-slate-900 text-white"
-                                : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-                            }`}
-                          >
-                            {category}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  ) : null}
-                </div>
+                <CategoryPanel
+                  categoryOptions={categoryOptions}
+                  categoryFilter={categoryFilter}
+                  setCategoryFilter={setCategoryFilter}
+                  setOpenFilter={setOpenFilter}
+                  copy={{
+                    any: copy.any,
+                    availableCategories: copy.availableCategories,
+                    popular: copy.popular,
+                  }}
+                />
               </OptionDropdown>
             ) : null}
           </div>
@@ -1808,7 +1868,7 @@ export default function CompanyCreatorsPage() {
         </section>
       ) : null}
 
-      <section>
+      <section className="relative z-0">
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-950">
@@ -1866,7 +1926,6 @@ export default function CompanyCreatorsPage() {
                   topCreator: copy.topCreator,
                   menu: copy.menu,
                   menus: copy.menus,
-                  priceFrom: copy.priceFrom,
                   noLocation: copy.noLocation,
                 }}
                 onToggleSave={toggleSaveCreator}
