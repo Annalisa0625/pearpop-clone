@@ -33,6 +33,10 @@ type MenuRow = {
   is_active: boolean | null;
 };
 
+type SavedCreatorRow = {
+  creator_id: string;
+};
+
 type CreatorCard = {
   id: string;
   displayName: string;
@@ -395,6 +399,29 @@ function CreatorImage({
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z"
+        stroke="currentColor"
+        strokeWidth="2.2"
+      />
+      <path
+        d="m16.4 16.4 4.1 4.1"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export default function CompanyCreatorsPage() {
   const router = useRouter();
 
@@ -402,6 +429,8 @@ export default function CompanyCreatorsPage() {
   const [error, setError] = useState("");
   const [planCodeRaw, setPlanCodeRaw] = useState<CompanyPlanCode | null>(null);
   const [creators, setCreators] = useState<CreatorCard[]>([]);
+  const [savedCreatorIds, setSavedCreatorIds] = useState<string[]>([]);
+  const [savingCreatorId, setSavingCreatorId] = useState<string | null>(null);
 
   const [keyword, setKeyword] = useState("");
   const [platformFilter, setPlatformFilter] = useState("all");
@@ -410,10 +439,6 @@ export default function CompanyCreatorsPage() {
   const displayPlanCode = useMemo<CompanyPlanCode>(() => {
     return planCodeRaw ?? "free";
   }, [planCodeRaw]);
-
-  const canPlaceMoreOrders = useMemo(() => {
-    return true;
-  }, []);
 
   const platformOptions = useMemo(() => {
     const values = creators.flatMap((creator) => creator.platforms);
@@ -510,39 +535,46 @@ export default function CompanyCreatorsPage() {
 
         await syncLatestSubscription();
 
-        const [userStateResult, creatorsResult] = await Promise.all([
-          supabase
-            .from("user_states")
-            .select("company_plan_code, company_subscription_status")
-            .eq("user_id", user.id)
-            .maybeSingle(),
+        const [userStateResult, creatorsResult, savedResult] =
+          await Promise.all([
+            supabase
+              .from("user_states")
+              .select("company_plan_code, company_subscription_status")
+              .eq("user_id", user.id)
+              .maybeSingle(),
 
-          supabase
-            .from("creators")
-            .select(
-              `
-              id,
-              display_name,
-              avatar_url,
-              category,
-              stripe_onboarding_completed,
-              creator_social_accounts (
-                platform,
-                url,
-                follower_range,
-                audience_country
+            supabase
+              .from("creators")
+              .select(
+                `
+                id,
+                display_name,
+                avatar_url,
+                category,
+                stripe_onboarding_completed,
+                creator_social_accounts (
+                  platform,
+                  url,
+                  follower_range,
+                  audience_country
+                )
+                `
               )
-              `
-            )
-            .eq("approval_status", "approved")
-            .eq("stripe_onboarding_completed", true)
-            .order("created_at", { ascending: false }),
-        ]);
+              .eq("approval_status", "approved")
+              .eq("stripe_onboarding_completed", true)
+              .order("created_at", { ascending: false }),
 
-        if (userStateResult.error || creatorsResult.error) {
+            supabase
+              .from("saved_creators")
+              .select("creator_id")
+              .eq("b_user_id", user.id),
+          ]);
+
+        if (userStateResult.error || creatorsResult.error || savedResult.error) {
           console.error({
             userStateError: userStateResult.error,
             creatorsError: creatorsResult.error,
+            savedError: savedResult.error,
           });
           if (isMounted) {
             setError("クリエイター一覧の取得に失敗しました。");
@@ -630,6 +662,11 @@ export default function CompanyCreatorsPage() {
         if (isMounted) {
           setPlanCodeRaw(normalizePlanCode(userState?.company_plan_code ?? null));
           setCreators(nextCreators);
+          setSavedCreatorIds(
+            ((savedResult.data ?? []) as SavedCreatorRow[]).map(
+              (row) => row.creator_id
+            )
+          );
         }
       } catch (e) {
         console.error(e);
@@ -650,6 +687,54 @@ export default function CompanyCreatorsPage() {
     };
   }, [router]);
 
+  const toggleSaveCreator = async (creatorId: string) => {
+    if (savingCreatorId) return;
+
+    setSavingCreatorId(creatorId);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const isSaved = savedCreatorIds.includes(creatorId);
+
+      if (isSaved) {
+        const { error: deleteError } = await supabase
+          .from("saved_creators")
+          .delete()
+          .eq("b_user_id", user.id)
+          .eq("creator_id", creatorId);
+
+        if (deleteError) throw deleteError;
+
+        setSavedCreatorIds((prev) => prev.filter((id) => id !== creatorId));
+      } else {
+        const { error: insertError } = await supabase
+          .from("saved_creators")
+          .insert({
+            b_user_id: user.id,
+            creator_id: creatorId,
+          });
+
+        if (insertError) throw insertError;
+
+        setSavedCreatorIds((prev) =>
+          prev.includes(creatorId) ? prev : [...prev, creatorId]
+        );
+      }
+    } catch (e) {
+      console.error("saved creator toggle error:", e);
+    } finally {
+      setSavingCreatorId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -662,32 +747,6 @@ export default function CompanyCreatorsPage() {
 
   return (
     <div className="space-y-8">
-      <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-base font-semibold text-blue-600">
-              Creator Search
-            </p>
-            <h1 className="mt-2 text-[32px] font-black tracking-tight text-slate-950 md:text-[40px]">
-              クリエイターを探す
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
-              報酬受け取り設定が完了し、企業から注文を受けられるクリエイターだけを表示しています。
-              条件に合うクリエイターを見つけて、メニューを選んで注文できます。
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-purple-100 px-4 py-2 text-sm font-bold text-purple-700">
-              {getPlanLabel(displayPlanCode)}
-            </span>
-            <span className="rounded-full bg-yellow-100 px-4 py-2 text-sm font-bold text-yellow-700">
-              {getPlanDescription(displayPlanCode)}
-            </span>
-          </div>
-        </div>
-      </section>
-
       <section className="rounded-[36px] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
         <div className="grid gap-3 lg:grid-cols-[220px_1fr_64px]">
           <div className="rounded-[24px] bg-slate-50 p-4">
@@ -722,10 +781,10 @@ export default function CompanyCreatorsPage() {
 
           <button
             type="button"
-            className="flex h-full min-h-[64px] items-center justify-center rounded-[24px] bg-black text-xl font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
+            className="flex h-full min-h-[64px] items-center justify-center rounded-[24px] bg-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
             aria-label="Search"
           >
-            🔍
+            <SearchIcon />
           </button>
         </div>
 
@@ -796,9 +855,7 @@ export default function CompanyCreatorsPage() {
             </div>
 
             <div className="hidden text-right text-sm text-slate-500 md:block">
-              {canPlaceMoreOrders
-                ? "Basicでは月5件まで注文できます。"
-                : "注文上限に達しています。"}
+              {getPlanLabel(displayPlanCode)}では月5件まで注文できます。
             </div>
           </div>
 
@@ -824,6 +881,9 @@ export default function CompanyCreatorsPage() {
                     : creator.primaryPlatform
                       ? [creator.primaryPlatform]
                       : [];
+
+                const isSaved = savedCreatorIds.includes(creator.id);
+                const isSaving = savingCreatorId === creator.id;
 
                 return (
                   <Link
@@ -865,14 +925,19 @@ export default function CompanyCreatorsPage() {
 
                       <button
                         type="button"
-                        className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xl text-slate-900 shadow-sm backdrop-blur transition group-hover:scale-105"
-                        aria-label="Save creator"
+                        className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full shadow-sm backdrop-blur transition group-hover:scale-105 ${
+                          isSaved
+                            ? "bg-rose-500 text-white"
+                            : "bg-white/90 text-slate-900"
+                        } ${isSaving ? "opacity-60" : ""}`}
+                        aria-label={isSaved ? "Unsave creator" : "Save creator"}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          void toggleSaveCreator(creator.id);
                         }}
                       >
-                        ♡
+                        {isSaved ? "♥" : "♡"}
                       </button>
 
                       {creator.followerRange ? (
