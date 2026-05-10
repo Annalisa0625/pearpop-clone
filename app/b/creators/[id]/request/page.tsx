@@ -18,6 +18,7 @@ type Creator = {
   id: string;
   user_id: string;
   display_name: string;
+  stripe_onboarding_completed: boolean | null;
 };
 
 type CreatorMenu = {
@@ -71,171 +72,18 @@ type GateState = {
   requestUsageResetAt: string | null;
   canSendRequests: boolean;
   needsBilling: boolean;
-  needsUpgradeForRegion: boolean;
 };
 
-function cleanCountryInput(value: string | null | undefined) {
-  const raw = (value ?? "").trim();
-  if (!raw) return "";
-
-  const normalized = raw
-    .toLowerCase()
-    .replace(/\u3000/g, " ")
-    .replace(/[_\-/:|]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const compact = normalized.replace(/\s+/g, "");
-
-  if (
-    normalized === "日本" ||
-    normalized === "japan" ||
-    normalized === "jp" ||
-    normalized === "jpn" ||
-    normalized.startsWith("jp ") ||
-    compact === "jp日本" ||
-    compact === "japan日本" ||
-    compact.includes("日本")
-  ) {
-    return "japan";
-  }
-
-  if (
-    normalized === "韓国" ||
-    normalized === "korea" ||
-    normalized === "south korea" ||
-    normalized === "republic of korea" ||
-    normalized === "kr" ||
-    normalized.startsWith("kr ") ||
-    compact.includes("韓国")
-  ) {
-    return "korea";
-  }
-
-  if (
-    normalized === "台湾" ||
-    normalized === "taiwan" ||
-    normalized === "tw" ||
-    normalized.startsWith("tw ") ||
-    compact.includes("台湾")
-  ) {
-    return "taiwan";
-  }
-
-  if (
-    normalized === "香港" ||
-    normalized === "hong kong" ||
-    normalized === "hk" ||
-    normalized.startsWith("hk ") ||
-    compact.includes("香港")
-  ) {
-    return "hong_kong";
-  }
-
-  if (
-    normalized === "中国" ||
-    normalized === "china" ||
-    normalized === "cn" ||
-    normalized.startsWith("cn ") ||
-    compact.includes("中国")
-  ) {
-    return "china";
-  }
-
-  if (
-    normalized === "タイ" ||
-    normalized === "thailand" ||
-    normalized === "th" ||
-    normalized.startsWith("th ") ||
-    compact.includes("タイ")
-  ) {
-    return "thailand";
-  }
-
-  if (
-    normalized === "ベトナム" ||
-    normalized === "vietnam" ||
-    normalized === "vn" ||
-    normalized.startsWith("vn ") ||
-    compact.includes("ベトナム")
-  ) {
-    return "vietnam";
-  }
-
-  if (
-    normalized === "インドネシア" ||
-    normalized === "indonesia" ||
-    normalized === "id" ||
-    normalized.startsWith("id ") ||
-    compact.includes("インドネシア")
-  ) {
-    return "indonesia";
-  }
-
-  if (
-    normalized === "フィリピン" ||
-    normalized === "philippines" ||
-    normalized === "ph" ||
-    normalized.startsWith("ph ") ||
-    compact.includes("フィリピン")
-  ) {
-    return "philippines";
-  }
-
-  if (
-    normalized === "マレーシア" ||
-    normalized === "malaysia" ||
-    normalized === "my" ||
-    normalized.startsWith("my ") ||
-    compact.includes("マレーシア")
-  ) {
-    return "malaysia";
-  }
-
-  if (
-    normalized === "シンガポール" ||
-    normalized === "singapore" ||
-    normalized === "sg" ||
-    normalized.startsWith("sg ") ||
-    compact.includes("シンガポール")
-  ) {
-    return "singapore";
-  }
-
-  if (
-    normalized === "インド" ||
-    normalized === "india" ||
-    normalized === "in" ||
-    normalized.startsWith("in ") ||
-    compact.includes("インド")
-  ) {
-    return "india";
-  }
-
-  if (
-    normalized === "アメリカ" ||
-    normalized === "united states" ||
-    normalized === "usa" ||
-    normalized === "us" ||
-    normalized.startsWith("us ") ||
-    compact.includes("アメリカ")
-  ) {
-    return "united_states";
-  }
-
-  if (
-    normalized === "その他" ||
-    normalized === "other" ||
-    compact.includes("その他")
-  ) {
-    return "other";
-  }
-
-  return raw;
+function normalizePlanCode(
+  value: string | null | undefined
+): "free" | "standard" | "global_pro" {
+  if (value === "standard" || value === "global_pro") return value;
+  return "free";
 }
 
-function isJapanCountry(value: string | null | undefined) {
-  return cleanCountryInput(value) === "japan";
+function isPaidPlan(value: string | null | undefined) {
+  const plan = normalizePlanCode(value);
+  return plan === "standard" || plan === "global_pro";
 }
 
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
@@ -250,13 +98,13 @@ function getPlanLabel(
 ) {
   switch (planCode) {
     case "free":
-      return "Free";
+      return "Basic";
     case "standard":
-      return "Standard";
+      return "Pro";
     case "global_pro":
-      return "GlobalPro";
+      return "Premium";
     default:
-      return locale === "ja" ? "未設定" : "Not set";
+      return locale === "ja" ? "Basic" : "Basic";
   }
 }
 
@@ -264,45 +112,40 @@ function getCountryLabel(
   country: string | null | undefined,
   locale: "ja" | "en"
 ) {
-  const cleaned = cleanCountryInput(country);
+  const raw = (country ?? "").trim();
+  if (!raw) return locale === "ja" ? "未設定" : "Not set";
+
+  const normalized = raw.toLowerCase();
 
   const jaMap: Record<string, string> = {
     japan: "日本",
+    日本: "日本",
     korea: "韓国",
+    韓国: "韓国",
     taiwan: "台湾",
-    hong_kong: "香港",
-    china: "中国",
-    thailand: "タイ",
-    vietnam: "ベトナム",
-    indonesia: "インドネシア",
-    philippines: "フィリピン",
-    malaysia: "マレーシア",
-    singapore: "シンガポール",
-    india: "インド",
+    台湾: "台湾",
     united_states: "アメリカ",
+    アメリカ: "アメリカ",
     other: "その他",
+    その他: "その他",
   };
 
   const enMap: Record<string, string> = {
     japan: "Japan",
+    日本: "Japan",
     korea: "Korea",
+    韓国: "Korea",
     taiwan: "Taiwan",
-    hong_kong: "Hong Kong",
-    china: "China",
-    thailand: "Thailand",
-    vietnam: "Vietnam",
-    indonesia: "Indonesia",
-    philippines: "Philippines",
-    malaysia: "Malaysia",
-    singapore: "Singapore",
-    india: "India",
+    台湾: "Taiwan",
     united_states: "United States",
+    アメリカ: "United States",
     other: "Other",
+    その他: "Other",
   };
 
   return locale === "ja"
-    ? jaMap[cleaned] ?? ((country ?? "").trim() || "不明")
-    : enMap[cleaned] ?? ((country ?? "").trim() || "Unknown");
+    ? jaMap[raw] ?? jaMap[normalized] ?? raw
+    : enMap[raw] ?? enMap[normalized] ?? raw;
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
@@ -407,7 +250,8 @@ export default function CreatorRequestPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            creatorNotFound: "クリエイターが見つかりません。",
+            creatorNotFound:
+              "クリエイターが見つかりません。現在注文受付できない状態の可能性があります。",
             companyOnlyTitle: "企業アカウントのみ利用できます",
             companyOnlyBody: "この注文フォームは企業アカウント専用です。",
             unavailableTitle: "現在この機能は利用できません",
@@ -417,32 +261,22 @@ export default function CreatorRequestPage() {
             profileRequiredBody:
               "注文の前に、企業プロフィールを完了してください。",
             profileRequiredCta: "企業プロフィールを入力する",
-            billingTitle: "注文にはプラン開始が必要です",
+            billingTitle: "有料プランの有効化が必要です",
             billingBody:
-              "このクリエイターの詳細や公開メニューは閲覧できますが、注文はプラン開始後に利用できます。",
+              "現在の有料プランが有効ではありません。Basicの場合は月額課金なしで注文できます。",
             billingCta: "料金プランを見る",
             backToCreator: "クリエイター詳細へ戻る",
-            globalTitle: "このクリエイターへの注文にはGlobalProが必要です",
-            freeGlobalBody:
-              "Freeプランでは、日本市場向けの候補探索から始められます。",
-            standardGlobalBody:
-              "Standardプランでは、日本市場向けの継続施策に合うクリエイターへ注文できます。",
-            globalExtraBody:
-              "このクリエイターはより広い視聴者層を持つため、注文には GlobalPro プランが必要です。",
             mainAudience: "主な視聴者",
             notSet: "未設定",
-            globalCta: "GlobalProを確認する",
             pageTitle: "注文内容を入力",
             pageSubtitle:
               "選択したメニューをもとに、商品情報・希望内容・納期を入力します。次の画面で支払い方法を確認し、クリエイター承認待ちの注文を作成します。",
             creatorInfo: "クリエイター情報",
-            audienceType: "視聴者タイプ",
-            japanAudience: "日本市場向け",
-            broaderAudience: "より広い視聴者層",
+            platforms: "対応SNS",
             planStatus: "現在のプラン状況",
             currentPlan: "現在プラン",
-            sentThisMonth: "今月の送信数",
-            remainingThisMonth: "残り送信可能数",
+            sentThisMonth: "今月の注文数",
+            remainingThisMonth: "残り注文可能数",
             nextReset: "次回リセット目安",
             unlimited: "無制限",
             selectedMenu: "選択中のメニュー",
@@ -474,22 +308,22 @@ export default function CreatorRequestPage() {
             noteRequired: "注文内容・requirementsは10文字以上で入力してください。",
             menuRequired: "注文するメニューを選択してください。",
             freeLimitReached:
-              "Freeプランでは月5件まで送信できます。上限に達したため、プラン変更をご検討ください。",
+              "Basicでは月5件まで注文できます。上限に達したため、プラン変更をご検討ください。",
             submitError: "注文用Checkoutの作成に失敗しました。",
             networkError: "通信エラーが発生しました。",
             authError: "ログイン情報を取得できませんでした。",
             checkoutUrlMissing: "Checkout URLを取得できませんでした。",
             submitting: "Checkout作成中...",
             limitReachedButton: "上限に達しています",
-            globalRequiredButton: "GlobalProが必要です",
             submitButton: "注文内容を確認して決済へ進む",
             pieces: "件",
-            temporaryNotice:
-              "次の画面でカードの与信枠を確保します。クリエイターが48時間以内に承認した場合のみ決済が確定し、辞退または期限切れの場合は請求が確定しません。",
+            orderNotice:
+              "次の画面でカードの与信枠を確保します。クリエイターが72時間以内に承認した場合のみ決済が確定し、辞退または期限切れの場合は請求が確定しません。",
           }
         : {
             loading: "Loading...",
-            creatorNotFound: "Creator not found.",
+            creatorNotFound:
+              "Creator not found. This creator may not currently be ready to receive orders.",
             companyOnlyTitle: "Company accounts only",
             companyOnlyBody:
               "This order form is only available to company accounts.",
@@ -500,32 +334,22 @@ export default function CreatorRequestPage() {
             profileRequiredBody:
               "Please complete your company profile before placing orders.",
             profileRequiredCta: "Complete Company Profile",
-            billingTitle: "Starting a plan is required to order",
+            billingTitle: "Paid plan activation is required",
             billingBody:
-              "You can view this creator and their public menus, but ordering is unlocked after plan activation.",
+              "Your paid plan is not active. Basic can place orders without a monthly subscription.",
             billingCta: "View Billing Plans",
             backToCreator: "Back to Creator Detail",
-            globalTitle: "GlobalPro is required to order from this creator",
-            freeGlobalBody:
-              "With the Free plan, you can start by exploring creators for Japan-focused campaigns.",
-            standardGlobalBody:
-              "With the Standard plan, you can order from creators who fit Japan-focused campaigns.",
-            globalExtraBody:
-              "This creator has broader audience reach, so GlobalPro is required to order.",
             mainAudience: "Main audience",
             notSet: "Not set",
-            globalCta: "Check GlobalPro",
             pageTitle: "Enter Order Requirements",
             pageSubtitle:
               "Enter product details, requirements, and timing based on the selected menu. On the next screen, your payment method will be authorized and the order will wait for creator approval.",
             creatorInfo: "Creator Information",
-            audienceType: "Audience Type",
-            japanAudience: "Japan market fit",
-            broaderAudience: "Broader audience reach",
+            platforms: "Platforms",
             planStatus: "Current Plan Status",
             currentPlan: "Current Plan",
-            sentThisMonth: "Requests this month",
-            remainingThisMonth: "Remaining requests",
+            sentThisMonth: "Orders this month",
+            remainingThisMonth: "Remaining orders",
             nextReset: "Next reset",
             unlimited: "Unlimited",
             selectedMenu: "Selected Menu",
@@ -557,18 +381,17 @@ export default function CreatorRequestPage() {
             noteRequired: "Please enter at least 10 characters.",
             menuRequired: "Please select a menu to order.",
             freeLimitReached:
-              "The Free plan allows up to 5 sends per month. You have reached the limit, so please consider upgrading.",
+              "Basic allows up to 5 orders per month. You have reached the limit, so please consider upgrading.",
             submitError: "Failed to create Checkout for this order.",
             networkError: "A network error occurred.",
             authError: "Could not retrieve your login session.",
             checkoutUrlMissing: "Checkout URL was not returned.",
             submitting: "Creating Checkout...",
             limitReachedButton: "Limit Reached",
-            globalRequiredButton: "GlobalPro Required",
             submitButton: "Review Order and Continue to Payment",
             pieces: "",
-            temporaryNotice:
-              "Your card will be authorized on the next screen. The payment will only be captured if the creator accepts within 48 hours. If the creator declines or the deadline expires, the charge will not be finalized.",
+            orderNotice:
+              "Your card will be authorized on the next screen. The payment will only be captured if the creator accepts within 72 hours. If the creator declines or the deadline expires, the charge will not be finalized.",
           },
     [safeLocale]
   );
@@ -592,7 +415,6 @@ export default function CreatorRequestPage() {
     requestUsageResetAt: null,
     canSendRequests: false,
     needsBilling: false,
-    needsUpgradeForRegion: false,
   });
 
   const [form, setForm] = useState<FormState>({
@@ -650,12 +472,8 @@ export default function CreatorRequestPage() {
       const companyAccessStatus = userState?.company_access_status ?? null;
       const companySubscriptionStatus =
         userState?.company_subscription_status ?? null;
-      const companyPlanCode =
-        (userState?.company_plan_code as
-          | "free"
-          | "standard"
-          | "global_pro"
-          | null) ?? null;
+      const companyPlanCode = normalizePlanCode(userState?.company_plan_code);
+
       const monthlyRequestLimit =
         typeof userState?.monthly_request_limit === "number"
           ? userState.monthly_request_limit
@@ -666,26 +484,30 @@ export default function CreatorRequestPage() {
           : 0;
       const requestUsageResetAt = userState?.request_usage_reset_at ?? null;
 
-      const baseCanSendRequests =
+      const accountReady =
         isCompany &&
         !isSuspended &&
         companyProfileCompleted &&
-        companyAccessStatus === "approved" &&
-        companySubscriptionStatus === "active";
+        companyAccessStatus === "approved";
+
+      const paidPlan = isPaidPlan(companyPlanCode);
+
+      const canSendRequests =
+        accountReady &&
+        (!paidPlan || companySubscriptionStatus === "active");
 
       const needsBilling =
-        isCompany &&
-        !isSuspended &&
-        companyProfileCompleted &&
-        companyAccessStatus === "approved" &&
+        accountReady &&
+        paidPlan &&
         companySubscriptionStatus !== "active";
 
       const { data: creatorData } = await supabase
         .from("creators")
-        .select("id, user_id, display_name")
+        .select("id, user_id, display_name, stripe_onboarding_completed")
         .eq("id", creatorId)
         .eq("is_public", true)
         .eq("approval_status", "approved")
+        .eq("stripe_onboarding_completed", true)
         .maybeSingle();
 
       if (!creatorData) {
@@ -705,7 +527,6 @@ export default function CreatorRequestPage() {
           requestUsageResetAt,
           canSendRequests: false,
           needsBilling,
-          needsUpgradeForRegion: false,
         });
         setLoading(false);
         return;
@@ -781,17 +602,6 @@ export default function CreatorRequestPage() {
         setSocialAccounts((socialData as SocialAccount[]) ?? []);
       }
 
-      const audienceRows = (socialData as SocialAccount[]) ?? [];
-      const hasJapanAudience = audienceRows.some((row) =>
-        isJapanCountry(row.audience_country)
-      );
-
-      const needsUpgradeForRegion =
-        (companyPlanCode === "free" || companyPlanCode === "standard") &&
-        !hasJapanAudience;
-
-      const canSendRequests = baseCanSendRequests && !needsUpgradeForRegion;
-
       setGate({
         isLoggedIn: true,
         isCompany,
@@ -805,7 +615,6 @@ export default function CreatorRequestPage() {
         requestUsageResetAt,
         canSendRequests,
         needsBilling,
-        needsUpgradeForRegion,
       });
 
       setLoading(false);
@@ -831,9 +640,7 @@ export default function CreatorRequestPage() {
   const audienceCountryLabels = audienceCountries.map((country) =>
     getCountryLabel(country, safeLocale)
   );
-  const hasJapanAudience = socialAccounts.some((s) =>
-    isJapanCountry(s.audience_country)
-  );
+  const platforms = uniqueNonEmpty(socialAccounts.map((s) => s.platform));
 
   const handleMenuChange = (menuId: string) => {
     const nextMenu = menus.find((menu) => menu.id === menuId) ?? null;
@@ -850,12 +657,7 @@ export default function CreatorRequestPage() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (
-      !creator ||
-      !gate.canSendRequests ||
-      reachedLimit ||
-      gate.needsUpgradeForRegion
-    ) {
+    if (!creator || !gate.canSendRequests || reachedLimit) {
       return;
     }
 
@@ -1011,55 +813,6 @@ export default function CreatorRequestPage() {
     );
   }
 
-  if (gate.needsUpgradeForRegion) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
-          <p className="mb-2 text-sm text-gray-600">@{creator.display_name}</p>
-          <h1 className="mb-2 text-2xl font-bold">{copy.globalTitle}</h1>
-          <p className="mb-4 text-sm text-gray-700">
-            {gate.companyPlanCode === "free"
-              ? copy.freeGlobalBody
-              : copy.standardGlobalBody}{" "}
-            {copy.globalExtraBody}
-          </p>
-
-          <div className="rounded-2xl border bg-white p-4">
-            <p className="text-sm text-gray-500">{copy.mainAudience}</p>
-            <p className="mt-2 text-base font-semibold text-gray-900">
-              {audienceCountryLabels.length > 0
-                ? audienceCountryLabels.join(" / ")
-                : copy.notSet}
-            </p>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              onClick={() =>
-                router.push(
-                  `${BILLING_PATH}?from=${encodeURIComponent(
-                    `/b/creators/${creator.id}/request${
-                      initialMenuId ? `?menuId=${initialMenuId}` : ""
-                    }`
-                  )}`
-                )
-              }
-              className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              {copy.globalCta}
-            </button>
-            <button
-              onClick={() => router.push(`/b/creators/${creator.id}`)}
-              className="rounded-2xl border bg-white px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              {copy.backToCreator}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const disableSubmit =
     submitting || reachedLimit || !selectedMenu || !gate.canSendRequests;
 
@@ -1089,9 +842,9 @@ export default function CreatorRequestPage() {
             </div>
 
             <div className="rounded-2xl border bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">{copy.audienceType}</p>
+              <p className="text-sm text-gray-500">{copy.platforms}</p>
               <p className="mt-2 text-lg font-bold">
-                {hasJapanAudience ? copy.japanAudience : copy.broaderAudience}
+                {platforms.length > 0 ? platforms.join(" / ") : copy.notSet}
               </p>
             </div>
           </div>
@@ -1373,7 +1126,7 @@ export default function CreatorRequestPage() {
           </section>
 
           <section className="rounded-3xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-800">
-            {copy.temporaryNotice}
+            {copy.orderNotice}
           </section>
 
           <button
@@ -1384,10 +1137,8 @@ export default function CreatorRequestPage() {
             {submitting
               ? copy.submitting
               : reachedLimit
-              ? copy.limitReachedButton
-              : gate.needsUpgradeForRegion
-              ? copy.globalRequiredButton
-              : copy.submitButton}
+                ? copy.limitReachedButton
+                : copy.submitButton}
           </button>
         </aside>
       </form>
