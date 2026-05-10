@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 type CompanyPlanCode = "free" | "standard" | "global_pro";
-type SubscriptionStatus = "active" | "inactive" | "canceled" | null;
 
 type SocialAccountRow = {
   platform?: string | null;
@@ -39,6 +38,7 @@ type CreatorCard = {
   displayName: string;
   avatarUrl: string | null;
   category: string | null;
+  platforms: string[];
   primaryPlatform: string | null;
   primaryAudienceCountry: string | null;
   followerRange: string | null;
@@ -52,15 +52,6 @@ function normalizePlanCode(
   value: string | null | undefined
 ): CompanyPlanCode | null {
   if (value === "free" || value === "standard" || value === "global_pro") {
-    return value;
-  }
-  return null;
-}
-
-function normalizeSubscriptionStatus(
-  value: string | null | undefined
-): SubscriptionStatus {
-  if (value === "active" || value === "inactive" || value === "canceled") {
     return value;
   }
   return null;
@@ -338,6 +329,14 @@ function formatPrice(
   }
 }
 
+function formatStartingPrice(
+  value: number | null,
+  currency: string | null | undefined
+) {
+  if (value == null) return "-";
+  return `${formatPrice(value, currency)}〜`;
+}
+
 function normalizePlatform(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
@@ -402,8 +401,6 @@ export default function CompanyCreatorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [planCodeRaw, setPlanCodeRaw] = useState<CompanyPlanCode | null>(null);
-  const [subscriptionStatus, setSubscriptionStatus] =
-    useState<SubscriptionStatus>(null);
   const [creators, setCreators] = useState<CreatorCard[]>([]);
 
   const [keyword, setKeyword] = useState("");
@@ -419,11 +416,8 @@ export default function CompanyCreatorsPage() {
   }, []);
 
   const platformOptions = useMemo(() => {
-    const values = creators
-      .map((creator) => creator.primaryPlatform)
-      .filter((value): value is string => !!value);
-
-    return Array.from(new Set(values));
+    const values = creators.flatMap((creator) => creator.platforms);
+    return Array.from(new Set(values.filter(Boolean)));
   }, [creators]);
 
   const categoryOptions = useMemo(() => {
@@ -442,13 +436,17 @@ export default function CompanyCreatorsPage() {
         !q ||
         creator.displayName.toLowerCase().includes(q) ||
         (creator.category ?? "").toLowerCase().includes(q) ||
-        (creator.primaryPlatform ?? "").toLowerCase().includes(q) ||
+        creator.platforms.some((platform) =>
+          platform.toLowerCase().includes(q)
+        ) ||
         (creator.topMenuTitle ?? "").toLowerCase().includes(q);
 
       const matchesPlatform =
         platformFilter === "all" ||
-        normalizePlatform(creator.primaryPlatform) ===
-          normalizePlatform(platformFilter);
+        creator.platforms.some(
+          (platform) =>
+            normalizePlatform(platform) === normalizePlatform(platformFilter)
+        );
 
       const matchesCategory =
         categoryFilter === "all" || creator.category === categoryFilter;
@@ -594,6 +592,15 @@ export default function CompanyCreatorsPage() {
               : [];
 
             const primary = socials[0] ?? null;
+
+            const platforms = Array.from(
+              new Set(
+                socials
+                  .map((social) => social.platform?.trim())
+                  .filter((value): value is string => !!value)
+              )
+            );
+
             const creatorMenus = menuMap.get(row.id) ?? [];
             const pricedMenus = creatorMenus
               .filter((menu) => typeof menu.price === "number")
@@ -606,7 +613,8 @@ export default function CompanyCreatorsPage() {
               displayName: row.display_name?.trim() || "クリエイター",
               avatarUrl: row.avatar_url?.trim() || null,
               category: row.category?.trim() || null,
-              primaryPlatform: primary?.platform?.trim() || null,
+              platforms,
+              primaryPlatform: platforms[0] || primary?.platform?.trim() || null,
               primaryAudienceCountry: primary?.audience_country?.trim() || null,
               followerRange: primary?.follower_range?.trim() || null,
               menuCount: creatorMenus.length,
@@ -621,11 +629,6 @@ export default function CompanyCreatorsPage() {
 
         if (isMounted) {
           setPlanCodeRaw(normalizePlanCode(userState?.company_plan_code ?? null));
-          setSubscriptionStatus(
-            normalizeSubscriptionStatus(
-              userState?.company_subscription_status ?? null
-            )
-          );
           setCreators(nextCreators);
         }
       } catch (e) {
@@ -815,6 +818,13 @@ export default function CompanyCreatorsPage() {
                   creator.primaryAudienceCountry
                 );
 
+                const displayPlatforms =
+                  creator.platforms.length > 0
+                    ? creator.platforms.slice(0, 2)
+                    : creator.primaryPlatform
+                      ? [creator.primaryPlatform]
+                      : [];
+
                 return (
                   <Link
                     key={creator.id}
@@ -825,9 +835,26 @@ export default function CompanyCreatorsPage() {
                       <CreatorImage creator={creator} index={index} />
 
                       <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white backdrop-blur">
-                          {getPlatformLabel(creator.primaryPlatform)}
-                        </span>
+                        {displayPlatforms.length > 0 ? (
+                          displayPlatforms.map((platform, platformIndex) => (
+                            <span
+                              key={`${platform}-${platformIndex}`}
+                              className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white backdrop-blur"
+                            >
+                              {getPlatformLabel(platform)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white backdrop-blur">
+                            SNS未設定
+                          </span>
+                        )}
+
+                        {creator.platforms.length > 2 ? (
+                          <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white backdrop-blur">
+                            +{creator.platforms.length - 2}
+                          </span>
+                        ) : null}
 
                         {creator.menuCount > 0 ? (
                           <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-900 backdrop-blur">
@@ -867,16 +894,11 @@ export default function CompanyCreatorsPage() {
                         </div>
 
                         <div className="shrink-0 text-right">
-                          <p className="text-xs font-semibold text-slate-400">
-                            from
-                          </p>
                           <p className="text-base font-black text-slate-950">
-                            {creator.startingPrice != null
-                              ? formatPrice(
-                                  creator.startingPrice,
-                                  creator.startingCurrency
-                                )
-                              : "-"}
+                            {formatStartingPrice(
+                              creator.startingPrice,
+                              creator.startingCurrency
+                            )}
                           </p>
                         </div>
                       </div>
