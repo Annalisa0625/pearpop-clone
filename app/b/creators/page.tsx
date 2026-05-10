@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppLocale } from "@/lib/i18n/locale";
 
-type CompanyPlanCode = "free" | "standard" | "global_pro";
+type FilterMenu = "platform" | "category" | null;
 
 type SocialAccountRow = {
   platform?: string | null;
@@ -51,33 +52,6 @@ type CreatorCard = {
   startingCurrency: string | null;
   topMenuTitle: string | null;
 };
-
-function normalizePlanCode(
-  value: string | null | undefined
-): CompanyPlanCode | null {
-  if (value === "free" || value === "standard" || value === "global_pro") {
-    return value;
-  }
-  return null;
-}
-
-function getPlanLabel(plan: CompanyPlanCode) {
-  if (plan === "standard") return "Pro";
-  if (plan === "global_pro") return "Premium";
-  return "Basic";
-}
-
-function getPlanDescription(plan: CompanyPlanCode) {
-  if (plan === "global_pro") {
-    return "注文無制限 / marketplace fee 5%";
-  }
-
-  if (plan === "standard") {
-    return "注文無制限 / marketplace fee 10%";
-  }
-
-  return "月5件まで注文可能 / marketplace fee 10%";
-}
 
 function cleanCountryInput(value: string | null | undefined) {
   const raw = (value ?? "").trim();
@@ -286,10 +260,13 @@ function cleanCountryInput(value: string | null | undefined) {
   return raw;
 }
 
-function getCountryLabelJa(country: string | null | undefined) {
+function getCountryLabel(
+  country: string | null | undefined,
+  locale: "ja" | "en"
+) {
   const cleaned = cleanCountryInput(country);
 
-  const map: Record<string, string> = {
+  const jaMap: Record<string, string> = {
     japan: "日本",
     korea: "韓国",
     taiwan: "台湾",
@@ -310,7 +287,30 @@ function getCountryLabelJa(country: string | null | undefined) {
     other: "その他",
   };
 
-  return map[cleaned] ?? ((country ?? "").trim() || "不明");
+  const enMap: Record<string, string> = {
+    japan: "Japan",
+    korea: "Korea",
+    taiwan: "Taiwan",
+    hong_kong: "Hong Kong",
+    china: "China",
+    thailand: "Thailand",
+    vietnam: "Vietnam",
+    indonesia: "Indonesia",
+    philippines: "Philippines",
+    malaysia: "Malaysia",
+    singapore: "Singapore",
+    india: "India",
+    united_states: "United States",
+    canada: "Canada",
+    united_kingdom: "United Kingdom",
+    france: "France",
+    germany: "Germany",
+    other: "Other",
+  };
+
+  return locale === "ja"
+    ? jaMap[cleaned] ?? ((country ?? "").trim() || "不明")
+    : enMap[cleaned] ?? ((country ?? "").trim() || "Unknown");
 }
 
 function formatPrice(
@@ -356,6 +356,18 @@ function getPlatformLabel(value: string | null | undefined) {
   if (normalized.includes("ugc")) return "UGC";
 
   return value?.trim() || "SNS未設定";
+}
+
+function getPlatformMark(value: string | null | undefined) {
+  const normalized = normalizePlatform(value);
+
+  if (normalized.includes("instagram")) return "IG";
+  if (normalized.includes("tiktok")) return "TT";
+  if (normalized.includes("youtube")) return "YT";
+  if (normalized === "x" || normalized.includes("twitter")) return "X";
+  if (normalized.includes("ugc")) return "UGC";
+
+  return "SNS";
 }
 
 function getCreatorInitial(name: string) {
@@ -422,12 +434,102 @@ function SearchIcon() {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M5 7.5 10 12l5-4.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function FilterButton({
+  label,
+  value,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition ${
+        active
+          ? "border-slate-900 bg-slate-900 text-white"
+          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+      }`}
+    >
+      <span>{label}: {value}</span>
+      <ChevronDownIcon />
+    </button>
+  );
+}
+
 export default function CompanyCreatorsPage() {
   const router = useRouter();
+  const { locale } = useAppLocale();
+  const safeLocale = locale === "en" ? "en" : "ja";
+
+  const copy = useMemo(
+    () =>
+      safeLocale === "ja"
+        ? {
+            loading: "読み込み中...",
+            fetchError: "クリエイター一覧の取得に失敗しました。",
+            searchEyebrow: "Creator Search",
+            platform: "Platform",
+            categoryKeyword: "Category / Keyword",
+            keywordPlaceholder: "キーワード、カテゴリ、SNS、メニュー名で検索",
+            any: "Any",
+            category: "Category",
+            clearKeyword: "Clear keyword",
+            clearAll: "Clear All",
+            creators: "Creators",
+            countSuffix: "件のクリエイター",
+            noCreatorsTitle: "表示できるクリエイターがいません",
+            noCreatorsBody:
+              "検索条件を変更するか、報酬受け取り設定が完了したクリエイターの追加をお待ちください。",
+            basicLimit: "Basicでは月5件まで注文できます。",
+            creatorFallback: "Creator",
+            noSns: "SNS未設定",
+            priceUnset: "-",
+          }
+        : {
+            loading: "Loading...",
+            fetchError: "Failed to load creators.",
+            searchEyebrow: "Creator Search",
+            platform: "Platform",
+            categoryKeyword: "Category / Keyword",
+            keywordPlaceholder: "Search keywords, categories, SNS, or menu names",
+            any: "Any",
+            category: "Category",
+            clearKeyword: "Clear keyword",
+            clearAll: "Clear All",
+            creators: "Creators",
+            countSuffix: "creators",
+            noCreatorsTitle: "No creators found",
+            noCreatorsBody:
+              "Try changing your search filters or wait for more creators to complete payout setup.",
+            basicLimit: "Basic can place up to 5 orders per month.",
+            creatorFallback: "Creator",
+            noSns: "SNS not set",
+            priceUnset: "-",
+          },
+    [safeLocale]
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [planCodeRaw, setPlanCodeRaw] = useState<CompanyPlanCode | null>(null);
   const [creators, setCreators] = useState<CreatorCard[]>([]);
   const [savedCreatorIds, setSavedCreatorIds] = useState<string[]>([]);
   const [savingCreatorId, setSavingCreatorId] = useState<string | null>(null);
@@ -435,10 +537,7 @@ export default function CompanyCreatorsPage() {
   const [keyword, setKeyword] = useState("");
   const [platformFilter, setPlatformFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-
-  const displayPlanCode = useMemo<CompanyPlanCode>(() => {
-    return planCodeRaw ?? "free";
-  }, [planCodeRaw]);
+  const [openFilter, setOpenFilter] = useState<FilterMenu>(null);
 
   const platformOptions = useMemo(() => {
     const values = creators.flatMap((creator) => creator.platforms);
@@ -483,29 +582,6 @@ export default function CompanyCreatorsPage() {
   useEffect(() => {
     let isMounted = true;
 
-    const syncLatestSubscription = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        const accessToken = session?.access_token ?? null;
-
-        if (!accessToken) {
-          return;
-        }
-
-        await fetch("/api/stripe/sync-current-subscription", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-      } catch (e) {
-        console.warn("creators subscription sync skipped", e);
-      }
-    };
-
     const load = async () => {
       setLoading(true);
       setError("");
@@ -533,59 +609,44 @@ export default function CompanyCreatorsPage() {
           return;
         }
 
-        await syncLatestSubscription();
-
-        const [userStateResult, creatorsResult, savedResult] =
-          await Promise.all([
-            supabase
-              .from("user_states")
-              .select("company_plan_code, company_subscription_status")
-              .eq("user_id", user.id)
-              .maybeSingle(),
-
-            supabase
-              .from("creators")
-              .select(
-                `
-                id,
-                display_name,
-                avatar_url,
-                category,
-                stripe_onboarding_completed,
-                creator_social_accounts (
-                  platform,
-                  url,
-                  follower_range,
-                  audience_country
-                )
-                `
+        const [creatorsResult, savedResult] = await Promise.all([
+          supabase
+            .from("creators")
+            .select(
+              `
+              id,
+              display_name,
+              avatar_url,
+              category,
+              stripe_onboarding_completed,
+              creator_social_accounts (
+                platform,
+                url,
+                follower_range,
+                audience_country
               )
-              .eq("approval_status", "approved")
-              .eq("stripe_onboarding_completed", true)
-              .order("created_at", { ascending: false }),
+              `
+            )
+            .eq("approval_status", "approved")
+            .eq("stripe_onboarding_completed", true)
+            .order("created_at", { ascending: false }),
 
-            supabase
-              .from("saved_creators")
-              .select("creator_id")
-              .eq("b_user_id", user.id),
-          ]);
+          supabase
+            .from("saved_creators")
+            .select("creator_id")
+            .eq("b_user_id", user.id),
+        ]);
 
-        if (userStateResult.error || creatorsResult.error || savedResult.error) {
+        if (creatorsResult.error || savedResult.error) {
           console.error({
-            userStateError: userStateResult.error,
             creatorsError: creatorsResult.error,
             savedError: savedResult.error,
           });
           if (isMounted) {
-            setError("クリエイター一覧の取得に失敗しました。");
+            setError(copy.fetchError);
           }
           return;
         }
-
-        const userState = (userStateResult.data as {
-          company_plan_code?: string | null;
-          company_subscription_status?: string | null;
-        } | null);
 
         const rows = (creatorsResult.data ?? []) as CreatorRow[];
         const creatorIds = rows.map((row) => row.id);
@@ -642,7 +703,7 @@ export default function CompanyCreatorsPage() {
 
             return {
               id: row.id,
-              displayName: row.display_name?.trim() || "クリエイター",
+              displayName: row.display_name?.trim() || copy.creatorFallback,
               avatarUrl: row.avatar_url?.trim() || null,
               category: row.category?.trim() || null,
               platforms,
@@ -660,7 +721,6 @@ export default function CompanyCreatorsPage() {
           });
 
         if (isMounted) {
-          setPlanCodeRaw(normalizePlanCode(userState?.company_plan_code ?? null));
           setCreators(nextCreators);
           setSavedCreatorIds(
             ((savedResult.data ?? []) as SavedCreatorRow[]).map(
@@ -671,7 +731,7 @@ export default function CompanyCreatorsPage() {
       } catch (e) {
         console.error(e);
         if (isMounted) {
-          setError("クリエイター一覧の取得に失敗しました。");
+          setError(copy.fetchError);
         }
       } finally {
         if (isMounted) {
@@ -685,7 +745,7 @@ export default function CompanyCreatorsPage() {
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [router, copy.fetchError, copy.creatorFallback]);
 
   const toggleSaveCreator = async (creatorId: string) => {
     if (savingCreatorId) return;
@@ -739,7 +799,7 @@ export default function CompanyCreatorsPage() {
     return (
       <div className="space-y-6">
         <section className="rounded-[32px] border border-slate-200 bg-white p-7">
-          <p className="text-base text-slate-600">読み込み中...</p>
+          <p className="text-base text-slate-600">{copy.loading}</p>
         </section>
       </div>
     );
@@ -749,38 +809,81 @@ export default function CompanyCreatorsPage() {
     <div className="space-y-8">
       <section className="rounded-[36px] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
         <div className="grid gap-3 lg:grid-cols-[220px_1fr_64px]">
-          <div className="rounded-[24px] bg-slate-50 p-4">
-            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Platform
-            </label>
-            <select
-              value={platformFilter}
-              onChange={(e) => setPlatformFilter(e.target.value)}
-              className="mt-2 w-full bg-transparent text-base font-semibold outline-none"
+          <div className="relative rounded-[24px] bg-slate-50 p-4">
+            <button
+              type="button"
+              onClick={() =>
+                setOpenFilter((prev) => (prev === "platform" ? null : "platform"))
+              }
+              className="flex w-full items-center justify-between text-left"
             >
-              <option value="all">Any</option>
-              {platformOptions.map((platform) => (
-                <option key={platform} value={platform}>
-                  {getPlatformLabel(platform)}
-                </option>
-              ))}
-            </select>
+              <span>
+                <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {copy.platform}
+                </span>
+                <span className="mt-2 block text-base font-semibold text-slate-950">
+                  {platformFilter === "all"
+                    ? copy.any
+                    : getPlatformLabel(platformFilter)}
+                </span>
+              </span>
+              <ChevronDownIcon />
+            </button>
+
+            {openFilter === "platform" ? (
+              <div className="absolute left-0 top-[calc(100%+10px)] z-30 w-full overflow-hidden rounded-3xl border bg-white p-2 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlatformFilter("all");
+                    setOpenFilter(null);
+                  }}
+                  className={`block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold ${
+                    platformFilter === "all"
+                      ? "bg-slate-100 text-slate-950"
+                      : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {copy.any}
+                </button>
+
+                {platformOptions.map((platform) => (
+                  <button
+                    key={platform}
+                    type="button"
+                    onClick={() => {
+                      setPlatformFilter(platform);
+                      setOpenFilter(null);
+                    }}
+                    className={`block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold ${
+                      normalizePlatform(platformFilter) ===
+                      normalizePlatform(platform)
+                        ? "bg-slate-100 text-slate-950"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {getPlatformLabel(platform)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-[24px] bg-slate-50 p-4">
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Category / Keyword
+              {copy.categoryKeyword}
             </label>
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="キーワード、カテゴリ、SNS、メニュー名で検索"
+              placeholder={copy.keywordPlaceholder}
               className="mt-2 w-full bg-transparent text-base font-semibold outline-none placeholder:text-slate-400"
             />
           </div>
 
           <button
             type="button"
+            onClick={() => setOpenFilter(null)}
             className="flex h-full min-h-[64px] items-center justify-center rounded-[24px] bg-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
             aria-label="Search"
           >
@@ -789,18 +892,53 @@ export default function CompanyCreatorsPage() {
         </div>
 
         <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm outline-none"
-          >
-            <option value="all">Category</option>
-            {categoryOptions.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+          <div className="relative shrink-0">
+            <FilterButton
+              label={copy.category}
+              value={categoryFilter === "all" ? copy.any : categoryFilter}
+              active={categoryFilter !== "all"}
+              onClick={() =>
+                setOpenFilter((prev) => (prev === "category" ? null : "category"))
+              }
+            />
+
+            {openFilter === "category" ? (
+              <div className="absolute left-0 top-[calc(100%+10px)] z-30 w-64 overflow-hidden rounded-3xl border bg-white p-2 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryFilter("all");
+                    setOpenFilter(null);
+                  }}
+                  className={`block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold ${
+                    categoryFilter === "all"
+                      ? "bg-slate-100 text-slate-950"
+                      : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {copy.any}
+                </button>
+
+                {categoryOptions.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => {
+                      setCategoryFilter(category);
+                      setOpenFilter(null);
+                    }}
+                    className={`block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold ${
+                      categoryFilter === category
+                        ? "bg-slate-100 text-slate-950"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <button
             type="button"
@@ -808,7 +946,7 @@ export default function CompanyCreatorsPage() {
             className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm"
           >
             Platform:{" "}
-            {platformFilter === "all" ? "Any" : getPlatformLabel(platformFilter)}
+            {platformFilter === "all" ? copy.any : getPlatformLabel(platformFilter)}
           </button>
 
           <button
@@ -816,7 +954,7 @@ export default function CompanyCreatorsPage() {
             onClick={() => setKeyword("")}
             className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm"
           >
-            Clear keyword
+            {copy.clearKeyword}
           </button>
 
           <button
@@ -825,10 +963,11 @@ export default function CompanyCreatorsPage() {
               setKeyword("");
               setPlatformFilter("all");
               setCategoryFilter("all");
+              setOpenFilter(null);
             }}
             className="shrink-0 px-4 py-2 text-sm font-semibold text-slate-500 underline underline-offset-4"
           >
-            Clear All
+            {copy.clearAll}
           </button>
         </div>
       </section>
@@ -847,32 +986,33 @@ export default function CompanyCreatorsPage() {
           <div className="flex items-end justify-between gap-4">
             <div>
               <h2 className="text-[28px] font-black tracking-tight text-slate-950">
-                Creators
+                {copy.creators}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                {filteredCreators.length.toLocaleString()} 件のクリエイター
+                {safeLocale === "ja"
+                  ? `${filteredCreators.length.toLocaleString()} ${copy.countSuffix}`
+                  : `${filteredCreators.length.toLocaleString()} ${copy.countSuffix}`}
               </p>
             </div>
 
             <div className="hidden text-right text-sm text-slate-500 md:block">
-              {getPlanLabel(displayPlanCode)}では月5件まで注文できます。
+              {copy.basicLimit}
             </div>
           </div>
 
           {filteredCreators.length === 0 ? (
             <div className="rounded-[32px] border border-dashed border-slate-200 bg-white p-10 text-center text-slate-600">
               <p className="text-lg font-bold text-slate-900">
-                表示できるクリエイターがいません
+                {copy.noCreatorsTitle}
               </p>
-              <p className="mt-3 text-sm leading-7">
-                検索条件を変更するか、報酬受け取り設定が完了したクリエイターの追加をお待ちください。
-              </p>
+              <p className="mt-3 text-sm leading-7">{copy.noCreatorsBody}</p>
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredCreators.map((creator, index) => {
-                const audienceLabel = getCountryLabelJa(
-                  creator.primaryAudienceCountry
+                const audienceLabel = getCountryLabel(
+                  creator.primaryAudienceCountry,
+                  safeLocale
                 );
 
                 const displayPlatforms =
@@ -906,7 +1046,7 @@ export default function CompanyCreatorsPage() {
                           ))
                         ) : (
                           <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white backdrop-blur">
-                            SNS未設定
+                            {copy.noSns}
                           </span>
                         )}
 
@@ -942,6 +1082,7 @@ export default function CompanyCreatorsPage() {
 
                       {creator.followerRange ? (
                         <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-900 backdrop-blur">
+                          {getPlatformMark(creator.primaryPlatform)}{" "}
                           {creator.followerRange}
                         </div>
                       ) : null}
@@ -954,7 +1095,7 @@ export default function CompanyCreatorsPage() {
                             {creator.displayName}
                           </h3>
                           <p className="mt-1 truncate text-sm text-slate-600">
-                            {creator.category || "Creator"}
+                            {creator.category || copy.creatorFallback}
                           </p>
                         </div>
 
