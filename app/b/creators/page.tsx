@@ -2,7 +2,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -630,10 +636,10 @@ function CreatorImage({
   index: number;
 }) {
   const gradients = [
-    "from-rose-200 via-orange-100 to-yellow-200",
+    "from-orange-400 via-orange-500 to-orange-700",
+    "from-orange-300 via-amber-400 to-orange-700",
     "from-slate-800 via-slate-600 to-slate-300",
     "from-blue-200 via-indigo-100 to-purple-200",
-    "from-emerald-200 via-teal-100 to-cyan-200",
   ];
 
   if (creator.avatarUrl) {
@@ -655,9 +661,6 @@ function CreatorImage({
       <div className="text-center">
         <span className="block text-6xl font-black text-white drop-shadow-sm">
           {getCreatorInitial(creator.displayName)}
-        </span>
-        <span className="mt-2 block text-[10px] font-bold uppercase tracking-[0.3em] text-white/75">
-          Trendre
         </span>
       </div>
     </div>
@@ -698,7 +701,9 @@ function FilterChip({
         </span>
       ) : null}
       <span>{label}</span>
-      {value ? <span className="max-w-[150px] truncate opacity-70">{value}</span> : null}
+      {value ? (
+        <span className="max-w-[150px] truncate opacity-70">{value}</span>
+      ) : null}
       <ChevronDownIcon />
     </button>
   );
@@ -955,7 +960,6 @@ function CreatorCardItem({
   isSaving: boolean;
   safeLocale: "ja" | "en";
   copy: {
-    noSns: string;
     trusted: string;
     topCreator: string;
     menu: string;
@@ -1062,6 +1066,7 @@ export default function CompanyCreatorsPage() {
   const router = useRouter();
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
+  const filterRootRef = useRef<HTMLDivElement | null>(null);
 
   const copy = useMemo(
     () =>
@@ -1287,6 +1292,37 @@ export default function CompanyCreatorsPage() {
     if (minPriceNumber !== null) return `¥${minPriceNumber.toLocaleString()}+`;
     return `〜¥${maxPriceNumber?.toLocaleString()}`;
   }, [minPriceNumber, maxPriceNumber]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+
+      if (!target) return;
+
+      const filterRoot = filterRootRef.current;
+
+      if (filterRoot && filterRoot.contains(target)) {
+        return;
+      }
+
+      setOpenFilter(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenFilter(null);
+        setPriceModalOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -1547,320 +1583,324 @@ export default function CompanyCreatorsPage() {
 
   return (
     <div className="space-y-9 pb-10">
-      <section className="relative z-50 mx-auto max-w-5xl rounded-[32px] border border-slate-100 bg-white p-3 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0] md:p-4">
-        <div className="grid gap-0 md:grid-cols-[220px_1fr_64px]">
-          <div className="relative border-b border-slate-100 p-4 md:border-b-0 md:border-r">
-            <button
-              type="button"
-              onClick={() =>
-                setOpenFilter((prev) =>
-                  prev === "platform" ? null : "platform"
-                )
-              }
-              className="flex w-full items-center justify-between text-left"
-            >
-              <span>
-                <span className="block text-sm font-black text-slate-950">
-                  {copy.platform}
-                </span>
-                <span className="mt-1 block text-base font-medium text-slate-900">
-                  {platformFilter === "all"
-                    ? copy.any
-                    : getPlatformLabel(platformFilter)}
-                </span>
-              </span>
-              <ChevronDownIcon />
-            </button>
-
-            {openFilter === "platform" ? (
-              <OptionDropdown widthClass="w-[min(520px,calc(100vw-48px))]">
-                <PlainOption
-                  active={platformFilter === "all"}
-                  onClick={() => {
-                    setPlatformFilter("all");
-                    setOpenFilter(null);
-                  }}
-                >
-                  {copy.any}
-                </PlainOption>
-
-                {platformOptions.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-slate-400">
-                    {copy.noSns}
-                  </div>
-                ) : (
-                  platformOptions.map((platform) => (
-                    <PlainOption
-                      key={platform}
-                      active={
-                        normalizePlatform(platformFilter) ===
-                        normalizePlatform(platform)
-                      }
-                      onClick={() => {
-                        setPlatformFilter(platform);
-                        setOpenFilter(null);
-                      }}
-                    >
-                      <span className="mr-2">{getPlatformIcon(platform)}</span>
-                      {getPlatformLabel(platform)}
-                    </PlainOption>
-                  ))
-                )}
-              </OptionDropdown>
-            ) : null}
-          </div>
-
-          <div className="relative p-4">
-            <label className="block text-sm font-black text-slate-950">
-              {copy.category}
-            </label>
-
-            <div className="flex items-center gap-3">
-              <input
-                value={keyword}
-                onFocus={() => setOpenFilter("mainCategory")}
-                onClick={() => setOpenFilter("mainCategory")}
-                onChange={(e) => {
-                  setKeyword(e.target.value);
-                  setOpenFilter("mainCategory");
-                }}
-                placeholder={
-                  categoryFilter === "all"
-                    ? copy.keywordPlaceholder
-                    : categoryFilter
+      <div ref={filterRootRef} className="relative z-40 space-y-7">
+        <section className="relative z-50 mx-auto max-w-5xl rounded-[32px] border border-slate-100 bg-white p-3 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0] md:p-4">
+          <div className="grid gap-0 md:grid-cols-[220px_1fr_64px]">
+            <div className="relative border-b border-slate-100 p-4 md:border-b-0 md:border-r">
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenFilter((prev) =>
+                    prev === "platform" ? null : "platform"
+                  )
                 }
-                className="mt-1 w-full bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
-              />
+                className="flex w-full items-center justify-between text-left"
+              >
+                <span>
+                  <span className="block text-sm font-black text-slate-950">
+                    {copy.platform}
+                  </span>
+                  <span className="mt-1 block text-base font-medium text-slate-900">
+                    {platformFilter === "all"
+                      ? copy.any
+                      : getPlatformLabel(platformFilter)}
+                  </span>
+                </span>
+                <ChevronDownIcon />
+              </button>
 
-              {categoryFilter !== "all" ? (
-                <button
-                  type="button"
-                  onClick={() => setCategoryFilter("all")}
-                  className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200 md:inline-flex"
-                >
-                  {categoryFilter}
-                  <span className="ml-2">×</span>
-                </button>
+              {openFilter === "platform" ? (
+                <OptionDropdown widthClass="w-[min(520px,calc(100vw-48px))]">
+                  <PlainOption
+                    active={platformFilter === "all"}
+                    onClick={() => {
+                      setPlatformFilter("all");
+                      setOpenFilter(null);
+                    }}
+                  >
+                    {copy.any}
+                  </PlainOption>
+
+                  {platformOptions.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-slate-400">
+                      {copy.noSns}
+                    </div>
+                  ) : (
+                    platformOptions.map((platform) => (
+                      <PlainOption
+                        key={platform}
+                        active={
+                          normalizePlatform(platformFilter) ===
+                          normalizePlatform(platform)
+                        }
+                        onClick={() => {
+                          setPlatformFilter(platform);
+                          setOpenFilter(null);
+                        }}
+                      >
+                        <span className="mr-2">
+                          {getPlatformIcon(platform)}
+                        </span>
+                        {getPlatformLabel(platform)}
+                      </PlainOption>
+                    ))
+                  )}
+                </OptionDropdown>
               ) : null}
             </div>
 
-            {openFilter === "mainCategory" ? (
-              <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
-                <CategoryPanel
-                  categoryOptions={categoryOptions}
-                  categoryFilter={categoryFilter}
-                  setCategoryFilter={setCategoryFilter}
-                  setOpenFilter={setOpenFilter}
-                  copy={{
-                    any: copy.any,
-                    availableCategories: copy.availableCategories,
-                    popular: copy.popular,
+            <div className="relative p-4">
+              <label className="block text-sm font-black text-slate-950">
+                {copy.category}
+              </label>
+
+              <div className="flex items-center gap-3">
+                <input
+                  value={keyword}
+                  onFocus={() => setOpenFilter("mainCategory")}
+                  onClick={() => setOpenFilter("mainCategory")}
+                  onChange={(e) => {
+                    setKeyword(e.target.value);
+                    setOpenFilter("mainCategory");
                   }}
+                  placeholder={
+                    categoryFilter === "all"
+                      ? copy.keywordPlaceholder
+                      : categoryFilter
+                  }
+                  className="mt-1 w-full bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
                 />
-              </OptionDropdown>
-            ) : null}
+
+                {categoryFilter !== "all" ? (
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("all")}
+                    className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200 md:inline-flex"
+                  >
+                    {categoryFilter}
+                    <span className="ml-2">×</span>
+                  </button>
+                ) : null}
+              </div>
+
+              {openFilter === "mainCategory" ? (
+                <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
+                  <CategoryPanel
+                    categoryOptions={categoryOptions}
+                    categoryFilter={categoryFilter}
+                    setCategoryFilter={setCategoryFilter}
+                    setOpenFilter={setOpenFilter}
+                    copy={{
+                      any: copy.any,
+                      availableCategories: copy.availableCategories,
+                      popular: copy.popular,
+                    }}
+                  />
+                </OptionDropdown>
+              ) : null}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setOpenFilter(null);
+                setPriceModalOpen(false);
+              }}
+              className="flex min-h-[62px] items-center justify-center rounded-[22px] bg-slate-950 text-white transition duration-150 hover:-translate-y-0.5 hover:shadow-xl md:min-h-full"
+              aria-label={copy.search}
+            >
+              <SearchIcon />
+            </button>
           </div>
+        </section>
 
-          <button
-            type="button"
-            onClick={() => {
-              setOpenFilter(null);
-              setPriceModalOpen(false);
-            }}
-            className="flex min-h-[62px] items-center justify-center rounded-[22px] bg-slate-950 text-white transition duration-150 hover:-translate-y-0.5 hover:shadow-xl md:min-h-full"
-            aria-label={copy.search}
-          >
-            <SearchIcon />
-          </button>
-        </div>
-      </section>
+        <section className="relative z-30">
+          <div className="flex flex-wrap gap-3">
+            <div className="relative shrink-0">
+              <FilterChip
+                label={copy.contentType}
+                value={
+                  contentTypeFilter === "all"
+                    ? ""
+                    : CONTENT_TYPE_OPTIONS.find(
+                        (item) => item.value === contentTypeFilter
+                      )?.label
+                }
+                active={contentTypeFilter !== "all"}
+                onClick={() =>
+                  setOpenFilter((prev) =>
+                    prev === "contentType" ? null : "contentType"
+                  )
+                }
+              />
 
-      <section className="relative z-30">
-        <div className="flex flex-wrap gap-3">
-          <div className="relative shrink-0">
-            <FilterChip
-              label={copy.contentType}
-              value={
-                contentTypeFilter === "all"
-                  ? ""
-                  : CONTENT_TYPE_OPTIONS.find(
-                      (item) => item.value === contentTypeFilter
-                    )?.label
-              }
-              active={contentTypeFilter !== "all"}
-              onClick={() =>
-                setOpenFilter((prev) =>
-                  prev === "contentType" ? null : "contentType"
-                )
-              }
-            />
+              {openFilter === "contentType" ? (
+                <OptionDropdown>
+                  {CONTENT_TYPE_OPTIONS.map((item) => (
+                    <PlainOption
+                      key={item.value}
+                      active={contentTypeFilter === item.value}
+                      onClick={() => {
+                        setContentTypeFilter(item.value);
+                        setOpenFilter(null);
+                      }}
+                    >
+                      {item.label}
+                    </PlainOption>
+                  ))}
+                </OptionDropdown>
+              ) : null}
+            </div>
 
-            {openFilter === "contentType" ? (
-              <OptionDropdown>
-                {CONTENT_TYPE_OPTIONS.map((item) => (
+            <div className="relative shrink-0">
+              <FilterChip
+                label={copy.followers}
+                value={
+                  followersFilter === "all"
+                    ? ""
+                    : FOLLOWER_OPTIONS.find(
+                        (item) => item.value === followersFilter
+                      )?.label
+                }
+                active={followersFilter !== "all"}
+                onClick={() =>
+                  setOpenFilter((prev) =>
+                    prev === "followers" ? null : "followers"
+                  )
+                }
+              />
+
+              {openFilter === "followers" ? (
+                <OptionDropdown>
+                  {FOLLOWER_OPTIONS.map((item) => (
+                    <PlainOption
+                      key={item.value}
+                      active={followersFilter === item.value}
+                      onClick={() => {
+                        setFollowersFilter(item.value);
+                        setOpenFilter(null);
+                      }}
+                    >
+                      {item.label}
+                    </PlainOption>
+                  ))}
+                </OptionDropdown>
+              ) : null}
+            </div>
+
+            <div className="relative shrink-0">
+              <FilterChip
+                label={copy.location}
+                value={
+                  locationFilter === "all"
+                    ? ""
+                    : getCountryLabel(locationFilter, safeLocale)
+                }
+                active={locationFilter !== "all"}
+                onClick={() =>
+                  setOpenFilter((prev) =>
+                    prev === "location" ? null : "location"
+                  )
+                }
+              />
+
+              {openFilter === "location" ? (
+                <OptionDropdown>
                   <PlainOption
-                    key={item.value}
-                    active={contentTypeFilter === item.value}
+                    active={locationFilter === "all"}
                     onClick={() => {
-                      setContentTypeFilter(item.value);
+                      setLocationFilter("all");
                       setOpenFilter(null);
                     }}
                   >
-                    {item.label}
+                    {copy.allLocations}
                   </PlainOption>
-                ))}
-              </OptionDropdown>
-            ) : null}
-          </div>
 
-          <div className="relative shrink-0">
-            <FilterChip
-              label={copy.followers}
-              value={
-                followersFilter === "all"
-                  ? ""
-                  : FOLLOWER_OPTIONS.find(
-                      (item) => item.value === followersFilter
-                    )?.label
-              }
-              active={followersFilter !== "all"}
-              onClick={() =>
-                setOpenFilter((prev) =>
-                  prev === "followers" ? null : "followers"
-                )
-              }
-            />
+                  {locationOptions.map((location) => (
+                    <PlainOption
+                      key={location}
+                      active={
+                        cleanCountryInput(locationFilter) ===
+                        cleanCountryInput(location)
+                      }
+                      onClick={() => {
+                        setLocationFilter(location);
+                        setOpenFilter(null);
+                      }}
+                    >
+                      {getCountryLabel(location, safeLocale)}
+                    </PlainOption>
+                  ))}
+                </OptionDropdown>
+              ) : null}
+            </div>
 
-            {openFilter === "followers" ? (
-              <OptionDropdown>
-                {FOLLOWER_OPTIONS.map((item) => (
-                  <PlainOption
-                    key={item.value}
-                    active={followersFilter === item.value}
-                    onClick={() => {
-                      setFollowersFilter(item.value);
-                      setOpenFilter(null);
+            <button
+              type="button"
+              onClick={() => {
+                setPriceModalOpen(true);
+                setOpenFilter(null);
+              }}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition duration-150 ${
+                priceFilterLabel
+                  ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+              }`}
+            >
+              <span>{copy.price}</span>
+              {priceFilterLabel ? (
+                <span className="max-w-[170px] truncate text-xs opacity-80">
+                  {priceFilterLabel}
+                </span>
+              ) : null}
+              <ChevronDownIcon />
+            </button>
+
+            <div className="relative shrink-0">
+              <FilterChip
+                label={copy.category}
+                value={categoryFilter === "all" ? "" : categoryFilter}
+                active={categoryFilter !== "all"}
+                onClick={() =>
+                  setOpenFilter((prev) =>
+                    prev === "categoryFilter" ? null : "categoryFilter"
+                  )
+                }
+              />
+
+              {openFilter === "categoryFilter" ? (
+                <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
+                  <CategoryPanel
+                    categoryOptions={categoryOptions}
+                    categoryFilter={categoryFilter}
+                    setCategoryFilter={setCategoryFilter}
+                    setOpenFilter={setOpenFilter}
+                    copy={{
+                      any: copy.any,
+                      availableCategories: copy.availableCategories,
+                      popular: copy.popular,
                     }}
-                  >
-                    {item.label}
-                  </PlainOption>
-                ))}
-              </OptionDropdown>
-            ) : null}
+                  />
+                </OptionDropdown>
+              ) : null}
+            </div>
+
+            <FilterChip label={copy.gender} disabled premium />
+            <FilterChip label={copy.age} disabled premium />
+            <FilterChip label={copy.ethnicity} disabled premium />
+            <FilterChip label={copy.language} disabled premium />
+
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="shrink-0 px-2 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 transition hover:text-slate-950"
+            >
+              {copy.clearAll}
+              {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            </button>
           </div>
-
-          <div className="relative shrink-0">
-            <FilterChip
-              label={copy.location}
-              value={
-                locationFilter === "all"
-                  ? ""
-                  : getCountryLabel(locationFilter, safeLocale)
-              }
-              active={locationFilter !== "all"}
-              onClick={() =>
-                setOpenFilter((prev) =>
-                  prev === "location" ? null : "location"
-                )
-              }
-            />
-
-            {openFilter === "location" ? (
-              <OptionDropdown>
-                <PlainOption
-                  active={locationFilter === "all"}
-                  onClick={() => {
-                    setLocationFilter("all");
-                    setOpenFilter(null);
-                  }}
-                >
-                  {copy.allLocations}
-                </PlainOption>
-
-                {locationOptions.map((location) => (
-                  <PlainOption
-                    key={location}
-                    active={
-                      cleanCountryInput(locationFilter) ===
-                      cleanCountryInput(location)
-                    }
-                    onClick={() => {
-                      setLocationFilter(location);
-                      setOpenFilter(null);
-                    }}
-                  >
-                    {getCountryLabel(location, safeLocale)}
-                  </PlainOption>
-                ))}
-              </OptionDropdown>
-            ) : null}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setPriceModalOpen(true);
-              setOpenFilter(null);
-            }}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition duration-150 ${
-              priceFilterLabel
-                ? "border-slate-900 bg-slate-900 text-white shadow-sm"
-                : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
-            }`}
-          >
-            <span>{copy.price}</span>
-            {priceFilterLabel ? (
-              <span className="max-w-[170px] truncate text-xs opacity-80">
-                {priceFilterLabel}
-              </span>
-            ) : null}
-            <ChevronDownIcon />
-          </button>
-
-          <div className="relative shrink-0">
-            <FilterChip
-              label={copy.category}
-              value={categoryFilter === "all" ? "" : categoryFilter}
-              active={categoryFilter !== "all"}
-              onClick={() =>
-                setOpenFilter((prev) =>
-                  prev === "categoryFilter" ? null : "categoryFilter"
-                )
-              }
-            />
-
-            {openFilter === "categoryFilter" ? (
-              <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
-                <CategoryPanel
-                  categoryOptions={categoryOptions}
-                  categoryFilter={categoryFilter}
-                  setCategoryFilter={setCategoryFilter}
-                  setOpenFilter={setOpenFilter}
-                  copy={{
-                    any: copy.any,
-                    availableCategories: copy.availableCategories,
-                    popular: copy.popular,
-                  }}
-                />
-              </OptionDropdown>
-            ) : null}
-          </div>
-
-          <FilterChip label={copy.gender} disabled premium />
-          <FilterChip label={copy.age} disabled premium />
-          <FilterChip label={copy.ethnicity} disabled premium />
-          <FilterChip label={copy.language} disabled premium />
-
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="shrink-0 px-2 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 transition hover:text-slate-950"
-          >
-            {copy.clearAll}
-            {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-          </button>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {error ? (
         <section className="rounded-[24px] border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700">
@@ -1921,7 +1961,6 @@ export default function CompanyCreatorsPage() {
                 isSaving={savingCreatorId === creator.id}
                 safeLocale={safeLocale}
                 copy={{
-                  noSns: copy.noSns,
                   trusted: copy.trusted,
                   topCreator: copy.topCreator,
                   menu: copy.menu,
