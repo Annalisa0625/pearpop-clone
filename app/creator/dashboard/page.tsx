@@ -65,7 +65,14 @@ type PayoutSummary = {
   pendingAmount: number;
 };
 
-type BadgeTone = "gray" | "yellow" | "blue" | "green" | "red" | "purple" | "black";
+type BadgeTone =
+  | "gray"
+  | "yellow"
+  | "blue"
+  | "green"
+  | "red"
+  | "purple"
+  | "black";
 
 function compactText(value: string | null | undefined) {
   return value?.trim() || "";
@@ -126,7 +133,10 @@ function getWorkflowBadgeMeta(
   const normalized = (status ?? "").toLowerCase();
 
   if (locale === "ja") {
-    if (normalized === "pending" || normalized === "authorized_pending_creator") {
+    if (
+      normalized === "pending" ||
+      normalized === "authorized_pending_creator"
+    ) {
       return {
         label:
           normalized === "authorized_pending_creator"
@@ -140,7 +150,7 @@ function getWorkflowBadgeMeta(
       return {
         label:
           normalized === "accepted_captured"
-            ? "承認済み・決済確定"
+            ? "承認済み"
             : "進行中",
         className: "bg-blue-100 text-blue-700",
       };
@@ -186,7 +196,10 @@ function getWorkflowBadgeMeta(
     };
   }
 
-  if (normalized === "pending" || normalized === "authorized_pending_creator") {
+  if (
+    normalized === "pending" ||
+    normalized === "authorized_pending_creator"
+  ) {
     return {
       label:
         normalized === "authorized_pending_creator"
@@ -198,10 +211,7 @@ function getWorkflowBadgeMeta(
 
   if (normalized === "accepted" || normalized === "accepted_captured") {
     return {
-      label:
-        normalized === "accepted_captured"
-          ? "Accepted / Captured"
-          : "Active",
+      label: normalized === "accepted_captured" ? "Accepted" : "Active",
       className: "bg-blue-100 text-blue-700",
     };
   }
@@ -284,122 +294,115 @@ function Avatar({
   );
 }
 
-function KpiCard({
-  label,
-  value,
-  helper,
-  href,
-  tone = "gray",
-}: {
-  label: string;
-  value: number | string;
-  helper?: string;
-  href?: string;
-  tone?: "gray" | "amber" | "blue" | "purple" | "green" | "black";
-}) {
-  const toneClass = {
-    gray: "bg-white",
-    amber: "bg-amber-50",
-    blue: "bg-blue-50",
-    purple: "bg-purple-50",
-    green: "bg-emerald-50",
-    black: "bg-slate-950 text-white",
-  }[tone];
-
-  const inner = (
-    <div
-      className={`rounded-[24px] border border-slate-100 p-4 shadow-sm transition ${
-        href ? "hover:-translate-y-0.5 hover:shadow-md" : ""
-      } ${toneClass}`}
-    >
-      <p
-        className={`text-xs font-black uppercase tracking-[0.16em] ${
-          tone === "black" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`mt-3 text-3xl font-black ${
-          tone === "black" ? "text-white" : "text-slate-950"
-        }`}
-      >
-        {value}
-      </p>
-      {helper ? (
-        <p
-          className={`mt-2 text-xs leading-5 ${
-            tone === "black" ? "text-white/70" : "text-slate-500"
-          }`}
-        >
-          {helper}
-        </p>
-      ) : null}
-    </div>
-  );
-
-  if (!href) return inner;
-
-  return <Link href={href}>{inner}</Link>;
-}
-
-function ActionCard({
+function TaskCard({
   href,
   title,
+  value,
   body,
-  icon,
-  strong,
+  tone,
 }: {
   href: string;
   title: string;
+  value: number;
   body: string;
-  icon: string;
-  strong?: boolean;
+  tone: "dark" | "amber" | "blue" | "purple";
 }) {
+  const styles = {
+    dark: "bg-slate-950 text-white",
+    amber: "bg-amber-50 text-slate-950",
+    blue: "bg-blue-50 text-slate-950",
+    purple: "bg-purple-50 text-slate-950",
+  };
+
+  const muted = tone === "dark" ? "text-white/65" : "text-slate-500";
+
   return (
     <Link
       href={href}
-      className={`rounded-[26px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-        strong
-          ? "border-slate-950 bg-slate-950 text-white"
-          : "border-slate-100 bg-white text-slate-950"
-      }`}
+      className={`block rounded-[28px] p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${styles[tone]}`}
     >
-      <div
-        className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl text-lg font-black ${
-          strong ? "bg-white text-slate-950" : "bg-slate-100 text-slate-950"
-        }`}
-      >
-        {icon}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className={`text-xs font-black uppercase tracking-[0.2em] ${muted}`}>
+            {title}
+          </p>
+          <p className="mt-4 text-4xl font-black">{value}</p>
+        </div>
+        <span
+          className={`flex h-10 w-10 items-center justify-center rounded-2xl text-lg ${
+            tone === "dark" ? "bg-white text-slate-950" : "bg-white text-slate-950"
+          }`}
+        >
+          →
+        </span>
       </div>
-      <p className="text-base font-black">{title}</p>
-      <p
-        className={`mt-2 text-sm leading-6 ${
-          strong ? "text-white/70" : "text-slate-500"
-        }`}
-      >
-        {body}
-      </p>
+      <p className={`mt-4 text-sm leading-6 ${muted}`}>{body}</p>
     </Link>
   );
 }
 
-function SummaryCard({
-  label,
-  value,
+function MoneyCard({
+  title,
+  amount,
+  helper,
+  href,
+  emphasis,
 }: {
-  label: string;
-  value: string;
+  title: string;
+  amount: string;
+  helper?: string;
+  href: string;
+  emphasis?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-        {label}
+    <Link
+      href={href}
+      className={`block rounded-[28px] border p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
+        emphasis
+          ? "border-emerald-100 bg-emerald-50"
+          : "border-slate-100 bg-white"
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+        {title}
       </p>
-      <p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800">
-        {value}
-      </p>
-    </div>
+      <p className="mt-4 text-3xl font-black text-slate-950">{amount}</p>
+      {helper ? (
+        <p className="mt-2 text-xs font-semibold text-slate-500">{helper}</p>
+      ) : null}
+    </Link>
+  );
+}
+
+function ActionRow({
+  href,
+  icon,
+  title,
+  body,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
+    >
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-black text-slate-950">
+          {title}
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">
+          {body}
+        </span>
+      </span>
+      <span className="text-slate-300">›</span>
+    </Link>
   );
 }
 
@@ -443,7 +446,7 @@ function RecentRequestCard({
   return (
     <Link
       href={href}
-      className="block rounded-[22px] border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="block rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -486,7 +489,7 @@ function RecentJobCard({
   return (
     <Link
       href={href}
-      className="block rounded-[22px] border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="block rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -530,9 +533,10 @@ export default function CreatorDashboardPage() {
             requestLoadError: "案件データの取得に失敗しました。",
             loadingError: "ダッシュボードの読み込み中にエラーが発生しました。",
             welcome: "おかえりなさい",
-            headerEyebrow: "Creator Home",
-            headerBody:
-              "依頼確認、進行中案件、報酬、プロフィールをスマホでもすぐ確認できます。",
+            todayTask: "今日やること",
+            pendingBody: "新しく届いた注文・依頼を確認します。",
+            activeBody: "進行中の案件を確認します。",
+            deliveredBody: "納品済み・完了待ちを確認します。",
             profileCompleted: "プロフィール完了",
             profileIncomplete: "プロフィール未完了",
             connectCompleted: "報酬受け取り設定済み",
@@ -547,50 +551,28 @@ export default function CreatorDashboardPage() {
             profilePromptBody:
               "企業から見られる登録内容や依頼導線を整えるために、プロフィール情報を確認してください。",
             goToProfile: "プロフィールを確認する",
-            summaryTitle: "プロフィール概要",
-            summaryLocation: "活動地域",
-            summaryLanguages: "言語",
-            summaryCategory: "カテゴリ",
-            summarySubCategories: "サブカテゴリ",
-            summaryBio: "自己紹介",
             notSet: "未設定",
-            none: "なし",
-            quickTitle: "クイックアクション",
-            quickRequestsTitle: "依頼を確認",
-            quickRequestsBody:
-              "新しく届いた注文・依頼を確認し、承認または辞退します。",
-            quickJobsTitle: "案件を進める",
-            quickJobsBody:
-              "進行中・納品済み・完了待ちの案件を確認します。",
-            quickPayoutsTitle: "報酬を見る",
-            quickPayoutsBody:
-              "受取予定額、送金済み、Stripe Connect状態を確認します。",
-            quickProfileTitle: "プロフィールを整える",
-            quickProfileBody:
-              "写真、SNS、カテゴリ、自己紹介を更新します。",
+            earnings: "報酬",
+            expectedPayout: "受取予定",
+            transferred: "送金済み",
+            pendingPayout: "未送金",
+            payoutHelper: "報酬と振込履歴を確認",
+            quickTitle: "マイページ",
+            quickPayoutsTitle: "報酬・振込",
+            quickPayoutsBody: "受取予定額、送金済み、Stripe状態を確認",
+            quickProfileTitle: "プロフィール",
+            quickProfileBody: "写真、SNS、カテゴリ、自己紹介を更新",
             quickMenusTitle: "メニュー管理",
-            quickMenusBody:
-              "公開中メニューの確認、新規追加、編集を行います。",
+            quickMenusBody: "公開中メニューの確認・追加・編集",
+            quickAnalyticsTitle: "SNS分析",
+            quickAnalyticsBody: "フォロワー数や投稿結果は今後表示予定",
             countPending: "承認待ち",
             countAccepted: "進行中",
             countDelivered: "納品済み",
             countCompleted: "完了",
             countMenus: "公開メニュー",
-            countMenusHelper: "現在公開中",
-            payoutTitle: "報酬サマリー",
-            payoutCompleted: "受取予定",
-            payoutTransferred: "送金済み",
-            payoutPending: "未送金",
-            usageTitle: "現在の状態",
-            usageProfile: "プロフィール",
-            usageReview: "審査状態",
-            usageFeature: "案件機能",
-            usageMenus: "メニュー公開",
-            available: "利用可能",
-            limited: "一部制限中",
-            noMenus: "未登録",
             recentPendingTitle: "最近の承認待ち",
-            recentJobsTitle: "最近の進行中案件",
+            recentJobsTitle: "最近の案件",
             viewAll: "すべて見る",
             noPending: "承認待ちの注文・依頼はありません。",
             noJobs: "進行中の案件はありません。",
@@ -598,8 +580,6 @@ export default function CreatorDashboardPage() {
             createdAt: "作成日",
             updatedAt: "更新日",
             deliveredUrl: "納品URLあり",
-            editProfile: "プロフィール編集",
-            manageMenus: "メニュー管理",
             responsePrefix: "対応",
             orderLabel: "注文",
             legacyRequestLabel: "旧依頼",
@@ -615,9 +595,10 @@ export default function CreatorDashboardPage() {
             requestLoadError: "Failed to load request data.",
             loadingError: "An error occurred while loading the dashboard.",
             welcome: "Welcome back",
-            headerEyebrow: "Creator Home",
-            headerBody:
-              "Review requests, active jobs, payouts, and profile status in a mobile-friendly home.",
+            todayTask: "Today",
+            pendingBody: "Review new incoming orders and requests.",
+            activeBody: "Check jobs currently in progress.",
+            deliveredBody: "Review delivered jobs waiting for completion.",
             profileCompleted: "Profile Complete",
             profileIncomplete: "Profile Incomplete",
             connectCompleted: "Payout setup complete",
@@ -632,50 +613,28 @@ export default function CreatorDashboardPage() {
             profilePromptBody:
               "Make sure your registration details and public profile information are ready for brands to view.",
             goToProfile: "Review profile",
-            summaryTitle: "Profile Summary",
-            summaryLocation: "Location",
-            summaryLanguages: "Languages",
-            summaryCategory: "Category",
-            summarySubCategories: "Sub-categories",
-            summaryBio: "Bio",
             notSet: "Not set",
-            none: "None",
-            quickTitle: "Quick Actions",
-            quickRequestsTitle: "Review requests",
-            quickRequestsBody:
-              "Review incoming orders and requests and approve or reject them.",
-            quickJobsTitle: "Continue jobs",
-            quickJobsBody:
-              "See jobs that are active, delivered, or waiting for completion.",
-            quickPayoutsTitle: "Check payouts",
-            quickPayoutsBody:
-              "Check payout estimates, transfers, and Stripe Connect status.",
-            quickProfileTitle: "Polish profile",
-            quickProfileBody:
-              "Update your photos, social accounts, category, and bio.",
-            quickMenusTitle: "Manage menus",
-            quickMenusBody:
-              "Check active menus, create new ones, and edit existing ones.",
+            earnings: "Earnings",
+            expectedPayout: "Expected",
+            transferred: "Transferred",
+            pendingPayout: "Pending",
+            payoutHelper: "Check payout history",
+            quickTitle: "My Page",
+            quickPayoutsTitle: "Payouts",
+            quickPayoutsBody: "Check payout estimates, transfers, and Stripe status.",
+            quickProfileTitle: "Profile",
+            quickProfileBody: "Update photos, social accounts, category, and bio.",
+            quickMenusTitle: "Menus",
+            quickMenusBody: "Check active menus, create new ones, and edit.",
+            quickAnalyticsTitle: "SNS Analytics",
+            quickAnalyticsBody: "Follower and post performance data will appear later.",
             countPending: "Pending",
             countAccepted: "Active",
             countDelivered: "Delivered",
             countCompleted: "Completed",
             countMenus: "Active Menus",
-            countMenusHelper: "Currently public",
-            payoutTitle: "Payout Summary",
-            payoutCompleted: "Expected",
-            payoutTransferred: "Transferred",
-            payoutPending: "Pending",
-            usageTitle: "Current Status",
-            usageProfile: "Profile",
-            usageReview: "Review",
-            usageFeature: "Job Features",
-            usageMenus: "Menu Publishing",
-            available: "Available",
-            limited: "Partially Limited",
-            noMenus: "None",
             recentPendingTitle: "Recent Pending",
-            recentJobsTitle: "Recent Active Jobs",
+            recentJobsTitle: "Recent Jobs",
             viewAll: "View All",
             noPending: "There are no pending orders or requests.",
             noJobs: "There are no active jobs.",
@@ -683,8 +642,6 @@ export default function CreatorDashboardPage() {
             createdAt: "Created",
             updatedAt: "Updated",
             deliveredUrl: "Delivered URL Submitted",
-            editProfile: "Edit Profile",
-            manageMenus: "Manage Menus",
             responsePrefix: "Response",
             orderLabel: "Order",
             legacyRequestLabel: "Legacy Request",
@@ -891,7 +848,7 @@ export default function CreatorDashboardPage() {
             .in("creator_user_id", legacyCreatorKeys)
             .eq("status", "pending")
             .order("created_at", { ascending: false })
-            .limit(5),
+            .limit(3),
 
           supabase
             .from("orders")
@@ -899,7 +856,7 @@ export default function CreatorDashboardPage() {
             .eq("creator_user_id", user.id)
             .eq("status", "authorized_pending_creator")
             .order("created_at", { ascending: false })
-            .limit(5),
+            .limit(3),
 
           supabase
             .from("requests")
@@ -909,7 +866,7 @@ export default function CreatorDashboardPage() {
             .in("creator_user_id", legacyCreatorKeys)
             .in("status", ["accepted", "delivered", "completed"])
             .order("updated_at", { ascending: false, nullsFirst: false })
-            .limit(5),
+            .limit(3),
 
           supabase
             .from("orders")
@@ -924,7 +881,7 @@ export default function CreatorDashboardPage() {
               "completed",
             ])
             .order("updated_at", { ascending: false, nullsFirst: false })
-            .limit(5),
+            .limit(3),
 
           supabase
             .from("orders")
@@ -971,9 +928,9 @@ export default function CreatorDashboardPage() {
         });
 
         const payoutRows = (completedPayoutRows ?? []) as Array<{
-  creator_payout_amount: number | null;
-  transfer_status: string | null;
-}>;
+          creator_payout_amount: number | null;
+          transfer_status: string | null;
+        }>;
 
         const completedPayoutAmount = payoutRows.reduce(
           (sum, row) => sum + Number(row.creator_payout_amount ?? 0),
@@ -1019,7 +976,7 @@ export default function CreatorDashboardPage() {
               new Date(b.created_at).getTime() -
               new Date(a.created_at).getTime()
           )
-          .slice(0, 5);
+          .slice(0, 3);
 
         const legacyJobItems: RecentJob[] = (recentLegacyJobRows ?? []).map(
           (row: any) => ({
@@ -1051,7 +1008,7 @@ export default function CreatorDashboardPage() {
             const bTime = new Date(b.updated_at || b.created_at).getTime();
             return bTime - aTime;
           })
-          .slice(0, 5);
+          .slice(0, 3);
 
         setRecentRequests(nextRecentRequests);
         setRecentJobs(nextRecentJobs);
@@ -1071,50 +1028,15 @@ export default function CreatorDashboardPage() {
     safeLocale
   );
 
-  const locationSummary = useMemo(() => {
-    const parts = [
-      compactText(creator?.country),
-      compactText(creator?.prefecture),
-      compactText(creator?.city),
-    ].filter(Boolean);
-
-    if (parts.length === 0) return copy.notSet;
-    return parts.join(" / ");
-  }, [copy.notSet, creator?.city, creator?.country, creator?.prefecture]);
-
-  const languageSummary = useMemo(() => {
-    const content = compactText(creator?.content_language);
-    const response = compactText(creator?.response_language);
-
-    if (!content && !response) return copy.notSet;
-    if (content && !response) return content;
-    if (!content && response) return `${copy.responsePrefix}: ${response}`;
-    if (content === response) return content;
-    return `${content}\n${copy.responsePrefix}: ${response}`;
-  }, [
-    copy.notSet,
-    copy.responsePrefix,
-    creator?.content_language,
-    creator?.response_language,
-  ]);
-
-  const subCategorySummary = useMemo(() => {
-    if (!creator?.sub_categories || creator.sub_categories.length === 0) {
-      return copy.none;
-    }
-
-    return creator.sub_categories.join(" / ");
-  }, [copy.none, creator?.sub_categories]);
-
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="h-48 animate-pulse rounded-[32px] bg-slate-100" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
+      <div className="space-y-5">
+        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
             <div
               key={index}
-              className="h-28 animate-pulse rounded-[24px] bg-slate-100"
+              className="h-32 animate-pulse rounded-[28px] bg-slate-100"
             />
           ))}
         </div>
@@ -1147,56 +1069,48 @@ export default function CreatorDashboardPage() {
   }
 
   const displayName =
-    creator?.display_name ||
-    creator?.full_name ||
-    copy.defaultDisplayName;
+    creator?.display_name || creator?.full_name || copy.defaultDisplayName;
 
   const heroStyle = coverImageUrl
     ? {
-        backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.78), rgba(15,23,42,0.38)), url(${coverImageUrl})`,
+        backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.78), rgba(15,23,42,0.36)), url(${coverImageUrl})`,
       }
     : undefined;
 
   return (
-    <div className="space-y-8 pb-4">
+    <div className="space-y-7 pb-4">
       <section
-        className={`overflow-hidden rounded-[32px] p-6 text-white shadow-sm md:p-8 ${
+        className={`overflow-hidden rounded-[32px] p-6 text-white shadow-sm ${
           coverImageUrl
             ? "bg-cover bg-center"
             : "bg-gradient-to-br from-slate-950 via-slate-800 to-slate-600"
         }`}
         style={heroStyle}
       >
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div className="flex items-end gap-4">
-            <Avatar name={displayName} src={creator?.avatar_url} />
+        <div className="flex items-end gap-4">
+          <Avatar name={displayName} src={creator?.avatar_url} />
 
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/60">
-                {copy.headerEyebrow}
-              </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">
-                {copy.welcome}, {displayName}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">
-                {copy.headerBody}
-              </p>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-white/60">
+              Creator Home
+            </p>
+            <h1 className="mt-2 truncate text-3xl font-black tracking-tight">
+              {copy.welcome}, {displayName}
+            </h1>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <StatusBadge label={approvalMeta.label} tone={approvalMeta.tone} />
+              <StatusBadge
+                label={
+                  gate.creatorProfileCompleted
+                    ? copy.profileCompleted
+                    : copy.profileIncomplete
+                }
+                tone={gate.creatorProfileCompleted ? "green" : "yellow"}
+              />
+              {creator?.stripe_onboarding_completed ? (
+                <StatusBadge label={copy.connectCompleted} tone="black" />
+              ) : null}
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge label={approvalMeta.label} tone={approvalMeta.tone} />
-            <StatusBadge
-              label={
-                gate.creatorProfileCompleted
-                  ? copy.profileCompleted
-                  : copy.profileIncomplete
-              }
-              tone={gate.creatorProfileCompleted ? "green" : "yellow"}
-            />
-            {creator?.stripe_onboarding_completed ? (
-              <StatusBadge label={copy.connectCompleted} tone="black" />
-            ) : null}
           </div>
         </div>
       </section>
@@ -1233,284 +1147,190 @@ export default function CreatorDashboardPage() {
           </p>
           <Link
             href="/creator/profile"
-            className="mt-4 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white"
+            className="mt-4 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white active:scale-[0.98]"
           >
             {copy.goToProfile}
           </Link>
         </section>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <KpiCard
-          label={copy.countPending}
-          value={counts.pendingRequests}
-          href="/creator/requests"
-          tone={counts.pendingRequests > 0 ? "amber" : "gray"}
-        />
-        <KpiCard
-          label={copy.countAccepted}
-          value={counts.acceptedJobs}
-          href="/creator/jobs"
-          tone={counts.acceptedJobs > 0 ? "blue" : "gray"}
-        />
-        <KpiCard
-          label={copy.countDelivered}
-          value={counts.deliveredJobs}
-          href="/creator/jobs"
-          tone={counts.deliveredJobs > 0 ? "purple" : "gray"}
-        />
-        <KpiCard
-          label={copy.countCompleted}
-          value={counts.completedJobs}
-          href="/creator/jobs"
-          tone={counts.completedJobs > 0 ? "green" : "gray"}
-        />
-        <KpiCard
-          label={copy.countMenus}
-          value={counts.activeMenus}
-          helper={copy.countMenusHelper}
-          href="/creator/menus"
-          tone={counts.activeMenus > 0 ? "black" : "gray"}
-        />
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <KpiCard
-          label={copy.payoutCompleted}
-          value={formatMoney(payoutSummary.completedPayoutAmount, safeLocale)}
-          href="/creator/payouts"
-          tone="gray"
-        />
-        <KpiCard
-          label={copy.payoutTransferred}
-          value={formatMoney(payoutSummary.transferredAmount, safeLocale)}
-          href="/creator/payouts"
-          tone="green"
-        />
-        <KpiCard
-          label={copy.payoutPending}
-          value={formatMoney(payoutSummary.pendingAmount, safeLocale)}
-          href="/creator/payouts"
-          tone={payoutSummary.pendingAmount > 0 ? "amber" : "gray"}
-        />
-      </section>
-
       <section>
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-              App shortcuts
+              {copy.todayTask}
             </p>
             <h2 className="mt-2 text-2xl font-black text-slate-950">
-              {copy.quickTitle}
+              {copy.todayTask}
             </h2>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <ActionCard
+        <div className="grid gap-4 md:grid-cols-3">
+          <TaskCard
             href="/creator/requests"
-            title={copy.quickRequestsTitle}
-            body={copy.quickRequestsBody}
-            icon="◎"
-            strong={counts.pendingRequests > 0}
+            title={copy.countPending}
+            value={counts.pendingRequests}
+            body={copy.pendingBody}
+            tone={counts.pendingRequests > 0 ? "dark" : "amber"}
           />
-          <ActionCard
+          <TaskCard
             href="/creator/jobs"
-            title={copy.quickJobsTitle}
-            body={copy.quickJobsBody}
-            icon="▣"
-            strong={counts.acceptedJobs + counts.deliveredJobs > 0}
+            title={copy.countAccepted}
+            value={counts.acceptedJobs}
+            body={copy.activeBody}
+            tone="blue"
           />
-          <ActionCard
-            href="/creator/payouts"
-            title={copy.quickPayoutsTitle}
-            body={copy.quickPayoutsBody}
-            icon="¥"
-          />
-          <ActionCard
-            href="/creator/profile"
-            title={copy.quickProfileTitle}
-            body={copy.quickProfileBody}
-            icon="◯"
-          />
-          <ActionCard
-            href="/creator/menus"
-            title={copy.quickMenusTitle}
-            body={copy.quickMenusBody}
-            icon="+"
+          <TaskCard
+            href="/creator/jobs"
+            title={copy.countDelivered}
+            value={counts.deliveredJobs}
+            body={copy.deliveredBody}
+            tone="purple"
           />
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-6">
-          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-black text-slate-950">
-                {copy.recentPendingTitle}
-              </h2>
-              <Link
-                href="/creator/requests"
-                className="text-sm font-bold text-slate-500 hover:text-slate-950"
-              >
-                {copy.viewAll}
-              </Link>
-            </div>
-
-            {recentRequests.length === 0 ? (
-              <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
-                {copy.noPending}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {recentRequests.map((item) => (
-                  <RecentRequestCard
-                    key={`${item.kind}-${item.id}`}
-                    item={item}
-                    copy={{
-                      productUnset: copy.productUnset,
-                      createdAt: copy.createdAt,
-                      orderLabel: copy.orderLabel,
-                      legacyRequestLabel: copy.legacyRequestLabel,
-                    }}
-                    locale={safeLocale}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-black text-slate-950">
-                {copy.recentJobsTitle}
-              </h2>
-              <Link
-                href="/creator/jobs"
-                className="text-sm font-bold text-slate-500 hover:text-slate-950"
-              >
-                {copy.viewAll}
-              </Link>
-            </div>
-
-            {recentJobs.length === 0 ? (
-              <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
-                {copy.noJobs}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {recentJobs.map((item) => (
-                  <RecentJobCard
-                    key={`${item.kind}-${item.id}`}
-                    item={item}
-                    copy={{
-                      productUnset: copy.productUnset,
-                      updatedAt: copy.updatedAt,
-                      deliveredUrl: copy.deliveredUrl,
-                      orderLabel: copy.orderLabel,
-                      legacyRequestLabel: copy.legacyRequestLabel,
-                    }}
-                    locale={safeLocale}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-2xl font-black text-slate-950">
+            {copy.earnings}
+          </h2>
+          <Link
+            href="/creator/payouts"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 active:scale-[0.98]"
+          >
+            {copy.viewAll}
+          </Link>
         </div>
 
-        <aside className="space-y-6">
-          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-3">
+          <MoneyCard
+            title={copy.expectedPayout}
+            amount={formatMoney(payoutSummary.completedPayoutAmount, safeLocale)}
+            helper={copy.payoutHelper}
+            href="/creator/payouts"
+          />
+          <MoneyCard
+            title={copy.transferred}
+            amount={formatMoney(payoutSummary.transferredAmount, safeLocale)}
+            href="/creator/payouts"
+            emphasis
+          />
+          <MoneyCard
+            title={copy.pendingPayout}
+            amount={formatMoney(payoutSummary.pendingAmount, safeLocale)}
+            href="/creator/payouts"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-2xl font-black text-slate-950">
+          {copy.quickTitle}
+        </h2>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <ActionRow
+            href="/creator/payouts"
+            icon="¥"
+            title={copy.quickPayoutsTitle}
+            body={copy.quickPayoutsBody}
+          />
+          <ActionRow
+            href="/creator/profile"
+            icon="◯"
+            title={copy.quickProfileTitle}
+            body={copy.quickProfileBody}
+          />
+          <ActionRow
+            href="/creator/menus"
+            icon="+"
+            title={copy.quickMenusTitle}
+            body={copy.quickMenusBody}
+          />
+          <ActionRow
+            href="/creator/profile"
+            icon="▥"
+            title={copy.quickAnalyticsTitle}
+            body={copy.quickAnalyticsBody}
+          />
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-xl font-black text-slate-950">
-              {copy.summaryTitle}
+              {copy.recentPendingTitle}
             </h2>
-
-            <div className="mt-5 grid gap-3">
-              <SummaryCard label={copy.summaryLocation} value={locationSummary} />
-              <SummaryCard label={copy.summaryLanguages} value={languageSummary} />
-              <SummaryCard
-                label={copy.summaryCategory}
-                value={compactText(creator?.category) || copy.notSet}
-              />
-              <SummaryCard
-                label={copy.summarySubCategories}
-                value={subCategorySummary}
-              />
-              <SummaryCard
-                label={copy.summaryBio}
-                value={compactText(creator?.bio) || copy.notSet}
-              />
-            </div>
-
-            <div className="mt-5 grid gap-3">
-              <Link
-                href="/creator/profile"
-                className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                {copy.editProfile}
-              </Link>
-              <Link
-                href="/creator/menus"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-              >
-                {copy.manageMenus}
-              </Link>
-            </div>
+            <Link
+              href="/creator/requests"
+              className="text-sm font-bold text-slate-500 hover:text-slate-950"
+            >
+              {copy.viewAll}
+            </Link>
           </div>
 
-          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">
-              {copy.usageTitle}
-            </h2>
-
-            <div className="mt-5 space-y-3">
-              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
-                <span className="text-sm font-bold text-slate-600">
-                  {copy.usageProfile}
-                </span>
-                <StatusBadge
-                  label={
-                    gate.creatorProfileCompleted
-                      ? copy.profileCompleted
-                      : copy.profileIncomplete
-                  }
-                  tone={gate.creatorProfileCompleted ? "green" : "yellow"}
+          {recentRequests.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+              {copy.noPending}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {recentRequests.map((item) => (
+                <RecentRequestCard
+                  key={`${item.kind}-${item.id}`}
+                  item={item}
+                  copy={{
+                    productUnset: copy.productUnset,
+                    createdAt: copy.createdAt,
+                    orderLabel: copy.orderLabel,
+                    legacyRequestLabel: copy.legacyRequestLabel,
+                  }}
+                  locale={safeLocale}
                 />
-              </div>
-
-              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
-                <span className="text-sm font-bold text-slate-600">
-                  {copy.usageReview}
-                </span>
-                <StatusBadge label={approvalMeta.label} tone={approvalMeta.tone} />
-              </div>
-
-              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
-                <span className="text-sm font-bold text-slate-600">
-                  {copy.usageFeature}
-                </span>
-                <StatusBadge
-                  label={gate.canUsePlatform ? copy.available : copy.limited}
-                  tone={gate.canUsePlatform ? "green" : "yellow"}
-                />
-              </div>
-
-              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
-                <span className="text-sm font-bold text-slate-600">
-                  {copy.usageMenus}
-                </span>
-                <StatusBadge
-                  label={
-                    counts.activeMenus > 0
-                      ? `${counts.activeMenus}`
-                      : copy.noMenus
-                  }
-                  tone={counts.activeMenus > 0 ? "green" : "gray"}
-                />
-              </div>
+              ))}
             </div>
+          )}
+        </div>
+
+        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <h2 className="text-xl font-black text-slate-950">
+              {copy.recentJobsTitle}
+            </h2>
+            <Link
+              href="/creator/jobs"
+              className="text-sm font-bold text-slate-500 hover:text-slate-950"
+            >
+              {copy.viewAll}
+            </Link>
           </div>
-        </aside>
+
+          {recentJobs.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+              {copy.noJobs}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {recentJobs.map((item) => (
+                <RecentJobCard
+                  key={`${item.kind}-${item.id}`}
+                  item={item}
+                  copy={{
+                    productUnset: copy.productUnset,
+                    updatedAt: copy.updatedAt,
+                    deliveredUrl: copy.deliveredUrl,
+                    orderLabel: copy.orderLabel,
+                    legacyRequestLabel: copy.legacyRequestLabel,
+                  }}
+                  locale={safeLocale}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );
