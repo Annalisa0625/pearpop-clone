@@ -21,6 +21,7 @@ type NavItem = {
   href: string;
   label: string;
   shortLabel: string;
+  icon: string;
   badgeKey?: NavBadgeKey;
 };
 
@@ -172,6 +173,12 @@ function UnreadBadge({ active }: { active: boolean }) {
   );
 }
 
+function MobileUnreadDot() {
+  return (
+    <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-blue-600 ring-2 ring-white" />
+  );
+}
+
 function LocaleSwitcher({
   locale,
   setLocale,
@@ -180,19 +187,17 @@ function LocaleSwitcher({
   setLocale: (locale: AppLocale) => void;
 }) {
   const baseClass =
-    "rounded-xl border px-3 py-2 text-sm font-medium transition";
+    "rounded-full border px-3 py-2 text-xs font-bold transition";
   const activeClass = "border-gray-900 bg-gray-900 text-white";
   const inactiveClass =
-    "border-gray-300 bg-white text-gray-700 hover:bg-gray-100";
+    "border-gray-200 bg-white text-gray-700 hover:bg-gray-50";
 
   return (
     <div className="flex items-center gap-2">
       <button
         type="button"
         onClick={() => setLocale("ja")}
-        className={`${baseClass} ${
-          locale === "ja" ? activeClass : inactiveClass
-        }`}
+        className={`${baseClass} ${locale === "ja" ? activeClass : inactiveClass}`}
         aria-pressed={locale === "ja"}
       >
         JA
@@ -200,9 +205,7 @@ function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setLocale("en")}
-        className={`${baseClass} ${
-          locale === "en" ? activeClass : inactiveClass
-        }`}
+        className={`${baseClass} ${locale === "en" ? activeClass : inactiveClass}`}
         aria-pressed={locale === "en"}
       >
         EN
@@ -226,28 +229,34 @@ export default function CreatorLayoutShell({
     () =>
       locale === "ja"
         ? {
-            consoleTitle: "Creator Console",
-            creatorNavigation: "Creator Navigation",
+            appTitle: "Trendre",
+            consoleTitle: "Creator",
+            creatorNavigation: "Creator Menu",
+            menuManagement: "メニュー管理",
             addMenu: "メニュー追加",
+            payouts: "報酬",
             loggingOut: "ログアウト中...",
             logout: "ログアウト",
             memoTitle: "クリエイター向けメモ",
             memoBody:
-              "依頼確認、進行中案件、メニュー管理、プロフィール更新をここから行えます。",
+              "依頼確認、進行中案件、報酬確認、プロフィール更新をここから行えます。",
             limitTitle: "⚠ 現在、取引制限中です。",
             limitReasonLabel: "制限理由",
             limitBody:
               "既存案件の対応は可能ですが、新規案件の受注や提案はできません。",
           }
         : {
-            consoleTitle: "Creator Console",
-            creatorNavigation: "Creator Navigation",
+            appTitle: "Trendre",
+            consoleTitle: "Creator",
+            creatorNavigation: "Creator Menu",
+            menuManagement: "Menus",
             addMenu: "Add Menu",
+            payouts: "Payouts",
             loggingOut: "Logging out...",
             logout: "Logout",
             memoTitle: "Creator Notes",
             memoBody:
-              "Use this area to review requests, manage active jobs, manage menus, and edit your profile.",
+              "Review requests, manage active jobs, check payouts, and update your profile here.",
             limitTitle: "⚠ Your account is currently under trading restriction.",
             limitReasonLabel: "Reason",
             limitBody:
@@ -262,31 +271,36 @@ export default function CreatorLayoutShell({
         href: "/creator/dashboard",
         label: t.nav.dashboard,
         shortLabel: locale === "ja" ? "ホーム" : "Home",
+        icon: "⌂",
       },
       {
         href: "/creator/requests",
         label: t.nav.requests,
-        shortLabel: locale === "ja" ? "依頼" : "Pending",
+        shortLabel: locale === "ja" ? "依頼" : "Requests",
+        icon: "◎",
         badgeKey: "requests",
       },
       {
         href: "/creator/jobs",
         label: t.nav.jobs,
         shortLabel: locale === "ja" ? "案件" : "Jobs",
+        icon: "▣",
         badgeKey: "jobs",
       },
       {
-        href: "/creator/menus",
-        label: t.nav.menus,
-        shortLabel: locale === "ja" ? "メニュー" : "Menus",
+        href: "/creator/payouts",
+        label: copy.payouts,
+        shortLabel: locale === "ja" ? "報酬" : "Payouts",
+        icon: "¥",
       },
       {
         href: "/creator/profile",
         label: t.nav.profile,
         shortLabel: locale === "ja" ? "プロフィール" : "Profile",
+        icon: "◯",
       },
     ],
-    [locale, t]
+    [copy.payouts, locale, t]
   );
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -644,7 +658,8 @@ export default function CreatorLayoutShell({
             console.error("failed to resolve creator order nav context", error);
           }
 
-          const status = (data as { status: string | null } | null)?.status ?? null;
+          const status =
+            (data as { status: string | null } | null)?.status ?? null;
 
           if (!cancelled) {
             setDetailNavContext(
@@ -682,7 +697,7 @@ export default function CreatorLayoutShell({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-[#f8fafc] text-gray-900">
       {limitReason ? (
         <div className="border-b border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
           <div className="mx-auto max-w-7xl">
@@ -696,19 +711,21 @@ export default function CreatorLayoutShell({
         </div>
       ) : null}
 
-      <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="min-w-0">
-            <Link
-              href="/creator/dashboard"
-              className="flex items-center gap-3 text-lg font-bold tracking-tight"
-            >
-              <span className="truncate">{copy.consoleTitle}</span>
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-xs font-semibold text-green-700">
-                C
+          <Link href="/creator/dashboard" className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gray-950 text-sm font-black text-white shadow-sm">
+              T
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-base font-black tracking-tight text-gray-950">
+                {copy.appTitle}
               </span>
-            </Link>
-          </div>
+              <span className="block truncate text-xs font-semibold text-gray-400">
+                {copy.consoleTitle}
+              </span>
+            </span>
+          </Link>
 
           <div className="flex items-center gap-2">
             <div className="hidden sm:block">
@@ -716,40 +733,56 @@ export default function CreatorLayoutShell({
             </div>
 
             <Link
-              href="/creator/menus/new"
-              className="hidden rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100 md:inline-flex"
+              href="/creator/menus"
+              className="hidden rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 transition hover:border-gray-900 hover:text-gray-950 md:inline-flex"
             >
-              {copy.addMenu}
+              {copy.menuManagement}
+            </Link>
+
+            <Link
+              href="/creator/menus/new"
+              className="hidden rounded-full bg-gray-950 px-4 py-2 text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-lg md:inline-flex"
+            >
+              + {copy.addMenu}
             </Link>
 
             <button
               type="button"
               onClick={handleLogout}
               disabled={loggingOut}
-              className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+              className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-gray-900 hover:text-gray-950 disabled:opacity-50"
             >
               {loggingOut ? copy.loggingOut : copy.logout}
             </button>
           </div>
         </div>
 
-        <div className="border-t bg-white px-4 py-2 sm:hidden">
+        <div className="border-t border-gray-100 bg-white px-4 py-2 sm:hidden">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
             <LocaleSwitcher locale={locale} setLocale={setLocale} />
-            <Link
-              href="/creator/menus/new"
-              className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
-            >
-              {copy.addMenu}
-            </Link>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href="/creator/menus"
+                className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700"
+              >
+                {copy.menuManagement}
+              </Link>
+              <Link
+                href="/creator/menus/new"
+                className="rounded-full bg-gray-950 px-3 py-2 text-xs font-black text-white"
+              >
+                +
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 md:px-6">
+      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-5 md:px-6 md:py-6">
         <aside className="hidden w-64 shrink-0 lg:block">
-          <div className="sticky top-24 rounded-3xl border bg-white p-4 shadow-sm">
-            <p className="mb-3 px-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <div className="sticky top-24 rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="mb-3 px-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400">
               {copy.creatorNavigation}
             </p>
 
@@ -766,22 +799,27 @@ export default function CreatorLayoutShell({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition ${
+                    className={`flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-bold transition ${
                       active
-                        ? "bg-green-600 text-white shadow-sm"
-                        : "text-gray-700 hover:bg-gray-100"
+                        ? "bg-gray-950 text-white shadow-sm"
+                        : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    <span>{item.label}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-sm">
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                    </span>
                     {showUnread ? <UnreadBadge active={active} /> : null}
                   </Link>
                 );
               })}
             </nav>
 
-            <div className="mt-5 rounded-2xl border bg-gray-50 p-4">
-              <p className="text-sm font-semibold">{copy.memoTitle}</p>
-              <p className="mt-2 text-xs leading-6 text-gray-600">
+            <div className="mt-5 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-sm font-black">{copy.memoTitle}</p>
+              <p className="mt-2 text-xs leading-6 text-gray-500">
                 {copy.memoBody}
               </p>
             </div>
@@ -790,12 +828,12 @@ export default function CreatorLayoutShell({
 
         <main className="min-w-0 flex-1">
           {children}
-          <div className="h-24 md:h-0" />
+          <div className="h-28 lg:h-0" />
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 backdrop-blur lg:hidden">
-        <div className="grid grid-cols-5">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 rounded-[28px] bg-white">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailNavContext);
             const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
@@ -804,16 +842,21 @@ export default function CreatorLayoutShell({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-h-[64px] flex-col items-center justify-center px-2 py-2 text-[11px] font-medium transition ${
-                  active ? "text-green-600" : "text-gray-500"
+                className={`relative flex min-h-[62px] flex-col items-center justify-center rounded-2xl px-1 py-2 text-[11px] font-bold transition ${
+                  active ? "text-gray-950" : "text-gray-400"
                 }`}
               >
-                <span className="text-center leading-4">{item.shortLabel}</span>
-                {showUnread ? (
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-600" />
-                ) : (
-                  <span className="mt-1 h-1.5 w-1.5" />
-                )}
+                <span
+                  className={`mb-1 flex h-7 w-7 items-center justify-center rounded-xl text-sm ${
+                    active ? "bg-gray-950 text-white" : "bg-transparent"
+                  }`}
+                >
+                  {item.icon}
+                </span>
+                <span className="max-w-full truncate text-center leading-4">
+                  {item.shortLabel}
+                </span>
+                {showUnread ? <MobileUnreadDot /> : null}
               </Link>
             );
           })}
