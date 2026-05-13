@@ -103,7 +103,12 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
@@ -157,7 +162,6 @@ function getTimestamp(value: string | null | undefined) {
   if (!value) return null;
 
   const time = new Date(value).getTime();
-
   if (Number.isNaN(time)) return null;
 
   return time;
@@ -170,77 +174,184 @@ function getAutoCompleteSortValue(item: JobItem) {
   return getTimestamp(item.auto_complete_at) ?? 9999999999999;
 }
 
+function isWithinHours(value: string | null | undefined, hours: number) {
+  const time = getTimestamp(value);
+  if (!time) return false;
+
+  const diff = time - Date.now();
+  return diff > 0 && diff <= hours * 60 * 60 * 1000;
+}
+
 function getStatusMeta(status: string, locale: "ja" | "en") {
   const ja: Record<string, { label: string; className: string }> = {
     accepted: {
       label: "進行中",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     accepted_captured: {
-      label: "承認済み・決済確定",
-      className: "bg-green-50 text-green-700 ring-green-200",
+      label: "進行中",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     in_progress: {
       label: "進行中",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     delivered: {
       label: "納品済み",
-      className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+      className: "bg-purple-100 text-purple-700 ring-purple-200",
     },
     revision_requested: {
-      label: "修正依頼中",
-      className: "bg-amber-50 text-amber-700 ring-amber-200",
+      label: "修正依頼",
+      className: "bg-amber-100 text-amber-800 ring-amber-200",
     },
     completed: {
       label: "完了",
-      className: "bg-gray-50 text-gray-700 ring-gray-200",
+      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     },
   };
 
   const en: Record<string, { label: string; className: string }> = {
     accepted: {
       label: "Active",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     accepted_captured: {
-      label: "Accepted / Captured",
-      className: "bg-green-50 text-green-700 ring-green-200",
+      label: "Active",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     in_progress: {
       label: "In Progress",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     delivered: {
       label: "Delivered",
-      className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+      className: "bg-purple-100 text-purple-700 ring-purple-200",
     },
     revision_requested: {
-      label: "Revision Requested",
-      className: "bg-amber-50 text-amber-700 ring-amber-200",
+      label: "Revision",
+      className: "bg-amber-100 text-amber-800 ring-amber-200",
     },
     completed: {
       label: "Completed",
-      className: "bg-gray-50 text-gray-700 ring-gray-200",
+      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     },
   };
 
   return (
     (locale === "ja" ? ja[status] : en[status]) ?? {
       label: status,
-      className: "bg-gray-50 text-gray-700 ring-gray-200",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
     }
   );
 }
 
 function getKindLabel(kind: JobItem["kind"], locale: "ja" | "en") {
   if (kind === "order") return locale === "ja" ? "注文" : "Order";
-  return locale === "ja" ? "旧依頼" : "Legacy Request";
+  return locale === "ja" ? "旧依頼" : "Legacy";
 }
 
 function uniqueStrings(values: Array<string | null | undefined>) {
   return Array.from(
     new Set(values.filter((value): value is string => !!value))
+  );
+}
+
+function HeaderStat({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "attention" | "dark";
+}) {
+  const styles = {
+    default: "bg-white text-slate-950",
+    attention: "bg-amber-50 text-slate-950",
+    dark: "bg-slate-950 text-white",
+  };
+
+  return (
+    <div
+      className={`rounded-[24px] border border-slate-100 p-4 shadow-sm ${styles[tone]}`}
+    >
+      <p
+        className={`text-xs font-black uppercase tracking-[0.18em] ${
+          tone === "dark" ? "text-white/60" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-black">{value}</p>
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MoneyRow({
+  label,
+  value,
+  strong,
+  danger,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <span
+        className={`text-right ${
+          strong
+            ? "text-lg font-black text-emerald-700"
+            : danger
+            ? "text-sm font-black text-rose-600"
+            : "text-sm font-bold text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function RevisionNotice({
+  note,
+  copy,
+}: {
+  note: string | null | undefined;
+  copy: { revisionActionRequired: string };
+}) {
+  if (!note?.trim()) return null;
+
+  return (
+    <div className="mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-4">
+      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+        {copy.revisionActionRequired}
+      </p>
+      <p className="mt-2 line-clamp-3 text-sm leading-6 text-amber-900">
+        {note}
+      </p>
+    </div>
   );
 }
 
@@ -256,42 +367,50 @@ export default function CreatorJobsPage() {
             loading: "読み込み中...",
             title: "進行中案件",
             subtitle:
-              "承認済み注文、修正依頼中の注文、納品済み注文、新着メッセージをまとめて表示しています。修正依頼中と自動完了が近い納品済み案件を優先表示します。",
+              "承認済み・修正依頼・納品済み・完了済みの案件を確認できます。",
             viewRequests: "承認待ちを見る",
             editProfile: "プロフィール編集",
             fetchError: "進行中案件の取得に失敗しました。",
-            unnamedProduct: "（商品名未入力）",
+            unnamedProduct: "商品名未入力",
             deadline: "期限",
             menu: "メニュー",
             price: "価格",
             transactionFeeRate: "C側手数料率",
-            transactionFee: "Trendre transaction fee",
+            transactionFee: "Trendre手数料",
             payoutAmount: "受取予定額",
             deliveredUrl: "納品URLあり",
             revisionActionRequired: "修正対応が必要",
             revisionCount: "修正回数",
-            unreadMessages: "新着メッセージあり",
+            unreadMessages: "新着メッセージ",
             lastMessage: "最終メッセージ",
-            updatedAt: "更新日",
-            detail: "詳細を見る",
+            updatedAt: "更新",
+            detail: "案件を開く",
             empty: "進行中の案件はありません。",
+            emptyBody:
+              "承認した注文や進行中の案件がここに表示されます。納品や修正対応もこの画面から確認できます。",
             autoComplete: "自動完了",
             autoCompleteExpired: "自動完了期限超過",
+            total: "すべて",
+            active: "進行中",
+            revision: "修正",
+            delivered: "納品済み",
+            completed: "完了",
+            checkRequests: "承認待ちを見る",
           }
         : {
             loading: "Loading...",
             title: "Active Jobs",
             subtitle:
-              "Accepted orders, revision requested orders, delivered orders, and unread messages are shown here. Revision requests and delivered orders close to auto-completion are prioritized.",
+              "Check accepted, revision requested, delivered, and completed jobs.",
             viewRequests: "View Pending Requests",
             editProfile: "Edit Profile",
             fetchError: "Failed to load active jobs.",
-            unnamedProduct: "(No product name)",
+            unnamedProduct: "No product name",
             deadline: "Deadline",
             menu: "Menu",
             price: "Price",
             transactionFeeRate: "Creator fee rate",
-            transactionFee: "Trendre transaction fee",
+            transactionFee: "Trendre fee",
             payoutAmount: "Estimated payout",
             deliveredUrl: "Delivered URL submitted",
             revisionActionRequired: "Revision needed",
@@ -299,10 +418,18 @@ export default function CreatorJobsPage() {
             unreadMessages: "New messages",
             lastMessage: "Last message",
             updatedAt: "Updated",
-            detail: "View Details",
+            detail: "Open job",
             empty: "There are no active jobs.",
+            emptyBody:
+              "Accepted orders and active jobs will appear here. Delivery and revision tasks can also be checked from this screen.",
             autoComplete: "Auto complete",
             autoCompleteExpired: "Auto-complete overdue",
+            total: "Total",
+            active: "Active",
+            revision: "Revision",
+            delivered: "Delivered",
+            completed: "Completed",
+            checkRequests: "View requests",
           },
     [safeLocale]
   );
@@ -554,21 +681,24 @@ export default function CreatorJobsPage() {
     };
   }, [load, supabase]);
 
-  const hasUnread = (item: JobItem) => {
-    if (!currentUserId) return false;
-    if (!item.chat?.last_message_at) return false;
+  const hasUnread = useCallback(
+    (item: JobItem) => {
+      if (!currentUserId) return false;
+      if (!item.chat?.last_message_at) return false;
 
-    const readRow =
-      item.chat.chat_reads?.find((row) => row.user_id === currentUserId) ??
-      null;
+      const readRow =
+        item.chat.chat_reads?.find((row) => row.user_id === currentUserId) ??
+        null;
 
-    if (!readRow?.last_read_at) return true;
+      if (!readRow?.last_read_at) return true;
 
-    return (
-      new Date(item.chat.last_message_at).getTime() >
-      new Date(readRow.last_read_at).getTime()
-    );
-  };
+      return (
+        new Date(item.chat.last_message_at).getTime() >
+        new Date(readRow.last_read_at).getTime()
+      );
+    },
+    [currentUserId]
+  );
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
@@ -601,43 +731,109 @@ export default function CreatorJobsPage() {
 
       return bTime - aTime;
     });
-  }, [items, currentUserId]);
+  }, [items, hasUnread]);
+
+  const activeCount = sortedItems.filter((item) =>
+    ["accepted", "accepted_captured", "in_progress"].includes(item.status)
+  ).length;
+
+  const revisionCount = sortedItems.filter(
+    (item) => item.status === "revision_requested"
+  ).length;
+
+  const deliveredCount = sortedItems.filter(
+    (item) => item.status === "delivered"
+  ).length;
+
+  const completedCount = sortedItems.filter(
+    (item) => item.status === "completed"
+  ).length;
 
   if (loading) {
-    return <div className="mx-auto max-w-4xl p-6">{copy.loading}</div>;
+    return (
+      <div className="space-y-5">
+        <div className="h-32 animate-pulse rounded-[32px] bg-slate-100" />
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-52 animate-pulse rounded-[28px] bg-slate-100"
+          />
+        ))}
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-4 md:p-6">
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{copy.title}</h1>
-          <p className="mt-1 text-sm text-gray-600">{copy.subtitle}</p>
-        </div>
+    <div className="space-y-6 pb-4">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+          Creator Jobs
+        </p>
+        <div className="mt-3 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">{copy.title}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+              {copy.subtitle}
+            </p>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <Link className="text-sm text-blue-600" href="/creator/requests">
-            {copy.viewRequests}
-          </Link>
-          <Link className="text-sm text-blue-600" href="/creator/profile">
-            {copy.editProfile}
-          </Link>
+          <div className="text-right">
+            <p className="text-5xl font-black">{sortedItems.length}</p>
+            <p className="text-xs font-bold text-white/50">{copy.total}</p>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <HeaderStat
+          label={copy.active}
+          value={activeCount}
+          tone={activeCount > 0 ? "dark" : "default"}
+        />
+        <HeaderStat
+          label={copy.revision}
+          value={revisionCount}
+          tone={revisionCount > 0 ? "attention" : "default"}
+        />
+        <HeaderStat
+          label={copy.delivered}
+          value={deliveredCount}
+          tone={deliveredCount > 0 ? "attention" : "default"}
+        />
+        <HeaderStat
+          label={copy.completed}
+          value={completedCount}
+          tone="default"
+        />
+      </section>
 
       {error ? (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
           {error}
         </div>
       ) : null}
 
       {sortedItems.length === 0 && !error ? (
-        <div className="rounded border p-6 text-center text-sm text-gray-500">
-          {copy.empty}
+        <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
+            ▣
+          </div>
+          <h2 className="mt-5 text-xl font-black text-slate-950">
+            {copy.empty}
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
+            {copy.emptyBody}
+          </p>
+          <Link
+            href="/creator/requests"
+            className="mt-6 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+          >
+            {copy.checkRequests}
+          </Link>
         </div>
       ) : null}
 
-      <div className="space-y-3">
+      <section className="space-y-4">
         {sortedItems.map((item) => {
           const meta = getStatusMeta(item.status, safeLocale);
           const detailHref =
@@ -645,189 +841,174 @@ export default function CreatorJobsPage() {
               ? `/creator/orders/${item.id}`
               : `/creator/requests/${item.id}`;
 
+          const unread = hasUnread(item);
+          const needsRevision = item.status === "revision_requested";
+          const delivered = item.status === "delivered";
+          const completed = item.status === "completed";
+
           return (
-            <div
+            <Link
               key={`${item.kind}-${item.id}`}
-              className="rounded-2xl border bg-white p-4 shadow-sm transition hover:bg-gray-50"
+              href={detailHref}
+              className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
+                needsRevision
+                  ? "border-amber-200 ring-2 ring-amber-100"
+                  : delivered
+                  ? "border-purple-200 ring-2 ring-purple-100"
+                  : unread
+                  ? "border-blue-200 ring-2 ring-blue-100"
+                  : "border-slate-100"
+              }`}
             >
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        item.kind === "order"
-                          ? "bg-purple-50 text-purple-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {getKindLabel(item.kind, safeLocale)}
-                    </span>
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${meta.className}`}
-                    >
-                      {meta.label}
-                    </span>
-
-                    {item.payment_status ? (
-                      <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                        {item.payment_status}
-                      </span>
-                    ) : null}
-
-                    {item.status === "revision_requested" ? (
-                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                        {copy.revisionActionRequired}
-                      </span>
-                    ) : null}
-
-                    {item.status === "delivered" && item.auto_complete_at ? (
-                      <DeadlineBadge
-                        deadline={item.auto_complete_at}
-                        label={copy.autoComplete}
-                        expiredLabel={copy.autoCompleteExpired}
-                        locale={safeLocale}
-                        urgentHours={12}
-                        warningHours={24}
-                      />
-                    ) : null}
-
-                    {hasUnread(item) ? (
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                        {copy.unreadMessages}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="font-medium">
-                    {item.product_name ?? copy.unnamedProduct}
-                  </div>
-
-                  <div className="mt-3 grid gap-3 rounded-2xl bg-gray-50 p-4 text-sm md:grid-cols-2">
-                    {item.deadline ? (
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.deadline}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {formatDate(item.deadline, safeLocale)}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {item.menu_title ? (
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.menu}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {item.menu_title}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {item.kind === "order" ? (
-                      <>
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {copy.price}
-                          </p>
-                          <p className="mt-1 font-semibold text-gray-900">
-                            {formatPrice(
-                              item.menu_price_amount,
-                              item.currency,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {copy.transactionFeeRate}
-                          </p>
-                          <p className="mt-1 font-semibold text-gray-900">
-                            {formatBps(item.creator_transaction_fee_rate_bps)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {copy.transactionFee}
-                          </p>
-                          <p className="mt-1 font-semibold text-red-600">
-                            {formatSignedFee(
-                              item.creator_transaction_fee_amount,
-                              item.currency,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl border border-green-100 bg-green-50 p-3 md:col-span-2">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                            {copy.payoutAmount}
-                          </p>
-                          <p className="mt-1 text-lg font-bold text-green-700">
-                            {formatPrice(
-                              item.creator_payout_amount,
-                              item.currency,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
-                      </>
-                    ) : null}
-
-                    {item.status === "revision_requested" &&
-                    item.revision_count != null ? (
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.revisionCount}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {item.revision_count}/{item.max_revision_count ?? 1}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                    {item.delivered_post_url ? (
-                      <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                        {copy.deliveredUrl}
-                      </span>
-                    ) : null}
-
-                    {item.chat?.last_message_at ? (
-                      <span className="text-xs text-gray-400">
-                        {copy.lastMessage}:{" "}
-                        {formatDateTime(item.chat.last_message_at, safeLocale)}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-500">
-                  {copy.updatedAt}:{" "}
-                  {formatDateTime(
-                    item.updated_at ?? item.created_at,
-                    safeLocale
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <Link
-                  className="text-sm font-semibold text-blue-600 hover:underline"
-                  href={detailHref}
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Pill
+                  className={
+                    item.kind === "order"
+                      ? "bg-slate-950 text-white ring-slate-950"
+                      : "bg-slate-100 text-slate-700 ring-slate-200"
+                  }
                 >
-                  {copy.detail}
-                </Link>
+                  {getKindLabel(item.kind, safeLocale)}
+                </Pill>
+
+                <Pill className={meta.className}>{meta.label}</Pill>
+
+                {item.payment_status ? (
+                  <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                    {item.payment_status}
+                  </Pill>
+                ) : null}
+
+                {needsRevision ? (
+                  <Pill className="bg-amber-50 text-amber-800 ring-amber-200">
+                    {copy.revisionActionRequired}
+                  </Pill>
+                ) : null}
+
+                {unread ? (
+                  <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
+                    {copy.unreadMessages}
+                  </Pill>
+                ) : null}
               </div>
-            </div>
+
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="truncate text-xl font-black text-slate-950">
+                    {item.product_name ?? copy.unnamedProduct}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-slate-400">
+                    {copy.updatedAt}:{" "}
+                    {formatDateTime(item.updated_at ?? item.created_at, safeLocale)}
+                  </p>
+                </div>
+
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                  ›
+                </span>
+              </div>
+
+              {needsRevision ? (
+                <RevisionNotice
+                  note={item.revision_note}
+                  copy={{ revisionActionRequired: copy.revisionActionRequired }}
+                />
+              ) : null}
+
+              <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+                <div className="grid gap-3">
+                  {item.deadline ? (
+                    <MoneyRow
+                      label={copy.deadline}
+                      value={formatDate(item.deadline, safeLocale)}
+                    />
+                  ) : null}
+
+                  {item.menu_title ? (
+                    <MoneyRow label={copy.menu} value={item.menu_title} />
+                  ) : null}
+
+                  {item.kind === "order" ? (
+                    <>
+                      <MoneyRow
+                        label={copy.price}
+                        value={formatPrice(
+                          item.menu_price_amount,
+                          item.currency,
+                          safeLocale
+                        )}
+                      />
+
+                      <MoneyRow
+                        label={copy.transactionFee}
+                        value={formatSignedFee(
+                          item.creator_transaction_fee_amount,
+                          item.currency,
+                          safeLocale
+                        )}
+                        danger
+                      />
+
+                      <MoneyRow
+                        label={copy.payoutAmount}
+                        value={formatPrice(
+                          item.creator_payout_amount,
+                          item.currency,
+                          safeLocale
+                        )}
+                        strong
+                      />
+                    </>
+                  ) : null}
+
+                  {needsRevision && item.revision_count != null ? (
+                    <MoneyRow
+                      label={copy.revisionCount}
+                      value={`${item.revision_count}/${item.max_revision_count ?? 1}`}
+                    />
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {delivered && item.auto_complete_at ? (
+                  <DeadlineBadge
+                    deadline={item.auto_complete_at}
+                    label={copy.autoComplete}
+                    expiredLabel={copy.autoCompleteExpired}
+                    locale={safeLocale}
+                    urgentHours={12}
+                    warningHours={24}
+                  />
+                ) : null}
+
+                {item.delivered_post_url ? (
+                  <Pill className="bg-purple-50 text-purple-700 ring-purple-200">
+                    {copy.deliveredUrl}
+                  </Pill>
+                ) : null}
+
+                {completed ? (
+                  <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                    {copy.completed}
+                  </Pill>
+                ) : null}
+
+                {item.chat?.last_message_at ? (
+                  <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
+                    {copy.lastMessage}:{" "}
+                    {formatDateTime(item.chat.last_message_at, safeLocale)}
+                  </Pill>
+                ) : null}
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
+                {copy.detail}
+              </div>
+            </Link>
           );
         })}
-      </div>
+      </section>
     </div>
   );
 }
