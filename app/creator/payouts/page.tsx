@@ -45,7 +45,7 @@ type PayoutOrderRow = {
 };
 
 type NoticeTone = "info" | "success" | "warning" | "error";
-type BadgeTone = "gray" | "green" | "blue" | "yellow" | "red" | "purple";
+type BadgeTone = "gray" | "green" | "blue" | "yellow" | "red" | "purple" | "black";
 
 function Notice({
   tone,
@@ -58,14 +58,14 @@ function Notice({
 }) {
   const styles: Record<NoticeTone, string> = {
     info: "border-blue-100 bg-blue-50 text-blue-900",
-    success: "border-green-100 bg-green-50 text-green-900",
-    warning: "border-yellow-100 bg-yellow-50 text-yellow-900",
-    error: "border-red-100 bg-red-50 text-red-900",
+    success: "border-emerald-100 bg-emerald-50 text-emerald-900",
+    warning: "border-amber-100 bg-amber-50 text-amber-900",
+    error: "border-rose-100 bg-rose-50 text-rose-900",
   };
 
   return (
-    <div className={`rounded-2xl border p-4 text-sm ${styles[tone]}`}>
-      <p className="font-bold">{title}</p>
+    <div className={`rounded-[24px] border p-4 text-sm ${styles[tone]}`}>
+      <p className="font-black">{title}</p>
       <p className="mt-2 leading-6">{body}</p>
     </div>
   );
@@ -82,8 +82,8 @@ function StatusPill({
 }) {
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-        active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${
+        active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
       }`}
     >
       {active ? activeLabel : inactiveLabel}
@@ -99,17 +99,18 @@ function Badge({
   children: React.ReactNode;
 }) {
   const styles: Record<BadgeTone, string> = {
-    gray: "bg-gray-100 text-gray-700",
-    green: "bg-green-100 text-green-700",
+    gray: "bg-slate-100 text-slate-700",
+    green: "bg-emerald-100 text-emerald-700",
     blue: "bg-blue-100 text-blue-700",
-    yellow: "bg-yellow-100 text-yellow-800",
-    red: "bg-red-100 text-red-700",
+    yellow: "bg-amber-100 text-amber-800",
+    red: "bg-rose-100 text-rose-700",
     purple: "bg-purple-100 text-purple-700",
+    black: "bg-slate-950 text-white",
   };
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${styles[tone]}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ${styles[tone]}`}
     >
       {children}
     </span>
@@ -124,29 +125,83 @@ function FieldRow({
   value: string | React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1 border-b border-gray-100 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <div className="text-sm font-semibold text-gray-900">{value}</div>
+    <div className="flex flex-col gap-1 border-b border-slate-100 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <div className="text-sm font-black text-slate-900">{value}</div>
     </div>
   );
 }
 
-function SummaryCard({
+function MoneyCard({
   label,
   value,
   helper,
+  tone = "default",
 }: {
   label: string;
   value: string;
   helper?: string;
+  tone?: "default" | "green" | "dark" | "warning";
 }) {
+  const styles = {
+    default: "border-slate-100 bg-white text-slate-950",
+    green: "border-emerald-100 bg-emerald-50 text-slate-950",
+    dark: "border-slate-950 bg-slate-950 text-white",
+    warning: "border-amber-100 bg-amber-50 text-slate-950",
+  };
+
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+    <div className={`rounded-[28px] border p-5 shadow-sm ${styles[tone]}`}>
+      <p
+        className={`text-xs font-black uppercase tracking-[0.2em] ${
+          tone === "dark" ? "text-white/60" : "text-slate-400"
+        }`}
+      >
         {label}
       </p>
-      <p className="mt-2 text-2xl font-black text-gray-900">{value}</p>
-      {helper ? <p className="mt-2 text-xs text-gray-500">{helper}</p> : null}
+      <p
+        className={`mt-4 text-3xl font-black ${
+          tone === "dark" ? "text-white" : "text-slate-950"
+        }`}
+      >
+        {value}
+      </p>
+      {helper ? (
+        <p
+          className={`mt-2 text-xs leading-5 ${
+            tone === "dark" ? "text-white/70" : "text-slate-500"
+          }`}
+        >
+          {helper}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ActionRow({
+  icon,
+  title,
+  body,
+  children,
+}: {
+  icon: string;
+  title: string;
+  body: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-black text-slate-950">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{body}</p>
+          {children ? <div className="mt-4">{children}</div> : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -176,6 +231,7 @@ function formatDateTime(
   locale: "ja" | "en"
 ) {
   if (!value) return "-";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
@@ -239,6 +295,20 @@ function getTransferBadgeMeta(
   return { label: "Not started", tone: "gray" };
 }
 
+function isSameMonth(value: string | null | undefined) {
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const now = new Date();
+
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
+  );
+}
+
 export default function CreatorPayoutsPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -252,7 +322,7 @@ export default function CreatorPayoutsPage() {
   const [starting, setStarting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-    const [returnNotice, setReturnNotice] = useState<"return" | "refresh" | null>(
+  const [returnNotice, setReturnNotice] = useState<"return" | "refresh" | null>(
     null
   );
   const [signupMode, setSignupMode] = useState(false);
@@ -269,17 +339,20 @@ export default function CreatorPayoutsPage() {
             statusFailed: "Stripe Connectの状態確認に失敗しました。",
             onboardingFailed:
               "Stripe Connectのオンボーディング開始に失敗しました。",
-            eyebrow: "Creator Payouts",
-            title: "報酬受け取り設定",
+            eyebrow: "Creator Wallet",
+            title: "報酬",
+            signupTitle: "最後のステップ：報酬受け取り設定",
             subtitle:
-              "Stripe Expressの受け取り設定と、完了済み案件の報酬・送金状況を確認できます。",
-            backDashboard: "ダッシュボードへ戻る",
-            connectTitle: "Stripe Express Connect",
+              "今月の収益、送金状況、Stripe Expressの受け取り設定を確認できます。",
+            signupSubtitle:
+              "案件完了後に安全に報酬を受け取るため、Stripe Expressで本人確認と振込先登録を完了してください。",
+            backDashboard: "ホームへ戻る",
+            connectTitle: "銀行口座・本人確認",
             connectBody:
-              "Trendreでは、案件完了後のクリエイター報酬をStripe Connect経由で管理します。本人確認・振込先情報の登録を完了してください。",
+              "報酬の受け取りはStripe Expressで管理されます。本人確認と振込先登録が完了すると、案件完了後に送金を受け取れます。",
             statusReadyTitle: "受け取り設定は完了しています",
             statusReadyBody:
-              "現在の状態では、案件完了後に報酬を受け取る準備ができています。",
+              "案件完了後に報酬を受け取る準備ができています。",
             statusNotReadyTitle: "受け取り設定が未完了です",
             statusNotReadyBody:
               "本人確認や振込先情報が不足している可能性があります。Stripeの画面で登録を完了してください。",
@@ -311,15 +384,16 @@ export default function CreatorPayoutsPage() {
             starting: "Stripeへ移動中...",
             noteTitle: "送金について",
             noteBody:
-              "完了済み注文の受取予定額は、運営側の自動処理によりStripe Connect経由で送金されます。送金状況は下の履歴で確認できます。",
-            historyEyebrow: "Payout History",
+              "完了済み注文の受取予定額は、運営側の自動処理によりStripe Connect経由で送金されます。",
+            monthRevenue: "今月の収益",
+            totalEarned: "受取予定",
+            totalTransferred: "送金済み",
+            pendingAmount: "未送金",
+            completedOrders: "完了件数",
+            transferHistory: "振込履歴",
             historyTitle: "報酬・送金履歴",
             historyBody:
               "完了済み注文の受取予定額、送金状態、送金日時を確認できます。",
-            totalEarned: "受取予定額合計",
-            totalTransferred: "送金済み合計",
-            pendingAmount: "未送金・処理中",
-            completedOrders: "完了済み件数",
             historyEmptyTitle: "まだ報酬履歴がありません",
             historyEmptyBody:
               "案件が完了し、受取予定額が確定するとここに表示されます。",
@@ -332,6 +406,9 @@ export default function CreatorPayoutsPage() {
             transferId: "Transfer ID",
             failedReason: "失敗理由",
             createdAt: "作成日時",
+            setupCompleteDashboard: "登録を完了してホームへ進む",
+            accountManagedByStripe:
+              "銀行口座情報はStripe側で安全に管理されます。Trendreには口座番号の詳細は保存されません。",
           }
         : {
             loading: "Loading...",
@@ -341,14 +418,17 @@ export default function CreatorPayoutsPage() {
             payoutLoadFailed: "Failed to load payout history.",
             statusFailed: "Failed to refresh Stripe Connect status.",
             onboardingFailed: "Failed to start Stripe Connect onboarding.",
-            eyebrow: "Creator Payouts",
-            title: "Payout Settings",
+            eyebrow: "Creator Wallet",
+            title: "Payouts",
+            signupTitle: "Last step: Set up payouts",
             subtitle:
-              "Manage your Stripe Express setup and review payout status for completed orders.",
-            backDashboard: "Back to dashboard",
-            connectTitle: "Stripe Express Connect",
+              "Check monthly earnings, transfer status, and Stripe Express payout setup.",
+            signupSubtitle:
+              "Complete Stripe Express onboarding so you can safely receive payouts after completed orders.",
+            backDashboard: "Back to home",
+            connectTitle: "Bank account & identity",
             connectBody:
-              "Trendre uses Stripe Connect to manage creator payouts after completed orders. Please complete identity verification and payout details.",
+              "Creator payouts are managed through Stripe Express. Complete identity verification and payout details to receive transfers after completed jobs.",
             statusReadyTitle: "Payout setup is complete",
             statusReadyBody:
               "Your account is ready to receive payouts after completed orders.",
@@ -383,15 +463,16 @@ export default function CreatorPayoutsPage() {
             starting: "Opening Stripe...",
             noteTitle: "About payouts",
             noteBody:
-              "Payout amounts from completed orders are transferred through Stripe Connect by the platform's automated process. You can review payout status below.",
-            historyEyebrow: "Payout History",
+              "Payout amounts from completed orders are transferred through Stripe Connect by the platform's automated process.",
+            monthRevenue: "This month",
+            totalEarned: "Expected",
+            totalTransferred: "Transferred",
+            pendingAmount: "Pending",
+            completedOrders: "Completed orders",
+            transferHistory: "Transfer history",
             historyTitle: "Payout & Transfer History",
             historyBody:
               "Review payout amounts, transfer status, and transfer timestamps for completed orders.",
-            totalEarned: "Total payout amount",
-            totalTransferred: "Transferred",
-            pendingAmount: "Pending / processing",
-            completedOrders: "Completed orders",
             historyEmptyTitle: "No payout history yet",
             historyEmptyBody:
               "Completed orders with confirmed payout amounts will appear here.",
@@ -404,6 +485,9 @@ export default function CreatorPayoutsPage() {
             transferId: "Transfer ID",
             failedReason: "Failure reason",
             createdAt: "Created at",
+            setupCompleteDashboard: "Complete setup and go to home",
+            accountManagedByStripe:
+              "Bank account details are securely managed by Stripe. Trendre does not store full bank account numbers.",
           },
     [safeLocale]
   );
@@ -451,10 +535,7 @@ export default function CreatorPayoutsPage() {
     return json;
   };
 
-  const loadPayoutHistory = async (
-    userId: string,
-    creatorId: string | null
-  ) => {
+  const loadPayoutHistory = async (userId: string, creatorId: string | null) => {
     let query = supabase
       .from("orders")
       .select(
@@ -534,7 +615,7 @@ export default function CreatorPayoutsPage() {
 
       setCreator(creatorRow as CreatorPayoutState);
 
-            const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(window.location.search);
       const connectParam = params.get("connect");
       const fromParam = params.get("from");
       const requiredParam = params.get("required");
@@ -629,13 +710,9 @@ export default function CreatorPayoutsPage() {
   };
 
   const isReady = Boolean(status?.stripe_onboarding_completed);
-  const hasAccount = Boolean(
-    status?.has_stripe_account || creator?.stripe_account_id
-  );
+  const hasAccount = Boolean(status?.has_stripe_account || creator?.stripe_account_id);
   const accountIdLabel =
-    status?.stripe_account_id_masked ||
-    creator?.stripe_account_id ||
-    copy.none;
+    status?.stripe_account_id_masked || creator?.stripe_account_id || copy.none;
 
   const payoutSummary = useMemo(() => {
     const totalEarned = payoutOrders.reduce(
@@ -649,6 +726,10 @@ export default function CreatorPayoutsPage() {
 
     const pendingAmount = Math.max(totalEarned - totalTransferred, 0);
 
+    const thisMonthEarned = payoutOrders
+      .filter((order) => isSameMonth(order.completed_at || order.created_at))
+      .reduce((sum, order) => sum + Number(order.creator_payout_amount || 0), 0);
+
     const mainCurrency =
       payoutOrders.find((order) => order.currency)?.currency || "JPY";
 
@@ -656,6 +737,7 @@ export default function CreatorPayoutsPage() {
       totalEarned,
       totalTransferred,
       pendingAmount,
+      thisMonthEarned,
       mainCurrency,
       completedCount: payoutOrders.length,
     };
@@ -663,86 +745,275 @@ export default function CreatorPayoutsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl rounded-3xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">{copy.loading}</p>
+      <div className="space-y-5">
+        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-28 animate-pulse rounded-[28px] bg-slate-100"
+            />
+          ))}
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <section className="rounded-3xl bg-white p-5 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-gray-400">
-                {copy.eyebrow}
-              </p>
-              <h1 className="mt-3 text-2xl font-black tracking-tight text-gray-900 sm:text-4xl">
-                                {signupMode && safeLocale === "ja"
-                  ? "最後のステップ：報酬受け取り設定"
-                  : signupMode
-                    ? "Last step: Set up payouts"
-                    : copy.title}
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-                               {signupMode && safeLocale === "ja"
-                  ? "案件完了後に安全に報酬を受け取るため、Stripe Expressで本人確認と振込先登録を完了してください。この設定が完了すると、企業から注文を受けられるようになります。"
-                  : signupMode
-                    ? "Complete Stripe Express onboarding so you can safely receive payouts after completed orders. Once this is complete, your creator account can start receiving orders."
-                    : copy.subtitle}
-              </p>
-            </div>
+    <div className="space-y-7 pb-4">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+          {copy.eyebrow}
+        </p>
 
-            <Link
-              href="/creator/dashboard"
-              className="inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50"
-            >
-              {copy.backDashboard}
-            </Link>
+        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
+              {signupMode ? copy.signupTitle : copy.title}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
+              {signupMode ? copy.signupSubtitle : copy.subtitle}
+            </p>
           </div>
-        </section>
 
-        {returnNotice === "return" ? (
-          <Notice
-            tone="success"
-            title={copy.returnedTitle}
-            body={copy.returnedBody}
-          />
-        ) : null}
+          <Link
+            href="/creator/dashboard"
+            className="w-fit rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-black text-white transition active:scale-[0.98]"
+          >
+            {copy.backDashboard}
+          </Link>
+        </div>
+      </section>
 
-        {returnNotice === "refresh" ? (
-          <Notice
-            tone="warning"
-            title={copy.refreshTitle}
-            body={copy.refreshBody}
-          />
-        ) : null}
+      {returnNotice === "return" ? (
+        <Notice
+          tone="success"
+          title={copy.returnedTitle}
+          body={copy.returnedBody}
+        />
+      ) : null}
 
-        {error ? <Notice tone="error" title="Error" body={error} /> : null}
+      {returnNotice === "refresh" ? (
+        <Notice
+          tone="warning"
+          title={copy.refreshTitle}
+          body={copy.refreshBody}
+        />
+      ) : null}
 
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-xl font-black text-gray-900">
-                  {copy.connectTitle}
-                </h2>
-                <p className="mt-3 text-sm leading-7 text-gray-600">
-                  {copy.connectBody}
-                </p>
-              </div>
+      {error ? <Notice tone="error" title="Error" body={error} /> : null}
 
+      <section className="grid gap-4 md:grid-cols-4">
+        <MoneyCard
+          label={copy.monthRevenue}
+          value={formatMoney(
+            payoutSummary.thisMonthEarned,
+            payoutSummary.mainCurrency,
+            safeLocale
+          )}
+          helper={copy.completedOrders}
+          tone="dark"
+        />
+        <MoneyCard
+          label={copy.totalEarned}
+          value={formatMoney(
+            payoutSummary.totalEarned,
+            payoutSummary.mainCurrency,
+            safeLocale
+          )}
+          helper={`${payoutSummary.completedCount}${safeLocale === "ja" ? "件" : ""}`}
+        />
+        <MoneyCard
+          label={copy.totalTransferred}
+          value={formatMoney(
+            payoutSummary.totalTransferred,
+            payoutSummary.mainCurrency,
+            safeLocale
+          )}
+          tone="green"
+        />
+        <MoneyCard
+          label={copy.pendingAmount}
+          value={formatMoney(
+            payoutSummary.pendingAmount,
+            payoutSummary.mainCurrency,
+            safeLocale
+          )}
+          tone={payoutSummary.pendingAmount > 0 ? "warning" : "default"}
+        />
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-5">
+          <ActionRow
+            icon="🏦"
+            title={copy.connectTitle}
+            body={copy.connectBody}
+          >
+            <div className="flex flex-wrap gap-2">
               <StatusPill
                 active={isReady}
                 activeLabel={copy.completed}
                 inactiveLabel={copy.incomplete}
               />
+              <StatusPill
+                active={Boolean(status?.payouts_enabled)}
+                activeLabel={copy.enabled}
+                inactiveLabel={copy.disabled}
+              />
             </div>
 
-            <div className="mt-6 rounded-2xl border border-gray-100 p-4">
+            <div className="mt-4 grid gap-2">
+              <button
+                type="button"
+                onClick={handleStartOnboarding}
+                disabled={starting}
+                className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {starting
+                  ? copy.starting
+                  : hasAccount
+                  ? copy.continue
+                  : copy.start}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {refreshing ? copy.refreshing : copy.refresh}
+              </button>
+            </div>
+
+            {isReady && signupMode ? (
+              <Link
+                href="/creator/dashboard"
+                className="mt-3 flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+              >
+                {copy.setupCompleteDashboard}
+              </Link>
+            ) : null}
+          </ActionRow>
+
+          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-black text-slate-950">
+              {copy.historyTitle}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              {copy.historyBody}
+            </p>
+
+            {payoutOrders.length === 0 ? (
+              <div className="mt-5 rounded-[24px] bg-slate-50 p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-2xl shadow-sm">
+                  ¥
+                </div>
+                <h3 className="mt-4 text-lg font-black text-slate-950">
+                  {copy.historyEmptyTitle}
+                </h3>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  {copy.historyEmptyBody}
+                </p>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3">
+                {payoutOrders.map((order) => {
+                  const badge = getTransferBadgeMeta(
+                    order.transfer_status,
+                    safeLocale
+                  );
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-slate-950">
+                            {order.product_name || `${copy.order} ${shortId(order.id)}`}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-slate-400">
+                            {copy.completedAt}:{" "}
+                            {formatDateTime(
+                              order.completed_at || order.created_at,
+                              safeLocale
+                            )}
+                          </p>
+                        </div>
+                        <Badge tone={badge.tone}>{badge.label}</Badge>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                        <FieldRow
+                          label={copy.payoutAmount}
+                          value={formatMoney(
+                            order.creator_payout_amount,
+                            order.currency,
+                            safeLocale
+                          )}
+                        />
+                        <FieldRow
+                          label={copy.transferredAt}
+                          value={formatDateTime(order.transferred_at, safeLocale)}
+                        />
+                        <FieldRow
+                          label={copy.transferId}
+                          value={shortId(order.stripe_transfer_id)}
+                        />
+                        {order.transfer_failed_reason ? (
+                          <FieldRow
+                            label={copy.failedReason}
+                            value={order.transfer_failed_reason}
+                          />
+                        ) : null}
+                      </div>
+
+                      <Link
+                        href={`/creator/orders/${order.id}`}
+                        className="mt-4 flex w-full items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+                      >
+                        {copy.orderDetail}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <aside className="space-y-5">
+          {isReady ? (
+            <Notice
+              tone="success"
+              title={copy.statusReadyTitle}
+              body={copy.statusReadyBody}
+            />
+          ) : hasAccount ? (
+            <Notice
+              tone="warning"
+              title={copy.statusNotReadyTitle}
+              body={copy.statusNotReadyBody}
+            />
+          ) : (
+            <Notice
+              tone="info"
+              title={copy.noAccountTitle}
+              body={copy.noAccountBody}
+            />
+          )}
+
+          <Notice tone="info" title={copy.noteTitle} body={copy.noteBody} />
+
+          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-black text-slate-950">
+              {copy.connectTitle}
+            </h2>
+
+            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
               <FieldRow label={copy.accountId} value={accountIdLabel} />
               <FieldRow
                 label={copy.onboarding}
@@ -761,16 +1032,6 @@ export default function CreatorPayoutsPage() {
                     active={Boolean(status?.details_submitted)}
                     activeLabel={copy.completed}
                     inactiveLabel={copy.incomplete}
-                  />
-                }
-              />
-              <FieldRow
-                label={copy.chargesEnabled}
-                value={
-                  <StatusPill
-                    active={Boolean(status?.charges_enabled)}
-                    activeLabel={copy.enabled}
-                    inactiveLabel={copy.disabled}
                   />
                 }
               />
@@ -798,247 +1059,12 @@ export default function CreatorPayoutsPage() {
               />
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={handleStartOnboarding}
-                disabled={starting}
-                className="inline-flex items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {starting
-                  ? copy.starting
-                  : hasAccount
-                    ? copy.continue
-                    : copy.start}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="inline-flex items-center justify-center rounded-full border px-5 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {refreshing ? copy.refreshing : copy.refresh}
-              </button>
-            </div>
-
-            {isReady ? (
-              <Link
-                href="/creator/dashboard"
-                className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-green-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-green-700 sm:w-auto"
-              >
-                {safeLocale === "ja"
-                  ? "登録を完了してダッシュボードへ進む"
-                  : "Complete setup and go to dashboard"}
-              </Link>
-            ) : null}
+            <p className="mt-4 text-xs leading-6 text-slate-500">
+              {copy.accountManagedByStripe}
+            </p>
           </div>
-
-          <div className="flex flex-col gap-4">
-            {isReady ? (
-              <Notice
-                tone="success"
-                title={copy.statusReadyTitle}
-                body={copy.statusReadyBody}
-              />
-            ) : hasAccount ? (
-              <Notice
-                tone="warning"
-                title={copy.statusNotReadyTitle}
-                body={copy.statusNotReadyBody}
-              />
-            ) : (
-              <Notice
-                tone="info"
-                title={copy.noAccountTitle}
-                body={copy.noAccountBody}
-              />
-            )}
-
-            <Notice tone="info" title={copy.noteTitle} body={copy.noteBody} />
-
-            <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
-              <p className="text-sm font-bold text-gray-900">
-                {creator?.display_name || "Creator"}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-gray-600">
-                {safeLocale === "ja"
-                  ? "このページはクリエイター本人の報酬受け取り設定です。企業側には表示されません。"
-                  : "This page is for the creator's payout setup. It is not shown to companies."}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-white p-5 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-gray-400">
-                {copy.historyEyebrow}
-              </p>
-              <h2 className="mt-3 text-2xl font-black text-gray-900">
-                {copy.historyTitle}
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-                {copy.historyBody}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="inline-flex items-center justify-center rounded-full border px-5 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {refreshing ? copy.refreshing : copy.refresh}
-            </button>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SummaryCard
-              label={copy.totalEarned}
-              value={formatMoney(
-                payoutSummary.totalEarned,
-                payoutSummary.mainCurrency,
-                safeLocale
-              )}
-              helper={copy.completedOrders}
-            />
-            <SummaryCard
-              label={copy.totalTransferred}
-              value={formatMoney(
-                payoutSummary.totalTransferred,
-                payoutSummary.mainCurrency,
-                safeLocale
-              )}
-              helper={safeLocale === "ja" ? "送金完了済み" : "Transferred"}
-            />
-            <SummaryCard
-              label={copy.pendingAmount}
-              value={formatMoney(
-                payoutSummary.pendingAmount,
-                payoutSummary.mainCurrency,
-                safeLocale
-              )}
-              helper={safeLocale === "ja" ? "未送金・処理中" : "Pending"}
-            />
-            <SummaryCard
-              label={copy.completedOrders}
-              value={String(payoutSummary.completedCount)}
-              helper={safeLocale === "ja" ? "報酬対象の完了注文" : "Eligible completed orders"}
-            />
-          </div>
-
-          {payoutOrders.length === 0 ? (
-            <div className="mt-6 rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-              <p className="text-base font-black text-gray-900">
-                {copy.historyEmptyTitle}
-              </p>
-              <p className="mt-3 text-sm leading-7 text-gray-600">
-                {copy.historyEmptyBody}
-              </p>
-            </div>
-          ) : (
-            <div className="mt-6 flex flex-col gap-4">
-              {payoutOrders.map((order) => {
-                const badge = getTransferBadgeMeta(
-                  order.transfer_status,
-                  safeLocale
-                );
-
-                return (
-                  <article
-                    key={order.id}
-                    className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge tone={badge.tone}>{badge.label}</Badge>
-                          <Badge tone="purple">
-                            {formatMoney(
-                              order.creator_payout_amount,
-                              order.currency,
-                              safeLocale
-                            )}
-                          </Badge>
-                        </div>
-
-                        <h3 className="mt-3 break-words text-lg font-black text-gray-900">
-                          {order.product_name ||
-                            (safeLocale === "ja" ? "注文" : "Order")}
-                        </h3>
-
-                        <p className="mt-1 break-all text-xs text-gray-400">
-                          {copy.order}: {shortId(order.id)}
-                        </p>
-                      </div>
-
-                      <Link
-                        href={`/creator/orders/${order.id}`}
-                        className="inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50"
-                      >
-                        {copy.orderDetail}
-                      </Link>
-                    </div>
-
-                    <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-2xl bg-gray-50 p-4">
-                        <p className="text-xs font-bold text-gray-400">
-                          {copy.payoutAmount}
-                        </p>
-                        <p className="mt-2 font-black text-gray-900">
-                          {formatMoney(
-                            order.creator_payout_amount,
-                            order.currency,
-                            safeLocale
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-gray-50 p-4">
-                        <p className="text-xs font-bold text-gray-400">
-                          {copy.completedAt}
-                        </p>
-                        <p className="mt-2 font-semibold text-gray-900">
-                          {formatDateTime(order.completed_at, safeLocale)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-gray-50 p-4">
-                        <p className="text-xs font-bold text-gray-400">
-                          {copy.transferredAt}
-                        </p>
-                        <p className="mt-2 font-semibold text-gray-900">
-                          {formatDateTime(order.transferred_at, safeLocale)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-gray-50 p-4">
-                        <p className="text-xs font-bold text-gray-400">
-                          {copy.transferId}
-                        </p>
-                        <p className="mt-2 break-all font-semibold text-gray-900">
-                          {shortId(order.stripe_transfer_id)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {order.transfer_failed_reason ? (
-                      <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-900">
-                        <p className="font-bold">{copy.failedReason}</p>
-                        <p className="mt-2 break-words leading-6">
-                          {order.transfer_failed_reason}
-                        </p>
-                      </div>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
+        </aside>
+      </section>
+    </div>
   );
 }
