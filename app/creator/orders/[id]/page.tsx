@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import ChatEmbed from "@/app/components/ChatEmbed";
+import DeadlineBadge from "@/app/components/DeadlineBadge";
 
 type OrderDetail = {
   id: string;
@@ -16,24 +17,24 @@ type OrderDetail = {
   created_at: string;
   updated_at: string | null;
 
-  product_name: string;
+  product_name: string | null;
   product_url: string | null;
-  requirements: string;
+  requirements: string | null;
   deadline: string | null;
-  has_free_offer: boolean;
-  wants_secondary_use: boolean;
+  has_free_offer: boolean | null;
+  wants_secondary_use: boolean | null;
 
-  menu_title_snapshot: string;
+  menu_title_snapshot: string | null;
   menu_description_snapshot: string | null;
   menu_platform_snapshot: string | null;
   menu_type_snapshot: string | null;
   menu_category_snapshot: string | null;
   menu_deliverables_snapshot: string | null;
   menu_delivery_days_snapshot: number | null;
-  menu_allow_secondary_use_snapshot: boolean;
+  menu_allow_secondary_use_snapshot: boolean | null;
 
-  currency: string;
-  menu_price_amount: number;
+  currency: string | null;
+  menu_price_amount: number | null;
   creator_transaction_fee_rate_bps: number | null;
   creator_transaction_fee_amount: number | null;
   creator_payout_amount: number | null;
@@ -67,28 +68,28 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
 }
 
 function formatPrice(
-  value: number | null,
+  value: number | null | undefined,
   currency: string | null | undefined,
   locale: "ja" | "en"
 ) {
@@ -105,24 +106,27 @@ function formatPrice(
       maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
     }).format(value);
   } catch {
-    if (safeCurrency === "USD") {
-      return `$${value.toLocaleString()}`;
-    }
-
+    if (safeCurrency === "USD") return `$${value.toLocaleString()}`;
     return `¥${value.toLocaleString()}`;
   }
 }
 
-function formatBps(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "-";
-  }
+function formatNegativePrice(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+  locale: "ja" | "en"
+) {
+  if (value == null) return locale === "ja" ? "未設定" : "Not set";
+  return `-${formatPrice(value, currency, locale)}`;
+}
 
+function formatBps(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   return `${value / 100}%`;
 }
 
 function formatDeliveryDays(
-  value: number | null,
+  value: number | null | undefined,
   locale: "ja" | "en",
   fallback: string
 ) {
@@ -131,7 +135,7 @@ function formatDeliveryDays(
 }
 
 function menuTypeLabel(
-  value: string | null,
+  value: string | null | undefined,
   locale: "ja" | "en",
   fallback: string
 ) {
@@ -148,28 +152,40 @@ function menuTypeLabel(
   return labels[value || ""]?.[locale] || fallback;
 }
 
+function getPlatformIcon(value: string | null | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  if (normalized.includes("instagram")) return "◎";
+  if (normalized.includes("tiktok")) return "♪";
+  if (normalized.includes("youtube")) return "▶";
+  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
+  if (normalized.includes("ugc")) return "▣";
+
+  return "●";
+}
+
 function statusLabel(status: string, locale: "ja" | "en") {
   const ja: Record<string, string> = {
     checkout_pending: "Checkout未完了",
     authorized_pending_creator: "承認待ち",
-    accepted_captured: "承認済み・決済確定",
-    declined_canceled: "辞退済み・請求取消",
-    expired_canceled: "期限切れ・請求取消",
+    accepted_captured: "進行中",
+    declined_canceled: "辞退済み",
+    expired_canceled: "期限切れ",
     capture_failed: "決済確定失敗",
     cancel_failed: "取消失敗",
     in_progress: "進行中",
     delivered: "納品済み",
     revision_requested: "修正依頼中",
     completed: "完了",
-    disputed: "異議・確認中",
+    disputed: "確認中",
   };
 
   const en: Record<string, string> = {
     checkout_pending: "Checkout pending",
     authorized_pending_creator: "Pending approval",
-    accepted_captured: "Accepted / Captured",
-    declined_canceled: "Declined / Canceled",
-    expired_canceled: "Expired / Canceled",
+    accepted_captured: "Active",
+    declined_canceled: "Declined",
+    expired_canceled: "Expired",
     capture_failed: "Capture failed",
     cancel_failed: "Cancel failed",
     in_progress: "In progress",
@@ -180,6 +196,38 @@ function statusLabel(status: string, locale: "ja" | "en") {
   };
 
   return locale === "ja" ? ja[status] ?? status : en[status] ?? status;
+}
+
+function statusClass(status: string) {
+  if (status === "authorized_pending_creator") {
+    return "bg-amber-100 text-amber-800 ring-amber-200";
+  }
+
+  if (status === "accepted_captured" || status === "in_progress") {
+    return "bg-blue-100 text-blue-700 ring-blue-200";
+  }
+
+  if (status === "delivered") {
+    return "bg-purple-100 text-purple-700 ring-purple-200";
+  }
+
+  if (status === "revision_requested") {
+    return "bg-amber-100 text-amber-800 ring-amber-200";
+  }
+
+  if (status === "completed") {
+    return "bg-emerald-100 text-emerald-700 ring-emerald-200";
+  }
+
+  if (status === "declined_canceled" || status === "expired_canceled") {
+    return "bg-slate-100 text-slate-700 ring-slate-200";
+  }
+
+  if (status === "capture_failed" || status === "cancel_failed") {
+    return "bg-rose-100 text-rose-700 ring-rose-200";
+  }
+
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function completedReasonLabel(value: string | null, locale: "ja" | "en") {
@@ -222,56 +270,24 @@ function transferStatusLabel(value: string | null, locale: "ja" | "en") {
     : en[normalized] ?? normalized;
 }
 
-function statusClass(status: string) {
-  if (status === "authorized_pending_creator") {
-    return "bg-blue-50 text-blue-700 ring-blue-200";
-  }
-
-  if (status === "accepted_captured" || status === "in_progress") {
-    return "bg-green-50 text-green-700 ring-green-200";
-  }
-
-  if (status === "delivered") {
-    return "bg-indigo-50 text-indigo-700 ring-indigo-200";
-  }
-
-  if (status === "revision_requested") {
-    return "bg-amber-50 text-amber-700 ring-amber-200";
-  }
-
-  if (status === "completed") {
-    return "bg-gray-50 text-gray-700 ring-gray-200";
-  }
-
-  if (status === "declined_canceled" || status === "expired_canceled") {
-    return "bg-gray-50 text-gray-700 ring-gray-200";
-  }
-
-  if (status === "capture_failed" || status === "cancel_failed") {
-    return "bg-red-50 text-red-700 ring-red-200";
-  }
-
-  return "bg-gray-50 text-gray-700 ring-gray-200";
-}
-
 function transferStatusClass(status: string | null) {
   if (status === "transferred") {
-    return "bg-green-50 text-green-700 ring-green-200";
+    return "bg-emerald-100 text-emerald-700 ring-emerald-200";
   }
 
   if (status === "pending") {
-    return "bg-blue-50 text-blue-700 ring-blue-200";
+    return "bg-blue-100 text-blue-700 ring-blue-200";
   }
 
   if (status === "failed") {
-    return "bg-red-50 text-red-700 ring-red-200";
+    return "bg-rose-100 text-rose-700 ring-rose-200";
   }
 
   if (status === "skipped") {
-    return "bg-amber-50 text-amber-700 ring-amber-200";
+    return "bg-amber-100 text-amber-800 ring-amber-200";
   }
 
-  return "bg-gray-50 text-gray-700 ring-gray-200";
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function shortId(value: string | null | undefined) {
@@ -280,23 +296,133 @@ function shortId(value: string | null | undefined) {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
-function Field({
+function Pill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function DetailRow({
   label,
   value,
+  strong,
+  danger,
 }: {
   label: string;
   value: React.ReactNode;
+  strong?: boolean;
+  danger?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-gray-50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
         {label}
-      </p>
-      <div className="mt-2 whitespace-pre-line text-sm font-semibold text-gray-900">
-        {value ?? "-"}
-      </div>
+      </span>
+      <span
+        className={`max-w-[62%] text-right text-sm ${
+          strong
+            ? "font-black text-emerald-700"
+            : danger
+            ? "font-black text-rose-600"
+            : "font-bold text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
+}
+
+function SectionCard({
+  title,
+  body,
+  children,
+}: {
+  title: string;
+  body?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm">
+      <h2 className="text-xl font-black text-slate-950">{title}</h2>
+      {body ? <p className="mt-2 text-sm leading-6 text-slate-500">{body}</p> : null}
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function TextBlock({
+  label,
+  value,
+  emptyLabel,
+}: {
+  label: string;
+  value: string | null | undefined;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="rounded-[22px] bg-slate-50 p-4">
+      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">
+        {value?.trim() || emptyLabel}
+      </p>
+    </div>
+  );
+}
+
+function ActionNotice({
+  tone,
+  title,
+  body,
+}: {
+  tone: "dark" | "amber" | "blue" | "purple" | "green" | "gray";
+  title: string;
+  body: string;
+}) {
+  const styles = {
+    dark: "bg-slate-950 text-white",
+    amber: "bg-amber-50 text-amber-900 border border-amber-200",
+    blue: "bg-blue-50 text-blue-900 border border-blue-200",
+    purple: "bg-purple-50 text-purple-900 border border-purple-200",
+    green: "bg-emerald-50 text-emerald-900 border border-emerald-200",
+    gray: "bg-slate-50 text-slate-800 border border-slate-200",
+  };
+
+  return (
+    <div className={`rounded-[28px] p-5 ${styles[tone]}`}>
+      <p className="text-lg font-black">{title}</p>
+      <p
+        className={`mt-2 text-sm leading-7 ${
+          tone === "dark" ? "text-white/70" : ""
+        }`}
+      >
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function getMainActionTone(status: string) {
+  if (status === "authorized_pending_creator") return "dark" as const;
+  if (status === "revision_requested") return "amber" as const;
+  if (status === "delivered") return "purple" as const;
+  if (status === "completed") return "green" as const;
+  if (status === "accepted_captured" || status === "in_progress") {
+    return "blue" as const;
+  }
+  return "gray" as const;
 }
 
 export default function CreatorOrderDetailPage() {
@@ -313,26 +439,33 @@ export default function CreatorOrderDetailPage() {
         ? {
             loading: "読み込み中...",
             notFound: "注文が見つかりませんでした。",
-            title: "注文詳細",
+            title: "案件詳細",
             subtitle:
-              "企業から届いた注文内容を確認し、承認・納品・修正対応を行えます。",
-            back: "承認待ち一覧へ戻る",
+              "注文内容を確認し、承認・納品・修正対応を行います。",
+            back: "承認待ちへ戻る",
             backJobs: "進行中案件へ戻る",
             orderStatus: "注文ステータス",
             paymentStatus: "支払い状態",
             stripeStatus: "Stripe状態",
+            nextAction: "次にやること",
+            paymentAuthorizedTitle: "承認待ちの注文です",
             paymentAuthorized:
-              "支払い方法は確認済みです。承認すると決済が確定します。",
+              "支払い方法は確認済みです。承認すると決済が確定し、案件が開始されます。",
+            acceptedTitle: "納品を進めましょう",
             acceptedNotice:
-              "この注文は承認済みです。決済は確定しています。納品URLを提出してください。投稿前確認が必要な場合はチャットでやり取りしてください。",
+              "この注文は承認済みです。制作・投稿が完了したら、納品URLを提出してください。",
+            deliveredTitle: "企業の確認待ちです",
             deliveredNotice:
-              "納品URLを提出済みです。企業側の確認・完了待ちです。提出後72時間経過すると自動完了予定です。",
+              "納品URLを提出済みです。企業が承認するか、提出後72時間経過すると自動完了予定です。",
+            revisionRequestedTitle: "修正対応が必要です",
             revisionRequestedNotice:
               "企業から修正依頼が届いています。元の注文要件に沿う範囲で修正し、再度納品URLを提出してください。",
+            completedTitle: "この注文は完了しています",
             completedNotice:
-              "この注文は完了しています。完了後は原則として修正依頼・返金はできません。",
+              "完了後は原則として修正依頼・返金はできません。報酬・送金状態を確認できます。",
+            declinedTitle: "この注文は終了しています",
             declinedNotice:
-              "この注文は辞退済みです。請求は確定していません。",
+              "この注文は辞退または期限切れです。請求は確定していません。",
             productInfo: "商品・案件情報",
             productName: "商品名・案件名",
             productUrl: "商品URL",
@@ -341,7 +474,7 @@ export default function CreatorOrderDetailPage() {
             secondaryUse: "二次利用希望",
             yes: "あり",
             no: "なし",
-            requirements: "注文内容・requirements",
+            requirements: "注文内容・要件",
             menuInfo: "注文されたメニュー",
             menuTitle: "メニュー名",
             platform: "SNS",
@@ -369,12 +502,12 @@ export default function CreatorOrderDetailPage() {
             revisionCount: "修正依頼回数",
             autoCompleteAt: "自動完了予定日時",
             completedReason: "完了理由",
-            payoutInfo: "報酬・送金情報",
+            payoutInfo: "報酬・送金",
             payoutInfoBody:
-              "Trendre transaction feeを差し引いた受取予定額と、Stripe Connectによる送金状態を確認できます。",
+              "Trendre手数料を差し引いた受取予定額と、Stripe Connectによる送金状態を確認できます。",
             menuPrice: "メニュー価格",
             creatorTransactionFeeRate: "C側手数料率",
-            creatorTransactionFee: "Trendre transaction fee",
+            creatorTransactionFee: "Trendre手数料",
             creatorPayout: "受取予定額",
             transferStatus: "送金状態",
             transferredAt: "送金日時",
@@ -390,7 +523,7 @@ export default function CreatorOrderDetailPage() {
               "注文が完了すると、受取予定額と送金状態が確定します。",
             revisionInfoTitle: "修正依頼内容",
             revisionInfoBody:
-              "企業から届いた修正依頼です。元の注文要件に沿う範囲で対応してください。追加作業や別パターン作成はチャットで相談してください。",
+              "企業から届いた修正依頼です。元の注文要件に沿う範囲で対応してください。",
             deliveryTitle: "納品URLを提出",
             redeliveryTitle: "修正版の納品URLを提出",
             deliveryBody:
@@ -425,26 +558,33 @@ export default function CreatorOrderDetailPage() {
         : {
             loading: "Loading...",
             notFound: "Order was not found.",
-            title: "Order Details",
+            title: "Job Details",
             subtitle:
               "Review this order, accept or decline it, deliver work, and handle revision requests.",
-            back: "Back to Pending List",
-            backJobs: "Back to Active Jobs",
+            back: "Back to Pending",
+            backJobs: "Back to Jobs",
             orderStatus: "Order Status",
             paymentStatus: "Payment Status",
             stripeStatus: "Stripe Status",
+            nextAction: "Next action",
+            paymentAuthorizedTitle: "This order is waiting for approval",
             paymentAuthorized:
               "The payment method has been authorized. Accepting this order will capture the payment.",
+            acceptedTitle: "Prepare your delivery",
             acceptedNotice:
-              "This order has been accepted and captured. Please submit your delivery URL. Use chat for optional pre-posting review.",
+              "This order has been accepted and captured. Submit your delivery URL when the work is ready.",
+            deliveredTitle: "Waiting for buyer review",
             deliveredNotice:
-              "Delivery URL has been submitted. Waiting for the company to review and complete. It is scheduled to auto-complete 72 hours after delivery.",
+              "Delivery URL has been submitted. It will be auto-completed 72 hours after delivery if the buyer takes no action.",
+            revisionRequestedTitle: "Revision requested",
             revisionRequestedNotice:
               "The company requested a revision. Please revise within the original order requirements and resubmit a delivery URL.",
+            completedTitle: "This order is completed",
             completedNotice:
               "This order has been completed. Revisions and refunds are generally unavailable after completion.",
+            declinedTitle: "This order is closed",
             declinedNotice:
-              "This order has been declined. The charge was not finalized.",
+              "This order has been declined or expired. The charge was not finalized.",
             productInfo: "Product / Campaign",
             productName: "Product / Campaign Name",
             productUrl: "Product URL",
@@ -486,7 +626,7 @@ export default function CreatorOrderDetailPage() {
               "Review your estimated payout after the Trendre transaction fee and the Stripe Connect transfer status.",
             menuPrice: "Menu Price",
             creatorTransactionFeeRate: "Creator Fee Rate",
-            creatorTransactionFee: "Trendre transaction fee",
+            creatorTransactionFee: "Trendre fee",
             creatorPayout: "Estimated Payout",
             transferStatus: "Transfer Status",
             transferredAt: "Transferred At",
@@ -748,51 +888,51 @@ export default function CreatorOrderDetailPage() {
   };
 
   if (loading) {
-    return <div className="p-6">{copy.loading}</div>;
-  }
-
-  if (!order) {
     return (
-      <div className="mx-auto max-w-4xl p-4 md:p-6">
-        <div className="rounded-3xl border bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-600">{copy.notFound}</p>
-          <Link
-            href="/creator/requests"
-            className="mt-4 inline-flex text-sm font-semibold text-blue-600 hover:underline"
-          >
-            {copy.back}
-          </Link>
-        </div>
+      <div className="space-y-5">
+        <div className="h-36 animate-pulse rounded-[32px] bg-slate-100" />
+        <div className="h-64 animate-pulse rounded-[28px] bg-slate-100" />
       </div>
     );
   }
 
-     const storedCreatorTransactionFeeRateBps =
+  if (!order) {
+    return (
+      <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold text-slate-600">{copy.notFound}</p>
+        <Link
+          href="/creator/requests"
+          className="mt-4 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white"
+        >
+          {copy.back}
+        </Link>
+      </div>
+    );
+  }
+
+  const storedCreatorTransactionFeeRateBps =
     order.creator_transaction_fee_rate_bps ?? 1500;
 
+  const menuPriceAmount = Number(order.menu_price_amount ?? 0);
+
   const fallbackCreatorTransactionFeeAmount = Math.floor(
-    (order.menu_price_amount * storedCreatorTransactionFeeRateBps) / 10000
+    (menuPriceAmount * storedCreatorTransactionFeeRateBps) / 10000
   );
 
   const creatorPayoutAmount =
     order.creator_payout_amount != null
       ? order.creator_payout_amount
-      : Math.max(
-          0,
-          order.menu_price_amount - fallbackCreatorTransactionFeeAmount
-        );
+      : Math.max(0, menuPriceAmount - fallbackCreatorTransactionFeeAmount);
 
   const creatorTransactionFeeAmount =
     order.creator_transaction_fee_amount != null &&
     order.creator_transaction_fee_amount > 0
       ? order.creator_transaction_fee_amount
-      : Math.max(0, order.menu_price_amount - creatorPayoutAmount);
+      : Math.max(0, menuPriceAmount - creatorPayoutAmount);
 
   const effectiveCreatorTransactionFeeRateBps =
-    order.menu_price_amount > 0
-      ? Math.round(
-          (creatorTransactionFeeAmount / order.menu_price_amount) * 10000
-        )
+    menuPriceAmount > 0
+      ? Math.round((creatorTransactionFeeAmount / menuPriceAmount) * 10000)
       : storedCreatorTransactionFeeRateBps;
 
   const displayCreatorTransactionFeeRateBps =
@@ -800,6 +940,7 @@ export default function CreatorOrderDetailPage() {
     order.creator_transaction_fee_amount > 0
       ? storedCreatorTransactionFeeRateBps
       : effectiveCreatorTransactionFeeRateBps;
+
   const canAct =
     order.status === "authorized_pending_creator" &&
     order.payment_status === "authorized";
@@ -819,210 +960,256 @@ export default function CreatorOrderDetailPage() {
   const payoutNoticeBody = !isCompleted
     ? copy.payoutNotCompletedBody
     : isTransferred
-      ? copy.payoutTransferredBody
-      : copy.payoutPendingBody;
+    ? copy.payoutTransferredBody
+    : copy.payoutPendingBody;
+
+  const actionTone = getMainActionTone(order.status);
+
+  const mainActionTitle =
+    order.status === "authorized_pending_creator"
+      ? copy.paymentAuthorizedTitle
+      : order.status === "revision_requested"
+      ? copy.revisionRequestedTitle
+      : order.status === "delivered"
+      ? copy.deliveredTitle
+      : order.status === "completed"
+      ? copy.completedTitle
+      : order.status === "accepted_captured" || order.status === "in_progress"
+      ? copy.acceptedTitle
+      : copy.declinedTitle;
+
+  const mainActionBody =
+    order.status === "authorized_pending_creator"
+      ? copy.paymentAuthorized
+      : order.status === "revision_requested"
+      ? copy.revisionRequestedNotice
+      : order.status === "delivered"
+      ? copy.deliveredNotice
+      : order.status === "completed"
+      ? copy.completedNotice
+      : order.status === "accepted_captured" || order.status === "in_progress"
+      ? copy.acceptedNotice
+      : copy.declinedNotice;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/creator/requests"
-            className="text-sm font-semibold text-blue-600 hover:underline"
-          >
-            ← {copy.back}
-          </Link>
+    <div className="space-y-6 pb-4">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+          Creator Order
+        </p>
 
-          <Link
-            href="/creator/jobs"
-            className="text-sm font-semibold text-blue-600 hover:underline"
-          >
-            {copy.backJobs}
-          </Link>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-semibold text-green-600">
-              Trendre Orders
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">
-              {copy.title}
+            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
+              {order.product_name || copy.title}
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
               {copy.subtitle}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${statusClass(
-                order.status
-              )}`}
-            >
-              {statusLabel(order.status, safeLocale)}
-            </span>
+          <Link
+            href={
+              order.status === "authorized_pending_creator"
+                ? "/creator/requests"
+                : "/creator/jobs"
+            }
+            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+          >
+            {order.status === "authorized_pending_creator"
+              ? copy.back
+              : copy.backJobs}
+          </Link>
+        </div>
 
-            <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-200">
-              {order.payment_status}
-            </span>
-
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${transferStatusClass(
-                order.transfer_status
-              )}`}
-            >
-              {transferStatusLabel(order.transfer_status, safeLocale)}
-            </span>
-          </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Pill className={statusClass(order.status)}>
+            {statusLabel(order.status, safeLocale)}
+          </Pill>
+          <Pill className="bg-white/10 text-white ring-white/10">
+            {copy.paymentStatus}: {order.payment_status}
+          </Pill>
+          {order.stripe_payment_status ? (
+            <Pill className="bg-white/10 text-white ring-white/10">
+              {copy.stripeStatus}: {order.stripe_payment_status}
+            </Pill>
+          ) : null}
         </div>
       </section>
 
-      {order.status === "authorized_pending_creator" ? (
-        <section className="rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm leading-7 text-blue-800">
-          {copy.paymentAuthorized}
-        </section>
-      ) : null}
-
-      {order.status === "accepted_captured" || order.status === "in_progress" ? (
-        <section className="rounded-3xl border border-green-200 bg-green-50 p-5 text-sm leading-7 text-green-800">
-          {copy.acceptedNotice}
-        </section>
-      ) : null}
-
-      {order.status === "delivered" ? (
-        <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-sm leading-7 text-indigo-800">
-          {copy.deliveredNotice}
-        </section>
-      ) : null}
-
-      {isRevisionRequested ? (
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-800">
-          {copy.revisionRequestedNotice}
-        </section>
-      ) : null}
-
-      {order.status === "completed" ? (
-        <section className="rounded-3xl border bg-gray-50 p-5 text-sm leading-7 text-gray-700">
-          {copy.completedNotice}
-        </section>
-      ) : null}
-
-      {order.status === "declined_canceled" ? (
-        <section className="rounded-3xl border bg-gray-50 p-5 text-sm leading-7 text-gray-700">
-          {copy.declinedNotice}
-        </section>
-      ) : null}
-
       {error ? (
-        <section className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm leading-7 text-red-700">
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
           {error}
+        </div>
+      ) : null}
+
+      <ActionNotice tone={actionTone} title={mainActionTitle} body={mainActionBody} />
+
+      {canAct ? (
+        <section className="grid gap-3 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => void runAction("accept")}
+            disabled={actionLoading !== null}
+            className="rounded-[24px] bg-slate-950 px-5 py-4 text-base font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {actionLoading === "accept" ? copy.accepting : copy.accept}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void runAction("decline")}
+            disabled={actionLoading !== null}
+            className="rounded-[24px] border border-rose-200 bg-white px-5 py-4 text-base font-black text-rose-600 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {actionLoading === "decline" ? copy.declining : copy.decline}
+          </button>
         </section>
       ) : null}
 
-      {order.revision_note ? (
-        <section className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-amber-900">
-            {copy.revisionInfoTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-amber-800">
-            {copy.revisionInfoBody}
-          </p>
-          <div className="mt-5 rounded-2xl bg-amber-50 p-4">
-            <p className="whitespace-pre-line text-sm leading-7 text-amber-900">
-              {order.revision_note}
-            </p>
+      {isRevisionRequested && order.revision_note ? (
+        <SectionCard title={copy.revisionInfoTitle} body={copy.revisionInfoBody}>
+          <TextBlock
+            label={copy.revisionInfoTitle}
+            value={order.revision_note}
+            emptyLabel={copy.notSet}
+          />
+          <div className="mt-4 rounded-[22px] bg-slate-50 p-4">
+            <DetailRow
+              label={copy.revisionRequestedAt}
+              value={formatDateTime(order.revision_requested_at, safeLocale)}
+            />
+            <DetailRow
+              label={copy.revisionCount}
+              value={`${order.revision_count ?? 0}/${order.max_revision_count ?? 1}`}
+            />
           </div>
-        </section>
+        </SectionCard>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
-        <div className="space-y-6">
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.productInfo}</h2>
+      {canDeliver ? (
+        <SectionCard
+          title={isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
+          body={isRevisionRequested ? copy.redeliveryBody : copy.deliveryBody}
+        >
+          <input
+            type="url"
+            value={deliveryUrl}
+            onChange={(e) => setDeliveryUrl(e.target.value)}
+            placeholder={copy.deliveredPostUrlPlaceholder}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-4 text-sm outline-none transition focus:border-slate-950"
+          />
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label={copy.productName} value={order.product_name} />
+          {order.delivered_post_url ? (
+            <a
+              href={order.delivered_post_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 underline-offset-4 hover:underline"
+            >
+              {copy.openDeliveredUrl}
+            </a>
+          ) : null}
 
-              <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {copy.productUrl}
-                </p>
-                {order.product_url ? (
-                  <a
-                    href={order.product_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 block break-all text-sm font-semibold text-blue-600 hover:underline"
-                  >
-                    {order.product_url}
-                  </a>
-                ) : (
-                  <p className="mt-2 text-sm font-semibold text-gray-900">-</p>
-                )}
-              </div>
+          <button
+            type="button"
+            onClick={() => void runDeliver()}
+            disabled={actionLoading !== null}
+            className="mt-5 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {actionLoading === "deliver"
+              ? copy.delivering
+              : isRevisionRequested
+              ? copy.redeliver
+              : order.delivered_post_url
+              ? copy.updateDelivery
+              : copy.deliver}
+          </button>
+        </SectionCard>
+      ) : null}
 
-              <Field
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <main className="space-y-6">
+          <SectionCard title={copy.productInfo}>
+            <div className="grid gap-3">
+              <DetailRow
+                label={copy.productName}
+                value={order.product_name || copy.notSet}
+                strong
+              />
+              <DetailRow
+                label={copy.productUrl}
+                value={
+                  order.product_url ? (
+                    <a
+                      href={order.product_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 underline underline-offset-4"
+                    >
+                      {order.product_url}
+                    </a>
+                  ) : (
+                    copy.notSet
+                  )
+                }
+              />
+              <DetailRow
                 label={copy.deadline}
                 value={formatDate(order.deadline, safeLocale)}
               />
-
-              <Field
+              <DetailRow
                 label={copy.freeOffer}
                 value={order.has_free_offer ? copy.yes : copy.no}
               />
-
-              <Field
+              <DetailRow
                 label={copy.secondaryUse}
                 value={order.wants_secondary_use ? copy.yes : copy.no}
               />
             </div>
 
-            <div className="mt-5 rounded-2xl border bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {copy.requirements}
-              </p>
-              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-700">
-                {order.requirements}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.menuInfo}</h2>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label={copy.menuTitle} value={order.menu_title_snapshot} />
-
-              <Field
-                label={copy.platform}
-                value={order.menu_platform_snapshot ?? copy.notSet}
+            <div className="mt-4">
+              <TextBlock
+                label={copy.requirements}
+                value={order.requirements}
+                emptyLabel={copy.notSet}
               />
+            </div>
+          </SectionCard>
 
-              <Field
-                label={copy.menuType}
-                value={menuTypeLabel(
+          <SectionCard title={copy.menuInfo}>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {order.menu_platform_snapshot ? (
+                <Pill className="bg-slate-950 text-white ring-slate-950">
+                  <span className="mr-1">
+                    {getPlatformIcon(order.menu_platform_snapshot)}
+                  </span>
+                  {order.menu_platform_snapshot}
+                </Pill>
+              ) : null}
+
+              <Pill className="bg-slate-100 text-slate-700 ring-slate-200">
+                {menuTypeLabel(
                   order.menu_type_snapshot,
                   safeLocale,
-                  copy.notSet
+                  order.menu_category_snapshot || copy.notSet
                 )}
-              />
+              </Pill>
 
-              <Field
-                label={copy.category}
-                value={order.menu_category_snapshot ?? copy.notSet}
-              />
+              {order.menu_category_snapshot ? (
+                <Pill className="bg-purple-100 text-purple-700 ring-purple-200">
+                  {order.menu_category_snapshot}
+                </Pill>
+              ) : null}
+            </div>
 
-              <Field
-                label={copy.price}
-                value={formatPrice(
-                  order.menu_price_amount,
-                  order.currency,
-                  safeLocale
-                )}
+            <div className="rounded-[22px] bg-slate-50 p-4">
+              <DetailRow
+                label={copy.menuTitle}
+                value={order.menu_title_snapshot || copy.notSet}
+                strong
               />
-
-              <Field
+              <DetailRow
                 label={copy.deliveryDays}
                 value={formatDeliveryDays(
                   order.menu_delivery_days_snapshot,
@@ -1030,8 +1217,7 @@ export default function CreatorOrderDetailPage() {
                   copy.notSet
                 )}
               />
-
-              <Field
+              <DetailRow
                 label={copy.secondaryUseAllowed}
                 value={
                   order.menu_allow_secondary_use_snapshot
@@ -1041,296 +1227,164 @@ export default function CreatorOrderDetailPage() {
               />
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {copy.deliverables}
-                </p>
-                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-700">
-                  {order.menu_deliverables_snapshot || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {copy.menuDescription}
-                </p>
-                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-700">
-                  {order.menu_description_snapshot || "-"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <aside className="space-y-6">
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.lifecycle}</h2>
-
-            <div className="mt-5 space-y-3">
-              <Field
-                label={copy.orderStatus}
-                value={statusLabel(order.status, safeLocale)}
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <TextBlock
+                label={copy.menuDescription}
+                value={order.menu_description_snapshot}
+                emptyLabel={copy.notSet}
               />
-
-              <Field label={copy.paymentStatus} value={order.payment_status} />
-
-              <Field
-                label={copy.stripeStatus}
-                value={order.stripe_payment_status ?? "-"}
-              />
-
-              <Field
-                label={copy.createdAt}
-                value={formatDateTime(order.created_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.updatedAt}
-                value={formatDateTime(order.updated_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.authorizedAt}
-                value={formatDateTime(order.authorized_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.creatorDeadline}
-                value={formatDateTime(
-                  order.creator_accept_deadline,
-                  safeLocale
-                )}
-              />
-
-              <Field
-                label={copy.acceptedAt}
-                value={formatDateTime(order.accepted_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.declinedAt}
-                value={formatDateTime(order.declined_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.capturedAt}
-                value={formatDateTime(order.captured_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.canceledAt}
-                value={formatDateTime(order.canceled_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.deliveredAt}
-                value={formatDateTime(order.delivered_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.revisionRequestedAt}
-                value={formatDateTime(order.revision_requested_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.revisionCount}
-                value={`${order.revision_count ?? 0} / ${
-                  order.max_revision_count ?? 1
-                }`}
-              />
-
-              <Field
-                label={copy.autoCompleteAt}
-                value={formatDateTime(order.auto_complete_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.completedAt}
-                value={formatDateTime(order.completed_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.completedReason}
-                value={completedReasonLabel(
-                  order.completed_reason,
-                  safeLocale
-                )}
+              <TextBlock
+                label={copy.deliverables}
+                value={order.menu_deliverables_snapshot}
+                emptyLabel={copy.notSet}
               />
             </div>
-          </div>
+          </SectionCard>
 
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.payoutInfo}</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              {copy.payoutInfoBody}
-            </p>
-
-            <div className="mt-5 rounded-2xl border bg-gray-50 p-4 text-sm leading-6 text-gray-700">
-              {payoutNoticeBody}
-            </div>
-
-            <div className="mt-5 space-y-3">
-              <Field
-                label={copy.menuPrice}
-                value={formatPrice(
-                  order.menu_price_amount,
-                  order.currency,
-                  safeLocale
-                )}
-              />
-              <Field
-                label={copy.creatorTransactionFeeRate}
-                value={formatBps(displayCreatorTransactionFeeRateBps)}
-              />
-
-              <Field
-                label={copy.creatorTransactionFee}
-                value={`-${formatPrice(
-                  creatorTransactionFeeAmount,
-                  order.currency,
-                  safeLocale
-                )}`}
-              />
-
-              <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                  {copy.creatorPayout}
-                </p>
-                <p className="mt-2 text-2xl font-bold text-green-900">
-                  {formatPrice(creatorPayoutAmount, order.currency, safeLocale)}
-                </p>
-              </div>
-
-              <Field
-                label={copy.transferStatus}
-                value={
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${transferStatusClass(
-                      order.transfer_status
-                    )}`}
-                  >
-                    {transferStatusLabel(order.transfer_status, safeLocale)}
-                  </span>
-                }
-              />
-
-              <Field
-                label={copy.transferredAt}
-                value={formatDateTime(order.transferred_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.transferAttemptedAt}
-                value={formatDateTime(order.transfer_attempted_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.transferId}
-                value={shortId(order.stripe_transfer_id)}
-              />
-
-              {order.transfer_failed_reason ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
-                    {copy.transferFailedReason}
-                  </p>
-                  <p className="mt-2 whitespace-pre-line break-words text-sm font-semibold text-red-900">
-                    {order.transfer_failed_reason}
-                  </p>
-                </div>
-              ) : null}
-
-              <Link
-                href="/creator/payouts"
-                className="inline-flex w-full items-center justify-center rounded-2xl border px-5 py-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                {copy.payoutHistory}
-              </Link>
-            </div>
-          </div>
-
-          {canAct ? (
-            <div className="rounded-3xl border bg-white p-6 shadow-sm">
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  disabled={!!actionLoading}
-                  onClick={() => runAction("accept")}
-                  className="w-full rounded-2xl bg-green-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {actionLoading === "accept" ? copy.accepting : copy.accept}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={!!actionLoading}
-                  onClick={() => runAction("decline")}
-                  className="w-full rounded-2xl bg-red-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {actionLoading === "decline" ? copy.declining : copy.decline}
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {canDeliver ? (
-            <div className="rounded-3xl border bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold">
-                {isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                {isRevisionRequested ? copy.redeliveryBody : copy.deliveryBody}
-              </p>
-
-              <div className="mt-5">
-                <label className="mb-1 block text-sm font-semibold">
-                  {copy.deliveredPostUrl}
-                </label>
-                <input
-                  type="url"
-                  value={deliveryUrl}
-                  onChange={(e) => setDeliveryUrl(e.target.value)}
-                  placeholder={copy.deliveredPostUrlPlaceholder}
-                  className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+          <SectionCard title={copy.lifecycle}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-[22px] bg-slate-50 p-4">
+                <DetailRow
+                  label={copy.createdAt}
+                  value={formatDateTime(order.created_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.updatedAt}
+                  value={formatDateTime(order.updated_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.authorizedAt}
+                  value={formatDateTime(order.authorized_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.creatorDeadline}
+                  value={formatDateTime(order.creator_accept_deadline, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.acceptedAt}
+                  value={formatDateTime(order.accepted_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.capturedAt}
+                  value={formatDateTime(order.captured_at, safeLocale)}
                 />
               </div>
 
-              {order.delivered_post_url ? (
-                <a
-                  href={order.delivered_post_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-4 inline-flex text-sm font-semibold text-blue-600 hover:underline"
-                >
-                  {copy.openDeliveredUrl}
-                </a>
-              ) : null}
-
-              <button
-                type="button"
-                disabled={actionLoading === "deliver"}
-                onClick={runDeliver}
-                className={`mt-5 w-full rounded-2xl px-5 py-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  isRevisionRequested
-                    ? "bg-amber-500 hover:bg-amber-600"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                {actionLoading === "deliver"
-                  ? copy.delivering
-                  : isRevisionRequested
-                    ? copy.redeliver
-                    : order.status === "delivered"
-                      ? copy.updateDelivery
-                      : copy.deliver}
-              </button>
+              <div className="rounded-[22px] bg-slate-50 p-4">
+                <DetailRow
+                  label={copy.declinedAt}
+                  value={formatDateTime(order.declined_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.canceledAt}
+                  value={formatDateTime(order.canceled_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.deliveredAt}
+                  value={formatDateTime(order.delivered_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.autoCompleteAt}
+                  value={
+                    order.auto_complete_at ? (
+                      <DeadlineBadge
+                        deadline={order.auto_complete_at}
+                        label={copy.autoCompleteAt}
+                        expiredLabel={copy.autoCompleteAt}
+                        locale={safeLocale}
+                        urgentHours={12}
+                        warningHours={24}
+                      />
+                    ) : (
+                      "-"
+                    )
+                  }
+                />
+                <DetailRow
+                  label={copy.completedAt}
+                  value={formatDateTime(order.completed_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.completedReason}
+                  value={completedReasonLabel(order.completed_reason, safeLocale)}
+                />
+              </div>
             </div>
-          ) : null}
+          </SectionCard>
+        </main>
+
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <SectionCard title={copy.payoutInfo} body={copy.payoutInfoBody}>
+            <div className="rounded-[22px] bg-slate-50 p-4">
+              <DetailRow
+                label={copy.menuPrice}
+                value={formatPrice(order.menu_price_amount, order.currency, safeLocale)}
+              />
+              <DetailRow
+                label={copy.creatorTransactionFeeRate}
+                value={formatBps(displayCreatorTransactionFeeRateBps)}
+              />
+              <DetailRow
+                label={copy.creatorTransactionFee}
+                value={formatNegativePrice(
+                  creatorTransactionFeeAmount,
+                  order.currency,
+                  safeLocale
+                )}
+                danger
+              />
+              <DetailRow
+                label={copy.creatorPayout}
+                value={formatPrice(creatorPayoutAmount, order.currency, safeLocale)}
+                strong
+              />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Pill className={transferStatusClass(order.transfer_status)}>
+                {transferStatusLabel(order.transfer_status, safeLocale)}
+              </Pill>
+            </div>
+
+            <div className="mt-4 rounded-[22px] bg-slate-50 p-4">
+              <DetailRow
+                label={copy.transferredAt}
+                value={formatDateTime(order.transferred_at, safeLocale)}
+              />
+              <DetailRow
+                label={copy.transferAttemptedAt}
+                value={formatDateTime(order.transfer_attempted_at, safeLocale)}
+              />
+              <DetailRow
+                label={copy.transferId}
+                value={shortId(order.stripe_transfer_id)}
+              />
+              {order.transfer_failed_reason ? (
+                <DetailRow
+                  label={copy.transferFailedReason}
+                  value={order.transfer_failed_reason}
+                />
+              ) : null}
+            </div>
+
+            <div className="mt-4 rounded-[22px] border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
+              {payoutNoticeBody}
+            </div>
+
+            <Link
+              href="/creator/payouts"
+              className="mt-4 flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+            >
+              {copy.payoutHistory}
+            </Link>
+          </SectionCard>
         </aside>
       </section>
 
-      <ChatEmbed orderId={order.id} title={copy.chatTitle} />
+      <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-black text-slate-950">{copy.chatTitle}</h2>
+        <ChatEmbed orderId={order.id} title={copy.chatTitle} />
+      </section>
     </div>
   );
 }
