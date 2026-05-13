@@ -94,7 +94,12 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     return value;
   }
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
@@ -171,14 +176,14 @@ function getOrderStatusLabel(
 
 function getOrderBadgeClass(status: string) {
   if (status === "authorized_pending_creator") {
-    return "bg-blue-50 text-blue-700 ring-blue-200";
+    return "bg-slate-950 text-white ring-slate-950";
   }
 
   if (status === "checkout_pending") {
     return "bg-amber-50 text-amber-700 ring-amber-200";
   }
 
-  return "bg-gray-50 text-gray-700 ring-gray-200";
+  return "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
 function getDeadlineTime(value: string | null | undefined) {
@@ -201,6 +206,92 @@ function getUrgencyScore(item: PendingItem) {
   return deadlineTime;
 }
 
+function isWithinHours(value: string | null | undefined, hours: number) {
+  const time = getDeadlineTime(value);
+  if (!time) return false;
+
+  const diff = time - Date.now();
+  return diff > 0 && diff <= hours * 60 * 60 * 1000;
+}
+
+function HeaderStat({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "urgent" | "dark";
+}) {
+  const styles = {
+    default: "bg-white text-slate-950",
+    urgent: "bg-amber-50 text-slate-950",
+    dark: "bg-slate-950 text-white",
+  };
+
+  return (
+    <div
+      className={`rounded-[24px] border border-slate-100 p-4 shadow-sm ${styles[tone]}`}
+    >
+      <p
+        className={`text-xs font-black uppercase tracking-[0.18em] ${
+          tone === "dark" ? "text-white/60" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-black">{value}</p>
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MoneyRow({
+  label,
+  value,
+  strong,
+  danger,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <span
+        className={`text-right ${
+          strong
+            ? "text-lg font-black text-emerald-700"
+            : danger
+            ? "text-sm font-black text-rose-600"
+            : "text-sm font-bold text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function CreatorRequestsPage() {
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
@@ -211,14 +302,16 @@ export default function CreatorRequestsPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            title: "承認待ちの注文・依頼",
+            title: "承認待ち",
             subtitle:
-              "企業から届いた承認待ち注文と、旧リクエスト型の未承認依頼を表示しています。期限が近い注文を優先表示します。",
+              "新しく届いた注文・依頼を確認し、期限内に承認または辞退します。",
             fetchError: "取得に失敗しました",
-            unnamedProduct: "（商品名未入力）",
+            unnamedProduct: "商品名未入力",
             deadline: "希望納期",
-            detail: "詳細を見る",
+            detail: "内容を確認する",
             empty: "承認待ちの注文・依頼はありません。",
+            emptyBody:
+              "新しい注文が届くとここに表示されます。通知や未読メッセージもこの画面で確認できます。",
             viewActiveJobs: "進行中案件を見る",
             editProfile: "プロフィール編集",
             order: "注文",
@@ -227,26 +320,34 @@ export default function CreatorRequestsPage() {
             menu: "メニュー",
             price: "価格",
             creatorFeeRate: "C側手数料率",
-            transactionFee: "Trendre transaction fee",
+            transactionFee: "Trendre手数料",
             creatorPayout: "受取予定額",
             creatorDeadline: "承認期限",
             creatorDeadlineExpired: "承認期限切れ",
             notSet: "未設定",
-            newMessage: "新着メッセージあり",
+            newMessage: "新着メッセージ",
             lastMessage: "最終メッセージ",
             urgentNotice:
-              "承認期限が近い注文は上位に表示されます。期限内に承認または辞退してください。",
+              "期限が近い注文と新着メッセージがある注文を優先表示しています。",
+            total: "すべて",
+            urgent: "期限間近",
+            unread: "未読",
+            received: "受信",
+            check: "確認",
+            close: "閉じる",
           }
         : {
             loading: "Loading...",
-            title: "Pending Orders / Requests",
+            title: "Pending",
             subtitle:
-              "Orders waiting for your approval and legacy pending requests are shown here. Urgent orders are shown first.",
+              "Review new incoming orders and requests, then accept or decline before the deadline.",
             fetchError: "Failed to load requests.",
-            unnamedProduct: "(No product name)",
+            unnamedProduct: "No product name",
             deadline: "Preferred deadline",
-            detail: "View Details",
+            detail: "View details",
             empty: "There are no pending orders or requests.",
+            emptyBody:
+              "New orders will appear here. Unread messages and deadlines are also shown on this screen.",
             viewActiveJobs: "View Active Jobs",
             editProfile: "Edit Profile",
             order: "Order",
@@ -255,7 +356,7 @@ export default function CreatorRequestsPage() {
             menu: "Menu",
             price: "Price",
             creatorFeeRate: "Creator fee rate",
-            transactionFee: "Trendre transaction fee",
+            transactionFee: "Trendre fee",
             creatorPayout: "Expected payout",
             creatorDeadline: "Approval deadline",
             creatorDeadlineExpired: "Approval expired",
@@ -263,7 +364,13 @@ export default function CreatorRequestsPage() {
             newMessage: "New messages",
             lastMessage: "Last message",
             urgentNotice:
-              "Orders close to the approval deadline are shown first. Please accept or decline before the deadline.",
+              "Orders close to the deadline and orders with unread messages are shown first.",
+            total: "Total",
+            urgent: "Urgent",
+            unread: "Unread",
+            received: "Received",
+            check: "Check",
+            close: "Close",
           },
     [safeLocale]
   );
@@ -450,8 +557,10 @@ export default function CreatorRequestsPage() {
         deadline: order.deadline,
         menu_title: order.menu_title_snapshot,
         amount: order.menu_price_amount,
-        creator_transaction_fee_rate_bps: order.creator_transaction_fee_rate_bps,
-        creator_transaction_fee_amount: order.creator_transaction_fee_amount,
+        creator_transaction_fee_rate_bps:
+          order.creator_transaction_fee_rate_bps,
+        creator_transaction_fee_amount:
+          order.creator_transaction_fee_amount,
         creator_payout_amount: order.creator_payout_amount,
         currency: order.currency,
         creator_accept_deadline: order.creator_accept_deadline,
@@ -558,234 +667,242 @@ export default function CreatorRequestsPage() {
     };
   }, [load, supabase]);
 
+  const urgentCount = items.filter(
+    (item) =>
+      item.kind === "order" && isWithinHours(item.creator_accept_deadline, 24)
+  ).length;
+
+  const unreadCount = items.filter((item) => hasUnread(item.chat)).length;
+
   if (loading) {
-    return <div className="p-6">{copy.loading}</div>;
+    return (
+      <div className="space-y-5">
+        <div className="h-32 animate-pulse rounded-[32px] bg-slate-100" />
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-48 animate-pulse rounded-[28px] bg-slate-100"
+          />
+        ))}
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-4 md:p-6">
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{copy.title}</h1>
-          <p className="mt-1 text-sm text-gray-600">{copy.subtitle}</p>
+    <div className="space-y-6 pb-4">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+          Creator Requests
+        </p>
+        <div className="mt-3 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">{copy.title}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+              {copy.subtitle}
+            </p>
+          </div>
+
+          <div className="text-right">
+            <p className="text-5xl font-black">{items.length}</p>
+            <p className="text-xs font-bold text-white/50">{copy.total}</p>
+          </div>
         </div>
+      </section>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <Link className="text-sm text-blue-600" href="/creator/jobs">
-            {copy.viewActiveJobs}
-          </Link>
+      <section className="grid grid-cols-3 gap-3">
+        <HeaderStat label={copy.total} value={items.length} tone="dark" />
+        <HeaderStat label={copy.urgent} value={urgentCount} tone="urgent" />
+        <HeaderStat label={copy.unread} value={unreadCount} />
+      </section>
 
-          <Link className="text-sm text-blue-600" href="/creator/profile">
-            {copy.editProfile}
-          </Link>
-        </div>
-      </div>
-
-      <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-        {copy.urgentNotice}
-      </div>
+      {items.length > 0 ? (
+        <section className="rounded-[24px] border border-blue-100 bg-blue-50 p-4 text-sm font-semibold leading-6 text-blue-800">
+          {copy.urgentNotice}
+        </section>
+      ) : null}
 
       {error ? (
-        <div className="mb-4 rounded border p-3 text-sm text-red-600">
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
           {error}
         </div>
       ) : null}
 
-      <div className="space-y-3">
+      <section className="space-y-4">
         {items.map((item) => {
           const isOrder = item.kind === "order";
           const unread = hasUnread(item.chat);
+          const isUrgent =
+            item.kind === "order" &&
+            isWithinHours(item.creator_accept_deadline, 24);
 
           const legacyMeta =
             item.kind === "legacy_request"
               ? getRequestStatusMeta(item.status ?? "pending", safeLocale)
               : null;
 
+          const href = isOrder
+            ? `/creator/orders/${item.id}`
+            : `/creator/requests/${item.id}`;
+
           return (
-            <div
+            <Link
               key={`${item.kind}-${item.id}`}
-              className="rounded-lg border bg-white p-4"
+              href={href}
+              className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
+                isUrgent
+                  ? "border-amber-200 ring-2 ring-amber-100"
+                  : unread
+                  ? "border-blue-200 ring-2 ring-blue-100"
+                  : "border-slate-100"
+              }`}
             >
-              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-                        isOrder
-                          ? "bg-purple-50 text-purple-700 ring-purple-200"
-                          : "bg-gray-50 text-gray-700 ring-gray-200"
-                      }`}
-                    >
-                      {isOrder ? copy.order : copy.legacyRequest}
-                    </span>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Pill
+                  className={
+                    isOrder
+                      ? "bg-slate-950 text-white ring-slate-950"
+                      : "bg-slate-100 text-slate-700 ring-slate-200"
+                  }
+                >
+                  {isOrder ? copy.order : copy.legacyRequest}
+                </Pill>
 
-                    {isOrder ? (
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getOrderBadgeClass(
-                          item.status
-                        )}`}
-                      >
-                        {getOrderStatusLabel(
-                          item.status,
-                          item.payment_status ?? "",
-                          safeLocale
-                        )}
-                      </span>
-                    ) : legacyMeta ? (
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getRequestStatusBadgeClass(
-                          legacyMeta.tone
-                        )}`}
-                      >
-                        {legacyMeta.shortLabel}
-                      </span>
-                    ) : null}
+                {isOrder ? (
+                  <Pill className={getOrderBadgeClass(item.status)}>
+                    {getOrderStatusLabel(
+                      item.status,
+                      item.payment_status ?? "",
+                      safeLocale
+                    )}
+                  </Pill>
+                ) : legacyMeta ? (
+                  <Pill className={getRequestStatusBadgeClass(legacyMeta.tone)}>
+                    {legacyMeta.shortLabel}
+                  </Pill>
+                ) : null}
 
-                    {isOrder ? (
-                      <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-200">
-                        {copy.paymentAuthorized}
-                      </span>
-                    ) : null}
+                {isOrder ? (
+                  <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                    {copy.paymentAuthorized}
+                  </Pill>
+                ) : null}
 
-                    {unread ? (
-                      <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-200">
-                        {copy.newMessage}
-                      </span>
-                    ) : null}
-
-                    {isOrder ? (
-                      <DeadlineBadge
-                        deadline={item.creator_accept_deadline}
-                        label={copy.creatorDeadline}
-                        expiredLabel={copy.creatorDeadlineExpired}
-                        locale={safeLocale}
-                        urgentHours={12}
-                        warningHours={24}
-                      />
-                    ) : null}
-                  </div>
-
-                  <div className="font-medium">
-                    {item.product_name ?? copy.unnamedProduct}
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-500">
-                  {formatDateTime(item.created_at, safeLocale)}
-                </div>
+                {unread ? (
+                  <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
+                    {copy.newMessage}
+                  </Pill>
+                ) : null}
               </div>
 
-              <div className="mt-3 grid gap-3 rounded-2xl bg-gray-50 p-4 text-sm md:grid-cols-2">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="truncate text-xl font-black text-slate-950">
+                    {item.product_name ?? copy.unnamedProduct}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-slate-400">
+                    {copy.received}: {formatDateTime(item.created_at, safeLocale)}
+                  </p>
+                </div>
+
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                  ›
+                </span>
+              </div>
+
+              {isOrder ? (
+                <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+                  <div className="grid gap-3">
+                    <MoneyRow
+                      label={copy.menu}
+                      value={item.menu_title || copy.notSet}
+                    />
+                    <MoneyRow
+                      label={copy.price}
+                      value={formatPrice(item.amount, item.currency, safeLocale)}
+                    />
+                    <MoneyRow
+                      label={copy.transactionFee}
+                      value={formatNegativePrice(
+                        item.creator_transaction_fee_amount,
+                        item.currency,
+                        safeLocale
+                      )}
+                      danger
+                    />
+                    <MoneyRow
+                      label={copy.creatorPayout}
+                      value={formatPrice(
+                        item.creator_payout_amount,
+                        item.currency,
+                        safeLocale
+                      )}
+                      strong
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 {isOrder ? (
-                  <>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.menu}
-                      </p>
-                      <p className="mt-1 font-semibold text-gray-900">
-                        {item.menu_title || copy.notSet}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.price}
-                      </p>
-                      <p className="mt-1 font-semibold text-gray-900">
-                        {formatPrice(item.amount, item.currency, safeLocale)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.creatorFeeRate}
-                      </p>
-                      <p className="mt-1 font-semibold text-gray-900">
-                        {formatRateBps(item.creator_transaction_fee_rate_bps)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.transactionFee}
-                      </p>
-                      <p className="mt-1 font-semibold text-red-700">
-                        {formatNegativePrice(
-                          item.creator_transaction_fee_amount,
-                          item.currency,
-                          safeLocale
-                        )}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.creatorPayout}
-                      </p>
-                      <p className="mt-1 text-base font-bold text-green-700">
-                        {formatPrice(
-                          item.creator_payout_amount,
-                          item.currency,
-                          safeLocale
-                        )}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {copy.creatorDeadline}
-                      </p>
-                      <p className="mt-1 font-semibold text-gray-900">
-                        {formatDateTime(
-                          item.creator_accept_deadline,
-                          safeLocale
-                        )}
-                      </p>
-                    </div>
-                  </>
+                  <DeadlineBadge
+                    deadline={item.creator_accept_deadline}
+                    label={copy.creatorDeadline}
+                    expiredLabel={copy.creatorDeadlineExpired}
+                    locale={safeLocale}
+                    urgentHours={12}
+                    warningHours={24}
+                  />
                 ) : null}
 
                 {item.deadline ? (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {copy.deadline}
-                    </p>
-                    <p className="mt-1 font-semibold text-gray-900">
-                      {formatDate(item.deadline, safeLocale)}
-                    </p>
-                  </div>
+                  <Pill className="bg-slate-50 text-slate-700 ring-slate-200">
+                    {copy.deadline}: {formatDate(item.deadline, safeLocale)}
+                  </Pill>
                 ) : null}
-              </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-3">
                 {item.chat?.last_message_at ? (
-                  <span className="text-xs text-gray-400">
+                  <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
                     {copy.lastMessage}:{" "}
                     {formatDateTime(item.chat.last_message_at, safeLocale)}
-                  </span>
+                  </Pill>
                 ) : null}
-
-                <Link
-                  className="text-sm font-semibold text-blue-600 hover:underline"
-                  href={
-                    isOrder
-                      ? `/creator/orders/${item.id}`
-                      : `/creator/requests/${item.id}`
-                  }
-                >
-                  {copy.detail}
-                </Link>
               </div>
-            </div>
+
+              <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
+                {copy.detail}
+              </div>
+            </Link>
           );
         })}
 
         {items.length === 0 && !error ? (
-          <div className="rounded border bg-white p-6 text-center text-sm text-gray-500">
-            {copy.empty}
+          <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
+              ◎
+            </div>
+            <h2 className="mt-5 text-xl font-black text-slate-950">
+              {copy.empty}
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
+              {copy.emptyBody}
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/creator/jobs"
+                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+              >
+                {copy.viewActiveJobs}
+              </Link>
+              <Link
+                href="/creator/profile"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
+              >
+                {copy.editProfile}
+              </Link>
+            </div>
           </div>
         ) : null}
-      </div>
+      </section>
     </div>
   );
 }
