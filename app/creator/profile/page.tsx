@@ -2,7 +2,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -131,6 +137,10 @@ function createEmptySocial(): SocialAccountForm {
   };
 }
 
+function optionLabel(option: LocaleOption, locale: "ja" | "en") {
+  return locale === "ja" ? option.ja : option.en;
+}
+
 function getApprovalStatusLabel(
   status: string | null,
   locale: "ja" | "en"
@@ -148,6 +158,13 @@ function getApprovalStatusLabel(
   return status ?? "Not approved";
 }
 
+function getApprovalTone(status: string | null) {
+  if (status === "approved") return "bg-emerald-100 text-emerald-700";
+  if (status === "pending") return "bg-amber-100 text-amber-800";
+  if (status === "rejected") return "bg-rose-100 text-rose-700";
+  return "bg-slate-100 text-slate-700";
+}
+
 function fileExtension(file: File) {
   const parts = file.name.split(".");
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
@@ -158,16 +175,18 @@ function fallbackInitial(name: string) {
 }
 
 function FieldLabel({ children }: { children: ReactNode }) {
-  return <label className="block text-sm font-semibold">{children}</label>;
+  return (
+    <label className="block text-sm font-black text-slate-800">
+      {children}
+    </label>
+  );
 }
 
 function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none transition focus:border-gray-900 ${
-        props.className ?? ""
-      }`}
+      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
     />
   );
 }
@@ -176,9 +195,7 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className={`mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none transition focus:border-gray-900 ${
-        props.className ?? ""
-      }`}
+      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
     />
   );
 }
@@ -187,10 +204,115 @@ function SelectBox(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`mt-2 w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-900 ${
-        props.className ?? ""
-      }`}
+      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
     />
+  );
+}
+
+function SectionCard({
+  icon,
+  title,
+  body,
+  children,
+}: {
+  icon: string;
+  title: string;
+  body?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+      <div className="mb-5 flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
+          {icon}
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-slate-950">{title}</h2>
+          {body ? (
+            <p className="mt-1 text-sm leading-6 text-slate-500">{body}</p>
+          ) : null}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SettingLink({
+  href,
+  icon,
+  title,
+  body,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
+    >
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-black text-slate-950">{title}</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">
+          {body}
+        </span>
+      </span>
+      <span className="text-slate-300">›</span>
+    </Link>
+  );
+}
+
+function ImagePicker({
+  label,
+  currentUrl,
+  previewUrl,
+  noImageLabel,
+  buttonLabel,
+  onChange,
+}: {
+  label: string;
+  currentUrl: string | null;
+  previewUrl: string | null;
+  noImageLabel: string;
+  buttonLabel: string;
+  onChange: (file: File | null) => void;
+}) {
+  const src = previewUrl || currentUrl;
+
+  return (
+    <div className="rounded-[24px] border border-slate-100 bg-slate-50 p-4">
+      <p className="text-sm font-black text-slate-800">{label}</p>
+
+      <div className="mt-4 overflow-hidden rounded-[22px] bg-white">
+        {src ? (
+          <img src={src} alt={label} className="h-44 w-full object-cover" />
+        ) : (
+          <div className="flex h-44 items-center justify-center text-sm font-bold text-slate-400">
+            {noImageLabel}
+          </div>
+        )}
+      </div>
+
+      <label className="mt-4 flex cursor-pointer items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition active:scale-[0.98]">
+        {buttonLabel}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            const file = event.target.files?.[0] ?? null;
+            onChange(file);
+            event.target.value = "";
+          }}
+        />
+      </label>
+    </div>
   );
 }
 
@@ -198,15 +320,16 @@ export default function CreatorProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
+  const safeLocale = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
-      locale === "ja"
+      safeLocale === "ja"
         ? {
             badge: "Creator Profile",
-            title: "プロフィール編集",
+            title: "プロフィール",
             subtitle:
-              "登録内容・プロフィール画像・活動SNS情報をまとめて編集できます。",
+              "企業に見られる基本情報、写真、SNS、メニュー導線を管理します。",
             approvalStatus: "承認状態",
             publicName: "公開名（@表示名）",
             publicNamePlaceholder: "例：yourname / main_account_name",
@@ -226,16 +349,20 @@ export default function CreatorProfilePage() {
             bio: "短い自己紹介",
             bioPlaceholder:
               "企業に伝わるように、発信内容や得意ジャンルを簡潔に書いてください。",
-            imageSection: "プロフィール画像",
+            accountSection: "アカウント",
+            accountBody: "表示名、カテゴリ、地域、言語を設定します。",
+            imageSection: "写真・ポートフォリオ",
+            imageBody:
+              "プロフィール画像とカバー画像を設定します。ポートフォリオ画像3枚以上は後で追加します。",
             avatar: "プロフィール画像",
             cover: "カバー画像",
-            imageHelp:
-              "登録時にアップロードした画像をここで確認・再設定できます。",
-            socialTitle: "活動SNS情報",
+            imageChoose: "スマホの写真・アルバムから選択",
+            noImage: "まだ画像はありません",
+            socialTitle: "SNS連携",
             socialSubtitle:
-              "SNS媒体は複数登録できます。企業には媒体、URL、フォロワー帯、主な視聴者の国・地域が表示されます。",
+              "SNS媒体は複数登録できます。フォロワー数などは将来的に外部APIで自動取得する想定です。",
             socialHelp:
-              "ここで設定するのは本人の居住国ではなく、このSNSで届きやすい主な視聴者の国・地域です。",
+              "今は暫定的にフォロワー帯と主な視聴者地域を入力できます。将来は自動取得に置き換えます。",
             socialItem: "SNS",
             remove: "削除",
             platform: "SNS媒体",
@@ -245,7 +372,7 @@ export default function CreatorProfilePage() {
             addSocial: "SNSを追加",
             saving: "保存中...",
             save: "保存する",
-            backToDashboard: "ダッシュボードへ戻る",
+            backToDashboard: "ホームへ戻る",
             selectPlease: "選択してください",
             creatorNotFound: "クリエイター情報が見つかりませんでした。",
             publicNameRequired: "公開名を入力してください",
@@ -263,13 +390,22 @@ export default function CreatorProfilePage() {
             saveError: "保存中にエラーが発生しました。",
             loading: "読み込み中...",
             uploadFailed: "画像アップロードに失敗しました。",
-            noImage: "まだ画像はありません",
+            myPage: "マイページ設定",
+            menusTitle: "メニュー・投稿価格",
+            menusBody: "公開中メニュー、投稿価格、納期を管理します。",
+            payoutsTitle: "銀行口座・報酬",
+            payoutsBody: "Stripe本人確認、銀行口座、送金履歴を確認します。",
+            analyticsTitle: "SNS分析",
+            analyticsBody: "フォロワー数・平均再生数などは今後自動取得予定です。",
+            portfolioComing: "ポートフォリオ画像",
+            portfolioBody:
+              "B側詳細ページの3枚ギャラリーに使う画像を今後ここで管理します。",
           }
         : {
             badge: "Creator Profile",
-            title: "Edit Profile",
+            title: "Profile",
             subtitle:
-              "Edit your signup details, profile images, and social account information.",
+              "Manage your public info, photos, social accounts, and creator settings.",
             approvalStatus: "Approval Status",
             publicName: "Public Name (@display name)",
             publicNamePlaceholder: "Example: yourname / main_account_name",
@@ -289,16 +425,20 @@ export default function CreatorProfilePage() {
             bio: "Short Bio",
             bioPlaceholder:
               "Briefly describe what you create and what kind of collaborations fit you.",
-            imageSection: "Profile Images",
+            accountSection: "Account",
+            accountBody: "Set your display name, category, location, and languages.",
+            imageSection: "Photos & Portfolio",
+            imageBody:
+              "Set your profile and cover images. Portfolio images will be added later.",
             avatar: "Profile Image",
             cover: "Cover Image",
-            imageHelp:
-              "You can review and replace the images uploaded during signup here.",
-            socialTitle: "Social Account Information",
+            imageChoose: "Choose from photos / album",
+            noImage: "No image yet",
+            socialTitle: "Social Links",
             socialSubtitle:
-              "You can register multiple social platforms. Companies will see the platform, URL, follower range, and main audience region.",
+              "Add social platforms. Follower metrics can be automated later through external APIs.",
             socialHelp:
-              "This is not your own country. It refers to the main country or region your audience comes from for each account.",
+              "Follower range and main audience region are temporary manual fields and can be replaced by API data later.",
             socialItem: "SNS",
             remove: "Remove",
             platform: "Platform",
@@ -308,7 +448,7 @@ export default function CreatorProfilePage() {
             addSocial: "Add SNS",
             saving: "Saving...",
             save: "Save",
-            backToDashboard: "Back to Dashboard",
+            backToDashboard: "Back to Home",
             selectPlease: "Please select",
             creatorNotFound: "Creator information was not found.",
             publicNameRequired: "Please enter your public name",
@@ -326,9 +466,18 @@ export default function CreatorProfilePage() {
             saveError: "An error occurred while saving.",
             loading: "Loading...",
             uploadFailed: "Failed to upload image.",
-            noImage: "No image yet",
+            myPage: "My Page Settings",
+            menusTitle: "Menus & rates",
+            menusBody: "Manage public menus, pricing, and delivery days.",
+            payoutsTitle: "Bank account & payouts",
+            payoutsBody: "Check Stripe identity, bank account, and transfer history.",
+            analyticsTitle: "SNS Analytics",
+            analyticsBody: "Follower and view metrics can be automated later.",
+            portfolioComing: "Portfolio images",
+            portfolioBody:
+              "Images for the 3-photo gallery on brand-facing detail pages will be managed here later.",
           },
-    [locale]
+    [safeLocale]
   );
 
   const [creatorId, setCreatorId] = useState<string | null>(null);
@@ -456,10 +605,7 @@ export default function CreatorProfilePage() {
     void load();
   }, [copy.creatorNotFound, router, supabase]);
 
-  const approvalLabel = getApprovalStatusLabel(
-    approvalStatus,
-    locale as "ja" | "en"
-  );
+  const approvalLabel = getApprovalStatusLabel(approvalStatus, safeLocale);
 
   const uploadImageAndGetUrl = async (
     file: File,
@@ -523,6 +669,22 @@ export default function CreatorProfilePage() {
     if (hasIncomplete) return copy.socialIncomplete;
 
     return null;
+  };
+
+  const handleImageSelect = (
+    file: File | null,
+    kind: "avatar" | "cover"
+  ) => {
+    if (kind === "avatar") {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      setAvatarFile(file);
+      setAvatarPreview(file ? URL.createObjectURL(file) : null);
+      return;
+    }
+
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(file);
+    setCoverPreview(file ? URL.createObjectURL(file) : null);
   };
 
   const handleSave = async () => {
@@ -636,17 +798,34 @@ export default function CreatorProfilePage() {
         throw profileUpdateError;
       }
 
-      const { error: stateUpdateError } = await supabase
+      const { data: existingState } = await supabase
         .from("user_states")
-        .upsert({
-          user_id: creatorUserId,
-          creator_profile_completed: true,
-          onboarding_completed: true,
-          updated_at: now,
-        });
+        .select("user_id")
+        .eq("user_id", creatorUserId)
+        .maybeSingle();
 
-      if (stateUpdateError) {
-        throw stateUpdateError;
+      if (existingState) {
+        const { error: stateUpdateError } = await supabase
+          .from("user_states")
+          .update({
+            creator_profile_completed: true,
+            onboarding_completed: true,
+            updated_at: now,
+          })
+          .eq("user_id", creatorUserId);
+
+        if (stateUpdateError) throw stateUpdateError;
+      } else {
+        const { error: stateInsertError } = await supabase
+          .from("user_states")
+          .insert({
+            user_id: creatorUserId,
+            creator_profile_completed: true,
+            onboarding_completed: true,
+            updated_at: now,
+          });
+
+        if (stateInsertError) throw stateInsertError;
       }
 
       const cleanedSocials = socialAccounts
@@ -731,7 +910,9 @@ export default function CreatorProfilePage() {
 
   const handleSubCategoryToggle = (value: string) => {
     setSubCategories((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value]
     );
   };
 
@@ -764,68 +945,126 @@ export default function CreatorProfilePage() {
   };
 
   if (loading) {
-    return <p className="p-6">{copy.loading}</p>;
+    return (
+      <div className="space-y-5">
+        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
+        <div className="h-72 animate-pulse rounded-[28px] bg-slate-100" />
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <section className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-blue-600">{copy.badge}</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">{copy.title}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+    <div className="space-y-7 pb-4">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+              {copy.badge}
+            </p>
+            <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
+              {copy.title}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
               {copy.subtitle}
             </p>
           </div>
 
-          <div className="self-start rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-            {copy.approvalStatus}: {approvalLabel}
+          <div className="flex flex-wrap gap-2">
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${getApprovalTone(
+                approvalStatus
+              )}`}
+            >
+              {copy.approvalStatus}: {approvalLabel}
+            </span>
           </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Link
-            href="/creator/dashboard"
-            className="inline-flex items-center justify-center rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
-          >
-            {copy.backToDashboard}
-          </Link>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center justify-center rounded-2xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
-          >
-            {saving ? copy.saving : copy.save}
-          </button>
         </div>
       </section>
 
       {error ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
           {error}
         </div>
       ) : null}
 
       {success ? (
-        <div className="rounded-3xl border border-green-200 bg-green-50 p-5 text-sm text-green-700">
+        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
           {success}
         </div>
       ) : null}
 
-      <section className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
-        <div className="grid gap-5 lg:grid-cols-2">
+      <section>
+        <h2 className="mb-4 text-2xl font-black text-slate-950">
+          {copy.myPage}
+        </h2>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <SettingLink
+            href="/creator/menus"
+            icon="+"
+            title={copy.menusTitle}
+            body={copy.menusBody}
+          />
+          <SettingLink
+            href="/creator/payouts"
+            icon="¥"
+            title={copy.payoutsTitle}
+            body={copy.payoutsBody}
+          />
+          <SettingLink
+            href="/creator/profile"
+            icon="▥"
+            title={copy.analyticsTitle}
+            body={copy.analyticsBody}
+          />
+          <SettingLink
+            href="/creator/profile"
+            icon="◎"
+            title={copy.portfolioComing}
+            body={copy.portfolioBody}
+          />
+        </div>
+      </section>
+
+      <SectionCard
+        icon="◯"
+        title={copy.imageSection}
+        body={copy.imageBody}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <ImagePicker
+            label={copy.avatar}
+            currentUrl={avatarUrl}
+            previewUrl={avatarPreview}
+            noImageLabel={copy.noImage}
+            buttonLabel={copy.imageChoose}
+            onChange={(file) => handleImageSelect(file, "avatar")}
+          />
+          <ImagePicker
+            label={copy.cover}
+            currentUrl={coverUrl}
+            previewUrl={coverPreview}
+            noImageLabel={copy.noImage}
+            buttonLabel={copy.imageChoose}
+            onChange={(file) => handleImageSelect(file, "cover")}
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        icon="□"
+        title={copy.accountSection}
+        body={copy.accountBody}
+      >
+        <div className="grid gap-5 md:grid-cols-2">
           <div>
             <FieldLabel>{copy.publicName}</FieldLabel>
             <TextInput
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={copy.publicNamePlaceholder}
-              autoCapitalize="none"
-              autoCorrect="off"
             />
-            <p className="mt-2 text-xs leading-5 text-gray-500">
+            <p className="mt-2 text-xs leading-5 text-slate-500">
               {copy.publicNameHelp}
             </p>
           </div>
@@ -835,7 +1074,6 @@ export default function CreatorProfilePage() {
             <TextInput
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder={copy.fullName}
             />
           </div>
 
@@ -848,7 +1086,7 @@ export default function CreatorProfilePage() {
               <option value="">{copy.selectPlease}</option>
               {CATEGORY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {locale === "ja" ? option.ja : option.en}
+                  {optionLabel(option, safeLocale)}
                 </option>
               ))}
             </SelectBox>
@@ -890,7 +1128,7 @@ export default function CreatorProfilePage() {
               <option value="">{copy.selectPlease}</option>
               {LANGUAGE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {locale === "ja" ? option.ja : option.en}
+                  {optionLabel(option, safeLocale)}
                 </option>
               ))}
             </SelectBox>
@@ -905,13 +1143,13 @@ export default function CreatorProfilePage() {
               <option value="">{copy.selectPlease}</option>
               {LANGUAGE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {locale === "ja" ? option.ja : option.en}
+                  {optionLabel(option, safeLocale)}
                 </option>
               ))}
             </SelectBox>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             <FieldLabel>{copy.subCategories}</FieldLabel>
             <div className="mt-3 flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((option) => {
@@ -922,137 +1160,93 @@ export default function CreatorProfilePage() {
                     key={option.value}
                     type="button"
                     onClick={() => handleSubCategoryToggle(option.value)}
-                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    className={`rounded-full border px-4 py-2 text-sm font-bold transition active:scale-[0.98] ${
                       active
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-700"
                     }`}
                   >
-                    {locale === "ja" ? option.ja : option.en}
+                    {optionLabel(option, safeLocale)}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             <FieldLabel>{copy.bio}</FieldLabel>
             <TextArea
-              rows={5}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder={copy.bioPlaceholder}
+              rows={5}
             />
           </div>
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-xl font-bold">{copy.imageSection}</h2>
-        <p className="mt-2 text-sm leading-6 text-gray-600">{copy.imageHelp}</p>
-
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          <div className="rounded-2xl border bg-gray-50 p-4">
-            <FieldLabel>{copy.avatar}</FieldLabel>
-            <input
-              type="file"
-              accept="image/*"
-              className="mt-3 block w-full text-sm"
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                setAvatarFile(file);
-                setAvatarPreview(file ? URL.createObjectURL(file) : null);
-              }}
-            />
-
-            <div className="mt-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[24px] border bg-white text-2xl font-bold text-gray-500">
-              {avatarPreview || avatarUrl ? (
-                <img
-                  src={avatarPreview || avatarUrl || ""}
-                  alt={copy.avatar}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span>{fallbackInitial(displayName)}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-gray-50 p-4">
-            <FieldLabel>{copy.cover}</FieldLabel>
-            <input
-              type="file"
-              accept="image/*"
-              className="mt-3 block w-full text-sm"
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                setCoverFile(file);
-                setCoverPreview(file ? URL.createObjectURL(file) : null);
-              }}
-            />
-
-            <div className="mt-4 h-40 overflow-hidden rounded-[24px] border bg-white">
-              {coverPreview || coverUrl ? (
-                <img
-                  src={coverPreview || coverUrl || ""}
-                  alt={copy.cover}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                  {copy.noImage}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-xl font-bold">{copy.socialTitle}</h2>
-        <p className="mt-2 text-sm leading-6 text-gray-600">
-          {copy.socialSubtitle}
+      <SectionCard
+        icon="◎"
+        title={copy.socialTitle}
+        body={copy.socialSubtitle}
+      >
+        <p className="mb-5 rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-800">
+          {copy.socialHelp}
         </p>
-        <p className="mt-2 text-xs leading-5 text-gray-500">{copy.socialHelp}</p>
 
-        <div className="mt-5 space-y-4">
-          {socialAccounts.map((item, index) => (
-            <div key={index} className="rounded-2xl border bg-gray-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-base font-semibold">
+        <div className="space-y-4">
+          {socialAccounts.map((social, index) => (
+            <div
+              key={index}
+              className="rounded-[24px] border border-slate-100 bg-slate-50 p-4"
+            >
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <p className="text-sm font-black text-slate-950">
                   {copy.socialItem} {index + 1}
                 </p>
+
                 <button
                   type="button"
                   onClick={() => removeSocial(index)}
-                  className="text-sm font-semibold text-red-600 hover:underline"
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600"
                 >
                   {copy.remove}
                 </button>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <FieldLabel>{copy.platform}</FieldLabel>
                   <SelectBox
-                    value={item.platform}
+                    value={social.platform}
                     onChange={(e) =>
                       updateSocial(index, "platform", e.target.value)
                     }
                   >
                     <option value="">{copy.selectPlease}</option>
-                    {PLATFORM_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
+                    {PLATFORM_OPTIONS.map((platform) => (
+                      <option key={platform} value={platform}>
+                        {platform}
                       </option>
                     ))}
                   </SelectBox>
                 </div>
 
                 <div>
+                  <FieldLabel>{copy.url}</FieldLabel>
+                  <TextInput
+                    value={social.url}
+                    onChange={(e) =>
+                      updateSocial(index, "url", e.target.value)
+                    }
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div>
                   <FieldLabel>{copy.followerRange}</FieldLabel>
                   <SelectBox
-                    value={item.follower_range}
+                    value={social.follower_range}
                     onChange={(e) =>
                       updateSocial(index, "follower_range", e.target.value)
                     }
@@ -1060,25 +1254,16 @@ export default function CreatorProfilePage() {
                     <option value="">{copy.selectPlease}</option>
                     {FOLLOWER_RANGE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {locale === "ja" ? option.ja : option.en}
+                        {optionLabel(option, safeLocale)}
                       </option>
                     ))}
                   </SelectBox>
                 </div>
 
-                <div className="lg:col-span-2">
-                  <FieldLabel>{copy.url}</FieldLabel>
-                  <TextInput
-                    value={item.url}
-                    onChange={(e) => updateSocial(index, "url", e.target.value)}
-                    placeholder="https://..."
-                  />
-                </div>
-
                 <div>
                   <FieldLabel>{copy.audienceRegion}</FieldLabel>
                   <SelectBox
-                    value={item.audience_country}
+                    value={social.audience_country}
                     onChange={(e) =>
                       updateSocial(index, "audience_country", e.target.value)
                     }
@@ -1086,7 +1271,7 @@ export default function CreatorProfilePage() {
                     <option value="">{copy.selectPlease}</option>
                     {AUDIENCE_REGION_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {locale === "ja" ? option.ja : option.en}
+                        {optionLabel(option, safeLocale)}
                       </option>
                     ))}
                   </SelectBox>
@@ -1099,27 +1284,30 @@ export default function CreatorProfilePage() {
         <button
           type="button"
           onClick={addSocial}
-          className="mt-4 rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+          className="mt-5 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition active:scale-[0.98]"
         >
-          {copy.addSocial}
+          + {copy.addSocial}
         </button>
-      </section>
+      </SectionCard>
 
-      <div className="flex flex-wrap gap-3 pb-4">
-        <Link
-          href="/creator/dashboard"
-          className="inline-flex items-center justify-center rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
-        >
-          {copy.backToDashboard}
-        </Link>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center justify-center rounded-2xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
-        >
-          {saving ? copy.saving : copy.save}
-        </button>
+      <div className="sticky bottom-24 z-20 rounded-[28px] border border-slate-100 bg-white/95 p-3 shadow-2xl backdrop-blur lg:static lg:shadow-none">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+          <Link
+            href="/creator/dashboard"
+            className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
+          >
+            {copy.backToDashboard}
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center justify-center rounded-2xl bg-slate-950 px-7 py-3 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? copy.saving : copy.save}
+          </button>
+        </div>
       </div>
     </div>
   );
