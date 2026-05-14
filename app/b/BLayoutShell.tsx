@@ -49,6 +49,17 @@ function isActivePath(pathname: string, href: string) {
     return pathname === "/b" || pathname === "/b/dashboard";
   }
 
+  if (href === "/b/creators") {
+    return pathname === "/b/creators" || pathname.startsWith("/b/creators/");
+  }
+
+  if (href === "/b/saved-creators") {
+    return (
+      pathname === "/b/saved-creators" ||
+      pathname.startsWith("/b/saved-creators/")
+    );
+  }
+
   if (href === "/b/requests") {
     return (
       pathname === "/b/requests" ||
@@ -123,7 +134,9 @@ function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setLocale("ja")}
-        className={`${baseClass} ${locale === "ja" ? activeClass : inactiveClass}`}
+        className={`${baseClass} ${
+          locale === "ja" ? activeClass : inactiveClass
+        }`}
         aria-pressed={locale === "ja"}
       >
         JA
@@ -131,7 +144,9 @@ function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setLocale("en")}
-        className={`${baseClass} ${locale === "en" ? activeClass : inactiveClass}`}
+        className={`${baseClass} ${
+          locale === "en" ? activeClass : inactiveClass
+        }`}
         aria-pressed={locale === "en"}
       >
         EN
@@ -157,15 +172,11 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
-  /**
-   * B側のマーケットプレイス導線。
-   *
-   * ここはCollabstr風に、左サイドバーなし + 上部ナビ中心で見せる。
-   * 企業の実務導線である検索・承認待ち・進行中・注文詳細も同じ体験に寄せる。
-   */
   const isMarketplaceBrowsing =
     pathname === "/b/creators" ||
     pathname.startsWith("/b/creators/") ||
+    pathname === "/b/saved-creators" ||
+    pathname.startsWith("/b/saved-creators/") ||
     pathname === "/b/requests" ||
     pathname.startsWith("/b/requests/") ||
     pathname === "/b/jobs" ||
@@ -195,7 +206,8 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             requests: "承認待ち",
             jobs: "進行中案件",
             account: "アカウント設定",
-            search: "クリエイター検索",
+            search: "Search",
+            saved: "保存済み",
             home: "Home",
             pending: "Pending",
             pricing: "Pricing",
@@ -220,6 +232,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             jobs: "Active Jobs",
             account: "Account",
             search: "Search",
+            saved: "Saved",
             home: "Home",
             pending: "Pending",
             pricing: "Pricing",
@@ -272,6 +285,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         label: copy.search,
       },
       {
+        href: "/b/saved-creators",
+        label: copy.saved,
+      },
+      {
         href: "/b/requests",
         label: copy.pending,
         badgeKey: "requests" as const,
@@ -286,7 +303,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         label: copy.pricing,
       },
     ],
-    [copy.home, copy.pending, copy.pricing, copy.search]
+    [copy.home, copy.pending, copy.pricing, copy.saved, copy.search]
   );
 
   const loadUnreadBadges = useCallback(async () => {
@@ -687,6 +704,14 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                       className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                     >
                       {copy.profile}
+                    </Link>
+
+                    <Link
+                      href="/b/saved-creators"
+                      onClick={closeProfileMenu}
+                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      {copy.saved}
                     </Link>
 
                     <Link
