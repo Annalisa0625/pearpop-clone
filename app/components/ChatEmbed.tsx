@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useAppLocale } from "@/lib/i18n/locale";
 
 type ChatEmbedProps = {
   requestId?: string;
@@ -38,9 +39,33 @@ function notifyUnreadStateChanged(chatId?: string) {
     })
   );
 
-  // 既存の BLayoutShell / CreatorLayoutShell は window focus で未読を再取得しているため、
-  // ここで同じイベントを発火して、ページリロードなしでサイドバー未読バッジを更新する。
   window.dispatchEvent(new Event("focus"));
+}
+
+function formatMessageTime(value: string, locale: "ja" | "en") {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M4.5 19.5 20 12 4.5 4.5v5.7L13 12l-8.5 1.8v5.7Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 export default function ChatEmbed({
@@ -50,6 +75,50 @@ export default function ChatEmbed({
   title = "チャット",
 }: ChatEmbedProps) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const { locale } = useAppLocale();
+  const safeLocale = locale === "en" ? "en" : "ja";
+
+  const copy = useMemo(
+    () =>
+      safeLocale === "ja"
+        ? {
+            title,
+            subtitle: "この注文・依頼に関する連絡をここで行えます。",
+            loading: "読み込み中...",
+            loginError: "ログイン情報を取得できませんでした。",
+            orderChatError: "注文チャットの取得に失敗しました。",
+            idRequired: "requestId または orderId が必要です。",
+            fetchError: "チャット取得エラー",
+            noChat: "まだチャットが作成されていません。",
+            empty: "まだメッセージはありません。",
+            emptyBody: "必要な確認事項や連絡があれば、ここにメッセージを送信できます。",
+            placeholder: "メッセージを入力",
+            sending: "送信中",
+            send: "送信",
+            sendError: "送信エラー",
+            me: "自分",
+            partner: "相手",
+          }
+        : {
+            title: title === "チャット" ? "Chat" : title,
+            subtitle: "Use this chat for messages about this order or request.",
+            loading: "Loading...",
+            loginError: "Could not retrieve your login session.",
+            orderChatError: "Failed to load order chat.",
+            idRequired: "requestId or orderId is required.",
+            fetchError: "Chat fetch error",
+            noChat: "Chat has not been created yet.",
+            empty: "No messages yet.",
+            emptyBody: "Send a message here if you need to confirm anything.",
+            placeholder: "Type a message",
+            sending: "Sending",
+            send: "Send",
+            sendError: "Send error",
+            me: "Me",
+            partner: "Partner",
+          },
+    [safeLocale, title]
+  );
 
   const [chat, setChat] = useState<ChatRow | null>(null);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -62,6 +131,7 @@ export default function ChatEmbed({
   );
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -135,7 +205,7 @@ export default function ChatEmbed({
           const accessToken = session?.access_token ?? null;
 
           if (!accessToken) {
-            setError("ログイン情報を取得できませんでした。");
+            setError(copy.loginError);
             setLoading(false);
             return;
           }
@@ -150,7 +220,7 @@ export default function ChatEmbed({
           const json = await res.json().catch(() => ({}));
 
           if (!res.ok) {
-            setError(json?.error ?? "注文チャットの取得に失敗しました。");
+            setError(json?.error ?? copy.orderChatError);
             setLoading(false);
             return;
           }
@@ -173,7 +243,7 @@ export default function ChatEmbed({
 
           chatRow = (data as ChatRow | null) ?? null;
         } else {
-          setError("requestId または orderId が必要です。");
+          setError(copy.idRequired);
           setLoading(false);
           return;
         }
@@ -205,14 +275,14 @@ export default function ChatEmbed({
           await markChatAsRead(chatRow.id, currentUserId);
         }
       } catch (e: any) {
-        setError(e?.message ?? "チャット取得エラー");
+        setError(e?.message ?? copy.fetchError);
       } finally {
         setLoading(false);
       }
     };
 
     void load();
-  }, [requestId, orderId, supabase, currentUserId]);
+  }, [requestId, orderId, supabase, currentUserId, copy]);
 
   useEffect(() => {
     if (!chat?.id) return;
@@ -253,6 +323,7 @@ export default function ChatEmbed({
 
   const handleSend = async () => {
     const content = text.trim();
+
     if (!content || !chat?.id || sending || !currentUserId) return;
 
     setSending(true);
@@ -305,121 +376,151 @@ export default function ChatEmbed({
 
       setText("");
       scrollToBottom();
+      inputRef.current?.focus();
     } catch (e: any) {
-      setError(e?.message ?? "送信エラー");
+      setError(e?.message ?? copy.sendError);
     } finally {
       setSending(false);
     }
   };
 
-  if (loading) {
-    return (
-      <section className="mt-6 rounded-3xl border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold">{title}</h2>
-        <div className="mt-4 text-sm text-gray-500">読み込み中...</div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="mt-6 rounded-3xl border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold">{title}</h2>
-        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      </section>
-    );
-  }
-
-  if (!chat) {
-    return (
-      <section className="mt-6 rounded-3xl border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold">{title}</h2>
-        <div className="mt-4 text-sm text-gray-500">
-          まだチャットが作成されていません。
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="mt-6 rounded-3xl border bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold">{title}</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            この注文・依頼に関する連絡をここで行えます。
-          </p>
+    <div className="rounded-[28px] border border-slate-100 bg-white shadow-sm">
+      <div className="border-b border-slate-100 p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-slate-950">{copy.title}</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              {copy.subtitle}
+            </p>
+          </div>
+
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg">
+            💬
+          </div>
         </div>
       </div>
 
-      <div className="mb-4 h-80 overflow-y-auto rounded-2xl border bg-gray-50 p-4">
-        {messages.length === 0 ? (
-          <div className="text-sm text-gray-500">
-            まだメッセージはありません。
+      {loading ? (
+        <div className="p-5">
+          <div className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+            {copy.loading}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {messages.map((msg) => {
-              const isMine =
-                !!currentUserId && msg.sender_user_id === currentUserId;
-
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
-                      isMine
-                        ? "bg-gray-900 text-white"
-                        : "bg-white text-gray-900"
-                    }`}
-                  >
-                    <div className="break-words whitespace-pre-wrap leading-6">
-                      {msg.content}
-                    </div>
-                    <div
-                      className={`mt-2 text-[11px] ${
-                        isMine ? "text-gray-300" : "text-gray-500"
-                      }`}
-                    >
-                      {new Date(msg.created_at).toLocaleString("ja-JP")}
-                    </div>
+        </div>
+      ) : error ? (
+        <div className="p-5">
+          <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700">
+            {error}
+          </div>
+        </div>
+      ) : !chat ? (
+        <div className="p-5">
+          <div className="rounded-[24px] bg-slate-50 p-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-2xl shadow-sm">
+              💬
+            </div>
+            <p className="mt-4 text-sm font-black text-slate-950">
+              {copy.noChat}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="h-[420px] overflow-y-auto bg-slate-50 px-4 py-5">
+            {messages.length === 0 ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="max-w-sm text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-2xl shadow-sm">
+                    💬
                   </div>
+                  <p className="mt-4 text-sm font-black text-slate-950">
+                    {copy.empty}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {copy.emptyBody}
+                  </p>
                 </div>
-              );
-            })}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg) => {
+                  const isMine =
+                    !!currentUserId && msg.sender_user_id === currentUserId;
 
-            <div ref={bottomRef} />
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[82%] ${
+                          isMine ? "items-end" : "items-start"
+                        } flex flex-col`}
+                      >
+                        <div
+                          className={`rounded-[22px] px-4 py-3 text-sm shadow-sm ${
+                            isMine
+                              ? "rounded-br-md bg-slate-950 text-white"
+                              : "rounded-bl-md bg-white text-slate-950"
+                          }`}
+                        >
+                          <div className="whitespace-pre-wrap break-words leading-6">
+                            {msg.content}
+                          </div>
+                        </div>
+
+                        <div
+                          className={`mt-1 px-1 text-[11px] ${
+                            isMine ? "text-slate-400" : "text-slate-400"
+                          }`}
+                        >
+                          {isMine ? copy.me : copy.partner} ·{" "}
+                          {formatMessageTime(msg.created_at, safeLocale)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div ref={bottomRef} />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="メッセージを入力"
-          className="flex-1 rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              void handleSend();
-            }
-          }}
-        />
+          <div className="border-t border-slate-100 bg-white p-3">
+            <div className="flex items-center gap-2 rounded-[24px] bg-slate-50 p-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={copy.placeholder}
+                className="min-h-[44px] flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-slate-400"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    void handleSend();
+                  }
+                }}
+              />
 
-        <button
-          onClick={() => void handleSend()}
-          disabled={sending || !text.trim() || !currentUserId}
-          className="rounded-2xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {sending ? "送信中" : "送信"}
-        </button>
-      </div>
-    </section>
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                disabled={sending || !text.trim() || !currentUserId}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white transition active:scale-[0.96] disabled:cursor-not-allowed disabled:bg-slate-300"
+                aria-label={sending ? copy.sending : copy.send}
+              >
+                {sending ? (
+                  <span className="text-[10px] font-black">...</span>
+                ) : (
+                  <SendIcon />
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
