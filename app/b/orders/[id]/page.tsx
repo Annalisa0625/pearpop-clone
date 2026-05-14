@@ -83,22 +83,22 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
 }
@@ -108,9 +108,7 @@ function formatPrice(
   currency: string | null | undefined,
   locale: "ja" | "en"
 ) {
-  if (value == null) {
-    return locale === "ja" ? "未設定" : "Not set";
-  }
+  if (value == null) return locale === "ja" ? "未設定" : "Not set";
 
   const safeCurrency = currency || "JPY";
 
@@ -121,10 +119,7 @@ function formatPrice(
       maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
     }).format(value);
   } catch {
-    if (safeCurrency === "USD") {
-      return `$${value.toLocaleString()}`;
-    }
-
+    if (safeCurrency === "USD") return `$${value.toLocaleString()}`;
     return `¥${value.toLocaleString()}`;
   }
 }
@@ -138,24 +133,16 @@ function formatBpsPercent(value: number | null | undefined) {
   })}%`;
 }
 
-function formatPlanName(value: string | null | undefined, locale: "ja" | "en") {
+function formatPlanName(value: string | null | undefined) {
   if (!value) return "-";
 
   const normalized = value.toLowerCase();
 
-  if (normalized === "basic" || normalized === "free") {
-    return "Basic";
-  }
+  if (normalized === "basic" || normalized === "free") return "Basic";
+  if (normalized === "pro" || normalized === "standard") return "Pro";
+  if (normalized === "premium" || normalized === "global_pro") return "Premium";
 
-  if (normalized === "pro" || normalized === "standard") {
-    return "Pro";
-  }
-
-  if (normalized === "premium" || normalized === "global_pro") {
-    return "Premium";
-  }
-
-  return locale === "ja" ? value : value;
+  return value;
 }
 
 function formatDeliveryDays(
@@ -185,28 +172,40 @@ function menuTypeLabel(
   return labels[value || ""]?.[locale] || fallback;
 }
 
+function getPlatformIcon(value: string | null | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  if (normalized.includes("instagram")) return "◎";
+  if (normalized.includes("tiktok")) return "♪";
+  if (normalized.includes("youtube")) return "▶";
+  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
+  if (normalized.includes("ugc")) return "▣";
+
+  return "●";
+}
+
 function statusLabel(status: string, locale: "ja" | "en") {
   const ja: Record<string, string> = {
     checkout_pending: "Checkout未完了",
     authorized_pending_creator: "クリエイター承認待ち",
-    accepted_captured: "承認済み・決済確定",
-    declined_canceled: "辞退済み・請求取消",
-    expired_canceled: "期限切れ・請求取消",
+    accepted_captured: "進行中",
+    declined_canceled: "辞退済み",
+    expired_canceled: "期限切れ",
     capture_failed: "決済確定失敗",
     cancel_failed: "取消失敗",
     in_progress: "進行中",
     delivered: "納品済み",
     revision_requested: "修正依頼中",
     completed: "完了",
-    disputed: "異議・確認中",
+    disputed: "確認中",
   };
 
   const en: Record<string, string> = {
     checkout_pending: "Checkout pending",
     authorized_pending_creator: "Waiting for creator approval",
-    accepted_captured: "Accepted / Captured",
-    declined_canceled: "Declined / Canceled",
-    expired_canceled: "Expired / Canceled",
+    accepted_captured: "In progress",
+    declined_canceled: "Declined",
+    expired_canceled: "Expired",
     capture_failed: "Capture failed",
     cancel_failed: "Cancel failed",
     in_progress: "In progress",
@@ -237,23 +236,23 @@ function completedReasonLabel(value: string | null, locale: "ja" | "en") {
 
 function statusClass(status: string) {
   if (status === "authorized_pending_creator") {
-    return "bg-blue-50 text-blue-700 ring-blue-200";
+    return "bg-amber-100 text-amber-800 ring-amber-200";
   }
 
   if (status === "accepted_captured" || status === "in_progress") {
-    return "bg-green-50 text-green-700 ring-green-200";
+    return "bg-blue-100 text-blue-700 ring-blue-200";
   }
 
   if (status === "delivered") {
-    return "bg-indigo-50 text-indigo-700 ring-indigo-200";
+    return "bg-purple-100 text-purple-700 ring-purple-200";
   }
 
   if (status === "revision_requested") {
-    return "bg-amber-50 text-amber-700 ring-amber-200";
+    return "bg-amber-100 text-amber-800 ring-amber-200";
   }
 
   if (status === "completed") {
-    return "bg-gray-50 text-gray-700 ring-gray-200";
+    return "bg-emerald-100 text-emerald-700 ring-emerald-200";
   }
 
   if (
@@ -263,49 +262,134 @@ function statusClass(status: string) {
     status === "cancel_failed" ||
     status === "disputed"
   ) {
-    return "bg-red-50 text-red-700 ring-red-200";
+    return "bg-rose-100 text-rose-700 ring-rose-200";
   }
 
-  return "bg-gray-50 text-gray-700 ring-gray-200";
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function paymentStatusClass(paymentStatus: string) {
   if (paymentStatus === "authorized") {
-    return "bg-blue-50 text-blue-700 ring-blue-200";
+    return "bg-amber-100 text-amber-800 ring-amber-200";
   }
 
   if (paymentStatus === "captured") {
-    return "bg-green-50 text-green-700 ring-green-200";
+    return "bg-emerald-100 text-emerald-700 ring-emerald-200";
   }
 
   if (paymentStatus === "canceled") {
-    return "bg-gray-50 text-gray-700 ring-gray-200";
+    return "bg-slate-100 text-slate-700 ring-slate-200";
   }
 
   if (paymentStatus === "failed") {
-    return "bg-red-50 text-red-700 ring-red-200";
+    return "bg-rose-100 text-rose-700 ring-rose-200";
   }
 
-  return "bg-gray-50 text-gray-700 ring-gray-200";
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
-function Field({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number | null | undefined;
-}) {
-  return (
-    <div className="rounded-2xl bg-gray-50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {label}
-      </p>
-      <p className="mt-2 whitespace-pre-line text-sm font-semibold text-gray-900">
-        {value ?? "-"}
-      </p>
-    </div>
-  );
+function getNotice(status: string, locale: "ja" | "en") {
+  if (locale === "ja") {
+    if (status === "authorized_pending_creator") {
+      return {
+        tone: "amber" as const,
+        title: "クリエイターの承認待ちです",
+        body: "支払い方法は確認済みです。クリエイターが承認すると決済が確定し、案件が開始されます。",
+      };
+    }
+
+    if (status === "delivered") {
+      return {
+        tone: "purple" as const,
+        title: "納品URLが提出されています",
+        body: "内容を確認し、問題なければ完了してください。元の注文要件に沿う範囲でのみ修正依頼できます。",
+      };
+    }
+
+    if (status === "revision_requested") {
+      return {
+        tone: "amber" as const,
+        title: "修正依頼を送信済みです",
+        body: "クリエイターが修正版を再納品するまでお待ちください。必要な確認はチャットで行えます。",
+      };
+    }
+
+    if (status === "completed") {
+      return {
+        tone: "green" as const,
+        title: "この注文は完了しています",
+        body: "完了後は原則として修正依頼・返金はできません。追加依頼は新規注文として相談してください。",
+      };
+    }
+
+    if (status === "accepted_captured" || status === "in_progress") {
+      return {
+        tone: "blue" as const,
+        title: "案件は進行中です",
+        body: "クリエイターが制作・投稿を進めています。投稿前確認が必要な場合はチャットでやり取りしてください。",
+      };
+    }
+
+    if (status === "declined_canceled" || status === "expired_canceled") {
+      return {
+        tone: "gray" as const,
+        title: "この注文は終了しています",
+        body: "クリエイター辞退または期限切れにより、請求は確定していません。",
+      };
+    }
+
+    return {
+      tone: "gray" as const,
+      title: "注文状態を確認してください",
+      body: "注文内容、決済状態、チャットを確認できます。",
+    };
+  }
+
+  if (status === "authorized_pending_creator") {
+    return {
+      tone: "amber" as const,
+      title: "Waiting for creator approval",
+      body: "The payment method has been authorized. The payment will be captured if the creator accepts.",
+    };
+  }
+
+  if (status === "delivered") {
+    return {
+      tone: "purple" as const,
+      title: "Delivery URL has been submitted",
+      body: "Review the delivery and complete the order if everything is okay. Revisions are only allowed within the original order requirements.",
+    };
+  }
+
+  if (status === "revision_requested") {
+    return {
+      tone: "amber" as const,
+      title: "Revision request sent",
+      body: "Please wait for the creator to submit a revised delivery.",
+    };
+  }
+
+  if (status === "completed") {
+    return {
+      tone: "green" as const,
+      title: "This order is completed",
+      body: "Revisions and refunds are generally unavailable after completion.",
+    };
+  }
+
+  if (status === "accepted_captured" || status === "in_progress") {
+    return {
+      tone: "blue" as const,
+      title: "This job is in progress",
+      body: "The creator is working on the delivery. Use chat for optional pre-posting review.",
+    };
+  }
+
+  return {
+    tone: "gray" as const,
+    title: "Check order status",
+    body: "Review the order, payment status, and chat.",
+  };
 }
 
 function CreatorAvatar({ creator }: { creator: CreatorLite | null }) {
@@ -314,7 +398,7 @@ function CreatorAvatar({ creator }: { creator: CreatorLite | null }) {
       <img
         src={creator.avatar_url}
         alt={creator.display_name ?? "creator"}
-        className="h-14 w-14 rounded-full object-cover"
+        className="h-14 w-14 rounded-2xl object-cover"
       />
     );
   }
@@ -322,8 +406,120 @@ function CreatorAvatar({ creator }: { creator: CreatorLite | null }) {
   const initial = (creator?.display_name?.trim()?.[0] ?? "C").toUpperCase();
 
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-200 text-lg font-bold text-gray-700">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-700">
       {initial}
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  strong,
+  danger,
+}: {
+  label: string;
+  value: React.ReactNode;
+  strong?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <span
+        className={`max-w-[62%] text-right text-sm ${
+          strong
+            ? "font-black text-slate-950"
+            : danger
+            ? "font-black text-rose-600"
+            : "font-bold text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  body,
+  children,
+}: {
+  title: string;
+  body?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm">
+      <h2 className="text-xl font-black text-slate-950">{title}</h2>
+      {body ? <p className="mt-2 text-sm leading-6 text-slate-500">{body}</p> : null}
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function TextBlock({
+  label,
+  value,
+  emptyLabel,
+}: {
+  label: string;
+  value: string | null | undefined;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="rounded-[22px] bg-slate-50 p-4">
+      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">
+        {value?.trim() || emptyLabel}
+      </p>
+    </div>
+  );
+}
+
+function NoticeCard({
+  tone,
+  title,
+  body,
+}: {
+  tone: "amber" | "blue" | "purple" | "green" | "gray" | "rose";
+  title: string;
+  body: string;
+}) {
+  const styles = {
+    amber: "border-amber-200 bg-amber-50 text-amber-900",
+    blue: "border-blue-200 bg-blue-50 text-blue-900",
+    purple: "border-purple-200 bg-purple-50 text-purple-900",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    gray: "border-slate-200 bg-slate-50 text-slate-800",
+    rose: "border-rose-200 bg-rose-50 text-rose-900",
+  };
+
+  return (
+    <div className={`rounded-[28px] border p-5 ${styles[tone]}`}>
+      <p className="text-lg font-black">{title}</p>
+      <p className="mt-2 text-sm leading-7">{body}</p>
     </div>
   );
 }
@@ -352,20 +548,6 @@ export default function CompanyOrderDetailPage() {
             orderStatus: "注文ステータス",
             paymentStatus: "支払い状態",
             stripeStatus: "Stripe状態",
-            waitingNotice:
-              "支払い方法は確認済みです。クリエイターが承認すると決済が確定します。",
-            acceptedNotice:
-              "クリエイターが承認済みです。決済は確定しています。投稿前確認が必要な場合はチャットでやり取りしてください。",
-            revisionRequestedNotice:
-              "修正依頼を送信済みです。クリエイターの再納品をお待ちください。",
-            declinedNotice:
-              "クリエイターが辞退したため、請求は確定していません。",
-            canceledNotice:
-              "この注文は取消済みです。請求は確定していません。",
-            deliveredNotice:
-              "クリエイターから納品URLが提出されています。内容を確認し、問題なければ完了してください。元の注文要件に沿う範囲でのみ修正依頼できます。",
-            completedNotice:
-              "この注文は完了しています。完了後は原則として修正依頼・返金はできません。追加依頼は新規注文として相談してください。",
             productInfo: "商品・案件情報",
             productName: "商品名・案件名",
             productUrl: "商品URL",
@@ -374,7 +556,7 @@ export default function CompanyOrderDetailPage() {
             secondaryUse: "二次利用希望",
             yes: "あり",
             no: "なし",
-            requirements: "注文内容・requirements",
+            requirements: "注文内容・要件",
             menuInfo: "注文したメニュー",
             menuTitle: "メニュー名",
             platform: "SNS",
@@ -461,20 +643,6 @@ export default function CompanyOrderDetailPage() {
             orderStatus: "Order Status",
             paymentStatus: "Payment Status",
             stripeStatus: "Stripe Status",
-            waitingNotice:
-              "The payment method has been authorized. The payment will be captured if the creator accepts.",
-            acceptedNotice:
-              "The creator has accepted this order. The payment has been captured. Use chat for optional pre-posting review.",
-            revisionRequestedNotice:
-              "A revision request has been sent. Please wait for the creator to resubmit.",
-            declinedNotice:
-              "The creator declined this order. The charge was not finalized.",
-            canceledNotice:
-              "This order has been canceled. The charge was not finalized.",
-            deliveredNotice:
-              "The creator has submitted a delivery URL. Please review it and complete the order if everything is okay. Revisions are only allowed within the original order requirements.",
-            completedNotice:
-              "This order has been completed. Revisions and refunds are generally not available after completion.",
             productInfo: "Product / Campaign",
             productName: "Product / Campaign Name",
             productUrl: "Product URL",
@@ -563,9 +731,9 @@ export default function CompanyOrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [creator, setCreator] = useState<CreatorLite | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<
-    "complete" | "revision" | null
-  >(null);
+  const [actionLoading, setActionLoading] = useState<"complete" | "revision" | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [revisionNote, setRevisionNote] = useState("");
 
@@ -725,8 +893,8 @@ export default function CompanyOrderDetailPage() {
 
       await loadOrder();
       setActionLoading(null);
-    } catch (e: any) {
-      setError(e?.message ?? copy.completeFailed);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : copy.completeFailed);
       setActionLoading(null);
     }
   };
@@ -781,33 +949,43 @@ export default function CompanyOrderDetailPage() {
       setRevisionNote("");
       await loadOrder();
       setActionLoading(null);
-    } catch (e: any) {
-      setError(e?.message ?? copy.revisionFailed);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : copy.revisionFailed);
       setActionLoading(null);
     }
   };
 
   if (loading) {
-    return <div className="p-6">{copy.loading}</div>;
+    return (
+      <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="h-96 animate-pulse rounded-[30px] bg-slate-100" />
+          <div className="h-96 animate-pulse rounded-[30px] bg-slate-100" />
+        </div>
+      </div>
+    );
   }
 
   if (!order) {
     return (
       <div className="mx-auto max-w-4xl p-4 md:p-6">
-        <div className="rounded-3xl border bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-600">{error ?? copy.notFound}</p>
+        <div className="rounded-[30px] border border-slate-100 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold text-slate-600">
+            {error ?? copy.notFound}
+          </p>
 
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
               href="/b/jobs"
-              className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
             >
               {copy.backJobs}
             </Link>
 
             <Link
               href="/b/requests"
-              className="rounded-2xl border bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
             >
               {copy.backPending}
             </Link>
@@ -818,236 +996,156 @@ export default function CompanyOrderDetailPage() {
   }
 
   const isWaiting = order.status === "authorized_pending_creator";
-  const isAccepted =
-    order.status === "accepted_captured" || order.status === "in_progress";
-  const isDeclined =
-    order.status === "declined_canceled" ||
-    order.status === "expired_canceled" ||
-    order.status === "cancel_failed";
   const isDelivered = order.status === "delivered";
-  const isRevisionRequested = order.status === "revision_requested";
   const isCompleted = order.status === "completed";
+  const canReviewDelivery = isDelivered && order.payment_status === "captured";
+  const revisionLimitReached =
+    (order.revision_count ?? 0) >= (order.max_revision_count ?? 1);
+  const canRequestRevision = canReviewDelivery && !revisionLimitReached;
 
-  const revisionCount = Number(order.revision_count ?? 0);
-  const maxRevisionCount = Number(order.max_revision_count ?? 1);
-  const canRequestRevision =
-    order.status === "delivered" &&
-    order.payment_status === "captured" &&
-    !!order.delivered_post_url &&
-    revisionCount < maxRevisionCount;
+  const notice = getNotice(order.status, safeLocale);
 
-  const canComplete =
-    order.status === "delivered" &&
-    order.payment_status === "captured" &&
-    !!order.delivered_post_url;
+  const buyerTotal =
+    order.buyer_total_amount ?? order.stripe_amount ?? order.menu_price_amount;
 
-  const menuPriceAmount = Number(order.menu_price_amount ?? 0);
-  const stripeAmount = Number(order.stripe_amount ?? 0);
+  const buyerFee =
+    order.buyer_marketplace_fee_amount ??
+    Math.max(0, buyerTotal - order.menu_price_amount);
 
-  const fallbackBuyerMarketplaceFeeAmount = Math.max(
-    0,
-    stripeAmount - menuPriceAmount
-  );
-
-  const buyerTotalAmount =
-    order.buyer_total_amount != null && order.buyer_total_amount > 0
-      ? order.buyer_total_amount
-      : stripeAmount > 0
-        ? stripeAmount
-        : menuPriceAmount + fallbackBuyerMarketplaceFeeAmount;
-
-  const buyerMarketplaceFeeAmount =
-    order.buyer_marketplace_fee_amount != null &&
-    order.buyer_marketplace_fee_amount > 0
-      ? order.buyer_marketplace_fee_amount
-      : Math.max(0, buyerTotalAmount - menuPriceAmount);
-
-  const buyerMarketplaceFeeRateBps =
-    order.buyer_marketplace_fee_rate_bps != null &&
-    order.buyer_marketplace_fee_rate_bps > 0
-      ? order.buyer_marketplace_fee_rate_bps
-      : menuPriceAmount > 0
-        ? Math.round((buyerMarketplaceFeeAmount / menuPriceAmount) * 10000)
-        : null;
+  const planName =
+    order.buyer_plan_public_name_snapshot ||
+    formatPlanName(order.buyer_plan_code_snapshot);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/b/jobs"
-            className="text-sm font-semibold text-blue-600 hover:underline"
-          >
-            ← {copy.backJobs}
-          </Link>
+    <div className="mx-auto max-w-7xl space-y-6 p-4 pb-10 md:p-6">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+          Company Order
+        </p>
 
-          <Link
-            href="/b/requests"
-            className="text-sm font-semibold text-blue-600 hover:underline"
-          >
-            {copy.backPending}
-          </Link>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold text-blue-600">
-              Trendre Orders
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">
-              {copy.title}
+            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
+              {order.product_name || copy.title}
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
               {copy.subtitle}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${statusClass(
-                order.status
-              )}`}
-            >
-              {statusLabel(order.status, safeLocale)}
-            </span>
+          <Link
+            href={isWaiting ? "/b/requests" : "/b/jobs"}
+            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+          >
+            {isWaiting ? copy.backPending : copy.backJobs}
+          </Link>
+        </div>
 
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${paymentStatusClass(
-                order.payment_status
-              )}`}
-            >
-              {order.payment_status}
-            </span>
-          </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Pill className={statusClass(order.status)}>
+            {copy.orderStatus}: {statusLabel(order.status, safeLocale)}
+          </Pill>
+          <Pill className={paymentStatusClass(order.payment_status)}>
+            {copy.paymentStatus}: {order.payment_status}
+          </Pill>
+          {order.stripe_payment_status ? (
+            <Pill className="bg-white/10 text-white ring-white/10">
+              {copy.stripeStatus}: {order.stripe_payment_status}
+            </Pill>
+          ) : null}
         </div>
       </section>
 
-      <section className="rounded-3xl border border-blue-100 bg-blue-50 p-5 text-sm leading-7 text-blue-800">
-        {copy.ruleNotice}
-      </section>
-
-      {isWaiting ? (
-        <section className="rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm leading-7 text-blue-800">
-          {copy.waitingNotice}
-        </section>
-      ) : null}
-
-      {isAccepted ? (
-        <section className="rounded-3xl border border-green-200 bg-green-50 p-5 text-sm leading-7 text-green-800">
-          {copy.acceptedNotice}
-        </section>
-      ) : null}
-
-      {isRevisionRequested ? (
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-800">
-          {copy.revisionRequestedNotice}
-        </section>
-      ) : null}
-
-      {isDeclined ? (
-        <section className="rounded-3xl border bg-gray-50 p-5 text-sm leading-7 text-gray-700">
-          {order.status === "declined_canceled"
-            ? copy.declinedNotice
-            : copy.canceledNotice}
-        </section>
-      ) : null}
-
-      {isDelivered ? (
-        <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-sm leading-7 text-indigo-800">
-          {copy.deliveredNotice}
-        </section>
-      ) : null}
-
-      {isCompleted ? (
-        <section className="rounded-3xl border bg-gray-50 p-5 text-sm leading-7 text-gray-700">
-          {copy.completedNotice}
-        </section>
-      ) : null}
-
       {error ? (
-        <section className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm leading-7 text-red-700">
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
           {error}
-        </section>
+        </div>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
-        <div className="space-y-6">
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.productInfo}</h2>
+      <NoticeCard tone={notice.tone} title={notice.title} body={notice.body} />
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label={copy.productName} value={order.product_name} />
-
-              <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {copy.productUrl}
-                </p>
-                {order.product_url ? (
-                  <a
-                    href={order.product_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 block break-all text-sm font-semibold text-blue-600 hover:underline"
-                  >
-                    {order.product_url}
-                  </a>
-                ) : (
-                  <p className="mt-2 text-sm font-semibold text-gray-900">-</p>
-                )}
-              </div>
-
-              <Field
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <main className="space-y-6">
+          <SectionCard title={copy.productInfo}>
+            <div className="grid gap-3">
+              <DetailRow
+                label={copy.productName}
+                value={order.product_name || copy.notSet}
+                strong
+              />
+              <DetailRow
+                label={copy.productUrl}
+                value={
+                  order.product_url ? (
+                    <a
+                      href={order.product_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 underline underline-offset-4"
+                    >
+                      {order.product_url}
+                    </a>
+                  ) : (
+                    copy.notSet
+                  )
+                }
+              />
+              <DetailRow
                 label={copy.deadline}
                 value={formatDate(order.deadline, safeLocale)}
               />
-
-              <Field
+              <DetailRow
                 label={copy.freeOffer}
                 value={order.has_free_offer ? copy.yes : copy.no}
               />
-
-              <Field
+              <DetailRow
                 label={copy.secondaryUse}
                 value={order.wants_secondary_use ? copy.yes : copy.no}
               />
             </div>
 
-            <div className="mt-5 rounded-2xl border bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {copy.requirements}
-              </p>
-              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-700">
-                {order.requirements}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.menuInfo}</h2>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label={copy.menuTitle} value={order.menu_title_snapshot} />
-
-              <Field
-                label={copy.platform}
-                value={order.menu_platform_snapshot ?? copy.notSet}
+            <div className="mt-4">
+              <TextBlock
+                label={copy.requirements}
+                value={order.requirements}
+                emptyLabel={copy.notSet}
               />
+            </div>
+          </SectionCard>
 
-              <Field
-                label={copy.menuType}
-                value={menuTypeLabel(
+          <SectionCard title={copy.menuInfo}>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {order.menu_platform_snapshot ? (
+                <Pill className="bg-slate-950 text-white ring-slate-950">
+                  <span className="mr-1">
+                    {getPlatformIcon(order.menu_platform_snapshot)}
+                  </span>
+                  {order.menu_platform_snapshot}
+                </Pill>
+              ) : null}
+
+              <Pill className="bg-slate-100 text-slate-700 ring-slate-200">
+                {menuTypeLabel(
                   order.menu_type_snapshot,
                   safeLocale,
-                  copy.notSet
+                  order.menu_category_snapshot || copy.notSet
                 )}
-              />
+              </Pill>
 
-              <Field
-                label={copy.category}
-                value={order.menu_category_snapshot ?? copy.notSet}
-              />
+              {order.menu_category_snapshot ? (
+                <Pill className="bg-purple-100 text-purple-700 ring-purple-200">
+                  {order.menu_category_snapshot}
+                </Pill>
+              ) : null}
+            </div>
 
-              <Field
+            <div className="rounded-[22px] bg-slate-50 p-4">
+              <DetailRow
+                label={copy.menuTitle}
+                value={order.menu_title_snapshot || copy.notSet}
+                strong
+              />
+              <DetailRow
                 label={copy.price}
                 value={formatPrice(
                   order.menu_price_amount,
@@ -1055,8 +1153,7 @@ export default function CompanyOrderDetailPage() {
                   safeLocale
                 )}
               />
-
-              <Field
+              <DetailRow
                 label={copy.deliveryDays}
                 value={formatDeliveryDays(
                   order.menu_delivery_days_snapshot,
@@ -1064,8 +1161,7 @@ export default function CompanyOrderDetailPage() {
                   copy.notSet
                 )}
               />
-
-              <Field
+              <DetailRow
                 label={copy.secondaryUseAllowed}
                 value={
                   order.menu_allow_secondary_use_snapshot
@@ -1075,191 +1171,118 @@ export default function CompanyOrderDetailPage() {
               />
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {copy.deliverables}
-                </p>
-                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-700">
-                  {order.menu_deliverables_snapshot || "-"}
-                </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <TextBlock
+                label={copy.menuDescription}
+                value={order.menu_description_snapshot}
+                emptyLabel={copy.notSet}
+              />
+              <TextBlock
+                label={copy.deliverables}
+                value={order.menu_deliverables_snapshot}
+                emptyLabel={copy.notSet}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title={copy.lifecycle}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-[22px] bg-slate-50 p-4">
+                <DetailRow
+                  label={copy.createdAt}
+                  value={formatDateTime(order.created_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.updatedAt}
+                  value={formatDateTime(order.updated_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.authorizedAt}
+                  value={formatDateTime(order.authorized_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.creatorDeadline}
+                  value={formatDateTime(
+                    order.creator_accept_deadline,
+                    safeLocale
+                  )}
+                />
+                <DetailRow
+                  label={copy.acceptedAt}
+                  value={formatDateTime(order.accepted_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.capturedAt}
+                  value={formatDateTime(order.captured_at, safeLocale)}
+                />
               </div>
 
-              <div className="rounded-2xl border bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {copy.menuDescription}
-                </p>
-                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-700">
-                  {order.menu_description_snapshot || "-"}
-                </p>
+              <div className="rounded-[22px] bg-slate-50 p-4">
+                <DetailRow
+                  label={copy.declinedAt}
+                  value={formatDateTime(order.declined_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.expiredAt}
+                  value={formatDateTime(order.expired_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.canceledAt}
+                  value={formatDateTime(order.canceled_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.deliveredAt}
+                  value={formatDateTime(order.delivered_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.autoCompleteAt}
+                  value={formatDateTime(order.auto_complete_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.completedAt}
+                  value={formatDateTime(order.completed_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.completedReason}
+                  value={completedReasonLabel(order.completed_reason, safeLocale)}
+                />
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          {order.revision_note ? (
-            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-amber-900">
-                {copy.currentRevisionNote}
-              </h2>
+          <SectionCard title={copy.chatTitle}>
+            <ChatEmbed orderId={order.id} title={copy.chatTitle} />
+          </SectionCard>
+        </main>
 
-              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-amber-900">
-                {order.revision_note}
-              </p>
-            </div>
-          ) : null}
-
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.creatorInfo}</h2>
-
-            <div className="mt-5 flex items-center gap-4 rounded-2xl bg-gray-50 p-4">
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <SectionCard title={copy.creatorInfo}>
+            <div className="flex items-center gap-4">
               <CreatorAvatar creator={creator} />
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {copy.creatorName}
+              <div className="min-w-0">
+                <p className="truncate text-lg font-black text-slate-950">
+                  {creator?.display_name || copy.notSet}
                 </p>
-                <p className="mt-1 text-lg font-bold text-gray-900">
-                  @{creator?.display_name ?? "unknown"}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  {copy.creatorCategory}: {creator?.category ?? copy.notSet}
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {creator?.category || copy.notSet}
                 </p>
               </div>
             </div>
 
-            <div className="mt-4">
+            {creator?.id ? (
               <Link
-                href={`/b/creators/${order.creator_id}`}
-                className="text-sm font-semibold text-blue-600 hover:underline"
+                href={`/b/creators/${creator.id}`}
+                className="mt-5 flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
               >
                 {copy.creatorProfile}
               </Link>
-            </div>
-          </div>
-        </div>
+            ) : null}
+          </SectionCard>
 
-        <aside className="space-y-6">
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.lifecycle}</h2>
-
-            <div className="mt-5 space-y-3">
-              <Field
-                label={copy.orderStatus}
-                value={statusLabel(order.status, safeLocale)}
-              />
-
-              <Field label={copy.paymentStatus} value={order.payment_status} />
-
-              <Field
-                label={copy.stripeStatus}
-                value={order.stripe_payment_status ?? "-"}
-              />
-
-              <Field
-                label={copy.createdAt}
-                value={formatDateTime(order.created_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.updatedAt}
-                value={formatDateTime(order.updated_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.authorizedAt}
-                value={formatDateTime(order.authorized_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.creatorDeadline}
-                value={formatDateTime(
-                  order.creator_accept_deadline,
-                  safeLocale
-                )}
-              />
-
-              <Field
-                label={copy.acceptedAt}
-                value={formatDateTime(order.accepted_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.declinedAt}
-                value={formatDateTime(order.declined_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.expiredAt}
-                value={formatDateTime(order.expired_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.capturedAt}
-                value={formatDateTime(order.captured_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.canceledAt}
-                value={formatDateTime(order.canceled_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.deliveredAt}
-                value={formatDateTime(order.delivered_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.revisionRequestedAt}
-                value={formatDateTime(order.revision_requested_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.revisionCount}
-                value={`${revisionCount} / ${maxRevisionCount}`}
-              />
-
-              <Field
-                label={copy.autoCompleteAt}
-                value={formatDateTime(order.auto_complete_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.completedAt}
-                value={formatDateTime(order.completed_at, safeLocale)}
-              />
-
-              <Field
-                label={copy.completedReason}
-                value={completedReasonLabel(
-                  order.completed_reason,
-                  safeLocale
-                )}
-              />
-
-              <Field
-                label={copy.disputedAt}
-                value={formatDateTime(order.disputed_at, safeLocale)}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.money}</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              {copy.amountNote}
-            </p>
-
-            <div className="mt-5 space-y-3">
-              <Field
-                label={copy.buyerPlan}
-                value={formatPlanName(
-                  order.buyer_plan_public_name_snapshot ??
-                    order.buyer_plan_code_snapshot,
-                  safeLocale
-                )}
-              />
-
-              <Field
+          <SectionCard title={copy.money} body={copy.amountNote}>
+            <div className="rounded-[22px] bg-slate-50 p-4">
+              <DetailRow label={copy.buyerPlan} value={planName} />
+              <DetailRow
                 label={copy.menuPrice}
                 value={formatPrice(
                   order.menu_price_amount,
@@ -1267,121 +1290,115 @@ export default function CompanyOrderDetailPage() {
                   safeLocale
                 )}
               />
-
-              <Field
+              <DetailRow
                 label={copy.buyerFeeRate}
-                value={formatBpsPercent(buyerMarketplaceFeeRateBps)}
+                value={formatBpsPercent(order.buyer_marketplace_fee_rate_bps)}
               />
-
-              <Field
+              <DetailRow
                 label={copy.buyerMarketplaceFee}
-                value={formatPrice(
-                  buyerMarketplaceFeeAmount,
-                  order.currency,
-                  safeLocale
-                )}
+                value={formatPrice(buyerFee, order.currency, safeLocale)}
               />
-
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                  {copy.buyerTotal}
-                </p>
-                <p className="mt-2 text-xl font-bold text-blue-950">
-                  {formatPrice(buyerTotalAmount, order.currency, safeLocale)}
-                </p>
-              </div>
-
-              <Field
+              <DetailRow
+                label={copy.buyerTotal}
+                value={formatPrice(buyerTotal, order.currency, safeLocale)}
+                strong
+              />
+              <DetailRow
                 label={copy.stripeAmount}
-                value={formatPrice(
-                  order.stripe_amount,
-                  order.currency,
-                  safeLocale
-                )}
+                value={formatPrice(order.stripe_amount, order.currency, safeLocale)}
               />
             </div>
-          </div>
+          </SectionCard>
 
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">{copy.deliveredPostUrl}</h2>
-
-            {order.delivered_post_url ? (
+          {order.delivered_post_url ? (
+            <SectionCard title={copy.completeTitle} body={copy.completeBody}>
               <a
                 href={order.delivered_post_url}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-4 inline-flex w-full justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                className="flex w-full items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-black text-blue-700 underline-offset-4 hover:underline"
               >
                 {copy.openDeliveredUrl}
               </a>
-            ) : (
-              <p className="mt-4 text-sm text-gray-500">-</p>
-            )}
-          </div>
 
-          {canComplete ? (
-            <div className="rounded-3xl border bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold">{copy.completeTitle}</h2>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                {copy.completeBody}
-              </p>
+              {canReviewDelivery ? (
+                <div className="mt-4 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void runComplete()}
+                    disabled={actionLoading !== null}
+                    className="rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {actionLoading === "complete"
+                      ? copy.completing
+                      : copy.complete}
+                  </button>
 
-              <button
-                type="button"
-                disabled={actionLoading === "complete"}
-                onClick={runComplete}
-                className="mt-5 w-full rounded-2xl bg-green-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {actionLoading === "complete"
-                  ? copy.completing
-                  : copy.complete}
-              </button>
-            </div>
+                  {canRequestRevision ? (
+                    <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
+                      <p className="text-sm font-black text-slate-950">
+                        {copy.revisionTitle}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {copy.revisionBody}
+                      </p>
+
+                      <textarea
+                        value={revisionNote}
+                        onChange={(event) =>
+                          setRevisionNote(event.target.value)
+                        }
+                        placeholder={copy.revisionPlaceholder}
+                        rows={5}
+                        className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => void runRequestRevision()}
+                        disabled={actionLoading !== null}
+                        className="mt-3 w-full rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-black text-amber-800 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {actionLoading === "revision"
+                          ? copy.requestingRevision
+                          : copy.requestRevision}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
+                      {revisionLimitReached
+                        ? copy.revisionLimitReached
+                        : copy.ruleNotice}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </SectionCard>
           ) : null}
 
-          {canRequestRevision ? (
-            <div className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold">{copy.revisionTitle}</h2>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                {copy.revisionBody}
-              </p>
-
-              <label className="mt-5 block text-sm font-semibold">
-                {copy.revisionNoteLabel}
-              </label>
-
-              <textarea
-                value={revisionNote}
-                onChange={(e) => setRevisionNote(e.target.value)}
-                placeholder={copy.revisionPlaceholder}
-                rows={6}
-                className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-amber-500"
+          {order.revision_note ? (
+            <SectionCard title={copy.currentRevisionNote}>
+              <TextBlock
+                label={copy.revisionNoteLabel}
+                value={order.revision_note}
+                emptyLabel={copy.notSet}
               />
-
-              <button
-                type="button"
-                disabled={
-                  actionLoading === "revision" || revisionNote.trim().length < 10
-                }
-                onClick={runRequestRevision}
-                className="mt-4 w-full rounded-2xl bg-amber-500 px-5 py-4 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {actionLoading === "revision"
-                  ? copy.requestingRevision
-                  : copy.requestRevision}
-              </button>
-            </div>
-          ) : null}
-
-          {isDelivered && !canRequestRevision && !isCompleted ? (
-            <div className="rounded-3xl border border-amber-100 bg-amber-50 p-5 text-sm leading-7 text-amber-800">
-              {copy.revisionLimitReached}
-            </div>
+              <div className="mt-4 rounded-[22px] bg-slate-50 p-4">
+                <DetailRow
+                  label={copy.revisionRequestedAt}
+                  value={formatDateTime(order.revision_requested_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.revisionCount}
+                  value={`${order.revision_count ?? 0}/${
+                    order.max_revision_count ?? 1
+                  }`}
+                />
+              </div>
+            </SectionCard>
           ) : null}
         </aside>
       </section>
-
-      <ChatEmbed orderId={order.id} title={copy.chatTitle} />
     </div>
   );
 }
