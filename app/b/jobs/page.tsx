@@ -109,7 +109,7 @@ function Avatar({
       <img
         src={avatarUrl}
         alt={name}
-        className="h-12 w-12 rounded-full object-cover"
+        className="h-14 w-14 rounded-2xl object-cover"
       />
     );
   }
@@ -117,7 +117,7 @@ function Avatar({
   const initial = (name?.trim()?.[0] ?? "C").toUpperCase();
 
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 font-bold text-gray-700">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 text-lg font-black text-white">
       {initial}
     </div>
   );
@@ -135,7 +135,13 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatPrice(
@@ -169,61 +175,61 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
   const ja: Record<string, { label: string; className: string }> = {
     accepted: {
       label: "進行中",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     accepted_captured: {
-      label: "承認済み・決済確定",
-      className: "bg-green-50 text-green-700 ring-green-200",
+      label: "進行中",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     in_progress: {
       label: "進行中",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     delivered: {
       label: "納品済み",
-      className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+      className: "bg-purple-100 text-purple-700 ring-purple-200",
     },
     revision_requested: {
       label: "修正依頼中",
-      className: "bg-amber-50 text-amber-700 ring-amber-200",
+      className: "bg-amber-100 text-amber-800 ring-amber-200",
     },
     completed: {
       label: "完了",
-      className: "bg-gray-50 text-gray-700 ring-gray-200",
+      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     },
   };
 
   const en: Record<string, { label: string; className: string }> = {
     accepted: {
       label: "Active",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     accepted_captured: {
-      label: "Accepted / Captured",
-      className: "bg-green-50 text-green-700 ring-green-200",
+      label: "Active",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     in_progress: {
       label: "In Progress",
-      className: "bg-blue-50 text-blue-700 ring-blue-200",
+      className: "bg-blue-100 text-blue-700 ring-blue-200",
     },
     delivered: {
       label: "Delivered",
-      className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+      className: "bg-purple-100 text-purple-700 ring-purple-200",
     },
     revision_requested: {
       label: "Revision Requested",
-      className: "bg-amber-50 text-amber-700 ring-amber-200",
+      className: "bg-amber-100 text-amber-800 ring-amber-200",
     },
     completed: {
       label: "Completed",
-      className: "bg-gray-50 text-gray-700 ring-gray-200",
+      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     },
   };
 
   return (
     (locale === "ja" ? ja[status] : en[status]) ?? {
       label: status,
-      className: "bg-gray-50 text-gray-700 ring-gray-200",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
     }
   );
 }
@@ -237,7 +243,6 @@ function getTimestamp(value: string | null | undefined) {
   if (!value) return null;
 
   const time = new Date(value).getTime();
-
   if (Number.isNaN(time)) return null;
 
   return time;
@@ -250,6 +255,93 @@ function getAutoCompleteSortValue(item: JobItem) {
   return getTimestamp(item.auto_complete_at) ?? 9999999999999;
 }
 
+function isWithinHours(value: string | null | undefined, hours: number) {
+  const time = getTimestamp(value);
+  if (!time) return false;
+
+  const diff = time - Date.now();
+  return diff > 0 && diff <= hours * 60 * 60 * 1000;
+}
+
+function StatCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "dark" | "blue" | "purple" | "amber" | "green";
+}) {
+  const styles = {
+    default: "border-slate-100 bg-white text-slate-950",
+    dark: "border-slate-950 bg-slate-950 text-white",
+    blue: "border-blue-100 bg-blue-50 text-slate-950",
+    purple: "border-purple-100 bg-purple-50 text-slate-950",
+    amber: "border-amber-100 bg-amber-50 text-slate-950",
+    green: "border-emerald-100 bg-emerald-50 text-slate-950",
+  };
+
+  return (
+    <div className={`rounded-[26px] border p-5 shadow-sm ${styles[tone]}`}>
+      <p
+        className={`text-xs font-black uppercase tracking-[0.2em] ${
+          tone === "dark" ? "text-white/60" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </p>
+      <p
+        className={`mt-3 text-3xl font-black ${
+          tone === "dark" ? "text-white" : "text-slate-950"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: React.ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <span
+        className={`text-right text-sm ${
+          strong ? "font-black text-slate-950" : "font-bold text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function JobsListPage() {
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
@@ -259,18 +351,20 @@ export default function JobsListPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            title: "進行中案件一覧",
+            title: "進行中案件",
             subtitle:
-              "決済確定済みの注文、修正依頼中の注文、旧リクエスト型の進行中案件、新着メッセージをまとめて表示しています。納品済みで自動完了が近い案件を優先表示します。",
+              "決済確定済みの注文、修正依頼中の注文、納品済み・完了済み案件を確認できます。",
             viewRequests: "承認待ちを見る",
             empty: "進行中の案件はありません。",
+            emptyBody:
+              "クリエイターが承認した注文や納品済み案件がここに表示されます。",
             unnamedCreator: "unknown",
             unnamedProduct: "未入力",
             productName: "商品名",
             menu: "メニュー",
             price: "価格",
             buyerFeeRate: "B側手数料率",
-            marketplaceFee: "Trendre marketplace fee",
+            marketplaceFee: "Trendre手数料",
             buyerTotal: "お支払い合計",
             stripeAmount: "Stripe決済額",
             deliveredUrl: "納品URLあり",
@@ -278,26 +372,33 @@ export default function JobsListPage() {
             revisionCount: "修正回数",
             unreadMessages: "新着メッセージあり",
             lastMessage: "最終メッセージ",
-            updatedAt: "更新日",
+            updatedAt: "更新",
             detail: "詳細を見る",
             fetchError: "進行中案件の取得に失敗しました。",
             autoComplete: "自動完了",
             autoCompleteExpired: "自動完了期限超過",
+            total: "すべて",
+            active: "進行中",
+            delivered: "納品済み",
+            revision: "修正",
+            completed: "完了",
           }
         : {
             loading: "Loading...",
             title: "Active Jobs",
             subtitle:
-              "Captured orders, revision requested orders, active legacy requests, and unread messages are shown here. Delivered orders close to auto-completion are prioritized.",
+              "Review captured orders, revision requests, delivered jobs, and completed jobs.",
             viewRequests: "View Pending",
             empty: "There are no active jobs.",
+            emptyBody:
+              "Accepted orders and delivered jobs will appear here.",
             unnamedCreator: "unknown",
             unnamedProduct: "Not entered",
             productName: "Product",
             menu: "Menu",
             price: "Price",
             buyerFeeRate: "Buyer fee rate",
-            marketplaceFee: "Trendre marketplace fee",
+            marketplaceFee: "Trendre fee",
             buyerTotal: "Payment total",
             stripeAmount: "Stripe amount",
             deliveredUrl: "Delivered URL submitted",
@@ -310,6 +411,11 @@ export default function JobsListPage() {
             fetchError: "Failed to load active jobs.",
             autoComplete: "Auto complete",
             autoCompleteExpired: "Auto-complete overdue",
+            total: "Total",
+            active: "Active",
+            delivered: "Delivered",
+            revision: "Revision",
+            completed: "Completed",
           },
     [safeLocale]
   );
@@ -573,28 +679,33 @@ export default function JobsListPage() {
     };
 
     window.addEventListener("focus", onFocus);
+    window.addEventListener("trendre:chat-read-changed", onFocus);
 
     return () => {
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("trendre:chat-read-changed", onFocus);
     };
   }, [load]);
 
-  const hasUnread = (item: JobItem) => {
-    if (!currentUserId) return false;
-    if (!item.chat?.last_message_at) return false;
+  const hasUnread = useCallback(
+    (item: JobItem) => {
+      if (!currentUserId) return false;
+      if (!item.chat?.last_message_at) return false;
 
-    const readRow =
-      item.chat.chat_reads?.find((row) => row.user_id === currentUserId) ??
-      null;
+      const readRow =
+        item.chat.chat_reads?.find((row) => row.user_id === currentUserId) ??
+        null;
 
-    if (!readRow?.last_read_at) return true;
+      if (!readRow?.last_read_at) return true;
 
-    return (
-      new Date(item.chat.last_message_at).getTime() >
-      new Date(readRow.last_read_at).getTime()
-    );
-  };
+      return (
+        new Date(item.chat.last_message_at).getTime() >
+        new Date(readRow.last_read_at).getTime()
+      );
+    },
+    [currentUserId]
+  );
 
   const sortedJobs = useMemo(() => {
     return [...jobs].sort((a, b) => {
@@ -627,38 +738,81 @@ export default function JobsListPage() {
 
       return bTime - aTime;
     });
-  }, [jobs, currentUserId]);
+  }, [jobs, hasUnread]);
+
+  const activeCount = sortedJobs.filter((job) =>
+    ["accepted", "accepted_captured", "in_progress"].includes(job.status)
+  ).length;
+  const deliveredCount = sortedJobs.filter((job) => job.status === "delivered").length;
+  const revisionCount = sortedJobs.filter(
+    (job) => job.status === "revision_requested"
+  ).length;
+  const completedCount = sortedJobs.filter((job) => job.status === "completed").length;
 
   if (loading) {
-    return <p className="p-6">{copy.loading}</p>;
+    return (
+      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
+        <div className="h-60 animate-pulse rounded-[30px] bg-slate-100" />
+        <div className="h-60 animate-pulse rounded-[30px] bg-slate-100" />
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="mb-1 text-2xl font-bold">{copy.title}</h1>
-          <p className="text-sm text-gray-600">{copy.subtitle}</p>
-        </div>
+    <div className="mx-auto max-w-6xl space-y-6 p-4 pb-10 md:p-6">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+          Company Jobs
+        </p>
 
-        <Link
-          href="/b/requests"
-          className="rounded border px-4 py-2 text-sm hover:bg-gray-50"
-        >
-          {copy.viewRequests}
-        </Link>
-      </div>
+        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
+              {copy.title}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
+              {copy.subtitle}
+            </p>
+          </div>
+
+          <Link
+            href="/b/requests"
+            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+          >
+            {copy.viewRequests}
+          </Link>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        <StatCard label={copy.total} value={sortedJobs.length} tone="dark" />
+        <StatCard label={copy.active} value={activeCount} tone="blue" />
+        <StatCard label={copy.delivered} value={deliveredCount} tone="purple" />
+        <StatCard label={copy.revision} value={revisionCount} tone="amber" />
+        <StatCard label={copy.completed} value={completedCount} tone="green" />
+      </section>
 
       {error ? (
-        <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
           {error}
         </div>
       ) : null}
 
       {sortedJobs.length === 0 ? (
-        <p className="text-gray-600">{copy.empty}</p>
+        <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
+            ▣
+          </div>
+          <h2 className="mt-5 text-xl font-black text-slate-950">
+            {copy.empty}
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
+            {copy.emptyBody}
+          </p>
+        </div>
       ) : (
-        <div className="space-y-4">
+        <section className="space-y-4">
           {sortedJobs.map((job) => {
             const meta = getStatusMeta(job.status, safeLocale);
             const detailHref =
@@ -666,147 +820,140 @@ export default function JobsListPage() {
                 ? `/b/orders/${job.id}`
                 : `/b/requests/${job.id}`;
 
+            const unread = hasUnread(job);
+            const isDelivered = job.status === "delivered";
+            const isRevision = job.status === "revision_requested";
+
             return (
               <Link
                 key={`${job.kind}-${job.id}`}
                 href={detailHref}
-                className="block rounded-2xl border bg-white p-5 shadow-sm transition hover:bg-gray-50"
+                className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
+                  isDelivered
+                    ? "border-purple-200 ring-2 ring-purple-100"
+                    : isRevision
+                    ? "border-amber-200 ring-2 ring-amber-100"
+                    : unread
+                    ? "border-blue-200 ring-2 ring-blue-100"
+                    : "border-slate-100"
+                }`}
               >
-                <div className="mb-3 flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar
-                      name={job.creator_name ?? copy.unnamedCreator}
-                      avatarUrl={job.creator_avatar_url}
-                    />
-                    <div>
-                      <div className="mb-2 flex flex-wrap gap-2">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            job.kind === "order"
-                              ? "bg-purple-50 text-purple-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {getKindLabel(job.kind, safeLocale)}
-                        </span>
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <Pill
+                        className={
+                          job.kind === "order"
+                            ? "bg-slate-950 text-white ring-slate-950"
+                            : "bg-slate-100 text-slate-700 ring-slate-200"
+                        }
+                      >
+                        {getKindLabel(job.kind, safeLocale)}
+                      </Pill>
 
-                        {job.payment_status ? (
-                          <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                            {job.payment_status}
-                          </span>
+                      <Pill className={meta.className}>{meta.label}</Pill>
+
+                      {job.payment_status ? (
+                        <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                          {job.payment_status}
+                        </Pill>
+                      ) : null}
+
+                      {job.delivered_post_url ? (
+                        <Pill className="bg-purple-50 text-purple-700 ring-purple-200">
+                          {copy.deliveredUrl}
+                        </Pill>
+                      ) : null}
+
+                      {isRevision ? (
+                        <Pill className="bg-amber-50 text-amber-800 ring-amber-200">
+                          {copy.revisionRequested}
+                        </Pill>
+                      ) : null}
+
+                      {unread ? (
+                        <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
+                          {copy.unreadMessages}
+                        </Pill>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <Avatar
+                        name={job.creator_name ?? copy.unnamedCreator}
+                        avatarUrl={job.creator_avatar_url}
+                      />
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-500">
+                          @{job.creator_name ?? copy.unnamedCreator}
+                        </p>
+                        <h2 className="mt-1 truncate text-2xl font-black text-slate-950">
+                          {job.product_name ?? copy.unnamedProduct}
+                        </h2>
+                        {job.menu_title ? (
+                          <p className="mt-2 text-sm font-semibold text-slate-500">
+                            {copy.menu}: {job.menu_title}
+                          </p>
                         ) : null}
                       </div>
-
-                      <p className="font-semibold">
-                        @{job.creator_name ?? copy.unnamedCreator}
-                      </p>
                     </div>
                   </div>
 
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${meta.className}`}
-                  >
-                    {meta.label}
+                  <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 lg:flex">
+                    ›
                   </span>
                 </div>
 
-                <div className="rounded-2xl bg-gray-50 p-4">
-                  <p className="font-medium text-gray-800">
-                    {copy.productName}:{" "}
-                    {job.product_name ?? copy.unnamedProduct}
-                  </p>
-
-                  {job.menu_title ? (
-                    <p className="mt-2 text-sm text-gray-600">
-                      {copy.menu}: {job.menu_title}
-                    </p>
-                  ) : null}
-
-                  {job.kind === "order" ? (
-                    <div className="mt-3 grid gap-2 rounded-xl border bg-white p-3 text-sm md:grid-cols-2">
-                      {job.menu_price_amount != null ? (
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {copy.price}
-                          </p>
-                          <p className="mt-1 font-semibold text-gray-900">
-                            {formatPrice(
-                              job.menu_price_amount,
-                              job.currency,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {job.buyer_marketplace_fee_rate_bps != null ? (
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {copy.buyerFeeRate}
-                          </p>
-                          <p className="mt-1 font-semibold text-gray-900">
-                            {formatBps(job.buyer_marketplace_fee_rate_bps)}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {job.buyer_marketplace_fee_amount != null ? (
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {copy.marketplaceFee}
-                          </p>
-                          <p className="mt-1 font-semibold text-gray-900">
-                            {formatPrice(
-                              job.buyer_marketplace_fee_amount,
-                              job.currency,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {job.buyer_total_amount != null ? (
-                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 md:col-span-2">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                            {copy.buyerTotal}
-                          </p>
-                          <p className="mt-1 text-lg font-bold text-blue-900">
-                            {formatPrice(
-                              job.buyer_total_amount,
-                              job.currency,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
-                      ) : null}
-
+                {job.kind === "order" ? (
+                  <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <DetailRow
+                        label={copy.price}
+                        value={formatPrice(
+                          job.menu_price_amount,
+                          job.currency,
+                          safeLocale
+                        )}
+                      />
+                      <DetailRow
+                        label={copy.buyerFeeRate}
+                        value={formatBps(job.buyer_marketplace_fee_rate_bps)}
+                      />
+                      <DetailRow
+                        label={copy.marketplaceFee}
+                        value={formatPrice(
+                          job.buyer_marketplace_fee_amount,
+                          job.currency,
+                          safeLocale
+                        )}
+                      />
+                      <DetailRow
+                        label={copy.buyerTotal}
+                        value={formatPrice(
+                          job.buyer_total_amount,
+                          job.currency,
+                          safeLocale
+                        )}
+                        strong
+                      />
                       {job.stripe_amount != null &&
                       job.stripe_amount !== job.buyer_total_amount ? (
-                        <div className="md:col-span-2">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {copy.stripeAmount}
-                          </p>
-                          <p className="mt-1 font-semibold text-gray-900">
-                            {formatPrice(
-                              job.stripe_amount,
-                              job.currency,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
+                        <DetailRow
+                          label={copy.stripeAmount}
+                          value={formatPrice(
+                            job.stripe_amount,
+                            job.currency,
+                            safeLocale
+                          )}
+                        />
                       ) : null}
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
 
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                  {job.delivered_post_url ? (
-                    <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                      {copy.deliveredUrl}
-                    </span>
-                  ) : null}
-
-                  {job.status === "delivered" && job.auto_complete_at ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {isDelivered && job.auto_complete_at ? (
                     <DeadlineBadge
                       deadline={job.auto_complete_at}
                       label={copy.autoComplete}
@@ -817,49 +964,33 @@ export default function JobsListPage() {
                     />
                   ) : null}
 
-                  {job.status === "revision_requested" ? (
-                    <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
-                      {copy.revisionRequested}
-                    </span>
-                  ) : null}
-
-                  {job.status === "revision_requested" &&
-                  job.revision_count != null ? (
-                    <span className="text-xs text-amber-700">
+                  {isRevision && job.revision_count != null ? (
+                    <Pill className="bg-amber-50 text-amber-800 ring-amber-200">
                       {copy.revisionCount}: {job.revision_count}/
                       {job.max_revision_count ?? 1}
-                    </span>
-                  ) : null}
-
-                  {hasUnread(job) ? (
-                    <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
-                      {copy.unreadMessages}
-                    </span>
+                    </Pill>
                   ) : null}
 
                   {job.chat?.last_message_at ? (
-                    <span className="text-xs text-gray-400">
+                    <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
                       {copy.lastMessage}:{" "}
                       {formatDateTime(job.chat.last_message_at, safeLocale)}
-                    </span>
+                    </Pill>
                   ) : null}
 
-                  <span className="text-xs text-gray-400">
+                  <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
                     {copy.updatedAt}:{" "}
-                    {formatDateTime(
-                      job.updated_at ?? job.created_at,
-                      safeLocale
-                    )}
-                  </span>
+                    {formatDateTime(job.updated_at ?? job.created_at, safeLocale)}
+                  </Pill>
                 </div>
 
-                <p className="mt-3 text-sm font-semibold text-blue-600">
+                <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
                   {copy.detail}
-                </p>
+                </div>
               </Link>
             );
           })}
-        </div>
+        </section>
       )}
     </div>
   );
