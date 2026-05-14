@@ -112,7 +112,7 @@ function Avatar({
       <img
         src={avatarUrl}
         alt={name}
-        className="h-12 w-12 rounded-full object-cover"
+        className="h-14 w-14 rounded-2xl object-cover"
       />
     );
   }
@@ -120,7 +120,7 @@ function Avatar({
   const initial = (name?.trim()?.[0] ?? "C").toUpperCase();
 
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 font-bold text-gray-700">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 text-lg font-black text-white">
       {initial}
     </div>
   );
@@ -135,7 +135,13 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     return value;
   }
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatPrice(
@@ -161,7 +167,9 @@ function formatPrice(
 
 function formatBps(value: number | null | undefined) {
   if (value == null) return "-";
+
   const percent = value / 100;
+
   return `${Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(2)}%`;
 }
 
@@ -189,14 +197,14 @@ function getOrderStatusLabel(
 
 function getOrderBadgeClass(status: string) {
   if (status === "authorized_pending_creator") {
-    return "bg-blue-50 text-blue-700 ring-blue-200";
+    return "bg-amber-100 text-amber-800 ring-amber-200";
   }
 
   if (status === "checkout_pending") {
-    return "bg-amber-50 text-amber-700 ring-amber-200";
+    return "bg-slate-100 text-slate-700 ring-slate-200";
   }
 
-  return "bg-gray-50 text-gray-700 ring-gray-200";
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function getDeadlineTime(value: string | null | undefined) {
@@ -219,6 +227,14 @@ function getUrgencyScore(item: PendingItem) {
   return deadlineTime;
 }
 
+function isWithinHours(value: string | null | undefined, hours: number) {
+  const time = getDeadlineTime(value);
+  if (!time) return false;
+
+  const diff = time - Date.now();
+  return diff > 0 && diff <= hours * 60 * 60 * 1000;
+}
+
 function isUnreadChat(chat: ChatRow | null, userId: string | null) {
   if (!userId) return false;
   if (!chat?.last_message_at) return false;
@@ -234,6 +250,83 @@ function isUnreadChat(chat: ChatRow | null, userId: string | null) {
   );
 }
 
+function StatCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "dark" | "amber" | "blue";
+}) {
+  const styles = {
+    default: "border-slate-100 bg-white text-slate-950",
+    dark: "border-slate-950 bg-slate-950 text-white",
+    amber: "border-amber-100 bg-amber-50 text-slate-950",
+    blue: "border-blue-100 bg-blue-50 text-slate-950",
+  };
+
+  return (
+    <div className={`rounded-[26px] border p-5 shadow-sm ${styles[tone]}`}>
+      <p
+        className={`text-xs font-black uppercase tracking-[0.2em] ${
+          tone === "dark" ? "text-white/60" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </p>
+      <p
+        className={`mt-3 text-3xl font-black ${
+          tone === "dark" ? "text-white" : "text-slate-950"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: React.ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <span
+        className={`text-right text-sm ${
+          strong ? "font-black text-slate-950" : "font-bold text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function RequestsListPage() {
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
@@ -243,11 +336,13 @@ export default function RequestsListPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            title: "承認待ちの注文・リクエスト",
+            title: "承認待ち",
             subtitle:
-              "クリエイター承認待ちの注文と、旧リクエスト型の承認待ち依頼を表示しています。期限が近い注文を優先表示します。",
+              "クリエイター承認待ちの注文と、旧リクエスト型の承認待ち依頼を確認できます。",
             viewJobs: "進行中案件を見る",
             empty: "現在、承認待ちの注文・リクエストはありません。",
+            emptyBody:
+              "新しく注文した案件や、クリエイターの承認待ち案件がここに表示されます。",
             unnamedCreator: "unknown",
             unnamedProduct: "未入力",
             productName: "商品名・案件名",
@@ -256,7 +351,7 @@ export default function RequestsListPage() {
             price: "価格",
             menuPrice: "メニュー価格",
             buyerFeeRate: "B側手数料率",
-            marketplaceFee: "Trendre marketplace fee",
+            marketplaceFee: "Trendre手数料",
             buyerTotal: "お支払い合計",
             stripeAmount: "Stripe決済額",
             creatorDeadline: "承認期限",
@@ -268,15 +363,20 @@ export default function RequestsListPage() {
             newMessage: "新着メッセージあり",
             lastMessage: "最終メッセージ",
             urgentNotice:
-              "承認期限が近い注文は上位に表示されます。クリエイターが期限内に承認または辞退するまでお待ちください。",
+              "承認期限が近い注文と新着メッセージがある注文を優先表示しています。",
+            total: "すべて",
+            urgent: "期限間近",
+            unread: "未読",
           }
         : {
             loading: "Loading...",
-            title: "Pending Orders / Requests",
+            title: "Pending",
             subtitle:
-              "Orders waiting for creator approval and legacy pending requests are shown here. Urgent orders are shown first.",
+              "Review orders waiting for creator approval and legacy pending requests.",
             viewJobs: "View Active Jobs",
             empty: "There are no pending orders or requests.",
+            emptyBody:
+              "Newly placed orders and requests waiting for creator approval will appear here.",
             unnamedCreator: "unknown",
             unnamedProduct: "Not entered",
             productName: "Product / Campaign",
@@ -285,7 +385,7 @@ export default function RequestsListPage() {
             price: "Price",
             menuPrice: "Menu price",
             buyerFeeRate: "Buyer fee rate",
-            marketplaceFee: "Trendre marketplace fee",
+            marketplaceFee: "Trendre fee",
             buyerTotal: "Payment total",
             stripeAmount: "Stripe amount",
             creatorDeadline: "Approval deadline",
@@ -297,7 +397,10 @@ export default function RequestsListPage() {
             newMessage: "New messages",
             lastMessage: "Last message",
             urgentNotice:
-              "Orders close to the creator approval deadline are shown first.",
+              "Orders close to the creator approval deadline and orders with unread messages are shown first.",
+            total: "Total",
+            urgent: "Urgent",
+            unread: "Unread",
           },
     [safeLocale]
   );
@@ -495,24 +598,24 @@ export default function RequestsListPage() {
     });
 
     const legacyItems: PendingItem[] = legacyRequests.map((request) => ({
-  kind: "legacy_request",
-  id: request.id,
-  created_at: request.created_at,
-  product_name: request.product_name,
-  creator_name: request.creators?.display_name ?? copy.unnamedCreator,
-  creator_avatar_url: request.creators?.avatar_url ?? null,
-  status: request.status,
-  payment_status: null,
-  menu_title: null,
-  amount: null,
-  currency: "JPY",
-  buyer_marketplace_fee_rate_bps: null,
-  buyer_marketplace_fee_amount: null,
-  buyer_total_amount: null,
-  stripe_amount: null,
-  creator_accept_deadline: null,
-  chat: legacyChatMap.get(request.id) ?? null,
-}));
+      kind: "legacy_request",
+      id: request.id,
+      created_at: request.created_at,
+      product_name: request.product_name,
+      creator_name: request.creators?.display_name ?? copy.unnamedCreator,
+      creator_avatar_url: request.creators?.avatar_url ?? null,
+      status: request.status,
+      payment_status: null,
+      menu_title: null,
+      amount: null,
+      currency: "JPY",
+      buyer_marketplace_fee_rate_bps: null,
+      buyer_marketplace_fee_amount: null,
+      buyer_total_amount: null,
+      stripe_amount: null,
+      creator_accept_deadline: null,
+      chat: legacyChatMap.get(request.id) ?? null,
+    }));
 
     const nextItems = [...orderItems, ...legacyItems].sort((a, b) => {
       const aUnread = isUnreadChat(a.chat, user.id) ? 1 : 0;
@@ -601,41 +704,95 @@ export default function RequestsListPage() {
     };
 
     window.addEventListener("focus", onFocus);
+    window.addEventListener("trendre:chat-read-changed", onFocus);
 
     return () => {
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("trendre:chat-read-changed", onFocus);
     };
   }, [load]);
 
+  const urgentCount = items.filter(
+    (item) =>
+      item.kind === "order" &&
+      item.creator_accept_deadline &&
+      isWithinHours(item.creator_accept_deadline, 24)
+  ).length;
+
+  const unreadCount = items.filter((item) =>
+    isUnreadChat(item.chat, currentUserId)
+  ).length;
+
   if (loading) {
-    return <p className="p-6">{copy.loading}</p>;
+    return (
+      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
+        <div className="h-60 animate-pulse rounded-[30px] bg-slate-100" />
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="mb-1 text-2xl font-bold">{copy.title}</h1>
-          <p className="text-sm text-gray-600">{copy.subtitle}</p>
+    <div className="mx-auto max-w-6xl space-y-6 p-4 pb-10 md:p-6">
+      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
+          Company Pending
+        </p>
+
+        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
+              {copy.title}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
+              {copy.subtitle}
+            </p>
+          </div>
+
+          <Link
+            href="/b/jobs"
+            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+          >
+            {copy.viewJobs}
+          </Link>
         </div>
+      </section>
 
-        <Link
-          href="/b/jobs"
-          className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50"
-        >
-          {copy.viewJobs}
-        </Link>
-      </div>
+      <section className="grid grid-cols-3 gap-4">
+        <StatCard label={copy.total} value={items.length} tone="dark" />
+        <StatCard
+          label={copy.urgent}
+          value={urgentCount}
+          tone={urgentCount > 0 ? "amber" : "default"}
+        />
+        <StatCard
+          label={copy.unread}
+          value={unreadCount}
+          tone={unreadCount > 0 ? "blue" : "default"}
+        />
+      </section>
 
-      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-        {copy.urgentNotice}
-      </div>
+      {items.length > 0 ? (
+        <div className="rounded-[24px] border border-blue-100 bg-blue-50 p-4 text-sm font-semibold leading-6 text-blue-800">
+          {copy.urgentNotice}
+        </div>
+      ) : null}
 
       {items.length === 0 ? (
-        <p className="text-gray-600">{copy.empty}</p>
+        <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
+            ◎
+          </div>
+          <h2 className="mt-5 text-xl font-black text-slate-950">
+            {copy.empty}
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
+            {copy.emptyBody}
+          </p>
+        </div>
       ) : (
-        <div className="space-y-4">
+        <section className="space-y-4">
           {items.map((item) => {
             const isOrder = item.kind === "order";
             const unread = isUnreadChat(item.chat, currentUserId);
@@ -649,56 +806,54 @@ export default function RequestsListPage() {
               ? `/b/orders/${item.id}`
               : `/b/requests/${item.id}`;
 
+            const isUrgent =
+              isOrder &&
+              item.creator_accept_deadline &&
+              isWithinHours(item.creator_accept_deadline, 24);
+
             return (
               <Link
                 key={`${item.kind}-${item.id}`}
                 href={detailHref}
-                className="block rounded-3xl border bg-white p-5 shadow-sm transition hover:bg-gray-50"
+                className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
+                  isUrgent
+                    ? "border-amber-200 ring-2 ring-amber-100"
+                    : unread
+                    ? "border-blue-200 ring-2 ring-blue-100"
+                    : "border-slate-100"
+                }`}
               >
-                <div className="mb-4 flex items-start gap-4">
-                  <Avatar
-                    name={item.creator_name}
-                    avatarUrl={item.creator_avatar_url}
-                  />
-
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <Pill
+                        className={
                           isOrder
-                            ? "bg-purple-50 text-purple-700 ring-purple-200"
-                            : "bg-gray-50 text-gray-700 ring-gray-200"
-                        }`}
+                            ? "bg-slate-950 text-white ring-slate-950"
+                            : "bg-slate-100 text-slate-700 ring-slate-200"
+                        }
                       >
                         {isOrder ? copy.order : copy.legacyRequest}
-                      </span>
+                      </Pill>
 
                       {isOrder ? (
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getOrderBadgeClass(
-                            item.status
-                          )}`}
-                        >
+                        <Pill className={getOrderBadgeClass(item.status)}>
                           {getOrderStatusLabel(
                             item.status,
                             item.payment_status ?? "",
                             safeLocale
                           )}
-                        </span>
+                        </Pill>
                       ) : legacyMeta ? (
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getRequestStatusBadgeClass(
-                            legacyMeta.tone
-                          )}`}
-                        >
+                        <Pill className={getRequestStatusBadgeClass(legacyMeta.tone)}>
                           {legacyMeta.shortLabel}
-                        </span>
+                        </Pill>
                       ) : null}
 
                       {unread ? (
-                        <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-200">
+                        <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
                           {copy.newMessage}
-                        </span>
+                        </Pill>
                       ) : null}
 
                       {isOrder ? (
@@ -713,124 +868,96 @@ export default function RequestsListPage() {
                       ) : null}
                     </div>
 
-                    <p className="mt-3 font-semibold">@{item.creator_name}</p>
+                    <div className="flex items-start gap-4">
+                      <Avatar
+                        name={item.creator_name}
+                        avatarUrl={item.creator_avatar_url}
+                      />
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-500">
+                          @{item.creator_name}
+                        </p>
+                        <h2 className="mt-1 truncate text-2xl font-black text-slate-950">
+                          {item.product_name ?? copy.unnamedProduct}
+                        </h2>
+                        {isOrder && item.menu_title ? (
+                          <p className="mt-2 text-sm font-semibold text-slate-500">
+                            {copy.menu}: {item.menu_title}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
+
+                  <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 lg:flex">
+                    ›
+                  </span>
                 </div>
 
-                <div className="grid gap-3 rounded-2xl bg-gray-50 p-4 text-sm md:grid-cols-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {copy.productName}
-                    </p>
-                    <p className="mt-1 font-semibold text-gray-900">
-                      {item.product_name ?? copy.unnamedProduct}
-                    </p>
+                {isOrder ? (
+                  <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <DetailRow
+                        label={copy.menuPrice}
+                        value={formatPrice(item.amount, item.currency, safeLocale)}
+                      />
+                      <DetailRow
+                        label={copy.buyerFeeRate}
+                        value={formatBps(item.buyer_marketplace_fee_rate_bps)}
+                      />
+                      <DetailRow
+                        label={copy.marketplaceFee}
+                        value={formatPrice(
+                          item.buyer_marketplace_fee_amount,
+                          item.currency,
+                          safeLocale
+                        )}
+                      />
+                      <DetailRow
+                        label={copy.buyerTotal}
+                        value={formatPrice(
+                          item.buyer_total_amount ?? item.stripe_amount,
+                          item.currency,
+                          safeLocale
+                        )}
+                        strong
+                      />
+                      <DetailRow
+                        label={copy.stripeAmount}
+                        value={formatPrice(item.stripe_amount, item.currency, safeLocale)}
+                      />
+                      <DetailRow
+                        label={copy.sentAt}
+                        value={formatDateTime(item.created_at, safeLocale)}
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {copy.sentAt}
-                    </p>
-                    <p className="mt-1 font-semibold text-gray-900">
-                      {formatDateTime(item.created_at, safeLocale)}
-                    </p>
+                ) : (
+                  <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+                    <DetailRow
+                      label={copy.sentAt}
+                      value={formatDateTime(item.created_at, safeLocale)}
+                    />
                   </div>
+                )}
 
-                  {isOrder ? (
-                    <>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.menu}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {item.menu_title || copy.notSet}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.menuPrice}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {formatPrice(item.amount, item.currency, safeLocale)}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.marketplaceFee}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {formatPrice(
-                            item.buyer_marketplace_fee_amount,
-                            item.currency,
-                            safeLocale
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.buyerFeeRate}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {formatBps(item.buyer_marketplace_fee_rate_bps)}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                          {copy.buyerTotal}
-                        </p>
-                        <p className="mt-1 text-base font-bold text-blue-700">
-                          {formatPrice(
-                            item.buyer_total_amount ?? item.stripe_amount,
-                            item.currency,
-                            safeLocale
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.stripeAmount}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {formatPrice(item.stripe_amount, item.currency, safeLocale)}
-                        </p>
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {copy.creatorDeadline}
-                        </p>
-                        <p className="mt-1 font-semibold text-gray-900">
-                          {formatDateTime(
-                            item.creator_accept_deadline,
-                            safeLocale
-                          )}
-                        </p>
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="mt-4 flex flex-wrap items-center gap-2">
                   {item.chat?.last_message_at ? (
-                    <span className="text-xs text-gray-400">
+                    <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
                       {copy.lastMessage}:{" "}
                       {formatDateTime(item.chat.last_message_at, safeLocale)}
-                    </span>
+                    </Pill>
                   ) : null}
+                </div>
 
-                  <span className="text-sm font-semibold text-blue-600">
-                    {copy.detail}
-                  </span>
+                <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
+                  {copy.detail}
                 </div>
               </Link>
             );
           })}
-        </div>
+        </section>
       )}
     </div>
   );
