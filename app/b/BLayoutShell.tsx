@@ -44,9 +44,23 @@ type UnreadState = {
 
 function isActivePath(pathname: string, href: string) {
   if (pathname === href) return true;
+
   if (href === "/b/dashboard") {
     return pathname === "/b" || pathname === "/b/dashboard";
   }
+
+  if (href === "/b/requests") {
+    return (
+      pathname === "/b/requests" ||
+      pathname.startsWith("/b/requests/") ||
+      pathname.startsWith("/b/orders/success")
+    );
+  }
+
+  if (href === "/b/jobs") {
+    return pathname === "/b/jobs" || pathname.startsWith("/b/orders/");
+  }
+
   return pathname.startsWith(href);
 }
 
@@ -85,6 +99,12 @@ function UnreadBadge({ active }: { active: boolean }) {
   );
 }
 
+function TopNavUnreadDot() {
+  return (
+    <span className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-blue-600 ring-2 ring-white" />
+  );
+}
+
 function LocaleSwitcher({
   locale,
   setLocale,
@@ -93,7 +113,7 @@ function LocaleSwitcher({
   setLocale: (locale: AppLocale) => void;
 }) {
   const baseClass =
-    "rounded-full border px-3 py-2 text-sm font-semibold transition";
+    "rounded-full border px-3 py-2 text-sm font-bold transition";
   const activeClass = "border-gray-900 bg-gray-900 text-white";
   const inactiveClass =
     "border-gray-200 bg-white text-gray-700 hover:bg-gray-50";
@@ -103,9 +123,7 @@ function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setLocale("ja")}
-        className={`${baseClass} ${
-          locale === "ja" ? activeClass : inactiveClass
-        }`}
+        className={`${baseClass} ${locale === "ja" ? activeClass : inactiveClass}`}
         aria-pressed={locale === "ja"}
       >
         JA
@@ -113,9 +131,7 @@ function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setLocale("en")}
-        className={`${baseClass} ${
-          locale === "en" ? activeClass : inactiveClass
-        }`}
+        className={`${baseClass} ${locale === "en" ? activeClass : inactiveClass}`}
         aria-pressed={locale === "en"}
       >
         EN
@@ -141,10 +157,20 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
-  // クリエイター検索・詳細・注文導線は、管理画面ではなくマーケットプレイス風に見せる
+  /**
+   * B側のマーケットプレイス導線。
+   *
+   * ここはCollabstr風に、左サイドバーなし + 上部ナビ中心で見せる。
+   * 企業の実務導線である検索・承認待ち・進行中・注文詳細も同じ体験に寄せる。
+   */
   const isMarketplaceBrowsing =
     pathname === "/b/creators" ||
-    pathname.startsWith("/b/creators/");
+    pathname.startsWith("/b/creators/") ||
+    pathname === "/b/requests" ||
+    pathname.startsWith("/b/requests/") ||
+    pathname === "/b/jobs" ||
+    pathname.startsWith("/b/jobs/") ||
+    pathname.startsWith("/b/orders");
 
   const showSidebar = !isOnboarding && !isMarketplaceBrowsing;
 
@@ -170,6 +196,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             jobs: "進行中案件",
             account: "アカウント設定",
             search: "クリエイター検索",
+            home: "Home",
+            pending: "Pending",
+            pricing: "Pricing",
+            company: "Company",
           }
         : {
             consoleTitle: "Company Console",
@@ -190,6 +220,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             jobs: "Active Jobs",
             account: "Account",
             search: "Search",
+            home: "Home",
+            pending: "Pending",
+            pricing: "Pricing",
+            company: "Company",
           },
     [locale]
   );
@@ -231,26 +265,28 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     () => [
       {
         href: "/b/dashboard",
-        label: "Home",
+        label: copy.home,
       },
       {
         href: "/b/creators",
-        label: "Search",
+        label: copy.search,
       },
       {
         href: "/b/requests",
-        label: "Pending",
+        label: copy.pending,
+        badgeKey: "requests" as const,
       },
       {
         href: "/b/jobs",
         label: "Jobs",
+        badgeKey: "jobs" as const,
       },
       {
         href: "/b/billing",
-        label: "Pricing",
+        label: copy.pricing,
       },
     ],
-    []
+    [copy.home, copy.pending, copy.pricing, copy.search]
   );
 
   const loadUnreadBadges = useCallback(async () => {
@@ -514,10 +550,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener("focus", onFocus);
+    window.addEventListener("trendre:chat-read-changed", onFocus);
 
     return () => {
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("trendre:chat-read-changed", onFocus);
     };
   }, [loadUnreadBadges, supabase]);
 
@@ -560,7 +598,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center gap-4">
             <Link
-              href="/b/creators"
+              href={isMarketplaceBrowsing ? "/b/creators" : "/b/dashboard"}
               className="text-xl font-black tracking-tight"
             >
               {isMarketplaceBrowsing ? copy.brandTitle : copy.consoleTitle}
@@ -575,18 +613,25 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             <nav className="hidden items-center gap-7 md:flex">
               {marketplaceTopNavItems.map((item) => {
                 const active = isActivePath(pathname, item.href);
+                const showUnread =
+                  item.badgeKey === "requests"
+                    ? unread.requests
+                    : item.badgeKey === "jobs"
+                    ? unread.jobs
+                    : false;
 
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`text-sm font-semibold transition ${
+                    className={`relative text-sm font-semibold transition ${
                       active
                         ? "border-b-2 border-black pb-1 text-black"
                         : "text-gray-700 hover:text-black"
                     }`}
                   >
                     {item.label}
+                    {showUnread ? <TopNavUnreadDot /> : null}
                   </Link>
                 );
               })}
@@ -629,7 +674,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                   <div className="overflow-hidden rounded-2xl border bg-white shadow-2xl">
                     <div className="border-b px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        Company
+                        {copy.company}
                       </p>
                       <p className="mt-1 text-sm font-bold text-gray-900">
                         {copy.consoleTitle}
@@ -684,11 +729,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div
-        className={`mx-auto flex w-full gap-6 px-4 py-6 md:px-6 ${
-          isMarketplaceBrowsing ? "max-w-7xl" : "max-w-7xl"
-        }`}
-      >
+      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 md:px-6">
         {showSidebar ? (
           <aside className="hidden w-64 shrink-0 md:block">
             <div className="sticky top-24 rounded-3xl border bg-white p-4 shadow-sm">
