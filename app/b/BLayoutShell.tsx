@@ -11,15 +11,19 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { getCommonText } from "@/lib/i18n/common";
 import { useAppLocale } from "@/lib/i18n/locale";
 import type { AppLocale } from "@/lib/i18n/types";
 
 type NavBadgeKey = "requests" | "jobs";
 
-type NavItem = {
+type TopNavItem = {
   href: string;
   label: string;
+  badgeKey?: NavBadgeKey;
+};
+
+type MobileNavItem = {
+  href: string;
   shortLabel: string;
   badgeKey?: NavBadgeKey;
 };
@@ -72,6 +76,10 @@ function isActivePath(pathname: string, href: string) {
     return pathname === "/b/jobs" || pathname.startsWith("/b/orders/");
   }
 
+  if (href === "/b/billing") {
+    return pathname === "/b/billing" || pathname.startsWith("/b/billing/");
+  }
+
   return pathname.startsWith(href);
 }
 
@@ -97,17 +105,6 @@ function isUnreadChat(chat: ChatRow, userId: string) {
 
 function hasUnreadChats(chats: ChatRow[], userId: string) {
   return chats.some((chat) => isUnreadChat(chat, userId));
-}
-
-function UnreadBadge({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`ml-2 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${
-        active ? "bg-white ring-2 ring-blue-200" : "bg-blue-600"
-      }`}
-      aria-label="unread"
-    />
-  );
 }
 
 function TopNavUnreadDot() {
@@ -160,7 +157,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
-  const t = useMemo(() => getCommonText(locale), [locale]);
 
   const [loggingOut, setLoggingOut] = useState(false);
   const [limitReason, setLimitReason] = useState<string | null>(null);
@@ -172,32 +168,15 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
-  const isMarketplaceBrowsing =
-    pathname === "/b/creators" ||
-    pathname.startsWith("/b/creators/") ||
-    pathname === "/b/saved-creators" ||
-    pathname.startsWith("/b/saved-creators/") ||
-    pathname === "/b/requests" ||
-    pathname.startsWith("/b/requests/") ||
-    pathname === "/b/jobs" ||
-    pathname.startsWith("/b/jobs/") ||
-    pathname.startsWith("/b/orders");
-
-  const showSidebar = !isOnboarding && !isMarketplaceBrowsing;
-
   const copy = useMemo(
     () =>
       locale === "ja"
         ? {
-            consoleTitle: "Company Console",
             brandTitle: "Trendre",
-            companyNavigation: "Company Navigation",
+            consoleTitle: "Company",
             billing: "料金プラン",
             loggingOut: "ログアウト中...",
             logout: "ログアウト",
-            memoTitle: "企業向けメモ",
-            memoBody:
-              "クリエイター検索、依頼管理、進行中案件、料金プラン確認をここから行えます。",
             limitTitle: "⚠ 現在このアカウントは取引制限中です。",
             limitReasonLabel: "制限理由",
             limitBody:
@@ -205,8 +184,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             profile: "プロフィール",
             requests: "承認待ち",
             jobs: "進行中案件",
-            account: "アカウント設定",
-            search: "Search",
+            search: "クリエイター検索",
             saved: "保存済み",
             home: "Home",
             pending: "Pending",
@@ -214,15 +192,11 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             company: "Company",
           }
         : {
-            consoleTitle: "Company Console",
             brandTitle: "Trendre",
-            companyNavigation: "Company Navigation",
+            consoleTitle: "Company",
             billing: "Billing",
             loggingOut: "Logging out...",
             logout: "Logout",
-            memoTitle: "Company Notes",
-            memoBody:
-              "Use this area to search creators, manage requests, review active jobs, and check billing.",
             limitTitle: "⚠ This account is currently under trading restriction.",
             limitReasonLabel: "Reason",
             limitBody:
@@ -230,7 +204,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             profile: "Profile",
             requests: "Pending",
             jobs: "Active Jobs",
-            account: "Account",
             search: "Search",
             saved: "Saved",
             home: "Home",
@@ -241,40 +214,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     [locale]
   );
 
-  const navItems: NavItem[] = useMemo(
-    () => [
-      {
-        href: "/b/dashboard",
-        label: t.nav.dashboard,
-        shortLabel: locale === "ja" ? "ホーム" : "Home",
-      },
-      {
-        href: "/b/creators",
-        label: locale === "ja" ? "クリエイター検索" : "Find Creators",
-        shortLabel: locale === "ja" ? "検索" : "Search",
-      },
-      {
-        href: "/b/requests",
-        label: locale === "ja" ? "承認待ち依頼" : "Pending Requests",
-        shortLabel: locale === "ja" ? "依頼" : "Pending",
-        badgeKey: "requests",
-      },
-      {
-        href: "/b/jobs",
-        label: locale === "ja" ? "進行中案件" : "Active Jobs",
-        shortLabel: locale === "ja" ? "案件" : "Jobs",
-        badgeKey: "jobs",
-      },
-      {
-        href: "/b/billing",
-        label: t.nav.billing,
-        shortLabel: locale === "ja" ? "料金" : "Billing",
-      },
-    ],
-    [locale, t]
-  );
-
-  const marketplaceTopNavItems = useMemo(
+  const topNavItems: TopNavItem[] = useMemo(
     () => [
       {
         href: "/b/dashboard",
@@ -291,12 +231,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       {
         href: "/b/requests",
         label: copy.pending,
-        badgeKey: "requests" as const,
+        badgeKey: "requests",
       },
       {
         href: "/b/jobs",
         label: "Jobs",
-        badgeKey: "jobs" as const,
+        badgeKey: "jobs",
       },
       {
         href: "/b/billing",
@@ -304,6 +244,34 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       },
     ],
     [copy.home, copy.pending, copy.pricing, copy.saved, copy.search]
+  );
+
+  const mobileNavItems: MobileNavItem[] = useMemo(
+    () => [
+      {
+        href: "/b/dashboard",
+        shortLabel: locale === "ja" ? "ホーム" : "Home",
+      },
+      {
+        href: "/b/creators",
+        shortLabel: locale === "ja" ? "検索" : "Search",
+      },
+      {
+        href: "/b/requests",
+        shortLabel: locale === "ja" ? "依頼" : "Pending",
+        badgeKey: "requests",
+      },
+      {
+        href: "/b/jobs",
+        shortLabel: locale === "ja" ? "案件" : "Jobs",
+        badgeKey: "jobs",
+      },
+      {
+        href: "/b/billing",
+        shortLabel: locale === "ja" ? "料金" : "Pricing",
+      },
+    ],
+    [locale]
   );
 
   const loadUnreadBadges = useCallback(async () => {
@@ -600,7 +568,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      {limitReason && (
+      {limitReason ? (
         <div className="border-b border-yellow-400 bg-yellow-100 p-4 text-sm text-yellow-900">
           <b>{copy.limitTitle}</b>
           <div className="mt-1">
@@ -609,16 +577,13 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
           </div>
           <div className="mt-1 text-xs text-yellow-700">{copy.limitBody}</div>
         </div>
-      )}
+      ) : null}
 
       <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center gap-4">
-            <Link
-              href={isMarketplaceBrowsing ? "/b/creators" : "/b/dashboard"}
-              className="text-xl font-black tracking-tight"
-            >
-              {isMarketplaceBrowsing ? copy.brandTitle : copy.consoleTitle}
+            <Link href="/b/dashboard" className="text-xl font-black tracking-tight">
+              {copy.brandTitle}
             </Link>
 
             <span className="hidden rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 md:inline-flex">
@@ -626,46 +591,35 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             </span>
           </div>
 
-          {isMarketplaceBrowsing ? (
-            <nav className="hidden items-center gap-7 md:flex">
-              {marketplaceTopNavItems.map((item) => {
-                const active = isActivePath(pathname, item.href);
-                const showUnread =
-                  item.badgeKey === "requests"
-                    ? unread.requests
-                    : item.badgeKey === "jobs"
-                    ? unread.jobs
-                    : false;
+          <nav className="hidden items-center gap-7 md:flex">
+            {topNavItems.map((item) => {
+              const active = isActivePath(pathname, item.href);
+              const showUnread =
+                item.badgeKey === "requests"
+                  ? unread.requests
+                  : item.badgeKey === "jobs"
+                  ? unread.jobs
+                  : false;
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`relative text-sm font-semibold transition ${
-                      active
-                        ? "border-b-2 border-black pb-1 text-black"
-                        : "text-gray-700 hover:text-black"
-                    }`}
-                  >
-                    {item.label}
-                    {showUnread ? <TopNavUnreadDot /> : null}
-                  </Link>
-                );
-              })}
-            </nav>
-          ) : null}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`relative text-sm font-semibold transition ${
+                    active
+                      ? "border-b-2 border-black pb-1 text-black"
+                      : "text-gray-700 hover:text-black"
+                  }`}
+                >
+                  {item.label}
+                  {showUnread ? <TopNavUnreadDot /> : null}
+                </Link>
+              );
+            })}
+          </nav>
 
           <div className="flex items-center gap-2">
             <LocaleSwitcher locale={locale} setLocale={setLocale} />
-
-            {!isMarketplaceBrowsing ? (
-              <Link
-                href="/b/billing"
-                className="hidden rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 md:inline-flex"
-              >
-                {copy.billing}
-              </Link>
-            ) : null}
 
             <div
               className="relative"
@@ -754,58 +708,15 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 md:px-6">
-        {showSidebar ? (
-          <aside className="hidden w-64 shrink-0 md:block">
-            <div className="sticky top-24 rounded-3xl border bg-white p-4 shadow-sm">
-              <p className="mb-3 px-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {copy.companyNavigation}
-              </p>
+      <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6">
+        {children}
+        {!isOnboarding ? <div className="h-20 md:hidden" /> : null}
+      </main>
 
-              <nav className="space-y-1">
-                {navItems.map((item) => {
-                  const active = isActivePath(pathname, item.href);
-                  const showUnread = item.badgeKey
-                    ? unread[item.badgeKey]
-                    : false;
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition ${
-                        active
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                      {showUnread ? <UnreadBadge active={active} /> : null}
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              <div className="mt-5 rounded-2xl border bg-gray-50 p-4">
-                <p className="text-sm font-semibold">{copy.memoTitle}</p>
-                <p className="mt-2 text-xs leading-6 text-gray-600">
-                  {copy.memoBody}
-                </p>
-              </div>
-            </div>
-          </aside>
-        ) : null}
-
-        <main className="min-w-0 flex-1">
-          {children}
-          {!isOnboarding && <div className="h-20 md:hidden" />}
-        </main>
-      </div>
-
-      {!isOnboarding && (
+      {!isOnboarding ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 backdrop-blur md:hidden">
           <div className="grid grid-cols-5">
-            {navItems.map((item) => {
+            {mobileNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
               const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
 
@@ -828,7 +739,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             })}
           </div>
         </nav>
-      )}
+      ) : null}
     </div>
   );
 }
