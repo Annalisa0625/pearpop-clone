@@ -69,268 +69,10 @@ type SavedCreatorRow = {
   creator_id: string;
 };
 
-function cleanCountryInput(value: string | null | undefined) {
-  const raw = (value ?? "").trim();
-  if (!raw) return "";
-
-  const normalized = raw
-    .toLowerCase()
-    .replace(/\u3000/g, " ")
-    .replace(/[_\-/:|]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const compact = normalized.replace(/\s+/g, "");
-
-  if (
-    normalized === "日本" ||
-    normalized === "japan" ||
-    normalized === "jp" ||
-    normalized === "jpn" ||
-    normalized.startsWith("jp ") ||
-    compact === "jp日本" ||
-    compact === "japan日本" ||
-    compact.includes("日本")
-  ) {
-    return "japan";
-  }
-
-  if (
-    normalized === "韓国" ||
-    normalized === "korea" ||
-    normalized === "south korea" ||
-    normalized === "republic of korea" ||
-    normalized === "kr" ||
-    normalized.startsWith("kr ") ||
-    compact === "kr韓国" ||
-    compact.includes("韓国")
-  ) {
-    return "korea";
-  }
-
-  if (
-    normalized === "台湾" ||
-    normalized === "taiwan" ||
-    normalized === "tw" ||
-    normalized.startsWith("tw ") ||
-    compact === "tw台湾" ||
-    compact.includes("台湾")
-  ) {
-    return "taiwan";
-  }
-
-  if (
-    normalized === "香港" ||
-    normalized === "hong kong" ||
-    normalized === "hk" ||
-    normalized.startsWith("hk ") ||
-    compact === "hk香港" ||
-    compact.includes("香港")
-  ) {
-    return "hong_kong";
-  }
-
-  if (
-    normalized === "中国" ||
-    normalized === "china" ||
-    normalized === "cn" ||
-    normalized.startsWith("cn ") ||
-    compact === "cn中国" ||
-    compact.includes("中国")
-  ) {
-    return "china";
-  }
-
-  if (
-    normalized === "タイ" ||
-    normalized === "thailand" ||
-    normalized === "th" ||
-    normalized.startsWith("th ") ||
-    compact.includes("タイ")
-  ) {
-    return "thailand";
-  }
-
-  if (
-    normalized === "ベトナム" ||
-    normalized === "vietnam" ||
-    normalized === "vn" ||
-    normalized.startsWith("vn ") ||
-    compact.includes("ベトナム")
-  ) {
-    return "vietnam";
-  }
-
-  if (
-    normalized === "インドネシア" ||
-    normalized === "indonesia" ||
-    normalized === "id" ||
-    normalized.startsWith("id ") ||
-    compact.includes("インドネシア")
-  ) {
-    return "indonesia";
-  }
-
-  if (
-    normalized === "フィリピン" ||
-    normalized === "philippines" ||
-    normalized === "ph" ||
-    normalized.startsWith("ph ") ||
-    compact.includes("フィリピン")
-  ) {
-    return "philippines";
-  }
-
-  if (
-    normalized === "マレーシア" ||
-    normalized === "malaysia" ||
-    normalized === "my" ||
-    normalized.startsWith("my ") ||
-    compact.includes("マレーシア")
-  ) {
-    return "malaysia";
-  }
-
-  if (
-    normalized === "シンガポール" ||
-    normalized === "singapore" ||
-    normalized === "sg" ||
-    normalized.startsWith("sg ") ||
-    compact.includes("シンガポール")
-  ) {
-    return "singapore";
-  }
-
-  if (
-    normalized === "インド" ||
-    normalized === "india" ||
-    normalized === "in" ||
-    normalized.startsWith("in ") ||
-    compact.includes("インド")
-  ) {
-    return "india";
-  }
-
-  if (
-    normalized === "アメリカ" ||
-    normalized === "united states" ||
-    normalized === "usa" ||
-    normalized === "us" ||
-    normalized.startsWith("us ") ||
-    compact.includes("アメリカ")
-  ) {
-    return "united_states";
-  }
-
-  if (
-    normalized === "カナダ" ||
-    normalized === "canada" ||
-    normalized === "ca" ||
-    normalized.startsWith("ca ") ||
-    compact.includes("カナダ")
-  ) {
-    return "canada";
-  }
-
-  if (
-    normalized === "イギリス" ||
-    normalized === "united kingdom" ||
-    normalized === "uk" ||
-    normalized === "gb" ||
-    normalized.startsWith("uk ") ||
-    compact.includes("イギリス")
-  ) {
-    return "united_kingdom";
-  }
-
-  if (
-    normalized === "フランス" ||
-    normalized === "france" ||
-    normalized === "fr" ||
-    normalized.startsWith("fr ") ||
-    compact.includes("フランス")
-  ) {
-    return "france";
-  }
-
-  if (
-    normalized === "ドイツ" ||
-    normalized === "germany" ||
-    normalized === "de" ||
-    normalized.startsWith("de ") ||
-    compact.includes("ドイツ")
-  ) {
-    return "germany";
-  }
-
-  if (
-    normalized === "その他" ||
-    normalized === "other" ||
-    compact.includes("その他")
-  ) {
-    return "other";
-  }
-
-  return raw;
-}
-
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return Array.from(
     new Set(values.map((v) => (v ?? "").trim()).filter(Boolean))
   );
-}
-
-function getCountryLabel(
-  country: string | null | undefined,
-  locale: "ja" | "en"
-) {
-  const cleaned = cleanCountryInput(country);
-
-  const jaMap: Record<string, string> = {
-    japan: "日本",
-    korea: "韓国",
-    taiwan: "台湾",
-    hong_kong: "香港",
-    china: "中国",
-    thailand: "タイ",
-    vietnam: "ベトナム",
-    indonesia: "インドネシア",
-    philippines: "フィリピン",
-    malaysia: "マレーシア",
-    singapore: "シンガポール",
-    india: "インド",
-    united_states: "アメリカ",
-    canada: "カナダ",
-    united_kingdom: "イギリス",
-    france: "フランス",
-    germany: "ドイツ",
-    other: "その他",
-  };
-
-  const enMap: Record<string, string> = {
-    japan: "Japan",
-    korea: "Korea",
-    taiwan: "Taiwan",
-    hong_kong: "Hong Kong",
-    china: "China",
-    thailand: "Thailand",
-    vietnam: "Vietnam",
-    indonesia: "Indonesia",
-    philippines: "Philippines",
-    malaysia: "Malaysia",
-    singapore: "Singapore",
-    india: "India",
-    united_states: "United States",
-    canada: "Canada",
-    united_kingdom: "United Kingdom",
-    france: "France",
-    germany: "Germany",
-    other: "Other",
-  };
-
-  return locale === "ja"
-    ? jaMap[cleaned] ?? ((country ?? "").trim() || "不明")
-    : enMap[cleaned] ?? ((country ?? "").trim() || "Unknown");
 }
 
 function normalizePlatform(value: string | null | undefined) {
@@ -366,20 +108,59 @@ function getCreatorInitial(name: string) {
   return (name || "C").trim().slice(0, 1).toUpperCase();
 }
 
-function getPlanLabel(
-  plan: CompanyGateState["companyPlanCode"],
-  locale: "ja" | "en"
-) {
-  switch (plan) {
-    case "free":
-      return "Basic";
-    case "standard":
-      return "Pro";
-    case "global_pro":
-      return "Premium";
-    default:
-      return locale === "ja" ? "未設定" : "Not set";
-  }
+function getCountryLabel(country: string | null | undefined, locale: "ja" | "en") {
+  const raw = (country ?? "").trim();
+  if (!raw) return locale === "ja" ? "不明" : "Unknown";
+
+  const normalized = raw.toLowerCase();
+
+  const jaMap: Record<string, string> = {
+    japan: "日本",
+    日本: "日本",
+    korea: "韓国",
+    韓国: "韓国",
+    taiwan: "台湾",
+    台湾: "台湾",
+    hong_kong: "香港",
+    香港: "香港",
+    china: "中国",
+    中国: "中国",
+    thailand: "タイ",
+    タイ: "タイ",
+    vietnam: "ベトナム",
+    ベトナム: "ベトナム",
+    united_states: "アメリカ",
+    usa: "アメリカ",
+    アメリカ: "アメリカ",
+    other: "その他",
+    その他: "その他",
+  };
+
+  const enMap: Record<string, string> = {
+    japan: "Japan",
+    日本: "Japan",
+    korea: "Korea",
+    韓国: "Korea",
+    taiwan: "Taiwan",
+    台湾: "Taiwan",
+    hong_kong: "Hong Kong",
+    香港: "Hong Kong",
+    china: "China",
+    中国: "China",
+    thailand: "Thailand",
+    タイ: "Thailand",
+    vietnam: "Vietnam",
+    ベトナム: "Vietnam",
+    united_states: "United States",
+    usa: "United States",
+    アメリカ: "United States",
+    other: "Other",
+    その他: "Other",
+  };
+
+  return locale === "ja"
+    ? jaMap[raw] ?? jaMap[normalized] ?? raw
+    : enMap[raw] ?? enMap[normalized] ?? raw;
 }
 
 function formatPrice(
@@ -433,6 +214,22 @@ function menuTypeLabel(
   };
 
   return labels[value || ""]?.[locale] || fallback;
+}
+
+function getPlanLabel(
+  plan: CompanyGateState["companyPlanCode"],
+  locale: "ja" | "en"
+) {
+  switch (plan) {
+    case "free":
+      return "Basic";
+    case "standard":
+      return "Pro";
+    case "global_pro":
+      return "Premium";
+    default:
+      return locale === "ja" ? "未設定" : "Not set";
+  }
 }
 
 function getBuyerFeeRateBps(plan: CompanyGateState["companyPlanCode"]) {
@@ -519,7 +316,7 @@ function PortfolioTile({
   if (!src) {
     return (
       <div
-        className={`relative flex h-full min-h-[220px] w-full items-center justify-center overflow-hidden bg-gradient-to-br ${
+        className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br ${
           gradients[index % gradients.length]
         } ${className}`}
       >
@@ -536,20 +333,11 @@ function PortfolioTile({
   }
 
   return (
-    <div
-      className={`relative h-full min-h-[220px] w-full overflow-hidden bg-slate-100 ${className}`}
-    >
+    <div className={`relative h-full w-full overflow-hidden bg-slate-100 ${className}`}>
       <img
         src={src}
         alt={`${creatorName} portfolio ${index + 1}`}
-        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-xl"
-        loading="lazy"
-        decoding="async"
-      />
-      <img
-        src={src}
-        alt={`${creatorName} portfolio ${index + 1}`}
-        className="relative z-10 h-full w-full object-contain"
+        className="h-full w-full object-cover transition duration-500 hover:scale-105"
         loading={index === 0 ? "eager" : "lazy"}
         decoding="async"
       />
@@ -564,10 +352,10 @@ function PortfolioGallery({
   creator: Creator;
   images: string[];
 }) {
-  if (images.length === 0) {
+  if (images.length <= 0) {
     return (
       <section className="overflow-hidden rounded-[28px] bg-slate-100">
-        <div className="h-[360px]">
+        <div className="h-[420px]">
           <PortfolioTile creatorName={creator.display_name} index={0} src={null} />
         </div>
       </section>
@@ -578,11 +366,7 @@ function PortfolioGallery({
     return (
       <section className="overflow-hidden rounded-[28px] bg-slate-100">
         <div className="h-[420px]">
-          <PortfolioTile
-            creatorName={creator.display_name}
-            index={0}
-            src={images[0]}
-          />
+          <PortfolioTile creatorName={creator.display_name} index={0} src={images[0]} />
         </div>
       </section>
     );
@@ -591,17 +375,9 @@ function PortfolioGallery({
   if (images.length === 2) {
     return (
       <section className="overflow-hidden rounded-[28px] bg-slate-100">
-        <div className="grid h-[400px] gap-1 md:grid-cols-2">
-          <PortfolioTile
-            creatorName={creator.display_name}
-            index={0}
-            src={images[0]}
-          />
-          <PortfolioTile
-            creatorName={creator.display_name}
-            index={1}
-            src={images[1]}
-          />
+        <div className="grid h-[420px] gap-1 md:grid-cols-2">
+          <PortfolioTile creatorName={creator.display_name} index={0} src={images[0]} />
+          <PortfolioTile creatorName={creator.display_name} index={1} src={images[1]} />
         </div>
       </section>
     );
@@ -609,24 +385,17 @@ function PortfolioGallery({
 
   return (
     <section className="overflow-hidden rounded-[28px] bg-slate-100">
-      <div className="grid h-[420px] gap-1 md:grid-cols-[1.35fr_1fr_1fr]">
-        <div className="md:row-span-2">
-          <PortfolioTile
-            creatorName={creator.display_name}
-            index={0}
-            src={images[0]}
-          />
+      <div className="grid h-[420px] gap-1 md:grid-cols-[1.05fr_1fr_1fr]">
+        <PortfolioTile creatorName={creator.display_name} index={0} src={images[0]} />
+        <PortfolioTile creatorName={creator.display_name} index={1} src={images[1]} />
+        <div className="relative">
+          <PortfolioTile creatorName={creator.display_name} index={2} src={images[2]} />
+          {images.length > 3 ? (
+            <div className="absolute bottom-4 right-4 rounded-full bg-black/70 px-4 py-2 text-sm font-black text-white backdrop-blur">
+              +{images.length - 3} photos
+            </div>
+          ) : null}
         </div>
-        <PortfolioTile
-          creatorName={creator.display_name}
-          index={1}
-          src={images[1]}
-        />
-        <PortfolioTile
-          creatorName={creator.display_name}
-          index={2}
-          src={images[2]}
-        />
       </div>
     </section>
   );
@@ -1248,7 +1017,12 @@ export default function CreatorDetailPage() {
 
   const estimatedTotalText =
     estimatedTotal != null
-      ? formatPrice(estimatedTotal, selectedMenu?.currency ?? "JPY", null, safeLocale)
+      ? formatPrice(
+          estimatedTotal,
+          selectedMenu?.currency ?? "JPY",
+          null,
+          safeLocale
+        )
       : "-";
 
   const handleShare = async () => {
@@ -1324,8 +1098,8 @@ export default function CreatorDetailPage() {
   if (loading) {
     return (
       <div className="space-y-8">
-        <div className="h-[340px] animate-pulse rounded-[28px] bg-slate-100" />
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="h-[360px] animate-pulse rounded-[28px] bg-slate-100" />
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-4">
             <div className="h-28 animate-pulse rounded-[28px] bg-slate-100" />
             <div className="h-48 animate-pulse rounded-[28px] bg-slate-100" />
@@ -1406,7 +1180,8 @@ export default function CreatorDetailPage() {
                 platforms.map((platform) => {
                   const social = socialAccounts.find(
                     (item) =>
-                      normalizePlatform(item.platform) === normalizePlatform(platform)
+                      normalizePlatform(item.platform) ===
+                      normalizePlatform(platform)
                   );
 
                   return (
