@@ -37,6 +37,7 @@ function normalizePlanCode(
   if (value === "free" || value === "standard" || value === "global_pro") {
     return value;
   }
+
   return null;
 }
 
@@ -46,6 +47,7 @@ function normalizeApprovalStatus(
   if (value === "pending" || value === "approved" || value === "rejected") {
     return value;
   }
+
   return null;
 }
 
@@ -55,13 +57,16 @@ function normalizeSubscriptionStatus(
   if (value === "active" || value === "inactive" || value === "canceled") {
     return value;
   }
+
   return null;
 }
 
 function formatDate(value: string | null) {
   if (!value) return "—";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
+
   return date.toLocaleDateString("ja-JP");
 }
 
@@ -69,6 +74,11 @@ function getPlanLabel(plan: CompanyPlanCode) {
   if (plan === "standard") return "Pro";
   if (plan === "global_pro") return "Premium";
   return "Basic";
+}
+
+function getBuyerFeeLabel(plan: CompanyPlanCode) {
+  if (plan === "global_pro") return "5%";
+  return "10%";
 }
 
 function getApprovalBadge(status: ApprovalStatus) {
@@ -127,7 +137,124 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-export default function CompanyDashboardPage() {
+function StatCard({
+  label,
+  value,
+  helper,
+  href,
+  tone = "default",
+}: {
+  label: string;
+  value: number | string;
+  helper?: string;
+  href?: string;
+  tone?: "default" | "dark" | "blue" | "purple" | "green" | "amber";
+}) {
+  const styles = {
+    default: "border-slate-100 bg-white text-slate-950",
+    dark: "border-slate-950 bg-slate-950 text-white",
+    blue: "border-blue-100 bg-blue-50 text-slate-950",
+    purple: "border-purple-100 bg-purple-50 text-slate-950",
+    green: "border-emerald-100 bg-emerald-50 text-slate-950",
+    amber: "border-amber-100 bg-amber-50 text-slate-950",
+  };
+
+  const card = (
+    <div
+      className={`rounded-[28px] border p-5 shadow-sm transition ${
+        href ? "hover:-translate-y-0.5 hover:shadow-md" : ""
+      } ${styles[tone]}`}
+    >
+      <p
+        className={`text-xs font-black uppercase tracking-[0.2em] ${
+          tone === "dark" ? "text-white/60" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </p>
+      <p
+        className={`mt-4 text-4xl font-black ${
+          tone === "dark" ? "text-white" : "text-slate-950"
+        }`}
+      >
+        {value}
+      </p>
+      {helper ? (
+        <p
+          className={`mt-2 text-xs leading-5 ${
+            tone === "dark" ? "text-white/70" : "text-slate-500"
+          }`}
+        >
+          {helper}
+        </p>
+      ) : null}
+    </div>
+  );
+
+  if (!href) return card;
+
+  return <Link href={href}>{card}</Link>;
+}
+
+function ActionCard({
+  href,
+  icon,
+  title,
+  body,
+  strong,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  body: string;
+  strong?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-[28px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+        strong
+          ? "border-slate-950 bg-slate-950 text-white"
+          : "border-slate-100 bg-white text-slate-950"
+      }`}
+    >
+      <div
+        className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-black ${
+          strong ? "bg-white text-slate-950" : "bg-slate-100 text-slate-950"
+        }`}
+      >
+        {icon}
+      </div>
+      <p className="text-base font-black">{title}</p>
+      <p
+        className={`mt-2 text-sm leading-6 ${
+          strong ? "text-white/70" : "text-slate-500"
+        }`}
+      >
+        {body}
+      </p>
+    </Link>
+  );
+}
+
+function StatusRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-4 last:border-b-0">
+      <span className="text-sm font-bold text-slate-500">{label}</span>
+      <span className="text-right text-sm font-black text-slate-950">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+export default function CompanyDashboardClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -469,8 +596,10 @@ export default function CompanyDashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[32px] border border-slate-200 bg-white p-7">
-          <p className="text-base text-slate-600">読み込み中...</p>
+        <section className="rounded-[32px] border border-slate-100 bg-white p-7 shadow-sm">
+          <p className="text-base font-semibold text-slate-500">
+            読み込み中...
+          </p>
         </section>
       </div>
     );
@@ -480,10 +609,10 @@ export default function CompanyDashboardPage() {
     return (
       <div className="space-y-6">
         <section className="rounded-[32px] border border-red-200 bg-red-50 p-7">
-          <h1 className="text-[24px] font-bold text-slate-900">
+          <h1 className="text-2xl font-black text-slate-900">
             エラーが発生しました
           </h1>
-          <p className="mt-3 text-base text-slate-600">
+          <p className="mt-3 text-base leading-7 text-slate-600">
             {error || "ダッシュボード情報の取得に失敗しました。"}
           </p>
         </section>
@@ -497,246 +626,247 @@ export default function CompanyDashboardPage() {
     dashboard.companySubscriptionStatus
   );
 
+  const planLabel = getPlanLabel(dashboard.companyPlanCodeDisplay);
+  const buyerFee = getBuyerFeeLabel(dashboard.companyPlanCodeDisplay);
+
+  const remaining =
+    dashboard.monthlyRequestLimit === null
+      ? null
+      : Math.max(
+          dashboard.monthlyRequestLimit - (dashboard.monthlyRequestUsed ?? 0),
+          0
+        );
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-[32px] border border-slate-200 bg-white p-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-8">
+      <section className="rounded-[32px] bg-slate-950 p-7 text-white shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-base font-semibold text-blue-600">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
               Company Dashboard
             </p>
-            <h1 className="mt-2 text-[28px] font-bold text-slate-900">
+            <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
               {dashboard.companyName}
             </h1>
-            <p className="mt-3 text-base leading-8 text-slate-600">
-              クリエイター活用、注文・依頼状況、進行中案件をまとめて確認できます。
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
+              クリエイター検索、注文状況、進行中案件、プラン状態をまとめて確認できます。
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2">
             <span
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${approvalBadge.className}`}
+              className={`rounded-full px-4 py-2 text-sm font-black ${approvalBadge.className}`}
             >
               {approvalBadge.label}
             </span>
-
             <span
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${subscriptionBadge.className}`}
+              className={`rounded-full px-4 py-2 text-sm font-black ${subscriptionBadge.className}`}
             >
               {subscriptionBadge.label}
             </span>
-
-            <span className="rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700">
-              {getPlanLabel(dashboard.companyPlanCodeDisplay)}
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950">
+              {planLabel}
             </span>
           </div>
         </div>
       </section>
 
-      {!canUseRequests && (
-        <section className="rounded-[32px] border border-blue-200 bg-blue-50 p-7">
-          <h2 className="text-[22px] font-bold text-slate-900">
+      {!canUseRequests ? (
+        <section className="rounded-[28px] border border-blue-200 bg-blue-50 p-6">
+          <h2 className="text-xl font-black text-slate-950">
             依頼送信にはプラン開始が必要です
           </h2>
-          <p className="mt-3 text-base leading-8 text-slate-600">
+          <p className="mt-3 text-sm leading-7 text-slate-600">
             クリエイターの閲覧は利用できます。依頼送信や案件進行は、プラン開始後に解放されます。
           </p>
-          <div className="mt-6">
+          <Link
+            href="/b/billing"
+            className="mt-5 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
+          >
+            料金プランを見る
+          </Link>
+        </section>
+      ) : null}
+
+      <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <StatCard
+          label="承認待ち"
+          value={dashboard.counts.pending}
+          helper="pending / authorized"
+          href="/b/requests"
+          tone={dashboard.counts.pending > 0 ? "amber" : "default"}
+        />
+        <StatCard
+          label="進行中"
+          value={dashboard.counts.accepted}
+          helper="accepted / captured"
+          href="/b/jobs"
+          tone={dashboard.counts.accepted > 0 ? "blue" : "default"}
+        />
+        <StatCard
+          label="納品確認"
+          value={dashboard.counts.delivered}
+          helper="delivered"
+          href="/b/jobs"
+          tone={dashboard.counts.delivered > 0 ? "purple" : "default"}
+        />
+        <StatCard
+          label="完了"
+          value={dashboard.counts.completed}
+          helper="completed"
+          href="/b/jobs"
+          tone={dashboard.counts.completed > 0 ? "green" : "default"}
+        />
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <main className="space-y-6">
+          <section>
+            <div className="mb-4">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                Quick Actions
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-slate-950">
+                まずやること
+              </h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <ActionCard
+                href="/b/creators"
+                icon="◎"
+                title="クリエイターを探す"
+                body="公開中のクリエイターとメニューを検索・比較します。"
+                strong
+              />
+              <ActionCard
+                href="/b/saved-creators"
+                icon="♥"
+                title="保存済みを見る"
+                body="気になるクリエイターをまとめて確認します。"
+              />
+              <ActionCard
+                href="/b/requests"
+                icon="◌"
+                title="承認待ちを見る"
+                body="送信した注文・依頼の承認状況を確認します。"
+              />
+              <ActionCard
+                href="/b/jobs"
+                icon="▣"
+                title="進行中案件を見る"
+                body="決済確定・納品済み・完了済みの案件を確認します。"
+              />
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
+            <h2 className="text-2xl font-black text-slate-950">
+              プランの使い方
+            </h2>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                  現在プラン
+                </p>
+                <p className="mt-2 text-xl font-black text-slate-950">
+                  {planLabel}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                  B側手数料
+                </p>
+                <p className="mt-2 text-xl font-black text-slate-950">
+                  {buyerFee}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                  今月残り
+                </p>
+                <p className="mt-2 text-xl font-black text-slate-950">
+                  {remaining === null ? "無制限" : `${remaining}件`}
+                </p>
+              </div>
+            </div>
+
             <Link
               href="/b/billing"
-              className="inline-flex rounded-2xl bg-blue-600 px-6 py-4 text-base font-semibold text-white"
+              className="mt-5 inline-flex rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
             >
-              料金プランを見る
+              料金プランを確認する
             </Link>
-          </div>
-        </section>
-      )}
+          </section>
+        </main>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
-        <div className="grid self-start grid-cols-1 gap-5 items-start md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6">
-            <p className="text-sm text-slate-400">承認待ち注文・依頼</p>
-            <p className="mt-4 text-[52px] font-bold leading-none text-slate-900">
-              {dashboard.counts.pending}
-            </p>
-            <p className="mt-4 text-sm text-slate-500">
-              pending / authorized
-            </p>
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6">
-            <p className="text-sm text-slate-400">進行中案件</p>
-            <p className="mt-4 text-[52px] font-bold leading-none text-slate-900">
-              {dashboard.counts.accepted}
-            </p>
-            <p className="mt-4 text-sm text-slate-500">
-              accepted / captured
-            </p>
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6">
-            <p className="text-sm text-slate-400">納品待ち確認</p>
-            <p className="mt-4 text-[52px] font-bold leading-none text-slate-900">
-              {dashboard.counts.delivered}
-            </p>
-            <p className="mt-4 text-sm text-slate-500">delivered</p>
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6">
-            <p className="text-sm text-slate-400">完了案件</p>
-            <p className="mt-4 text-[52px] font-bold leading-none text-slate-900">
-              {dashboard.counts.completed}
-            </p>
-            <p className="mt-4 text-sm text-slate-500">completed</p>
-          </div>
-        </div>
-
-        <div className="self-start rounded-[28px] border border-slate-200 bg-white p-6">
-          <h2 className="text-[24px] font-bold text-slate-900">
+        <aside className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm xl:sticky xl:top-24 xl:self-start">
+          <h2 className="text-2xl font-black text-slate-950">
             現在の利用状況
           </h2>
 
-          <div className="mt-6 space-y-4 text-base">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">審査状態</span>
-              <span
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${approvalBadge.className}`}
-              >
-                {approvalBadge.label}
-              </span>
-            </div>
+          <div className="mt-5">
+            <StatusRow
+              label="審査状態"
+              value={
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-black ${approvalBadge.className}`}
+                >
+                  {approvalBadge.label}
+                </span>
+              }
+            />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">プラン</span>
-              <span className="rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700">
-                {getPlanLabel(dashboard.companyPlanCodeDisplay)}
-              </span>
-            </div>
+            <StatusRow
+              label="プラン"
+              value={
+                <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-black text-purple-700">
+                  {planLabel}
+                </span>
+              }
+            />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">利用状態</span>
-              <span
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${subscriptionBadge.className}`}
-              >
-                {subscriptionBadge.label}
-              </span>
-            </div>
+            <StatusRow
+              label="利用状態"
+              value={
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-black ${subscriptionBadge.className}`}
+                >
+                  {subscriptionBadge.label}
+                </span>
+              }
+            />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">月間上限</span>
-              <span className="font-semibold text-slate-900">
-                {dashboard.monthlyRequestLimit === null
+            <StatusRow
+              label="月間上限"
+              value={
+                dashboard.monthlyRequestLimit === null
                   ? "無制限"
-                  : `${dashboard.monthlyRequestLimit}件`}
-              </span>
-            </div>
+                  : `${dashboard.monthlyRequestLimit}件`
+              }
+            />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">今月の送信数</span>
-              <span className="font-semibold text-slate-900">
-                {dashboard.monthlyRequestUsed ?? 0}件
-              </span>
-            </div>
+            <StatusRow
+              label="今月の送信数"
+              value={`${dashboard.monthlyRequestUsed ?? 0}件`}
+            />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">使用量リセット日</span>
-              <span className="font-semibold text-slate-900">
-                {formatDate(dashboard.requestUsageResetAt)}
-              </span>
-            </div>
+            <StatusRow
+              label="使用量リセット日"
+              value={formatDate(dashboard.requestUsageResetAt)}
+            />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">次回更新日</span>
-              <span className="font-semibold text-slate-900">
-                {formatDate(dashboard.stripeCurrentPeriodEnd)}
-              </span>
-            </div>
+            <StatusRow
+              label="次回更新日"
+              value={formatDate(dashboard.stripeCurrentPeriodEnd)}
+            />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">期間終了時解約</span>
-              <span className="font-semibold text-slate-900">
-                {dashboard.stripeCancelAtPeriodEnd ? "あり" : "なし"}
-              </span>
-            </div>
+            <StatusRow
+              label="期間終了時解約"
+              value={dashboard.stripeCancelAtPeriodEnd ? "あり" : "なし"}
+            />
           </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6">
-          <h2 className="text-[24px] font-bold text-slate-900">まずやること</h2>
-
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Link
-              href="/b/creators"
-              className="rounded-[24px] border border-slate-200 p-5 transition hover:bg-slate-50"
-            >
-              <p className="text-[18px] font-bold text-slate-900">
-                クリエイターを探す
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                クリエイターや公開メニューを確認します。
-              </p>
-            </Link>
-
-            <Link
-              href="/b/requests"
-              className="rounded-[24px] border border-slate-200 p-5 transition hover:bg-slate-50"
-            >
-              <p className="text-[18px] font-bold text-slate-900">
-                承認待ちを見る
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                送信した注文・依頼の承認状況を確認します。
-              </p>
-            </Link>
-
-            <Link
-              href="/b/jobs"
-              className="rounded-[24px] border border-slate-200 p-5 transition hover:bg-slate-50"
-            >
-              <p className="text-[18px] font-bold text-slate-900">
-                進行中案件を見る
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                決済確定・納品済み・完了済みの案件を確認します。
-              </p>
-            </Link>
-
-            <Link
-              href="/b/billing"
-              className="rounded-[24px] border border-slate-200 p-5 transition hover:bg-slate-50"
-            >
-              <p className="text-[18px] font-bold text-slate-900">
-                料金プランを確認する
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                Basic / Pro / Premium の機能・件数・手数料率を確認できます。
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6">
-          <h2 className="text-[24px] font-bold text-slate-900">補足メモ</h2>
-          <div className="mt-5 space-y-3 text-sm leading-8 text-slate-600">
-            <p>
-              ・件数は旧 requests と新 orders の両方を合算して表示しています。
-            </p>
-            <p>
-              ・プラン表示は内部コード free / standard / global_pro を Basic / Pro / Premium に読み替えています。
-            </p>
-            <p>
-              ・利用状態は user_states.company_subscription_status を基準に表示しています。
-            </p>
-            <p>
-              ・Pro は継続利用・高度検索・レポート向け、Premium は取引手数料5%・分析強化・優先サポート向けです。
-            </p>
-            <p>
-              ・Basic は月5件までを前提に動作し、Pro / Premium は注文・依頼数無制限を想定しています。
-            </p>
-          </div>
-        </div>
+        </aside>
       </section>
     </div>
   );
