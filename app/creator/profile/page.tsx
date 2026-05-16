@@ -31,6 +31,18 @@ type CreatorRow = {
   approval_status: "pending" | "approved" | "rejected" | string | null;
 };
 
+type PortfolioAssetRow = {
+  id: string;
+  creator_id: string;
+  asset_url: string;
+  asset_type: "image" | "video" | string;
+  title: string | null;
+  sort_order: number;
+  is_public: boolean;
+  created_at: string;
+  updated_at?: string | null;
+};
+
 type SocialAccountForm = {
   platform: string;
   url: string;
@@ -170,10 +182,6 @@ function fileExtension(file: File) {
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
-function fallbackInitial(name: string) {
-  return (name || "C").slice(0, 1).toUpperCase();
-}
-
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
     <label className="block text-sm font-black text-slate-800">
@@ -186,7 +194,9 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
+      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${
+        props.className ?? ""
+      }`}
     />
   );
 }
@@ -195,7 +205,9 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
+      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 ${
+        props.className ?? ""
+      }`}
     />
   );
 }
@@ -204,7 +216,9 @@ function SelectBox(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
+      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${
+        props.className ?? ""
+      }`}
     />
   );
 }
@@ -316,6 +330,70 @@ function ImagePicker({
   );
 }
 
+function PortfolioUploadBox({
+  pendingCount,
+  buttonLabel,
+  onChange,
+}: {
+  pendingCount: number;
+  buttonLabel: string;
+  onChange: (files: File[]) => void;
+}) {
+  return (
+    <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition hover:border-slate-950 active:scale-[0.98]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-2xl shadow-sm">
+        +
+      </div>
+      <p className="mt-4 text-sm font-black text-slate-950">{buttonLabel}</p>
+      {pendingCount > 0 ? (
+        <p className="mt-2 text-xs font-semibold text-slate-500">
+          {pendingCount} files selected
+        </p>
+      ) : null}
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          const files = Array.from(event.target.files ?? []);
+          onChange(files);
+          event.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
+function PortfolioImage({
+  src,
+  label,
+  onDelete,
+  deleting,
+}: {
+  src: string;
+  label: string;
+  onDelete?: () => void;
+  deleting?: boolean;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-[22px] bg-slate-100">
+      <img src={src} alt={label} className="aspect-square w-full object-cover" />
+
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleting}
+          className="absolute right-2 top-2 rounded-full bg-black/70 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition disabled:opacity-60"
+        >
+          {deleting ? "..." : "削除"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function CreatorProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -353,11 +431,20 @@ export default function CreatorProfilePage() {
             accountBody: "表示名、カテゴリ、地域、言語を設定します。",
             imageSection: "写真・ポートフォリオ",
             imageBody:
-              "プロフィール画像とカバー画像を設定します。ポートフォリオ画像3枚以上は後で追加します。",
+              "プロフィール画像、カバー画像、B側詳細ページに表示するポートフォリオ画像を管理します。",
             avatar: "プロフィール画像",
             cover: "カバー画像",
             imageChoose: "スマホの写真・アルバムから選択",
             noImage: "まだ画像はありません",
+            portfolioTitle: "ポートフォリオ画像",
+            portfolioBody:
+              "B側クリエイター詳細ページのギャラリーに使用する画像です。3枚以上あると見栄えが良くなります。",
+            portfolioUpload: "ポートフォリオ画像を追加",
+            portfolioWarning:
+              "ポートフォリオ画像は3枚以上あると、B側詳細ページで自然なギャラリー表示にできます。",
+            portfolioEmpty:
+              "まだポートフォリオ画像がありません。商品PR・投稿実績・雰囲気が伝わる画像を追加してください。",
+            pendingImages: "保存前の追加予定画像",
             socialTitle: "SNS連携",
             socialSubtitle:
               "SNS媒体は複数登録できます。フォロワー数などは将来的に外部APIで自動取得する想定です。",
@@ -398,8 +485,8 @@ export default function CreatorProfilePage() {
             analyticsTitle: "SNS分析",
             analyticsBody: "フォロワー数・平均再生数などは今後自動取得予定です。",
             portfolioComing: "ポートフォリオ画像",
-            portfolioBody:
-              "B側詳細ページの3枚ギャラリーに使う画像を今後ここで管理します。",
+            portfolioLinkBody:
+              "B側詳細ページの3枚ギャラリーに使う画像をここで管理します。",
           }
         : {
             badge: "Creator Profile",
@@ -429,11 +516,20 @@ export default function CreatorProfilePage() {
             accountBody: "Set your display name, category, location, and languages.",
             imageSection: "Photos & Portfolio",
             imageBody:
-              "Set your profile and cover images. Portfolio images will be added later.",
+              "Manage your profile image, cover image, and portfolio images shown to brands.",
             avatar: "Profile Image",
             cover: "Cover Image",
             imageChoose: "Choose from photos / album",
             noImage: "No image yet",
+            portfolioTitle: "Portfolio images",
+            portfolioBody:
+              "Images used for the brand-facing creator detail gallery. Three or more images are recommended.",
+            portfolioUpload: "Add portfolio images",
+            portfolioWarning:
+              "Three or more portfolio images will make the brand-facing gallery look more natural.",
+            portfolioEmpty:
+              "No portfolio images yet. Add images that show your PR work, content style, or visual mood.",
+            pendingImages: "Pending images",
             socialTitle: "Social Links",
             socialSubtitle:
               "Add social platforms. Follower metrics can be automated later through external APIs.",
@@ -474,8 +570,8 @@ export default function CreatorProfilePage() {
             analyticsTitle: "SNS Analytics",
             analyticsBody: "Follower and view metrics can be automated later.",
             portfolioComing: "Portfolio images",
-            portfolioBody:
-              "Images for the 3-photo gallery on brand-facing detail pages will be managed here later.",
+            portfolioLinkBody:
+              "Manage images used for the 3-photo gallery on brand-facing detail pages.",
           },
     [safeLocale]
   );
@@ -502,21 +598,47 @@ export default function CreatorProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
+  const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAssetRow[]>([]);
+  const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
+  const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
+  const [deletingPortfolioId, setDeletingPortfolioId] = useState<string | null>(null);
+
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountForm[]>([
     createEmptySocial(),
   ]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
 
   useEffect(() => {
     return () => {
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
       if (coverPreview) URL.revokeObjectURL(coverPreview);
+      portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [avatarPreview, coverPreview]);
+  }, [avatarPreview, coverPreview, portfolioPreviews]);
+
+  const loadPortfolioAssets = async (creatorIdValue: string) => {
+    const { data, error: portfolioError } = await supabase
+      .from("creator_portfolio_assets")
+      .select(
+        "id, creator_id, asset_url, asset_type, title, sort_order, is_public, created_at, updated_at"
+      )
+      .eq("creator_id", creatorIdValue)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (portfolioError) {
+      throw portfolioError;
+    }
+
+    setPortfolioAssets((data ?? []) as PortfolioAssetRow[]);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -580,11 +702,15 @@ export default function CreatorProfilePage() {
       setAvatarUrl(creatorRow.avatar_url ?? null);
       setCoverUrl(creatorRow.cover_image_url ?? metadataCover ?? null);
 
-      const { data: socials, error: socialError } = await supabase
-        .from("creator_social_accounts")
-        .select("platform, url, follower_range, audience_country")
-        .eq("creator_id", creatorRow.id)
-        .order("created_at", { ascending: true });
+      const [
+        { data: socials, error: socialError },
+      ] = await Promise.all([
+        supabase
+          .from("creator_social_accounts")
+          .select("platform, url, follower_range, audience_country")
+          .eq("creator_id", creatorRow.id)
+          .order("created_at", { ascending: true }),
+      ]);
 
       if (socialError) {
         setError(socialError.message);
@@ -599,10 +725,13 @@ export default function CreatorProfilePage() {
         socialRows.length > 0 ? socialRows : [createEmptySocial()]
       );
 
+      await loadPortfolioAssets(creatorRow.id);
+
       setLoading(false);
     };
 
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copy.creatorNotFound, router, supabase]);
 
   const approvalLabel = getApprovalStatusLabel(approvalStatus, safeLocale);
@@ -610,10 +739,13 @@ export default function CreatorProfilePage() {
   const uploadImageAndGetUrl = async (
     file: File,
     creatorIdValue: string,
-    kind: "avatar" | "cover"
+    kind: "avatar" | "cover" | "portfolio",
+    index?: number
   ) => {
     const ext = fileExtension(file);
-    const filePath = `${creatorIdValue}/${kind}-${Date.now()}.${ext}`;
+    const suffix =
+      typeof index === "number" ? `${Date.now()}-${index}` : `${Date.now()}`;
+    const filePath = `${creatorIdValue}/${kind}-${suffix}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from(CREATOR_IMAGE_BUCKET)
@@ -671,10 +803,7 @@ export default function CreatorProfilePage() {
     return null;
   };
 
-  const handleImageSelect = (
-    file: File | null,
-    kind: "avatar" | "cover"
-  ) => {
+  const handleImageSelect = (file: File | null, kind: "avatar" | "cover") => {
     if (kind === "avatar") {
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
       setAvatarFile(file);
@@ -687,11 +816,61 @@ export default function CreatorProfilePage() {
     setCoverPreview(file ? URL.createObjectURL(file) : null);
   };
 
+  const handlePortfolioSelect = (files: File[]) => {
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+    if (imageFiles.length === 0) return;
+
+    const previews = imageFiles.map((file) => URL.createObjectURL(file));
+
+    setPortfolioFiles((prev) => [...prev, ...imageFiles]);
+    setPortfolioPreviews((prev) => [...prev, ...previews]);
+  };
+
+  const removePendingPortfolio = (index: number) => {
+    setPortfolioFiles((prev) => prev.filter((_, i) => i !== index));
+    setPortfolioPreviews((prev) => {
+      const target = prev[index];
+
+      if (target) {
+        URL.revokeObjectURL(target);
+      }
+
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const deletePortfolioAsset = async (assetId: string) => {
+    if (!window.confirm(copy.remove)) return;
+
+    setDeletingPortfolioId(assetId);
+    setError(null);
+    setSuccess(null);
+
+    const { error: deleteError } = await supabase
+      .from("creator_portfolio_assets")
+      .delete()
+      .eq("id", assetId);
+
+    if (deleteError) {
+      console.error(deleteError);
+      setError(copy.saveError);
+      setDeletingPortfolioId(null);
+      return;
+    }
+
+    setPortfolioAssets((prev) => prev.filter((asset) => asset.id !== assetId));
+    setDeletingPortfolioId(null);
+  };
+
   const handleSave = async () => {
     setError(null);
     setSuccess(null);
 
     const validationError = validate();
+
     if (validationError) {
       setError(validationError);
       return;
@@ -753,6 +932,38 @@ export default function CreatorProfilePage() {
           creatorId,
           "cover"
         );
+      }
+
+      if (portfolioFiles.length > 0) {
+        const startOrder = portfolioAssets.length;
+
+        const uploadedPortfolioRows = await Promise.all(
+          portfolioFiles.map(async (file, index) => {
+            const publicUrl = await uploadImageAndGetUrl(
+              file,
+              creatorId,
+              "portfolio",
+              index
+            );
+
+            return {
+              creator_id: creatorId,
+              asset_url: publicUrl,
+              asset_type: "image",
+              title: file.name,
+              sort_order: startOrder + index,
+              is_public: true,
+            };
+          })
+        );
+
+        const { error: insertPortfolioError } = await supabase
+          .from("creator_portfolio_assets")
+          .insert(uploadedPortfolioRows);
+
+        if (insertPortfolioError) {
+          throw insertPortfolioError;
+        }
       }
 
       const now = new Date().toISOString();
@@ -896,8 +1107,13 @@ export default function CreatorProfilePage() {
       setCoverUrl(finalCoverUrl ?? null);
       setAvatarFile(null);
       setCoverFile(null);
-      setAvatarPreview(null);
-      setCoverPreview(null);
+
+      portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
+      setPortfolioFiles([]);
+      setPortfolioPreviews([]);
+
+      await loadPortfolioAssets(creatorId);
+
       setSuccess(copy.saved);
       router.refresh();
     } catch (e) {
@@ -964,20 +1180,18 @@ export default function CreatorProfilePage() {
             <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
               {copy.title}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-white/65">
               {copy.subtitle}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${getApprovalTone(
-                approvalStatus
-              )}`}
-            >
-              {copy.approvalStatus}: {approvalLabel}
-            </span>
-          </div>
+          <span
+            className={`w-fit rounded-full px-4 py-2 text-sm font-black ${getApprovalTone(
+              approvalStatus
+            )}`}
+          >
+            {copy.approvalStatus}: {approvalLabel}
+          </span>
         </div>
       </section>
 
@@ -1021,16 +1235,12 @@ export default function CreatorProfilePage() {
             href="/creator/profile"
             icon="◎"
             title={copy.portfolioComing}
-            body={copy.portfolioBody}
+            body={copy.portfolioLinkBody}
           />
         </div>
       </section>
 
-      <SectionCard
-        icon="◯"
-        title={copy.imageSection}
-        body={copy.imageBody}
-      >
+      <SectionCard icon="◯" title={copy.imageSection} body={copy.imageBody}>
         <div className="grid gap-4 md:grid-cols-2">
           <ImagePicker
             label={copy.avatar}
@@ -1049,13 +1259,71 @@ export default function CreatorProfilePage() {
             onChange={(file) => handleImageSelect(file, "cover")}
           />
         </div>
+
+        <div className="mt-6 rounded-[24px] border border-slate-100 bg-slate-50 p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h3 className="text-lg font-black text-slate-950">
+                {copy.portfolioTitle}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {copy.portfolioBody}
+              </p>
+            </div>
+
+            <span
+              className={`w-fit rounded-full px-3 py-1 text-xs font-black ${
+                portfolioTotalCount >= 3
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              {portfolioTotalCount}/3
+            </span>
+          </div>
+
+          {portfolioTotalCount < 3 ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+              {copy.portfolioWarning}
+            </div>
+          ) : null}
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {portfolioAssets.map((asset) => (
+              <PortfolioImage
+                key={asset.id}
+                src={asset.asset_url}
+                label={asset.title || copy.portfolioTitle}
+                deleting={deletingPortfolioId === asset.id}
+                onDelete={() => void deletePortfolioAsset(asset.id)}
+              />
+            ))}
+
+            {portfolioPreviews.map((preview, index) => (
+              <PortfolioImage
+                key={preview}
+                src={preview}
+                label={`${copy.pendingImages} ${index + 1}`}
+                onDelete={() => removePendingPortfolio(index)}
+              />
+            ))}
+
+            <PortfolioUploadBox
+              pendingCount={portfolioFiles.length}
+              buttonLabel={copy.portfolioUpload}
+              onChange={handlePortfolioSelect}
+            />
+          </div>
+
+          {portfolioAssets.length === 0 && portfolioFiles.length === 0 ? (
+            <p className="mt-4 text-sm leading-6 text-slate-500">
+              {copy.portfolioEmpty}
+            </p>
+          ) : null}
+        </div>
       </SectionCard>
 
-      <SectionCard
-        icon="□"
-        title={copy.accountSection}
-        body={copy.accountBody}
-      >
+      <SectionCard icon="□" title={copy.accountSection} body={copy.accountBody}>
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <FieldLabel>{copy.publicName}</FieldLabel>
@@ -1185,11 +1453,7 @@ export default function CreatorProfilePage() {
         </div>
       </SectionCard>
 
-      <SectionCard
-        icon="◎"
-        title={copy.socialTitle}
-        body={copy.socialSubtitle}
-      >
+      <SectionCard icon="◎" title={copy.socialTitle} body={copy.socialSubtitle}>
         <p className="mb-5 rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-800">
           {copy.socialHelp}
         </p>
@@ -1236,9 +1500,7 @@ export default function CreatorProfilePage() {
                   <FieldLabel>{copy.url}</FieldLabel>
                   <TextInput
                     value={social.url}
-                    onChange={(e) =>
-                      updateSocial(index, "url", e.target.value)
-                    }
+                    onChange={(e) => updateSocial(index, "url", e.target.value)}
                     placeholder="https://..."
                   />
                 </div>
