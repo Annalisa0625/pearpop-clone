@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -39,10 +39,21 @@ type MenuRow = {
   is_active: boolean | null;
 };
 
+type PortfolioAssetRow = {
+  id: string;
+  creator_id: string;
+  asset_url: string;
+  asset_type: string;
+  sort_order: number | null;
+  is_public: boolean | null;
+  created_at: string | null;
+};
+
 type SavedCreatorCard = {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  cardImageUrl: string | null;
   category: string | null;
   platforms: string[];
   primaryPlatform: string | null;
@@ -410,12 +421,16 @@ function CreatorImage({
     "from-blue-200 via-indigo-100 to-purple-200",
   ];
 
-  if (creator.avatarUrl) {
+  const src = creator.cardImageUrl || creator.avatarUrl;
+
+  if (src) {
     return (
       <img
-        src={creator.avatarUrl}
+        src={src}
         alt={creator.displayName}
         className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-105"
+        loading={index < 4 ? "eager" : "lazy"}
+        decoding="async"
       />
     );
   }
@@ -728,18 +743,38 @@ export default function SavedCreatorsPage() {
     const visibleCreatorIds = rows.map((row) => row.id);
 
     let menuRows: MenuRow[] = [];
+    let portfolioRows: PortfolioAssetRow[] = [];
 
     if (visibleCreatorIds.length > 0) {
-      const { data: menusData, error: menusError } = await supabase
-        .from("creator_menus")
-        .select("id, creator_id, title, price, currency, is_active")
-        .in("creator_id", visibleCreatorIds)
-        .eq("is_active", true);
+      const [menusResult, portfolioResult] = await Promise.all([
+        supabase
+          .from("creator_menus")
+          .select("id, creator_id, title, price, currency, is_active")
+          .in("creator_id", visibleCreatorIds)
+          .eq("is_active", true),
 
-      if (menusError) {
-        console.error("saved creator menus load error", menusError);
+        supabase
+          .from("creator_portfolio_assets")
+          .select(
+            "id, creator_id, asset_url, asset_type, sort_order, is_public, created_at"
+          )
+          .in("creator_id", visibleCreatorIds)
+          .eq("is_public", true)
+          .eq("asset_type", "image")
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true }),
+      ]);
+
+      if (menusResult.error) {
+        console.error("saved creator menus load error", menusResult.error);
       } else {
-        menuRows = (menusData ?? []) as MenuRow[];
+        menuRows = (menusResult.data ?? []) as MenuRow[];
+      }
+
+      if (portfolioResult.error) {
+        console.error("saved creator portfolio load error", portfolioResult.error);
+      } else {
+        portfolioRows = (portfolioResult.data ?? []) as PortfolioAssetRow[];
       }
     }
 
@@ -751,6 +786,16 @@ export default function SavedCreatorsPage() {
       const list = menuMap.get(menu.creator_id) ?? [];
       list.push(menu);
       menuMap.set(menu.creator_id, list);
+    }
+
+    const portfolioMap = new Map<string, PortfolioAssetRow[]>();
+
+    for (const asset of portfolioRows) {
+      if (!asset.creator_id) continue;
+
+      const list = portfolioMap.get(asset.creator_id) ?? [];
+      list.push(asset);
+      portfolioMap.set(asset.creator_id, list);
     }
 
     const savedAtMap = new Map(
@@ -778,16 +823,21 @@ export default function SavedCreatorsPage() {
         );
 
         const creatorMenus = menuMap.get(row.id) ?? [];
+
         const pricedMenus = creatorMenus
           .filter((menu) => typeof menu.price === "number")
           .sort((a, b) => Number(a.price) - Number(b.price));
 
         const startingMenu = pricedMenus[0] ?? creatorMenus[0] ?? null;
 
+        const portfolio = portfolioMap.get(row.id) ?? [];
+        const firstPortfolioImage = portfolio[0]?.asset_url?.trim() || null;
+
         return {
           id: row.id,
           displayName: row.display_name?.trim() || copy.creatorFallback,
           avatarUrl: row.avatar_url?.trim() || null,
+          cardImageUrl: firstPortfolioImage,
           category: row.category?.trim() || null,
           platforms,
           primaryPlatform: platforms[0] || primary?.platform?.trim() || null,
