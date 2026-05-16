@@ -146,7 +146,6 @@ function cleanCountryInput(value: string | null | undefined) {
     normalized === "thailand" ||
     normalized === "th" ||
     normalized.startsWith("th ") ||
-    compact === "thタイ" ||
     compact.includes("タイ")
   ) {
     return "thailand";
@@ -157,7 +156,6 @@ function cleanCountryInput(value: string | null | undefined) {
     normalized === "vietnam" ||
     normalized === "vn" ||
     normalized.startsWith("vn ") ||
-    compact === "vnベトナム" ||
     compact.includes("ベトナム")
   ) {
     return "vietnam";
@@ -501,14 +499,16 @@ function PlatformMetricBadge({
   );
 }
 
-function HeroTile({
-  creator,
+function PortfolioTile({
+  creatorName,
   index,
   src,
+  className = "",
 }: {
-  creator: Creator;
+  creatorName: string;
   index: number;
   src: string | null;
+  className?: string;
 }) {
   const gradients = [
     "from-slate-950 via-slate-700 to-slate-300",
@@ -516,34 +516,119 @@ function HeroTile({
     "from-blue-500 via-violet-400 to-pink-200",
   ];
 
-  if (src) {
+  if (!src) {
     return (
-      <div className="relative h-full w-full overflow-hidden bg-slate-100">
-        <img
-          src={src}
-          alt={creator.display_name}
-          className="h-full w-full object-cover transition duration-500 hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-black/10" />
+      <div
+        className={`relative flex h-full min-h-[220px] w-full items-center justify-center overflow-hidden bg-gradient-to-br ${
+          gradients[index % gradients.length]
+        } ${className}`}
+      >
+        <div className="text-center">
+          <div className="text-7xl font-black tracking-tight text-white drop-shadow-sm md:text-8xl">
+            {getCreatorInitial(creatorName)}
+          </div>
+          <div className="mt-3 text-xs font-bold uppercase tracking-[0.35em] text-white/70">
+            Trendre Creator
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div
-      className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${
-        gradients[index % gradients.length]
-      }`}
+      className={`relative h-full min-h-[220px] w-full overflow-hidden bg-slate-100 ${className}`}
     >
-      <div className="text-center">
-        <div className="text-7xl font-black tracking-tight text-white drop-shadow-sm md:text-8xl">
-          {getCreatorInitial(creator.display_name)}
-        </div>
-        <div className="mt-3 text-xs font-bold uppercase tracking-[0.35em] text-white/70">
-          Trendre Creator
-        </div>
-      </div>
+      <img
+        src={src}
+        alt={`${creatorName} portfolio ${index + 1}`}
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-xl"
+        loading="lazy"
+        decoding="async"
+      />
+      <img
+        src={src}
+        alt={`${creatorName} portfolio ${index + 1}`}
+        className="relative z-10 h-full w-full object-contain"
+        loading={index === 0 ? "eager" : "lazy"}
+        decoding="async"
+      />
     </div>
+  );
+}
+
+function PortfolioGallery({
+  creator,
+  images,
+}: {
+  creator: Creator;
+  images: string[];
+}) {
+  if (images.length === 0) {
+    return (
+      <section className="overflow-hidden rounded-[28px] bg-slate-100">
+        <div className="h-[360px]">
+          <PortfolioTile creatorName={creator.display_name} index={0} src={null} />
+        </div>
+      </section>
+    );
+  }
+
+  if (images.length === 1) {
+    return (
+      <section className="overflow-hidden rounded-[28px] bg-slate-100">
+        <div className="h-[420px]">
+          <PortfolioTile
+            creatorName={creator.display_name}
+            index={0}
+            src={images[0]}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  if (images.length === 2) {
+    return (
+      <section className="overflow-hidden rounded-[28px] bg-slate-100">
+        <div className="grid h-[400px] gap-1 md:grid-cols-2">
+          <PortfolioTile
+            creatorName={creator.display_name}
+            index={0}
+            src={images[0]}
+          />
+          <PortfolioTile
+            creatorName={creator.display_name}
+            index={1}
+            src={images[1]}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[28px] bg-slate-100">
+      <div className="grid h-[420px] gap-1 md:grid-cols-[1.35fr_1fr_1fr]">
+        <div className="md:row-span-2">
+          <PortfolioTile
+            creatorName={creator.display_name}
+            index={0}
+            src={images[0]}
+          />
+        </div>
+        <PortfolioTile
+          creatorName={creator.display_name}
+          index={1}
+          src={images[1]}
+        />
+        <PortfolioTile
+          creatorName={creator.display_name}
+          index={2}
+          src={images[2]}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -556,6 +641,8 @@ function Avatar({ name, src }: { name: string; src: string | null }) {
         src={src}
         alt={name}
         className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg"
+        loading="lazy"
+        decoding="async"
       />
     );
   }
@@ -820,6 +907,7 @@ export default function CreatorDetailPage() {
             menuPrice: "Menu price",
             total: "Total",
             loginToOrder: "ログインして注文",
+            noPortfolio: "No portfolio images yet",
           }
         : {
             loading: "Loading...",
@@ -868,6 +956,7 @@ export default function CreatorDetailPage() {
             menuPrice: "Menu price",
             total: "Total",
             loginToOrder: "Log in to order",
+            noPortfolio: "No portfolio images yet",
           },
     [safeLocale]
   );
@@ -1126,14 +1215,6 @@ export default function CreatorDetailPage() {
 
   const primarySocial = socialAccounts[0] ?? null;
   const portfolioImageUrls = portfolioAssets.map((asset) => asset.asset_url);
-  const heroImages =
-    portfolioImageUrls.length > 0
-      ? [
-          portfolioImageUrls[0] ?? null,
-          portfolioImageUrls[1] ?? null,
-          portfolioImageUrls[2] ?? null,
-        ]
-      : [null, null, null];
 
   const selectedMenuPrice = selectedMenu?.price ?? null;
   const buyerFeeRateBps = getBuyerFeeRateBps(gate.companyPlanCode);
@@ -1272,15 +1353,7 @@ export default function CreatorDetailPage() {
 
   return (
     <div className="space-y-10 pb-12">
-      <section className="overflow-hidden rounded-[28px] bg-slate-100">
-        <div className="grid h-[360px] gap-1 md:grid-cols-[1.35fr_1fr_1fr]">
-          <div className="md:row-span-2">
-            <HeroTile creator={creator} index={0} src={heroImages[0]} />
-          </div>
-          <HeroTile creator={creator} index={1} src={heroImages[1]} />
-          <HeroTile creator={creator} index={2} src={heroImages[2]} />
-        </div>
-      </section>
+      <PortfolioGallery creator={creator} images={portfolioImageUrls} />
 
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-8">
@@ -1362,9 +1435,7 @@ export default function CreatorDetailPage() {
                 <h2 className="text-2xl font-black tracking-tight text-slate-950">
                   {copy.packages}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  {copy.howItWorks}
-                </p>
+                <p className="mt-2 text-sm text-slate-500">{copy.howItWorks}</p>
               </div>
             </div>
 
@@ -1486,13 +1557,15 @@ export default function CreatorDetailPage() {
                         src={url}
                         alt={`${creator.display_name} portfolio ${index + 1}`}
                         className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-center text-sm font-semibold text-slate-400">
-                  No portfolio images yet
+                  {copy.noPortfolio}
                 </div>
               )}
             </div>
