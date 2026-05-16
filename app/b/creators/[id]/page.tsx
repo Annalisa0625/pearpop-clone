@@ -296,67 +296,57 @@ function PlatformMetricBadge({
   );
 }
 
-function PortfolioTile({
-  creatorName,
-  index,
+function GalleryImage({
   src,
-  className = "",
+  alt,
+  priority,
 }: {
-  creatorName: string;
-  index: number;
-  src: string | null;
-  className?: string;
+  src: string;
+  alt: string;
+  priority?: boolean;
 }) {
-  const gradients = [
-    "from-slate-950 via-slate-700 to-slate-300",
-    "from-orange-500 via-amber-400 to-yellow-200",
-    "from-blue-500 via-violet-400 to-pink-200",
-  ];
-
-  if (!src) {
-    return (
-      <div
-        className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br ${
-          gradients[index % gradients.length]
-        } ${className}`}
-      >
-        <div className="text-center">
-          <div className="text-7xl font-black tracking-tight text-white drop-shadow-sm md:text-8xl">
-            {getCreatorInitial(creatorName)}
-          </div>
-          <div className="mt-3 text-xs font-bold uppercase tracking-[0.35em] text-white/70">
-            Trendre Creator
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`relative h-full w-full overflow-hidden bg-slate-100 ${className}`}>
+    <div className="relative h-full w-full overflow-hidden bg-slate-100">
       <img
         src={src}
-        alt={`${creatorName} portfolio ${index + 1}`}
+        alt={alt}
         className="h-full w-full object-cover transition duration-500 hover:scale-105"
-        loading={index === 0 ? "eager" : "lazy"}
+        loading={priority ? "eager" : "lazy"}
         decoding="async"
       />
     </div>
   );
 }
 
-function PortfolioGallery({
+function FallbackGallery({ creator }: { creator: Creator }) {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-950 via-slate-700 to-slate-400">
+      <div className="text-center">
+        <div className="text-7xl font-black tracking-tight text-white drop-shadow-sm md:text-8xl">
+          {getCreatorInitial(creator.display_name)}
+        </div>
+        <div className="mt-3 text-xs font-bold uppercase tracking-[0.35em] text-white/70">
+          Trendre Creator
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroGallery({
   creator,
   images,
+  showAllLabel,
 }: {
   creator: Creator;
   images: string[];
+  showAllLabel: string;
 }) {
-  if (images.length <= 0) {
+  if (images.length === 0) {
     return (
       <section className="overflow-hidden rounded-[28px] bg-slate-100">
         <div className="h-[420px]">
-          <PortfolioTile creatorName={creator.display_name} index={0} src={null} />
+          <FallbackGallery creator={creator} />
         </div>
       </section>
     );
@@ -366,7 +356,11 @@ function PortfolioGallery({
     return (
       <section className="overflow-hidden rounded-[28px] bg-slate-100">
         <div className="h-[420px]">
-          <PortfolioTile creatorName={creator.display_name} index={0} src={images[0]} />
+          <GalleryImage
+            src={images[0]}
+            alt={`${creator.display_name} portfolio 1`}
+            priority
+          />
         </div>
       </section>
     );
@@ -376,24 +370,61 @@ function PortfolioGallery({
     return (
       <section className="overflow-hidden rounded-[28px] bg-slate-100">
         <div className="grid h-[420px] gap-1 md:grid-cols-2">
-          <PortfolioTile creatorName={creator.display_name} index={0} src={images[0]} />
-          <PortfolioTile creatorName={creator.display_name} index={1} src={images[1]} />
+          <GalleryImage
+            src={images[0]}
+            alt={`${creator.display_name} portfolio 1`}
+            priority
+          />
+          <GalleryImage
+            src={images[1]}
+            alt={`${creator.display_name} portfolio 2`}
+          />
         </div>
       </section>
     );
   }
 
+  const leftImages = images.slice(0, 4);
+  const rightImage = images[4] ?? images[0];
+
   return (
     <section className="overflow-hidden rounded-[28px] bg-slate-100">
-      <div className="grid h-[420px] gap-1 md:grid-cols-[1.05fr_1fr_1fr]">
-        <PortfolioTile creatorName={creator.display_name} index={0} src={images[0]} />
-        <PortfolioTile creatorName={creator.display_name} index={1} src={images[1]} />
+      <div className="grid h-[420px] gap-1 md:grid-cols-[1fr_1fr]">
+        <div className="grid grid-cols-2 grid-rows-2 gap-1">
+          {leftImages.map((src, index) => (
+            <GalleryImage
+              key={`${src}-${index}`}
+              src={src}
+              alt={`${creator.display_name} portfolio ${index + 1}`}
+              priority={index === 0}
+            />
+          ))}
+
+          {leftImages.length < 4
+            ? Array.from({ length: 4 - leftImages.length }).map((_, index) => (
+                <div
+                  key={`fallback-${index}`}
+                  className="overflow-hidden bg-slate-100"
+                >
+                  <FallbackGallery creator={creator} />
+                </div>
+              ))
+            : null}
+        </div>
+
         <div className="relative">
-          <PortfolioTile creatorName={creator.display_name} index={2} src={images[2]} />
-          {images.length > 3 ? (
-            <div className="absolute bottom-4 right-4 rounded-full bg-black/70 px-4 py-2 text-sm font-black text-white backdrop-blur">
-              +{images.length - 3} photos
-            </div>
+          <GalleryImage
+            src={rightImage}
+            alt={`${creator.display_name} main portfolio`}
+          />
+
+          {images.length > 4 ? (
+            <button
+              type="button"
+              className="absolute bottom-4 right-4 rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-lg"
+            >
+              {showAllLabel}
+            </button>
           ) : null}
         </div>
       </div>
@@ -677,6 +708,7 @@ export default function CreatorDetailPage() {
             total: "Total",
             loginToOrder: "ログインして注文",
             noPortfolio: "No portfolio images yet",
+            showAllPhotos: "Show All Photos",
           }
         : {
             loading: "Loading...",
@@ -726,6 +758,7 @@ export default function CreatorDetailPage() {
             total: "Total",
             loginToOrder: "Log in to order",
             noPortfolio: "No portfolio images yet",
+            showAllPhotos: "Show All Photos",
           },
     [safeLocale]
   );
@@ -1127,7 +1160,38 @@ export default function CreatorDetailPage() {
 
   return (
     <div className="space-y-10 pb-12">
-      <PortfolioGallery creator={creator} images={portfolioImageUrls} />
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <h1 className="text-2xl font-black text-slate-950">
+          {creator.category || creator.display_name}
+        </h1>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={handleShare}
+            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:text-slate-950"
+          >
+            <ShareIcon />
+            {shareCopied ? copy.copied : copy.share}
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleSaveCreator}
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:text-slate-950 disabled:opacity-60"
+          >
+            <HeartIcon filled={isSaved} />
+            {isSaved ? copy.saved : copy.save}
+          </button>
+        </div>
+      </div>
+
+      <HeroGallery
+        creator={creator}
+        images={portfolioImageUrls}
+        showAllLabel={copy.showAllPhotos}
+      />
 
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-8">
@@ -1147,31 +1211,6 @@ export default function CreatorDetailPage() {
                     {creator.category || copy.profileFallback}
                   </p>
                 </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
-                >
-                  <ShareIcon />
-                  {shareCopied ? copy.copied : copy.share}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={toggleSaveCreator}
-                  disabled={saving}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
-                    isSaved
-                      ? "border-pink-500 bg-pink-500 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-900 hover:text-slate-950"
-                  }`}
-                >
-                  <HeartIcon filled={isSaved} />
-                  {isSaved ? copy.saved : copy.save}
-                </button>
               </div>
             </div>
 
