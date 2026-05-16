@@ -47,6 +47,17 @@ type SocialAccount = {
   url: string | null;
 };
 
+type PortfolioAsset = {
+  id: string;
+  creator_id: string;
+  asset_url: string;
+  asset_type: string;
+  title: string | null;
+  sort_order: number | null;
+  is_public: boolean | null;
+  created_at: string | null;
+};
+
 type CompanyGateState = {
   isLoggedIn: boolean;
   canSendRequests: boolean;
@@ -767,13 +778,10 @@ export default function CreatorDetailPage() {
             notFound:
               "クリエイターが見つかりません。現在注文受付できない状態の可能性があります。",
             backToCreators: "クリエイター一覧へ戻る",
-            creatorUnavailable:
-              "このクリエイターは現在、報酬受け取り設定または公開準備が完了していないため、企業側には表示されません。",
             share: "Share",
             save: "Save",
             saved: "Saved",
             copied: "URL copied",
-            invite: "注文へ進む",
             followers: "Followers",
             mainAudience: "Main audience",
             profileFallback:
@@ -803,14 +811,11 @@ export default function CreatorDetailPage() {
               "SNS連携データをもとに、フォロワー数・平均再生数・エンゲージメント・視聴者属性を表示予定です。",
             portfolio: "Portfolio",
             portfolioNote:
-              "今後、クリエイター登録時に追加した投稿実績・サンプル画像をここに表示します。",
+              "クリエイターが登録した投稿実績・サンプル画像です。",
             plan: "Plan",
-            notSet: "Not set",
             verified: "Payout verified",
             noReviews: "New creator",
             analytics: "Analytics",
-            startingFrom: "Starting from",
-            estimatedTotal: "Estimated total",
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
@@ -821,13 +826,10 @@ export default function CreatorDetailPage() {
             notFound:
               "Creator not found. This creator may not currently be ready to receive orders.",
             backToCreators: "Back to creators",
-            creatorUnavailable:
-              "This creator is not currently visible to companies because payout setup or public readiness is not complete.",
             share: "Share",
             save: "Save",
             saved: "Saved",
             copied: "URL copied",
-            invite: "Order now",
             followers: "Followers",
             mainAudience: "Main audience",
             profileFallback:
@@ -857,14 +859,11 @@ export default function CreatorDetailPage() {
               "Follower count, average views, engagement, and audience attributes can be shown here based on connected social data.",
             portfolio: "Portfolio",
             portfolioNote:
-              "Past work and sample images uploaded by the creator can be displayed here later.",
+              "Past work and sample images uploaded by the creator.",
             plan: "Plan",
-            notSet: "Not set",
             verified: "Payout verified",
             noReviews: "New creator",
             analytics: "Analytics",
-            startingFrom: "Starting from",
-            estimatedTotal: "Estimated total",
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
@@ -876,6 +875,7 @@ export default function CreatorDetailPage() {
   const [creator, setCreator] = useState<Creator | null>(null);
   const [menuCards, setMenuCards] = useState<MenuCard[]>([]);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
+  const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMenuId, setSelectedMenuId] = useState<string>("");
   const [activePackageTab, setActivePackageTab] = useState("all");
@@ -1000,6 +1000,7 @@ export default function CreatorDetailPage() {
         setCreator(null);
         setMenuCards([]);
         setSocialAccounts([]);
+        setPortfolioAssets([]);
         setGate(nextGate);
         setLoading(false);
         return;
@@ -1010,6 +1011,7 @@ export default function CreatorDetailPage() {
       const [
         { data: menuData, error: menuError },
         { data: socialData, error: socialError },
+        { data: portfolioData, error: portfolioError },
       ] = await Promise.all([
         supabase
           .from("creator_menus")
@@ -1045,6 +1047,15 @@ export default function CreatorDetailPage() {
             "id, creator_id, platform, audience_country, follower_range, url"
           )
           .eq("creator_id", creatorData.id),
+        supabase
+          .from("creator_portfolio_assets")
+          .select(
+            "id, creator_id, asset_url, asset_type, title, sort_order, is_public, created_at"
+          )
+          .eq("creator_id", creatorData.id)
+          .eq("is_public", true)
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true }),
       ]);
 
       if (!isMounted) return;
@@ -1053,12 +1064,19 @@ export default function CreatorDetailPage() {
       const nextSocials = socialError
         ? []
         : ((socialData as SocialAccount[]) ?? []);
+      const nextPortfolio = portfolioError
+        ? []
+        : ((portfolioData as PortfolioAsset[]) ?? []).filter(
+            (asset) => asset.asset_type === "image"
+          );
 
       if (menuError) console.error("menu load error:", menuError);
       if (socialError) console.error("social load error:", socialError);
+      if (portfolioError) console.error("portfolio load error:", portfolioError);
 
       setMenuCards(nextMenus);
       setSocialAccounts(nextSocials);
+      setPortfolioAssets(nextPortfolio);
       setSelectedMenuId((prev) => prev || nextMenus[0]?.id || "");
       setGate(nextGate);
       setLoading(false);
@@ -1107,9 +1125,15 @@ export default function CreatorDetailPage() {
   );
 
   const primarySocial = socialAccounts[0] ?? null;
-  const heroImages = creator
-    ? [creator.avatar_url, creator.avatar_url, creator.avatar_url]
-    : [null, null, null];
+  const portfolioImageUrls = portfolioAssets.map((asset) => asset.asset_url);
+  const heroImages =
+    portfolioImageUrls.length > 0
+      ? [
+          portfolioImageUrls[0] ?? null,
+          portfolioImageUrls[1] ?? null,
+          portfolioImageUrls[2] ?? null,
+        ]
+      : [null, null, null];
 
   const selectedMenuPrice = selectedMenu?.price ?? null;
   const buyerFeeRateBps = getBuyerFeeRateBps(gate.companyPlanCode);
@@ -1133,7 +1157,12 @@ export default function CreatorDetailPage() {
 
   const buyerMarketplaceFeeText =
     buyerMarketplaceFee != null
-      ? formatPrice(buyerMarketplaceFee, selectedMenu?.currency ?? "JPY", null, safeLocale)
+      ? formatPrice(
+          buyerMarketplaceFee,
+          selectedMenu?.currency ?? "JPY",
+          null,
+          safeLocale
+        )
       : "-";
 
   const estimatedTotalText =
@@ -1446,16 +1475,26 @@ export default function CreatorDetailPage() {
                 {copy.portfolioNote}
               </p>
 
-              <div className="mt-6 grid grid-cols-3 gap-3">
-                {[0, 1, 2].map((index) => (
-                  <div
-                    key={index}
-                    className="aspect-square overflow-hidden rounded-2xl bg-slate-100"
-                  >
-                    <HeroTile creator={creator} index={index} src={heroImages[index]} />
-                  </div>
-                ))}
-              </div>
+              {portfolioImageUrls.length > 0 ? (
+                <div className="mt-6 grid grid-cols-3 gap-3">
+                  {portfolioImageUrls.slice(0, 6).map((url, index) => (
+                    <div
+                      key={`${url}-${index}`}
+                      className="aspect-square overflow-hidden rounded-2xl bg-slate-100"
+                    >
+                      <img
+                        src={url}
+                        alt={`${creator.display_name} portfolio ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-center text-sm font-semibold text-slate-400">
+                  No portfolio images yet
+                </div>
+              )}
             </div>
           </section>
         </div>
