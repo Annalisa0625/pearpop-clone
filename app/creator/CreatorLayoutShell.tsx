@@ -197,20 +197,33 @@ function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setLocale("ja")}
-        className={`${baseClass} ${locale === "ja" ? activeClass : inactiveClass}`}
+        className={`${baseClass} ${
+          locale === "ja" ? activeClass : inactiveClass
+        }`}
         aria-pressed={locale === "ja"}
       >
         JA
       </button>
+
       <button
         type="button"
         onClick={() => setLocale("en")}
-        className={`${baseClass} ${locale === "en" ? activeClass : inactiveClass}`}
+        className={`${baseClass} ${
+          locale === "en" ? activeClass : inactiveClass
+        }`}
         aria-pressed={locale === "en"}
       >
         EN
       </button>
     </div>
+  );
+}
+
+function isPortfolioGuardExcludedPath(pathname: string) {
+  return (
+    pathname.startsWith("/creator/profile") ||
+    pathname.startsWith("/creator/payouts") ||
+    pathname.startsWith("/creator/onboarding")
   );
 }
 
@@ -507,6 +520,50 @@ export default function CreatorLayoutShell({
   }, [supabase]);
 
   useEffect(() => {
+    const checkPortfolioRequirement = async () => {
+      if (isPortfolioGuardExcludedPath(pathname)) {
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data: creator, error: creatorError } = await supabase
+        .from("creators")
+        .select("id, stripe_onboarding_completed")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (creatorError || !creator) return;
+
+      if (!creator.stripe_onboarding_completed) {
+        return;
+      }
+
+      const { count, error: portfolioError } = await supabase
+        .from("creator_portfolio_assets")
+        .select("id", { count: "exact", head: true })
+        .eq("creator_id", creator.id)
+        .eq("asset_type", "image")
+        .eq("is_public", true);
+
+      if (portfolioError) {
+        console.error("portfolio requirement check error:", portfolioError);
+        return;
+      }
+
+      if ((count ?? 0) < 3) {
+        router.replace("/creator/profile?required=portfolio");
+      }
+    };
+
+    void checkPortfolioRequirement();
+  }, [pathname, router, supabase]);
+
+  useEffect(() => {
     const loadLimit = async () => {
       const {
         data: { user },
@@ -582,10 +639,12 @@ export default function CreatorLayoutShell({
     };
 
     window.addEventListener("focus", onFocus);
+    window.addEventListener("trendre:chat-read-changed", onFocus);
 
     return () => {
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("trendre:chat-read-changed", onFocus);
     };
   }, [loadUnreadBadges, supabase]);
 
@@ -684,6 +743,7 @@ export default function CreatorLayoutShell({
 
   const handleLogout = async () => {
     if (loggingOut) return;
+
     setLoggingOut(true);
 
     try {
