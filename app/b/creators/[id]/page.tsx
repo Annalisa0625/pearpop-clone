@@ -71,7 +71,7 @@ type SavedCreatorRow = {
 
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return Array.from(
-    new Set(values.map((v) => (v ?? "").trim()).filter(Boolean))
+    new Set(values.map((value) => (value ?? "").trim()).filter(Boolean))
   );
 }
 
@@ -129,9 +129,28 @@ function getCountryLabel(country: string | null | undefined, locale: "ja" | "en"
     タイ: "タイ",
     vietnam: "ベトナム",
     ベトナム: "ベトナム",
+    indonesia: "インドネシア",
+    インドネシア: "インドネシア",
+    philippines: "フィリピン",
+    フィリピン: "フィリピン",
+    malaysia: "マレーシア",
+    マレーシア: "マレーシア",
+    singapore: "シンガポール",
+    シンガポール: "シンガポール",
+    india: "インド",
+    インド: "インド",
     united_states: "アメリカ",
     usa: "アメリカ",
     アメリカ: "アメリカ",
+    canada: "カナダ",
+    カナダ: "カナダ",
+    united_kingdom: "イギリス",
+    uk: "イギリス",
+    イギリス: "イギリス",
+    france: "フランス",
+    フランス: "フランス",
+    germany: "ドイツ",
+    ドイツ: "ドイツ",
     other: "その他",
     その他: "その他",
   };
@@ -151,9 +170,28 @@ function getCountryLabel(country: string | null | undefined, locale: "ja" | "en"
     タイ: "Thailand",
     vietnam: "Vietnam",
     ベトナム: "Vietnam",
+    indonesia: "Indonesia",
+    インドネシア: "Indonesia",
+    philippines: "Philippines",
+    フィリピン: "Philippines",
+    malaysia: "Malaysia",
+    マレーシア: "Malaysia",
+    singapore: "Singapore",
+    シンガポール: "Singapore",
+    india: "India",
+    インド: "India",
     united_states: "United States",
     usa: "United States",
     アメリカ: "United States",
+    canada: "Canada",
+    カナダ: "Canada",
+    united_kingdom: "United Kingdom",
+    uk: "United Kingdom",
+    イギリス: "United Kingdom",
+    france: "France",
+    フランス: "France",
+    germany: "Germany",
+    ドイツ: "Germany",
     other: "Other",
     その他: "Other",
   };
@@ -344,8 +382,8 @@ function HeroGallery({
 }) {
   if (images.length === 0) {
     return (
-      <section className="overflow-hidden rounded-[28px] bg-slate-100">
-        <div className="h-[420px]">
+      <section className="overflow-hidden rounded-[12px] bg-slate-100">
+        <div className="h-[390px]">
           <FallbackGallery creator={creator} />
         </div>
       </section>
@@ -354,8 +392,8 @@ function HeroGallery({
 
   if (images.length === 1) {
     return (
-      <section className="overflow-hidden rounded-[28px] bg-slate-100">
-        <div className="h-[420px]">
+      <section className="overflow-hidden rounded-[12px] bg-slate-100">
+        <div className="h-[390px]">
           <GalleryImage
             src={images[0]}
             alt={`${creator.display_name} portfolio 1`}
@@ -368,8 +406,8 @@ function HeroGallery({
 
   if (images.length === 2) {
     return (
-      <section className="overflow-hidden rounded-[28px] bg-slate-100">
-        <div className="grid h-[420px] gap-1 md:grid-cols-2">
+      <section className="overflow-hidden rounded-[12px] bg-slate-100">
+        <div className="grid h-[390px] gap-1 md:grid-cols-2">
           <GalleryImage
             src={images[0]}
             alt={`${creator.display_name} portfolio 1`}
@@ -384,12 +422,34 @@ function HeroGallery({
     );
   }
 
+  if (images.length === 3) {
+    return (
+      <section className="overflow-hidden rounded-[12px] bg-slate-100">
+        <div className="grid h-[390px] gap-1 md:grid-cols-3">
+          <GalleryImage
+            src={images[0]}
+            alt={`${creator.display_name} portfolio 1`}
+            priority
+          />
+          <GalleryImage
+            src={images[1]}
+            alt={`${creator.display_name} portfolio 2`}
+          />
+          <GalleryImage
+            src={images[2]}
+            alt={`${creator.display_name} portfolio 3`}
+          />
+        </div>
+      </section>
+    );
+  }
+
   const leftImages = images.slice(0, 4);
   const rightImage = images[4] ?? images[0];
 
   return (
-    <section className="overflow-hidden rounded-[28px] bg-slate-100">
-      <div className="grid h-[420px] gap-1 md:grid-cols-[1fr_1fr]">
+    <section className="overflow-hidden rounded-[12px] bg-slate-100">
+      <div className="grid h-[390px] gap-1 md:grid-cols-[1fr_1fr]">
         <div className="grid grid-cols-2 grid-rows-2 gap-1">
           {leftImages.map((src, index) => (
             <GalleryImage
@@ -399,17 +459,6 @@ function HeroGallery({
               priority={index === 0}
             />
           ))}
-
-          {leftImages.length < 4
-            ? Array.from({ length: 4 - leftImages.length }).map((_, index) => (
-                <div
-                  key={`fallback-${index}`}
-                  className="overflow-hidden bg-slate-100"
-                >
-                  <FallbackGallery creator={creator} />
-                </div>
-              ))
-            : null}
         </div>
 
         <div className="relative">
@@ -418,14 +467,12 @@ function HeroGallery({
             alt={`${creator.display_name} main portfolio`}
           />
 
-          {images.length > 4 ? (
-            <button
-              type="button"
-              className="absolute bottom-4 right-4 rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-lg"
-            >
-              {showAllLabel}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="absolute bottom-4 right-4 rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-lg"
+          >
+            {showAllLabel}
+          </button>
         </div>
       </div>
     </section>
@@ -1131,7 +1178,7 @@ export default function CreatorDetailPage() {
   if (loading) {
     return (
       <div className="space-y-8">
-        <div className="h-[360px] animate-pulse rounded-[28px] bg-slate-100" />
+        <div className="h-[390px] animate-pulse rounded-[12px] bg-slate-100" />
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-4">
             <div className="h-28 animate-pulse rounded-[28px] bg-slate-100" />
