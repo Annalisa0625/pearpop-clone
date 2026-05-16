@@ -2,13 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -38,6 +32,16 @@ type CreatorRow = {
   creator_social_accounts?: SocialAccountRow[] | null;
 };
 
+type PortfolioAssetRow = {
+  id: string;
+  creator_id: string;
+  asset_url: string;
+  asset_type: string;
+  sort_order: number | null;
+  is_public: boolean | null;
+  created_at: string | null;
+};
+
 type MenuRow = {
   id: string;
   creator_id: string | null;
@@ -55,6 +59,7 @@ type CreatorCard = {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  cardImageUrl: string | null;
   category: string | null;
   platforms: string[];
   primaryPlatform: string | null;
@@ -185,7 +190,6 @@ function cleanCountryInput(value: string | null | undefined) {
     normalized === "thailand" ||
     normalized === "th" ||
     normalized.startsWith("th ") ||
-    compact === "thタイ" ||
     compact.includes("タイ")
   ) {
     return "thailand";
@@ -196,7 +200,6 @@ function cleanCountryInput(value: string | null | undefined) {
     normalized === "vietnam" ||
     normalized === "vn" ||
     normalized.startsWith("vn ") ||
-    compact === "vnベトナム" ||
     compact.includes("ベトナム")
   ) {
     return "vietnam";
@@ -642,12 +645,16 @@ function CreatorImage({
     "from-blue-200 via-indigo-100 to-purple-200",
   ];
 
-  if (creator.avatarUrl) {
+  const src = creator.cardImageUrl || creator.avatarUrl;
+
+  if (src) {
     return (
       <img
-        src={creator.avatarUrl}
+        src={src}
         alt={creator.displayName}
         className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-105"
+        loading={index < 4 ? "eager" : "lazy"}
+        decoding="async"
       />
     );
   }
@@ -960,6 +967,7 @@ function CreatorCardItem({
   isSaving: boolean;
   safeLocale: "ja" | "en";
   copy: {
+    noSns: string;
     trusted: string;
     topCreator: string;
     menu: string;
@@ -1398,18 +1406,38 @@ export default function CompanyCreatorsPage() {
         const creatorIds = rows.map((row) => row.id);
 
         let menuRows: MenuRow[] = [];
+        let portfolioRows: PortfolioAssetRow[] = [];
 
         if (creatorIds.length > 0) {
-          const { data: menusData, error: menusError } = await supabase
-            .from("creator_menus")
-            .select("id, creator_id, title, price, currency, is_active")
-            .in("creator_id", creatorIds)
-            .eq("is_active", true);
+          const [menusResult, portfolioResult] = await Promise.all([
+            supabase
+              .from("creator_menus")
+              .select("id, creator_id, title, price, currency, is_active")
+              .in("creator_id", creatorIds)
+              .eq("is_active", true),
 
-          if (menusError) {
-            console.error("creator menus load error", menusError);
+            supabase
+              .from("creator_portfolio_assets")
+              .select(
+                "id, creator_id, asset_url, asset_type, sort_order, is_public, created_at"
+              )
+              .in("creator_id", creatorIds)
+              .eq("is_public", true)
+              .eq("asset_type", "image")
+              .order("sort_order", { ascending: true })
+              .order("created_at", { ascending: true }),
+          ]);
+
+          if (menusResult.error) {
+            console.error("creator menus load error", menusResult.error);
           } else {
-            menuRows = (menusData ?? []) as MenuRow[];
+            menuRows = (menusResult.data ?? []) as MenuRow[];
+          }
+
+          if (portfolioResult.error) {
+            console.error("creator portfolio load error", portfolioResult.error);
+          } else {
+            portfolioRows = (portfolioResult.data ?? []) as PortfolioAssetRow[];
           }
         }
 
@@ -1421,6 +1449,16 @@ export default function CompanyCreatorsPage() {
           const list = menuMap.get(menu.creator_id) ?? [];
           list.push(menu);
           menuMap.set(menu.creator_id, list);
+        }
+
+        const portfolioMap = new Map<string, PortfolioAssetRow[]>();
+
+        for (const asset of portfolioRows) {
+          if (!asset.creator_id) continue;
+
+          const list = portfolioMap.get(asset.creator_id) ?? [];
+          list.push(asset);
+          portfolioMap.set(asset.creator_id, list);
         }
 
         const nextCreators: CreatorCard[] = rows
@@ -1447,10 +1485,14 @@ export default function CompanyCreatorsPage() {
 
             const startingMenu = pricedMenus[0] ?? creatorMenus[0] ?? null;
 
+            const portfolio = portfolioMap.get(row.id) ?? [];
+            const firstPortfolioImage = portfolio[0]?.asset_url?.trim() || null;
+
             return {
               id: row.id,
               displayName: row.display_name?.trim() || copy.creatorFallback,
               avatarUrl: row.avatar_url?.trim() || null,
+              cardImageUrl: firstPortfolioImage,
               category: row.category?.trim() || null,
               platforms,
               primaryPlatform: platforms[0] || primary?.platform?.trim() || null,
@@ -1961,6 +2003,7 @@ export default function CompanyCreatorsPage() {
                 isSaving={savingCreatorId === creator.id}
                 safeLocale={safeLocale}
                 copy={{
+                  noSns: copy.noSns,
                   trusted: copy.trusted,
                   topCreator: copy.topCreator,
                   menu: copy.menu,
