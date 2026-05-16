@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppLocale } from "@/lib/i18n/locale";
 import { supabase } from "@/lib/supabaseClient";
@@ -135,26 +135,26 @@ const PLANS: Plan[] = [
 
 function getPlanCardClass(plan: Plan) {
   if (plan.highlight) {
-    return "border-blue-500 bg-blue-50 shadow-md";
+    return "border-slate-950 bg-white ring-2 ring-slate-950/5 shadow-[rgba(0,0,0,0.12)_0_24px_60px_-30px]";
   }
 
   if (plan.tone === "purple") {
-    return "border-purple-200 bg-purple-50";
+    return "border-purple-100 bg-purple-50/60";
   }
 
-  return "border-gray-200 bg-white";
+  return "border-slate-100 bg-white";
 }
 
 function getButtonClass(plan: Plan) {
   if (plan.highlight) {
-    return "bg-blue-600 text-white hover:bg-blue-700";
+    return "bg-slate-950 text-white hover:-translate-y-0.5 hover:shadow-xl";
   }
 
   if (plan.tone === "purple") {
-    return "bg-purple-600 text-white hover:bg-purple-700";
+    return "bg-purple-700 text-white hover:-translate-y-0.5 hover:shadow-xl";
   }
 
-  return "bg-gray-900 text-white hover:bg-black";
+  return "bg-slate-950 text-white hover:-translate-y-0.5 hover:shadow-xl";
 }
 
 function getBadgeClass(plan: Plan) {
@@ -166,22 +166,68 @@ function getBadgeClass(plan: Plan) {
     return "bg-purple-100 text-purple-700";
   }
 
-  return "bg-gray-100 text-gray-700";
+  return "bg-slate-100 text-slate-700";
 }
 
-export default function BillingPage() {
+function FeatureItem({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex gap-2 text-sm leading-6 text-slate-700">
+      <span className="mt-[2px] font-black text-emerald-600">✓</span>
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function CompareCell({ children }: { children: ReactNode }) {
+  return <td className="border-b px-4 py-4 text-sm">{children}</td>;
+}
+
+function CompareHeader({ children }: { children: ReactNode }) {
+  return (
+    <th className="border-b px-4 py-4 text-left text-sm font-black text-slate-700">
+      {children}
+    </th>
+  );
+}
+
+function InfoCard({
+  title,
+  body,
+  tone = "white",
+}: {
+  title: string;
+  body: string;
+  tone?: "white" | "blue" | "purple";
+}) {
+  const className =
+    tone === "blue"
+      ? "border-blue-100 bg-blue-50"
+      : tone === "purple"
+      ? "border-purple-100 bg-purple-50"
+      : "border-slate-100 bg-white";
+
+  return (
+    <div className={`rounded-[28px] border p-6 shadow-sm ${className}`}>
+      <h3 className="text-xl font-black text-slate-950">{title}</h3>
+      <p className="mt-3 text-sm leading-7 text-slate-600">{body}</p>
+    </div>
+  );
+}
+
+export default function BillingClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale } = useAppLocale();
+  const safeLocale = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
-      locale === "ja"
+      safeLocale === "ja"
         ? {
-            heroLabel: "Company Plan",
+            heroLabel: "Company Pricing",
             heroTitle: "料金プラン",
             heroBody:
-              "Trendreの企業向けプランは、国やクリエイターの閲覧範囲ではなく、注文件数・キャンペーン機能・分析レポート・取引手数料率で分かれます。初期MVPでは日本B × 日本CのJPY取引を中心に運用します。",
+              "Trendreの企業向けプランは、注文件数・キャンペーン機能・分析レポート・取引手数料率で分かれます。初期MVPでは日本B × 日本CのJPY取引を中心に運用します。",
             authRequired: "ログイン状態を確認できませんでした。",
             changeFailed: "プラン変更に失敗しました。",
             checkoutFailed: "Stripe Checkout の開始に失敗しました。",
@@ -224,11 +270,11 @@ export default function BillingPage() {
             premiumFitTitle: "Premium が向いている企業",
             premiumFitBody:
               "取引量が多く、手数料率を下げながら詳細レポートや優先サポートを使いたい企業向けです。",
-            supportTitle: "このページで案内していること",
+            supportTitle: "このページでできること",
             supportItems: [
-              "Basic / Pro / Premium の違い",
-              "月額プランによる機能差",
-              "プラン別 marketplace fee",
+              "Basic / Pro / Premium の違いを確認",
+              "月額プランによる機能差を確認",
+              "プラン別 marketplace fee を確認",
               "Stripe Checkout による課金開始",
               "Billing Portal からの支払い方法変更・請求確認・解約",
             ],
@@ -245,12 +291,14 @@ export default function BillingPage() {
               "Checkout はキャンセルされました。再度プランを選び直せます。",
             successMessage:
               "Checkout が完了しました。プラン状態は自動同期されます。反映まで数秒かかる場合があります。",
+            planCardEyebrow: "Monthly plan",
+            feeLabel: "Buyer fee",
           }
         : {
-            heroLabel: "Company Plan",
+            heroLabel: "Company Pricing",
             heroTitle: "Billing Plans",
             heroBody:
-              "Trendre company plans are based on order volume, campaign tools, analytics, reports, and marketplace fee rates rather than country access. The initial MVP focuses on JPY transactions between Japanese companies and Japanese creators.",
+              "Trendre company plans are based on order volume, campaign tools, analytics, reports, and marketplace fee rates. The initial MVP focuses on JPY transactions between Japanese companies and Japanese creators.",
             authRequired: "We could not confirm your login session.",
             changeFailed: "Failed to change the plan.",
             checkoutFailed: "Failed to start Stripe Checkout.",
@@ -314,8 +362,10 @@ export default function BillingPage() {
               "Checkout was cancelled. You can choose a plan again.",
             successMessage:
               "Checkout completed. Your plan status will sync automatically. It may take a few seconds to reflect inside the app.",
+            planCardEyebrow: "Monthly plan",
+            feeLabel: "Buyer fee",
           },
-    [locale]
+    [safeLocale]
   );
 
   const [submittingPlan, setSubmittingPlan] = useState<PlanCode | null>(null);
@@ -393,10 +443,13 @@ export default function BillingPage() {
 
     try {
       if (plan.code === "free") {
+        const accessToken = await getAccessToken();
+
         const res = await fetch("/api/b/billing/select-plan", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           },
           body: JSON.stringify({
             plan: "free",
@@ -415,10 +468,13 @@ export default function BillingPage() {
       }
 
       await startStripeCheckout(plan.code);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setErrorMsg(
-        e?.message ??
-          (plan.code === "free" ? copy.changeFailed : copy.checkoutFailed)
+        e instanceof Error
+          ? e.message
+          : plan.code === "free"
+          ? copy.changeFailed
+          : copy.checkoutFailed
       );
       setSubmittingPlan(null);
     }
@@ -430,103 +486,124 @@ export default function BillingPage() {
 
     try {
       await openBillingPortal();
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? copy.portalFailed);
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : copy.portalFailed);
       setPortalLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-4 md:p-6">
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <p className="mb-2 text-sm font-semibold text-blue-600">
+    <div className="mx-auto max-w-7xl space-y-8 p-4 pb-10 md:p-6">
+      <section className="rounded-[32px] bg-slate-950 p-7 text-white shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
           {copy.heroLabel}
         </p>
-        <h1 className="text-3xl font-bold">{copy.heroTitle}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600">
-          {copy.heroBody}
-        </p>
+
+        <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
+              {copy.heroTitle}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-white/65">
+              {copy.heroBody}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleOpenPortal}
+            disabled={portalLoading || submittingPlan !== null}
+            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {portalLoading ? copy.opening : copy.openPortal}
+          </button>
+        </div>
       </section>
 
-      {checkoutState === "cancelled" && (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      {checkoutState === "cancelled" ? (
+        <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
           {copy.cancelledMessage}
         </section>
-      )}
+      ) : null}
 
-      {checkoutState === "success" && (
-        <section className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+      {checkoutState === "success" ? (
+        <section className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
           {copy.successMessage}
         </section>
-      )}
+      ) : null}
 
-      {errorMsg && (
-        <section className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      {errorMsg ? (
+        <section className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
           {errorMsg}
         </section>
-      )}
+      ) : null}
 
       <section className="grid gap-6 xl:grid-cols-3">
         {PLANS.map((plan) => (
           <div
             key={plan.code}
-            className={`relative rounded-3xl border p-6 shadow-sm transition ${getPlanCardClass(
+            className={`relative rounded-[32px] border p-6 shadow-sm transition ${getPlanCardClass(
               plan
             )}`}
           >
-            {plan.badgeJa || plan.badgeEn ? (
-              <div className="mb-4">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                {copy.planCardEyebrow}
+              </p>
+
+              {plan.badgeJa || plan.badgeEn ? (
                 <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getBadgeClass(
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${getBadgeClass(
                     plan
                   )}`}
                 >
-                  {locale === "ja" ? plan.badgeJa : plan.badgeEn}
+                  {safeLocale === "ja" ? plan.badgeJa : plan.badgeEn}
                 </span>
+              ) : null}
+            </div>
+
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-3xl font-black text-slate-950">
+                  {plan.publicName}
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  {safeLocale === "ja" ? plan.descriptionJa : plan.descriptionEn}
+                </p>
               </div>
-            ) : (
-              <div className="mb-4 h-[28px]" />
-            )}
 
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold">{plan.publicName}</h2>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
-                Fee {plan.marketplaceFeeLabel}
+              <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
+                {copy.feeLabel} {plan.marketplaceFeeLabel}
               </span>
             </div>
 
-            <p className="mt-2 text-sm text-gray-600">
-              {locale === "ja" ? plan.descriptionJa : plan.descriptionEn}
-            </p>
-
-            <div className="mt-6 flex items-end gap-2">
-              <span className="text-4xl font-bold">{plan.priceLabel}</span>
-              <span className="pb-1 text-base text-gray-500">
-                {locale === "ja" ? plan.monthlyLabelJa : plan.monthlyLabelEn}
+            <div className="mt-7 flex items-end gap-2">
+              <span className="text-5xl font-black tracking-tight text-slate-950">
+                {plan.priceLabel}
+              </span>
+              <span className="pb-2 text-base font-semibold text-slate-500">
+                {safeLocale === "ja" ? plan.monthlyLabelJa : plan.monthlyLabelEn}
               </span>
             </div>
 
-            <ul className="mt-6 space-y-3 text-sm text-gray-700">
-              {(locale === "ja" ? plan.featuresJa : plan.featuresEn).map(
+            <ul className="mt-7 space-y-3">
+              {(safeLocale === "ja" ? plan.featuresJa : plan.featuresEn).map(
                 (feature) => (
-                  <li key={feature} className="flex gap-2">
-                    <span className="mt-[2px] text-green-600">✓</span>
-                    <span>{feature}</span>
-                  </li>
+                  <FeatureItem key={feature}>{feature}</FeatureItem>
                 )
               )}
             </ul>
 
             <button
-              onClick={() => handlePlanClick(plan)}
+              onClick={() => void handlePlanClick(plan)}
               disabled={submittingPlan !== null || portalLoading}
-              className={`mt-8 w-full rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClass(
+              className={`mt-8 w-full rounded-2xl px-5 py-4 text-sm font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClass(
                 plan
               )}`}
             >
               {submittingPlan === plan.code
                 ? copy.changing
-                : locale === "ja"
+                : safeLocale === "ja"
                 ? plan.ctaLabelJa
                 : plan.ctaLabelEn}
             </button>
@@ -534,115 +611,113 @@ export default function BillingPage() {
         ))}
       </section>
 
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold">{copy.compareTitle}</h2>
+      <section className="grid gap-6 lg:grid-cols-3">
+        <InfoCard
+          title={copy.basicFitTitle}
+          body={copy.basicFitBody}
+          tone="white"
+        />
+        <InfoCard title={copy.proFitTitle} body={copy.proFitBody} tone="blue" />
+        <InfoCard
+          title={copy.premiumFitTitle}
+          body={copy.premiumFitBody}
+          tone="purple"
+        />
+      </section>
+
+      <section className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-black text-slate-950">
+          {copy.compareTitle}
+        </h2>
 
         <div className="mt-6 overflow-x-auto">
           <table className="min-w-full overflow-hidden rounded-2xl border border-separate border-spacing-0">
             <thead>
-              <tr className="bg-gray-50 text-left">
-                <th className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
-                  {copy.compareItem}
-                </th>
-                <th className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
-                  Basic
-                </th>
-                <th className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
-                  Pro
-                </th>
-                <th className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
-                  Premium
-                </th>
+              <tr className="bg-slate-50">
+                <CompareHeader>{copy.compareItem}</CompareHeader>
+                <CompareHeader>Basic</CompareHeader>
+                <CompareHeader>Pro</CompareHeader>
+                <CompareHeader>Premium</CompareHeader>
               </tr>
             </thead>
-            <tbody className="bg-white text-sm">
+
+            <tbody className="bg-white text-slate-700">
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.compareMonthlyPrice}
-                </td>
-                <td className="border-b px-4 py-3">{copy.freeLabel}</td>
-                <td className="border-b px-4 py-3">¥30,000</td>
-                <td className="border-b px-4 py-3">¥50,000</td>
+                <CompareCell>{copy.compareMonthlyPrice}</CompareCell>
+                <CompareCell>{copy.freeLabel}</CompareCell>
+                <CompareCell>¥30,000</CompareCell>
+                <CompareCell>¥50,000</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.compareMarketplaceFee}
-                </td>
-                <td className="border-b px-4 py-3">10%</td>
-                <td className="border-b px-4 py-3">10%</td>
-                <td className="border-b px-4 py-3">5%</td>
+                <CompareCell>{copy.compareMarketplaceFee}</CompareCell>
+                <CompareCell>10%</CompareCell>
+                <CompareCell>10%</CompareCell>
+                <CompareCell>5%</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.compareRequestLimit}
-                </td>
-                <td className="border-b px-4 py-3">{copy.fivePerMonth}</td>
-                <td className="border-b px-4 py-3">{copy.unlimited}</td>
-                <td className="border-b px-4 py-3">{copy.unlimited}</td>
+                <CompareCell>{copy.compareRequestLimit}</CompareCell>
+                <CompareCell>{copy.fivePerMonth}</CompareCell>
+                <CompareCell>{copy.unlimited}</CompareCell>
+                <CompareCell>{copy.unlimited}</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.compareCampaignPosts}
-                </td>
-                <td className="border-b px-4 py-3">{copy.notAvailable}</td>
-                <td className="border-b px-4 py-3">{copy.onePerMonth}</td>
-                <td className="border-b px-4 py-3">{copy.unlimited}</td>
+                <CompareCell>{copy.compareCampaignPosts}</CompareCell>
+                <CompareCell>{copy.notAvailable}</CompareCell>
+                <CompareCell>{copy.onePerMonth}</CompareCell>
+                <CompareCell>{copy.unlimited}</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.comparePreChat}
-                </td>
-                <td className="border-b px-4 py-3">{copy.partial}</td>
-                <td className="border-b px-4 py-3">{copy.yes}</td>
-                <td className="border-b px-4 py-3">{copy.yes}</td>
+                <CompareCell>{copy.comparePreChat}</CompareCell>
+                <CompareCell>{copy.partial}</CompareCell>
+                <CompareCell>{copy.yes}</CompareCell>
+                <CompareCell>{copy.yes}</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.compareAdvancedFilters}
-                </td>
-                <td className="border-b px-4 py-3">{copy.locked}</td>
-                <td className="border-b px-4 py-3">{copy.yes}</td>
-                <td className="border-b px-4 py-3">{copy.yes}</td>
+                <CompareCell>{copy.compareAdvancedFilters}</CompareCell>
+                <CompareCell>{copy.locked}</CompareCell>
+                <CompareCell>{copy.yes}</CompareCell>
+                <CompareCell>{copy.yes}</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.compareCreatorReports}
-                </td>
-                <td className="border-b px-4 py-3">{copy.notAvailable}</td>
-                <td className="border-b px-4 py-3">{copy.reports20}</td>
-                <td className="border-b px-4 py-3">{copy.reports50}</td>
+                <CompareCell>{copy.compareCreatorReports}</CompareCell>
+                <CompareCell>{copy.notAvailable}</CompareCell>
+                <CompareCell>{copy.reports20}</CompareCell>
+                <CompareCell>{copy.reports50}</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.compareLiveAnalytics}
-                </td>
-                <td className="border-b px-4 py-3">{copy.notAvailable}</td>
-                <td className="border-b px-4 py-3">{copy.partial}</td>
-                <td className="border-b px-4 py-3">{copy.upTo15Posts}</td>
+                <CompareCell>{copy.compareLiveAnalytics}</CompareCell>
+                <CompareCell>{copy.notAvailable}</CompareCell>
+                <CompareCell>{copy.partial}</CompareCell>
+                <CompareCell>{copy.upTo15Posts}</CompareCell>
               </tr>
+
               <tr>
-                <td className="border-b px-4 py-3 font-medium text-gray-700">
-                  {copy.comparePrioritySupport}
-                </td>
-                <td className="border-b px-4 py-3">{copy.notAvailable}</td>
-                <td className="border-b px-4 py-3">{copy.notAvailable}</td>
-                <td className="border-b px-4 py-3">{copy.yes}</td>
+                <CompareCell>{copy.comparePrioritySupport}</CompareCell>
+                <CompareCell>{copy.notAvailable}</CompareCell>
+                <CompareCell>{copy.notAvailable}</CompareCell>
+                <CompareCell>{copy.yes}</CompareCell>
               </tr>
+
               <tr>
-                <td className="px-4 py-3 font-medium text-gray-700">
-                  {copy.comparePortal}
-                </td>
-                <td className="px-4 py-3">{copy.notAvailable}</td>
-                <td className="px-4 py-3">{copy.availableAfterPaid}</td>
-                <td className="px-4 py-3">{copy.availableAfterPaid}</td>
+                <CompareCell>{copy.comparePortal}</CompareCell>
+                <CompareCell>{copy.notAvailable}</CompareCell>
+                <CompareCell>{copy.availableAfterPaid}</CompareCell>
+                <CompareCell>{copy.availableAfterPaid}</CompareCell>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <p className="mt-4 text-xs leading-6 text-gray-500">{copy.devNote}</p>
+        <p className="mt-4 text-xs leading-6 text-slate-500">{copy.devNote}</p>
 
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-slate-500">
           {copy.billingNote}{" "}
           <Link
             href="/terms"
@@ -662,62 +737,46 @@ export default function BillingPage() {
         </p>
       </section>
 
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <h3 className="text-xl font-bold">{copy.portalTitle}</h3>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600">
-          {copy.portalBody}
-        </p>
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
+          <h3 className="text-2xl font-black text-slate-950">
+            {copy.supportTitle}
+          </h3>
 
-        <button
-          onClick={handleOpenPortal}
-          disabled={portalLoading || submittingPlan !== null}
-          className="mt-6 rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {portalLoading ? copy.opening : copy.openPortal}
-        </button>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-3xl border bg-blue-50 p-6">
-          <h3 className="text-xl font-bold">{copy.whichPlanTitle}</h3>
-
-          <div className="mt-5 space-y-4 text-sm text-gray-700">
-            <div>
-              <p className="font-semibold">{copy.basicFitTitle}</p>
-              <p className="mt-1 text-gray-600">{copy.basicFitBody}</p>
-            </div>
-
-            <div>
-              <p className="font-semibold">{copy.proFitTitle}</p>
-              <p className="mt-1 text-gray-600">{copy.proFitBody}</p>
-            </div>
-
-            <div>
-              <p className="font-semibold">{copy.premiumFitTitle}</p>
-              <p className="mt-1 text-gray-600">{copy.premiumFitBody}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-bold">{copy.supportTitle}</h3>
-
-          <ul className="mt-5 space-y-3 text-sm text-gray-700">
+          <ul className="mt-5 space-y-3 text-sm leading-7 text-slate-700">
             {copy.supportItems.map((item) => (
               <li key={item}>・{item}</li>
             ))}
           </ul>
+        </div>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
+          <h3 className="text-2xl font-black text-slate-950">
+            {copy.portalTitle}
+          </h3>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            {copy.portalBody}
+          </p>
+
+          <button
+            onClick={handleOpenPortal}
+            disabled={portalLoading || submittingPlan !== null}
+            className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {portalLoading ? copy.opening : copy.openPortal}
+          </button>
+
+          <div className="mt-4 grid gap-3">
             <button
               onClick={() => router.push(from)}
-              className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
             >
               {copy.back}
             </button>
+
             <button
               onClick={() => router.push("/b/dashboard")}
-              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
             >
               {copy.toDashboard}
             </button>
