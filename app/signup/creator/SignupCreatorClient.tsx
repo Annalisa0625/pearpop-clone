@@ -43,6 +43,99 @@ type DraftState = {
   agreedToPrivacy: boolean;
 };
 
+type SignupCopy = {
+  welcomeBadge: string;
+  welcomeTitle: string;
+  welcomeBody: string;
+  welcomeTime: string;
+  usernameTitle: string;
+  usernameBody: string;
+  accountTitle: string;
+  accountBody: string;
+  oauthConnected: string;
+  fullName: string;
+  email: string;
+  password: string;
+  signUpWithGoogle: string;
+  orText: string;
+  locationTitle: string;
+  locationBody: string;
+  country: string;
+  prefecture: string;
+  city: string;
+  categoryTitle: string;
+  categoryBody: string;
+  mainCategory: string;
+  subCategories: string;
+  contentLanguage: string;
+  responseLanguage: string;
+  shortBio: string;
+  adultConfirm: string;
+  socialTitle: string;
+  socialBody: string;
+  platform: string;
+  usernameOrUrl: string;
+  followerRange: string;
+  audienceCountry: string;
+  addSocial: string;
+  remove: string;
+  imagesTitle: string;
+  imagesBody: string;
+  avatar: string;
+  avatarHelp: string;
+  portfolio: string;
+  portfolioHelp: string;
+  imageChoose: string;
+  portfolioChoose: string;
+  menuTitle: string;
+  menuBody: string;
+  menuFeeNote: string;
+  menuType: string;
+  price: string;
+  deliveryDays: string;
+  menuDescription: string;
+  secondaryUse: string;
+  phoneTitle: string;
+  phoneBody: string;
+  phoneCountryCode: string;
+  phoneNumber: string;
+  sendCode: string;
+  verificationCode: string;
+  verifyCode: string;
+  verified: string;
+  continue: string;
+  back: string;
+  finish: string;
+  loading: string;
+  selectPlease: string;
+  usernameRequired: string;
+  usernameInvalid: string;
+  fullNameRequired: string;
+  emailRequired: string;
+  emailInvalid: string;
+  passwordRequired: string;
+  locationRequired: string;
+  categoryRequired: string;
+  socialRequired: string;
+  avatarRequired: string;
+  portfolioRequired: string;
+  menuRequired: string;
+  phoneRequired: string;
+  phoneVerifyRequired: string;
+  termsRequired: string;
+  devCodeAlert: string;
+  codeInvalid: string;
+  signupFailed: string;
+  imageUploadFailed: string;
+  termsLabel: string;
+  privacyLabel: string;
+  termsLink: string;
+  privacyLink: string;
+  alreadyRegistered: string;
+  duplicateUsername: string;
+  sessionMissing: string;
+};
+
 const STORAGE_KEY = "trendre_creator_signup_draft_v2";
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
@@ -202,26 +295,40 @@ function safeSocialAccounts(value: unknown): SocialAccountForm[] {
     return [createEmptySocial()];
   }
 
-  const sanitized = value.map((item) => ({
-    platform:
-      item && typeof item === "object"
-        ? safeString((item as Record<string, unknown>).platform)
-        : "",
-    username_or_url:
-      item && typeof item === "object"
-        ? safeString((item as Record<string, unknown>).username_or_url)
-        : "",
-    follower_range:
-      item && typeof item === "object"
-        ? safeString((item as Record<string, unknown>).follower_range)
-        : "",
-    audience_country:
-      item && typeof item === "object"
-        ? safeString((item as Record<string, unknown>).audience_country)
-        : "",
-  }));
+  const sanitized = value.map((item) => {
+    const row = item as Record<string, unknown>;
+
+    return {
+      platform: safeString(row.platform),
+      username_or_url: safeString(row.username_or_url),
+      follower_range: safeString(row.follower_range),
+      audience_country: safeString(row.audience_country),
+    };
+  });
 
   return sanitized.length > 0 ? sanitized : [createEmptySocial()];
+}
+
+function getOAuthRedirectUrl() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}/signup/creator?oauth=1`;
+}
+
+function buildUsernamePreview(username: string) {
+  return `trendre.jp/@${username || "username"}`;
+}
+
+function formatOption(
+  value: string,
+  locale: Locale,
+  enMap: Record<string, string>
+) {
+  return locale === "ja" ? value : enMap[value] ?? value;
+}
+
+function fileExtension(file: File) {
+  const parts = file.name.split(".");
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
 function LocaleTabs({
@@ -272,51 +379,6 @@ function StepDots({ total, current }: { total: number; current: number }) {
       ))}
     </div>
   );
-}
-
-function getOAuthRedirectUrl() {
-  if (typeof window === "undefined") return "";
-  return `${window.location.origin}/signup/creator?oauth=1`;
-}
-
-function buildUsernamePreview(username: string) {
-  return `trendre.jp/@${username || "username"}`;
-}
-
-function formatOption(
-  value: string,
-  locale: Locale,
-  enMap: Record<string, string>
-) {
-  return locale === "ja" ? value : enMap[value] ?? value;
-}
-
-function buildSocialUrl(platform: string, usernameOrUrl: string) {
-  const value = usernameOrUrl.trim();
-
-  if (/^https?:\/\//i.test(value)) return value;
-
-  switch (platform) {
-    case "Instagram":
-      return `https://www.instagram.com/${value.replace(/^@/, "")}`;
-    case "TikTok":
-      return `https://www.tiktok.com/@${value.replace(/^@/, "")}`;
-    case "X":
-      return `https://x.com/${value.replace(/^@/, "")}`;
-    case "YouTube":
-      return value.startsWith("@")
-        ? `https://www.youtube.com/${value}`
-        : `https://www.youtube.com/@${value.replace(/^@/, "")}`;
-    case "Website":
-      return value;
-    default:
-      return value;
-  }
-}
-
-function fileExtension(file: File) {
-  const parts = file.name.split(".");
-  return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
 function ImagePreview({
@@ -377,7 +439,7 @@ export default function SignupCreatorClient() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
 
-  const copy = useMemo(
+  const copy: SignupCopy = useMemo(
     () =>
       locale === "ja"
         ? {
@@ -390,8 +452,7 @@ export default function SignupCreatorClient() {
             usernameBody:
               "Trendreの公開プロフィールURLに使われます。普段使っているSNS名に揃えるのがおすすめです。",
             accountTitle: "アカウントを作成してください",
-            accountBody:
-              "Google、またはメールアドレスで登録できます。",
+            accountBody: "Google、またはメールアドレスで登録できます。",
             oauthConnected: "連携済みアカウント",
             fullName: "氏名",
             email: "メールアドレス",
@@ -453,7 +514,6 @@ export default function SignupCreatorClient() {
             verified: "確認済み",
             continue: "続ける",
             back: "戻る",
-            createAndContinue: "登録して続ける",
             finish: "登録を完了する",
             loading: "処理中...",
             selectPlease: "選択してください",
@@ -483,6 +543,10 @@ export default function SignupCreatorClient() {
             privacyLabel: "プライバシーポリシーに同意する",
             termsLink: "利用規約",
             privacyLink: "プライバシーポリシー",
+            alreadyRegistered: "このアカウントは既にクリエイター登録済みです",
+            duplicateUsername: "このユーザーネームは既に使われています",
+            sessionMissing:
+              "アカウント作成後のログイン状態を確認できませんでした。Supabase Authでメール確認が必須になっている可能性があります。",
           }
         : {
             welcomeBadge: "Creator Sign Up",
@@ -555,7 +619,6 @@ export default function SignupCreatorClient() {
             verified: "Verified",
             continue: "Continue",
             back: "Back",
-            createAndContinue: "Create account and continue",
             finish: "Complete registration",
             loading: "Processing...",
             selectPlease: "Please select",
@@ -584,6 +647,10 @@ export default function SignupCreatorClient() {
             privacyLabel: "I agree to the Privacy Policy",
             termsLink: "Terms of Service",
             privacyLink: "Privacy Policy",
+            alreadyRegistered: "This account is already registered as a creator",
+            duplicateUsername: "This username is already taken",
+            sessionMissing:
+              "Could not confirm your signed-in session after account creation. Email confirmation may be required in Supabase Auth settings.",
           },
     [locale]
   );
@@ -629,7 +696,9 @@ export default function SignupCreatorClient() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
 
-  const [oauthSessionEmail, setOauthSessionEmail] = useState<string | null>(null);
+  const [oauthSessionEmail, setOauthSessionEmail] = useState<string | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -741,7 +810,10 @@ export default function SignupCreatorClient() {
 
   useEffect(() => {
     return () => {
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+
       portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [avatarPreview, portfolioPreviews]);
@@ -753,6 +825,20 @@ export default function SignupCreatorClient() {
       } = await supabase.auth.getSession();
 
       if (!session?.user) return;
+
+      const meta = session.user.user_metadata ?? {};
+      const oauthName =
+        typeof meta.full_name === "string" && meta.full_name.trim()
+          ? meta.full_name.trim()
+          : typeof meta.name === "string" && meta.name.trim()
+            ? meta.name.trim()
+            : "";
+      const oauthEmail =
+        typeof session.user.email === "string" ? session.user.email : "";
+
+      setOauthSessionEmail(oauthEmail || null);
+      setFullName((prev) => (prev.trim() ? prev : oauthName));
+      setEmail((prev) => (prev.trim() ? prev : oauthEmail));
 
       const { data: existingCreator } = await supabase
         .from("creators")
@@ -781,22 +867,6 @@ export default function SignupCreatorClient() {
         return;
       }
 
-      const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>;
-
-      const oauthName =
-        typeof meta.full_name === "string" && meta.full_name.trim()
-          ? meta.full_name.trim()
-          : typeof meta.name === "string" && meta.name.trim()
-          ? meta.name.trim()
-          : "";
-
-      const oauthEmail =
-        typeof session.user.email === "string" ? session.user.email : "";
-
-      setOauthSessionEmail(oauthEmail || null);
-      setFullName((prev) => (prev.trim() ? prev : oauthName));
-      setEmail((prev) => (prev.trim() ? prev : oauthEmail));
-
       if (hasOAuthReturn && step < 2) {
         setStep(2);
       }
@@ -807,7 +877,9 @@ export default function SignupCreatorClient() {
 
   const toggleSubCategory = (value: string) => {
     setSubCategories((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value]
     );
   };
 
@@ -844,13 +916,15 @@ export default function SignupCreatorClient() {
   };
 
   const handlePortfolioSelect = (files: File[]) => {
-    if (files.length === 0) return;
-
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    const previews = imageFiles.map((file) => URL.createObjectURL(file));
+
+    if (imageFiles.length === 0) return;
 
     setPortfolioFiles((prev) => [...prev, ...imageFiles]);
-    setPortfolioPreviews((prev) => [...prev, ...previews]);
+    setPortfolioPreviews((prev) => [
+      ...prev,
+      ...imageFiles.map((file) => URL.createObjectURL(file)),
+    ]);
   };
 
   const removePortfolioFile = (index: number) => {
@@ -895,7 +969,7 @@ export default function SignupCreatorClient() {
       }
 
       if (duplicateProfile) {
-        setError(locale === "ja" ? "このユーザーネームは既に使われています" : "This username is already taken");
+        setError(copy.duplicateUsername);
         return false;
       }
 
@@ -1029,6 +1103,7 @@ export default function SignupCreatorClient() {
 
   const goNext = async () => {
     const valid = await validateStep();
+
     if (!valid) return;
 
     setStep((prev) => Math.min(prev + 1, TOTAL_STEPS - 1));
@@ -1066,7 +1141,7 @@ export default function SignupCreatorClient() {
   };
 
   const verifyDevCode = () => {
-    if (verificationCode.trim() !== sentCode || !sentCode) {
+    if (!sentCode || verificationCode.trim() !== sentCode) {
       setError(copy.codeInvalid);
       return;
     }
@@ -1077,14 +1152,15 @@ export default function SignupCreatorClient() {
 
   const uploadImageAndGetUrl = async (
     file: File,
-    creatorId: string,
+    ownerKey: string,
     kind: "avatar" | "portfolio",
     index?: number
   ) => {
     const ext = fileExtension(file);
     const suffix =
       typeof index === "number" ? `${Date.now()}-${index}` : `${Date.now()}`;
-    const filePath = `${creatorId}/${kind}-${suffix}.${ext}`;
+    const safeOwnerKey = ownerKey.replace(/[^a-zA-Z0-9_-]/g, "");
+    const filePath = `${safeOwnerKey}/${kind}-${suffix}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from(CREATOR_IMAGE_BUCKET)
@@ -1094,7 +1170,7 @@ export default function SignupCreatorClient() {
       });
 
     if (uploadError) {
-      throw uploadError;
+      throw new Error(uploadError.message || copy.imageUploadFailed);
     }
 
     const { data } = supabase.storage
@@ -1104,13 +1180,21 @@ export default function SignupCreatorClient() {
     return data.publicUrl;
   };
 
-  const ensureUser = async () => {
+  const ensureAuthenticatedSession = async () => {
     const {
-      data: { session },
+      data: { session: currentSession },
     } = await supabase.auth.getSession();
 
-    if (session?.user) {
-      return session.user;
+    if (currentSession?.user && currentSession.access_token) {
+      return currentSession;
+    }
+
+    if (!email.trim()) {
+      throw new Error(copy.emailRequired);
+    }
+
+    if (!password.trim() || password.trim().length < 8) {
+      throw new Error(copy.passwordRequired);
     }
 
     const { data, error: signUpError } = await supabase.auth.signUp({
@@ -1125,11 +1209,28 @@ export default function SignupCreatorClient() {
       },
     });
 
-    if (signUpError || !data.user) {
-      throw signUpError ?? new Error(copy.signupFailed);
+    if (signUpError) {
+      throw new Error(signUpError.message || copy.signupFailed);
     }
 
-    return data.user;
+    if (data.session?.user && data.session.access_token) {
+      return data.session;
+    }
+
+    const {
+      data: { session: refreshedSession },
+      error: refreshError,
+    } = await supabase.auth.getSession();
+
+    if (refreshError) {
+      throw new Error(refreshError.message || copy.signupFailed);
+    }
+
+    if (!refreshedSession?.user || !refreshedSession.access_token) {
+      throw new Error(copy.sessionMissing);
+    }
+
+    return refreshedSession;
   };
 
   const handleFinish = async () => {
@@ -1141,260 +1242,108 @@ export default function SignupCreatorClient() {
     setError(null);
 
     try {
-      const user = await ensureUser();
-      const now = new Date().toISOString();
-      const normalizedUsername = username.trim().toLowerCase();
-      const normalizedBio = shortBio.trim();
-      const selectedMenu = MENU_OPTIONS.find((item) => item.value === menuType);
-
-      const { data: existingCreator, error: existingCreatorError } =
-        await supabase
-          .from("creators")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-      if (existingCreatorError) {
-        throw existingCreatorError;
+      if (!avatarFile) {
+        throw new Error(copy.avatarRequired);
       }
 
-      let creatorId = existingCreator?.id ?? null;
-
-      if (!creatorId) {
-        const { data: insertedCreator, error: insertCreatorError } =
-          await supabase
-            .from("creators")
-            .insert({
-              user_id: user.id,
-              display_name: normalizedUsername,
-              full_name: fullName.trim(),
-              bio: normalizedBio || null,
-              category: mainCategory,
-              country: country.trim(),
-              prefecture: prefecture.trim(),
-              city: city.trim() || null,
-              content_language: contentLanguage,
-              response_language: responseLanguage,
-              sub_categories: subCategories,
-              approval_status: "approved",
-              is_public: true,
-              stripe_onboarding_completed: false,
-              updated_at: now,
-            } as never)
-            .select("id")
-            .single();
-
-        if (insertCreatorError || !insertedCreator) {
-          throw insertCreatorError ?? new Error(copy.signupFailed);
-        }
-
-        creatorId = insertedCreator.id;
+      if (portfolioFiles.length < 3) {
+        throw new Error(copy.portfolioRequired);
       }
 
-      if (!creatorId) {
-        throw new Error(copy.signupFailed);
-      }
+      const session = await ensureAuthenticatedSession();
+      const ownerKey = session.user.id || username.trim().toLowerCase();
 
-      const avatarUrl = await uploadImageAndGetUrl(avatarFile!, creatorId, "avatar");
+      const avatarUrl = await uploadImageAndGetUrl(
+        avatarFile,
+        ownerKey,
+        "avatar"
+      );
 
-      const portfolioRows = await Promise.all(
+      const portfolioAssets = await Promise.all(
         portfolioFiles.map(async (file, index) => {
-          const url = await uploadImageAndGetUrl(
+          const assetUrl = await uploadImageAndGetUrl(
             file,
-            creatorId!,
+            ownerKey,
             "portfolio",
             index
           );
 
           return {
-            creator_id: creatorId!,
-            asset_url: url,
-            asset_type: "image",
+            asset_url: assetUrl,
             title: file.name,
             sort_order: index,
-            is_public: true,
           };
         })
       );
 
-      const { error: updateCreatorError } = await supabase
-        .from("creators")
-        .update({
-          display_name: normalizedUsername,
-          full_name: fullName.trim(),
-          bio: normalizedBio || null,
-          category: mainCategory,
-          country: country.trim(),
-          prefecture: prefecture.trim(),
-          city: city.trim() || null,
-          content_language: contentLanguage,
-          response_language: responseLanguage,
-          sub_categories: subCategories,
-          avatar_url: avatarUrl,
-          cover_image_url: null,
-          approval_status: "approved",
-          is_public: true,
-          updated_at: now,
-        } as never)
-        .eq("id", creatorId);
-
-      if (updateCreatorError) {
-        throw updateCreatorError;
-      }
-
-      const { data: roleRow } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "creator")
-        .maybeSingle();
-
-      if (!roleRow) {
-        const { error: roleError } = await supabase.from("user_roles").insert({
-          user_id: user.id,
-          role: "creator",
-        } as never);
-
-        if (roleError) throw roleError;
-      }
-
-      const { error: profileError } = await supabase.from("profiles").upsert({
-        id: user.id,
-        username: normalizedUsername,
-        bio: normalizedBio || null,
-        category: mainCategory,
-        avatar_url: avatarUrl,
-        is_public: true,
-        public_profile_completed: true,
-        onboarding_completed: true,
-        updated_at: now,
-      } as never);
-
-      if (profileError) throw profileError;
-
-      const { data: existingState } = await supabase
-        .from("user_states")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existingState) {
-        const { error: stateUpdateError } = await supabase
-          .from("user_states")
-          .update({
-            creator_profile_completed: true,
-            onboarding_completed: true,
-            updated_at: now,
-          } as never)
-          .eq("user_id", user.id);
-
-        if (stateUpdateError) throw stateUpdateError;
-      } else {
-        const { error: stateInsertError } = await supabase
-          .from("user_states")
-          .insert({
-            user_id: user.id,
-            creator_profile_completed: true,
-            onboarding_completed: true,
-            updated_at: now,
-          } as never);
-
-        if (stateInsertError) throw stateInsertError;
-      }
-
-      const { error: deleteSocialError } = await supabase
-        .from("creator_social_accounts")
-        .delete()
-        .eq("creator_id", creatorId);
-
-      if (deleteSocialError) throw deleteSocialError;
-
-      const socialPayload = socialAccounts
-        .map((account) => ({
-          creator_id: creatorId!,
-          platform: account.platform.trim(),
-          url: buildSocialUrl(account.platform, account.username_or_url),
-          follower_range: account.follower_range.trim(),
-          audience_country: account.audience_country.trim(),
-        }))
-        .filter(
-          (item) =>
-            item.platform && item.url && item.follower_range && item.audience_country
-        );
-
-      if (socialPayload.length > 0) {
-        const { error: socialInsertError } = await supabase
-          .from("creator_social_accounts")
-          .insert(socialPayload as never);
-
-        if (socialInsertError) throw socialInsertError;
-      }
-
-      const { error: deletePortfolioError } = await supabase
-        .from("creator_portfolio_assets")
-        .delete()
-        .eq("creator_id", creatorId);
-
-      if (deletePortfolioError) throw deletePortfolioError;
-
-      const { error: portfolioInsertError } = await supabase
-        .from("creator_portfolio_assets")
-        .insert(portfolioRows as never);
-
-      if (portfolioInsertError) throw portfolioInsertError;
-
       const priceNumber = Number(menuPrice);
       const deliveryNumber = Number(menuDeliveryDays);
 
-      const { error: deleteMenusError } = await supabase
-        .from("creator_menus")
-        .delete()
-        .eq("creator_id", creatorId);
-
-      if (deleteMenusError) throw deleteMenusError;
-
-      const { error: menuError } = await supabase.from("creator_menus").insert({
-        creator_id: creatorId,
-        title: menuType,
-        description: menuDescription.trim() || null,
-        platform: selectedMenu?.platform ?? null,
-        sns: selectedMenu?.platform ?? null,
-        menu_type:
-          selectedMenu?.platform === "UGC"
-            ? "ugc"
-            : menuType.toLowerCase().includes("story")
-            ? "story"
-            : menuType.toLowerCase().includes("short") ||
-              menuType.toLowerCase().includes("reel") ||
-              menuType.toLowerCase().includes("tiktok")
-            ? "short_video"
-            : menuType.toLowerCase().includes("video")
-            ? "video"
-            : "post",
-        category: mainCategory,
-        price: priceNumber,
-        currency: "JPY",
-        deliverables: menuType,
-        delivery_days: deliveryNumber,
-        allow_secondary_use: allowSecondaryUse,
-        is_active: true,
-        sort_order: 0,
-        updated_at: now,
-      } as never);
-
-      if (menuError) throw menuError;
-
-      await supabase.auth.updateUser({
-        data: {
-          creator_username: normalizedUsername,
-          creator_country: country.trim(),
-          creator_prefecture: prefecture.trim(),
-          creator_city: city.trim() || null,
-          creator_content_language: contentLanguage,
-          creator_response_language: responseLanguage,
-          creator_sub_categories: subCategories,
+      const res = await fetch("/api/signup/complete-creator", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        credentials: "include",
+        body: JSON.stringify({
+          auth_mode: "oauth",
+          access_token: session.access_token,
+
+          username: username.trim().toLowerCase(),
+          full_name: fullName.trim(),
+          email: email.trim(),
+
+          avatar_url: avatarUrl,
+          portfolio_assets: portfolioAssets,
+
+          country: country.trim(),
+          prefecture: prefecture.trim(),
+          city: city.trim() || null,
+
+          main_category: mainCategory,
+          sub_categories: subCategories,
+          content_language: contentLanguage,
+          response_language: responseLanguage,
+          short_bio: shortBio.trim() || null,
+          is_adult_confirmed: isAdultConfirmed,
+
+          phone_country_code: phoneCountryCode.trim(),
+          phone_number: phoneNumber.trim(),
+          phone_verified: phoneVerified,
+
+          social_accounts: socialAccounts
+            .map((account) => ({
+              platform: account.platform.trim(),
+              username_or_url: account.username_or_url.trim(),
+              follower_range: account.follower_range.trim(),
+              audience_country: account.audience_country.trim(),
+            }))
+            .filter(
+              (account) =>
+                account.platform &&
+                account.username_or_url &&
+                account.follower_range &&
+                account.audience_country
+            ),
+
+          first_menu: {
+            menu_type: menuType,
+            price: priceNumber,
+            delivery_days: deliveryNumber,
+            description: menuDescription.trim() || null,
+            allow_secondary_use: allowSecondaryUse,
+          },
+
+          agreed_to_terms: agreedToTerms,
+          agreed_to_privacy: agreedToPrivacy,
+        }),
       });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(json?.error || copy.signupFailed);
+      }
 
       localStorage.removeItem(STORAGE_KEY);
 
@@ -1411,7 +1360,9 @@ export default function SignupCreatorClient() {
     if (step === 0) {
       return (
         <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-blue-600">{copy.welcomeBadge}</p>
+          <p className="text-sm font-semibold text-blue-600">
+            {copy.welcomeBadge}
+          </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight">
             {copy.welcomeTitle}
           </h1>
@@ -1429,7 +1380,9 @@ export default function SignupCreatorClient() {
       return (
         <div className="rounded-3xl bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-bold">{copy.usernameTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">{copy.usernameBody}</p>
+          <p className="mt-2 text-sm leading-7 text-gray-600">
+            {copy.usernameBody}
+          </p>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value.toLowerCase())}
@@ -1447,7 +1400,9 @@ export default function SignupCreatorClient() {
       return (
         <div className="rounded-3xl bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-bold">{copy.accountTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">{copy.accountBody}</p>
+          <p className="mt-2 text-sm leading-7 text-gray-600">
+            {copy.accountBody}
+          </p>
 
           <button
             type="button"
@@ -1457,7 +1412,9 @@ export default function SignupCreatorClient() {
             {copy.signUpWithGoogle}
           </button>
 
-          <div className="my-6 text-center text-sm text-gray-400">{copy.orText}</div>
+          <div className="my-6 text-center text-sm text-gray-400">
+            {copy.orText}
+          </div>
 
           {oauthSessionEmail ? (
             <div className="rounded-2xl bg-green-50 p-4 text-sm font-semibold text-green-700">
@@ -1499,7 +1456,9 @@ export default function SignupCreatorClient() {
         <div className="space-y-5">
           <div className="rounded-3xl bg-white p-6 shadow-sm">
             <h1 className="text-2xl font-bold">{copy.locationTitle}</h1>
-            <p className="mt-2 text-sm leading-7 text-gray-600">{copy.locationBody}</p>
+            <p className="mt-2 text-sm leading-7 text-gray-600">
+              {copy.locationBody}
+            </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <input
@@ -1525,7 +1484,9 @@ export default function SignupCreatorClient() {
 
           <div className="rounded-3xl bg-white p-6 shadow-sm">
             <h1 className="text-2xl font-bold">{copy.categoryTitle}</h1>
-            <p className="mt-2 text-sm leading-7 text-gray-600">{copy.categoryBody}</p>
+            <p className="mt-2 text-sm leading-7 text-gray-600">
+              {copy.categoryBody}
+            </p>
 
             <div className="mt-6">
               <p className="mb-3 text-sm font-semibold">{copy.mainCategory}</p>
@@ -1548,7 +1509,9 @@ export default function SignupCreatorClient() {
             </div>
 
             <div className="mt-6">
-              <p className="mb-3 text-sm font-semibold">{copy.subCategories}</p>
+              <p className="mb-3 text-sm font-semibold">
+                {copy.subCategories}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {CATEGORY_OPTIONS.map((item) => (
                   <button
@@ -1618,7 +1581,9 @@ export default function SignupCreatorClient() {
       return (
         <div className="rounded-3xl bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-bold">{copy.socialTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">{copy.socialBody}</p>
+          <p className="mt-2 text-sm leading-7 text-gray-600">
+            {copy.socialBody}
+          </p>
 
           <div className="mt-6 space-y-4">
             {socialAccounts.map((social, index) => (
@@ -1637,7 +1602,9 @@ export default function SignupCreatorClient() {
                 <div className="grid gap-3 md:grid-cols-2">
                   <select
                     value={social.platform}
-                    onChange={(e) => updateSocial(index, "platform", e.target.value)}
+                    onChange={(e) =>
+                      updateSocial(index, "platform", e.target.value)
+                    }
                     className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
                   >
                     <option value="">{copy.platform}</option>
@@ -1667,7 +1634,11 @@ export default function SignupCreatorClient() {
                     <option value="">{copy.followerRange}</option>
                     {FOLLOWER_RANGE_OPTIONS.map((item) => (
                       <option key={item} value={item}>
-                        {formatOption(item, locale, FOLLOWER_RANGE_OPTIONS_EN)}
+                        {formatOption(
+                          item,
+                          locale,
+                          FOLLOWER_RANGE_OPTIONS_EN
+                        )}
                       </option>
                     ))}
                   </select>
@@ -1682,7 +1653,11 @@ export default function SignupCreatorClient() {
                     <option value="">{copy.audienceCountry}</option>
                     {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
                       <option key={item} value={item}>
-                        {formatOption(item, locale, AUDIENCE_COUNTRY_OPTIONS_EN)}
+                        {formatOption(
+                          item,
+                          locale,
+                          AUDIENCE_COUNTRY_OPTIONS_EN
+                        )}
                       </option>
                     ))}
                   </select>
@@ -1706,7 +1681,9 @@ export default function SignupCreatorClient() {
       return (
         <div className="rounded-3xl bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-bold">{copy.imagesTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">{copy.imagesBody}</p>
+          <p className="mt-2 text-sm leading-7 text-gray-600">
+            {copy.imagesBody}
+          </p>
 
           <div className="mt-6 grid gap-6 md:grid-cols-2">
             <div className="rounded-2xl border bg-gray-50 p-4">
@@ -1774,7 +1751,9 @@ export default function SignupCreatorClient() {
       return (
         <div className="rounded-3xl bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-bold">{copy.menuTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">{copy.menuBody}</p>
+          <p className="mt-2 text-sm leading-7 text-gray-600">
+            {copy.menuBody}
+          </p>
           <p className="mt-3 rounded-2xl bg-blue-50 p-4 text-sm text-blue-800">
             {copy.menuFeeNote}
           </p>
@@ -1917,7 +1896,7 @@ export default function SignupCreatorClient() {
           <Link href="/home" className="text-xl font-black">
             Trendre
           </Link>
-          <LocaleTabs locale={locale} setLocale={setLocale} />
+          <LocaleTabs locale={locale as Locale} setLocale={setLocale} />
         </div>
 
         <StepDots total={TOTAL_STEPS} current={currentProgress} />

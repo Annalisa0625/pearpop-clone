@@ -17,6 +17,12 @@ type FirstMenuInput = {
   allow_secondary_use?: boolean;
 };
 
+type PortfolioAssetInput = {
+  asset_url: string;
+  title?: string | null;
+  sort_order?: number | null;
+};
+
 type RequestBody = {
   auth_mode: "email" | "oauth";
   access_token?: string;
@@ -25,6 +31,9 @@ type RequestBody = {
   full_name: string;
   email?: string;
   password?: string;
+
+  avatar_url?: string | null;
+  portfolio_assets?: PortfolioAssetInput[];
 
   country: string;
   prefecture: string;
@@ -105,12 +114,29 @@ function inferPlatformFromMenuType(menuType: string) {
   return "Other";
 }
 
+function inferMenuType(menuType: string) {
+  const normalized = menuType.toLowerCase();
+
+  if (inferPlatformFromMenuType(menuType) === "UGC") return "ugc";
+  if (normalized.includes("story")) return "story";
+  if (
+    normalized.includes("short") ||
+    normalized.includes("reel") ||
+    normalized.includes("tiktok")
+  ) {
+    return "short_video";
+  }
+  if (normalized.includes("video")) return "video";
+  return "post";
+}
+
 function buildReferencePriceText(price: number) {
   return `¥${price.toLocaleString()}〜`;
 }
 
 async function findExistingUserByEmail(email: string) {
   const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+
   if (error) return { user: null, error };
 
   const user =
@@ -119,6 +145,24 @@ async function findExistingUserByEmail(email: string) {
     ) ?? null;
 
   return { user, error: null };
+}
+
+async function ensureNoDuplicateUsername(username: string, userId?: string | null) {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (data && data.id !== userId) {
+    return false;
+  }
+
+  return true;
 }
 
 export async function POST(req: Request) {
@@ -132,6 +176,8 @@ export async function POST(req: Request) {
       full_name,
       email,
       password,
+      avatar_url,
+      portfolio_assets,
       country,
       prefecture,
       city,
@@ -153,7 +199,8 @@ export async function POST(req: Request) {
     const normalizedUsername = normalizeUsername(username ?? "");
     const normalizedSubCategories = Array.isArray(sub_categories)
       ? sub_categories.filter(
-          (item): item is string => typeof item === "string" && item.trim().length > 0
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0
         )
       : [];
 
@@ -184,6 +231,30 @@ export async function POST(req: Request) {
     if (!full_name?.trim()) {
       return NextResponse.json(
         { error: "氏名を入力してください" },
+        { status: 400 }
+      );
+    }
+
+    if (!avatar_url?.trim()) {
+      return NextResponse.json(
+        { error: "プロフィール画像を追加してください" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedPortfolioAssets = Array.isArray(portfolio_assets)
+      ? portfolio_assets
+          .map((item, index) => ({
+            asset_url: item.asset_url?.trim() ?? "",
+            title: item.title?.trim() || null,
+            sort_order: typeof item.sort_order === "number" ? item.sort_order : index,
+          }))
+          .filter((item) => item.asset_url.length > 0)
+      : [];
+
+    if (normalizedPortfolioAssets.length < 3) {
+      return NextResponse.json(
+        { error: "ポートフォリオ画像を3枚以上追加してください" },
         { status: 400 }
       );
     }
@@ -280,19 +351,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: existingProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("username", normalizedUsername)
-      .maybeSingle();
-
-    if (existingProfile) {
-      return NextResponse.json(
-        { error: "このユーザーネームは既に使われています" },
-        { status: 400 }
-      );
-    }
-
     let userId: string | null = null;
     let currentEmail = "";
     let currentUserMetadata: Record<string, unknown> = {};
@@ -325,6 +383,15 @@ export async function POST(req: Request) {
       if (existingUser) {
         return NextResponse.json(
           { error: "既に登録済みのメールアドレスです" },
+          { status: 400 }
+        );
+      }
+
+      const duplicateOk = await ensureNoDuplicateUsername(normalizedUsername, null);
+
+      if (!duplicateOk) {
+        return NextResponse.json(
+          { error: "このユーザーネームは既に使われています" },
           { status: 400 }
         );
       }
@@ -394,6 +461,15 @@ export async function POST(req: Request) {
         );
       }
 
+      const duplicateOk = await ensureNoDuplicateUsername(normalizedUsername, userId);
+
+      if (!duplicateOk) {
+        return NextResponse.json(
+          { error: "このユーザーネームは既に使われています" },
+          { status: 400 }
+        );
+      }
+
       const { error: updateOAuthUserError } =
         await supabaseAdmin.auth.admin.updateUserById(userId, {
           user_metadata: {
@@ -412,7 +488,10 @@ export async function POST(req: Request) {
 
       if (updateOAuthUserError) {
         return NextResponse.json(
-          { error: updateOAuthUserError.message ?? "OAuthユーザー更新に失敗しました" },
+          {
+            error:
+              updateOAuthUserError.message ?? "OAuthユーザー更新に失敗しました",
+          },
           { status: 500 }
         );
       }
@@ -447,6 +526,8 @@ export async function POST(req: Request) {
         approval_status: "approved",
         is_public: true,
         is_suspended: false,
+        avatar_url: avatar_url.trim(),
+        cover_image_url: null,
       })
       .select("id")
       .single();
@@ -465,6 +546,7 @@ export async function POST(req: Request) {
       username: normalizedUsername,
       category: main_category.trim(),
       bio: short_bio?.trim() || null,
+      avatar_url: avatar_url.trim(),
       is_public: true,
       onboarding_completed: true,
       public_profile_completed: true,
@@ -473,6 +555,26 @@ export async function POST(req: Request) {
     if (profileError) {
       return NextResponse.json(
         { error: profileError.message ?? "プロフィール作成に失敗しました" },
+        { status: 500 }
+      );
+    }
+
+    const portfolioRows = normalizedPortfolioAssets.map((asset, index) => ({
+      creator_id: creatorId,
+      asset_url: asset.asset_url,
+      asset_type: "image",
+      title: asset.title,
+      sort_order: asset.sort_order ?? index,
+      is_public: true,
+    }));
+
+    const { error: portfolioError } = await supabaseAdmin
+      .from("creator_portfolio_assets")
+      .insert(portfolioRows);
+
+    if (portfolioError) {
+      return NextResponse.json(
+        { error: portfolioError.message ?? "ポートフォリオ画像の保存に失敗しました" },
         { status: 500 }
       );
     }
@@ -507,15 +609,19 @@ export async function POST(req: Request) {
         title: menuType,
         description: first_menu.description?.trim() || null,
         platform: inferPlatformFromMenuType(menuType),
+        sns: inferPlatformFromMenuType(menuType),
         price: menuPrice,
+        currency: "JPY",
         delivery_days: deliveryDays,
         deliverables: menuType,
         is_active: true,
         notes: null,
         account_url: socialRows[0]?.url ?? null,
-        reference_price_text: buildReferencePriceText(menuPrice),
+        reference_price_text: null,
         allow_secondary_use: !!first_menu.allow_secondary_use,
         category: main_category.trim(),
+        menu_type: inferMenuType(menuType),
+        sort_order: 0,
       });
 
     if (menuError) {
@@ -525,36 +631,76 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: roleError } = await supabaseAdmin.from("user_roles").upsert({
-      user_id: userId,
-      role: "creator",
-    });
+    const { data: existingRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "creator")
+      .maybeSingle();
 
-    if (roleError) {
-      return NextResponse.json(
-        { error: roleError.message ?? "ロール作成に失敗しました" },
-        { status: 500 }
-      );
+    if (!existingRole) {
+      const { error: roleError } = await supabaseAdmin.from("user_roles").insert({
+        user_id: userId,
+        role: "creator",
+      });
+
+      if (roleError) {
+        return NextResponse.json(
+          { error: roleError.message ?? "ロール作成に失敗しました" },
+          { status: 500 }
+        );
+      }
     }
 
     const now = new Date().toISOString();
 
-    const { error: stateError } = await supabaseAdmin.from("user_states").upsert({
-      user_id: userId,
-      creator_profile_completed: true,
-      company_profile_completed: false,
-      onboarding_completed: true,
-      terms_version: TERMS_VERSION,
-      privacy_version: PRIVACY_VERSION,
-      terms_agreed_at: now,
-      privacy_agreed_at: now,
-    });
+    const { data: existingState } = await supabaseAdmin
+      .from("user_states")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    if (stateError) {
-      return NextResponse.json(
-        { error: stateError.message ?? "ユーザー状態の保存に失敗しました" },
-        { status: 500 }
-      );
+    if (existingState) {
+      const { error: stateUpdateError } = await supabaseAdmin
+        .from("user_states")
+        .update({
+          creator_profile_completed: true,
+          onboarding_completed: true,
+          terms_version: TERMS_VERSION,
+          privacy_version: PRIVACY_VERSION,
+          terms_agreed_at: now,
+          privacy_agreed_at: now,
+          updated_at: now,
+        })
+        .eq("user_id", userId);
+
+      if (stateUpdateError) {
+        return NextResponse.json(
+          { error: stateUpdateError.message ?? "ユーザー状態の保存に失敗しました" },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error: stateInsertError } = await supabaseAdmin
+        .from("user_states")
+        .insert({
+          user_id: userId,
+          creator_profile_completed: true,
+          company_profile_completed: false,
+          onboarding_completed: true,
+          terms_version: TERMS_VERSION,
+          privacy_version: PRIVACY_VERSION,
+          terms_agreed_at: now,
+          privacy_agreed_at: now,
+          updated_at: now,
+        });
+
+      if (stateInsertError) {
+        return NextResponse.json(
+          { error: stateInsertError.message ?? "ユーザー状態の保存に失敗しました" },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({
@@ -566,6 +712,13 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "internal error" }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "internal error",
+      },
+      { status: 500 }
+    );
   }
 }
