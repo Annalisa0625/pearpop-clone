@@ -188,22 +188,8 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         href: "/b/saved-creators",
         label: copy.saved,
       },
-      {
-        href: "/b/requests",
-        label: copy.pending,
-        badgeKey: "requests",
-      },
-      {
-        href: "/b/jobs",
-        label: "Jobs",
-        badgeKey: "jobs",
-      },
-      {
-        href: "/b/billing",
-        label: copy.pricing,
-      },
     ],
-    [copy.home, copy.pending, copy.pricing, copy.saved, copy.search]
+    [copy.home, copy.saved, copy.search]
   );
 
   const mobileNavItems: MobileNavItem[] = useMemo(
@@ -551,7 +537,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
 
-          <nav className="hidden items-center gap-7 md:flex">
+          <nav className="hidden items-center gap-8 md:flex">
             {topNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
               const showUnread =

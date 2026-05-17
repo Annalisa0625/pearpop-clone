@@ -19,6 +19,7 @@ type FilterMenu =
 type SocialAccountRow = {
   platform?: string | null;
   url?: string | null;
+  handle?: string | null;
   follower_range?: string | null;
   audience_country?: string | null;
 };
@@ -28,6 +29,8 @@ type CreatorRow = {
   display_name?: string | null;
   avatar_url?: string | null;
   category?: string | null;
+  rating?: number | null;
+  total_orders?: number | null;
   stripe_onboarding_completed?: boolean | null;
   creator_social_accounts?: SocialAccountRow[] | null;
 };
@@ -58,6 +61,7 @@ type SavedCreatorRow = {
 type CreatorCard = {
   id: string;
   displayName: string;
+  primaryAccountName: string | null;
   avatarUrl: string | null;
   cardImageUrl: string | null;
   category: string | null;
@@ -69,6 +73,8 @@ type CreatorCard = {
   startingPrice: number | null;
   startingCurrency: string | null;
   topMenuTitle: string | null;
+  rating: number | null;
+  reviewCount: number;
 };
 
 const POPULAR_CATEGORIES = [
@@ -440,14 +446,10 @@ function getPlatformIcon(value: string | null | undefined) {
   return "●";
 }
 
-function formatFollowerLabel(
-  platform: string | null | undefined,
-  followerRange: string | null | undefined
-) {
+function formatFollowerLabel(followerRange: string | null | undefined) {
   const range = followerRange?.trim();
   if (!range) return null;
-
-  return `${getPlatformShortLabel(platform)}・${range}`;
+  return range;
 }
 
 function getCreatorInitial(name: string) {
@@ -551,6 +553,31 @@ function toNumberOrNull(value: string) {
   if (!cleaned) return null;
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getSocialAccountName(social: SocialAccountRow | null | undefined) {
+  if (!social) return null;
+
+  const handle = social.handle?.trim();
+  if (handle) return handle.replace(/^@/, "");
+
+  const url = social.url?.trim();
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const last = parts[0] ?? parts.at(-1) ?? "";
+    return last.replace(/^@/, "") || null;
+  } catch {
+    return url.replace(/^@/, "") || null;
+  }
+}
+
+function getRatingValue(value: number | null | undefined) {
+  if (typeof value !== "number") return null;
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 function SearchIcon() {
@@ -698,8 +725,8 @@ function FilterChip({
         active
           ? "border-slate-900 bg-slate-900 text-white shadow-sm"
           : disabled
-          ? "cursor-not-allowed border-slate-200 bg-white text-slate-300"
-          : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+            ? "cursor-not-allowed border-slate-200 bg-white text-slate-300"
+            : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
       }`}
     >
       {premium ? (
@@ -967,19 +994,16 @@ function CreatorCardItem({
   isSaving: boolean;
   safeLocale: "ja" | "en";
   copy: {
-    noSns: string;
-    trusted: string;
-    topCreator: string;
     menu: string;
     menus: string;
     noLocation: string;
   };
   onToggleSave: (creatorId: string) => void;
 }) {
-  const followerLabel = formatFollowerLabel(
-    creator.primaryPlatform,
-    creator.followerRange
-  );
+  const followerLabel = formatFollowerLabel(creator.followerRange);
+  const visibleName = creator.primaryAccountName || creator.displayName;
+  const rating = getRatingValue(creator.rating);
+  const shouldShowRating = rating !== null && creator.reviewCount > 0;
 
   return (
     <article className="group">
@@ -990,22 +1014,25 @@ function CreatorCardItem({
 
             <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
 
-            <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-              <span className="inline-flex items-center rounded-md bg-black/70 px-2 py-1 text-xs font-black text-white backdrop-blur">
-                {index < 3 ? copy.topCreator : copy.trusted}
-              </span>
-            </div>
-
             <div className="absolute left-3 bottom-3 flex flex-wrap items-center gap-2">
-              {creator.primaryPlatform ? (
-                <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs font-black text-slate-900 shadow-sm">
-                  <span>{getPlatformIcon(creator.primaryPlatform)}</span>
-                  <span>{getPlatformShortLabel(creator.primaryPlatform)}</span>
+              {creator.platforms.slice(0, 5).map((platform) => (
+                <span
+                  key={platform}
+                  title={getPlatformLabel(platform)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-xs font-black text-slate-900 shadow-sm backdrop-blur"
+                >
+                  {getPlatformIcon(platform)}
+                </span>
+              ))}
+
+              {creator.platforms.length > 5 ? (
+                <span className="inline-flex h-8 items-center rounded-full bg-white/95 px-2 text-xs font-black text-slate-900 shadow-sm backdrop-blur">
+                  +{creator.platforms.length - 5}
                 </span>
               ) : null}
 
               {followerLabel ? (
-                <span className="inline-flex items-center rounded-md bg-white/95 px-2 py-1 text-xs font-black text-slate-900 shadow-sm">
+                <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm">
                   {followerLabel}
                 </span>
               ) : null}
@@ -1033,23 +1060,33 @@ function CreatorCardItem({
       <Link href={`/b/creators/${creator.id}`} className="mt-3 block">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-medium leading-tight text-slate-900">
-              {creator.category || creator.topMenuTitle || creator.displayName}
+            <p className="truncate text-[15px] font-black leading-tight text-slate-950">
+              {visibleName}
             </p>
 
-            <div className="mt-1 flex min-w-0 items-center gap-1.5">
-              <span className="truncate text-sm font-black text-slate-950">
+            {creator.displayName !== visibleName ? (
+              <p className="mt-1 truncate text-sm font-semibold text-slate-700">
                 {creator.displayName}
-              </span>
-              <span className="text-sm text-yellow-500">★</span>
-              <span className="text-sm font-semibold text-slate-800">5.0</span>
-            </div>
+              </p>
+            ) : null}
 
-            <p className="mt-1 truncate text-sm text-slate-400">
-              {creator.primaryAudienceCountry
-                ? getCountryLabel(creator.primaryAudienceCountry, safeLocale)
-                : copy.noLocation}
-            </p>
+            <div className="mt-1 flex min-w-0 items-center gap-2">
+              <p className="truncate text-sm text-slate-400">
+                {creator.primaryAudienceCountry
+                  ? getCountryLabel(creator.primaryAudienceCountry, safeLocale)
+                  : copy.noLocation}
+              </p>
+
+              {shouldShowRating ? (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-800">
+                    <span className="text-yellow-500">★</span>
+                    {rating.toFixed(1)}
+                  </span>
+                </>
+              ) : null}
+            </div>
           </div>
 
           <div className="shrink-0 text-right">
@@ -1086,8 +1123,6 @@ export default function CompanyCreatorsPage() {
             category: "Category",
             keywordPlaceholder: "キーワード、ニッチ、カテゴリで検索",
             any: "Any",
-            creators: "Creators",
-            countSuffix: "件のクリエイター",
             clearAll: "Clear All",
             clear: "Clear",
             noCreatorsTitle: "表示できるクリエイターがいません",
@@ -1095,8 +1130,6 @@ export default function CompanyCreatorsPage() {
               "検索条件を変更するか、報酬受け取り設定が完了したクリエイターの追加をお待ちください。",
             creatorFallback: "Creator",
             noSns: "SNS未設定",
-            trusted: "Trusted",
-            topCreator: "Top Creator",
             contentType: "Content Type",
             followers: "Followers",
             location: "Location",
@@ -1123,8 +1156,6 @@ export default function CompanyCreatorsPage() {
             category: "Category",
             keywordPlaceholder: "Enter keywords, niches or categories",
             any: "Any",
-            creators: "Creators",
-            countSuffix: "creators",
             clearAll: "Clear All",
             clear: "Clear",
             noCreatorsTitle: "No creators found",
@@ -1132,8 +1163,6 @@ export default function CompanyCreatorsPage() {
               "Try changing your search filters or wait for more creators to complete payout setup.",
             creatorFallback: "Creator",
             noSns: "SNS not set",
-            trusted: "Trusted",
-            topCreator: "Top Creator",
             contentType: "Content Type",
             followers: "Followers",
             location: "Location",
@@ -1207,6 +1236,7 @@ export default function CompanyCreatorsPage() {
       const matchesKeyword =
         !q ||
         creator.displayName.toLowerCase().includes(q) ||
+        (creator.primaryAccountName ?? "").toLowerCase().includes(q) ||
         (creator.category ?? "").toLowerCase().includes(q) ||
         creator.platforms.some((platform) =>
           platform.toLowerCase().includes(q)
@@ -1371,10 +1401,13 @@ export default function CompanyCreatorsPage() {
               display_name,
               avatar_url,
               category,
+              rating,
+              total_orders,
               stripe_onboarding_completed,
               creator_social_accounts (
                 platform,
                 url,
+                handle,
                 follower_range,
                 audience_country
               )
@@ -1488,9 +1521,13 @@ export default function CompanyCreatorsPage() {
             const portfolio = portfolioMap.get(row.id) ?? [];
             const firstPortfolioImage = portfolio[0]?.asset_url?.trim() || null;
 
+            const rating = getRatingValue(row.rating ?? null);
+            const reviewCount = row.total_orders ?? 0;
+
             return {
               id: row.id,
               displayName: row.display_name?.trim() || copy.creatorFallback,
+              primaryAccountName: getSocialAccountName(primary),
               avatarUrl: row.avatar_url?.trim() || null,
               cardImageUrl: firstPortfolioImage,
               category: row.category?.trim() || null,
@@ -1505,6 +1542,8 @@ export default function CompanyCreatorsPage() {
                   : null,
               startingCurrency: startingMenu?.currency ?? "JPY",
               topMenuTitle: startingMenu?.title ?? null,
+              rating,
+              reviewCount,
             };
           });
 
@@ -1608,7 +1647,6 @@ export default function CompanyCreatorsPage() {
         </section>
 
         <section>
-          <div className="mb-7 h-8 w-40 animate-pulse rounded-xl bg-slate-100" />
           <div className="grid gap-x-7 gap-y-10 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="space-y-3">
@@ -1951,29 +1989,6 @@ export default function CompanyCreatorsPage() {
       ) : null}
 
       <section className="relative z-0">
-        <div className="mb-7 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-950">
-              {copy.creators}
-            </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              {safeLocale === "ja"
-                ? `${filteredCreators.length}${copy.countSuffix}`
-                : `${filteredCreators.length} ${copy.countSuffix}`}
-            </p>
-          </div>
-
-          {activeFilterCount > 0 ? (
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950 md:inline-flex"
-            >
-              {copy.clearAll}
-            </button>
-          ) : null}
-        </div>
-
         {filteredCreators.length === 0 ? (
           <div className="rounded-[28px] border border-slate-100 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-black text-slate-950">
@@ -2003,9 +2018,6 @@ export default function CompanyCreatorsPage() {
                 isSaving={savingCreatorId === creator.id}
                 safeLocale={safeLocale}
                 copy={{
-                  noSns: copy.noSns,
-                  trusted: copy.trusted,
-                  topCreator: copy.topCreator,
                   menu: copy.menu,
                   menus: copy.menus,
                   noLocation: copy.noLocation,
