@@ -188,7 +188,7 @@ function LocaleSwitcher({
 }) {
   const baseClass =
     "rounded-full border px-3 py-2 text-xs font-bold transition";
-  const activeClass = "border-gray-900 bg-gray-900 text-white";
+  const activeClass = "border-gray-950 bg-gray-950 text-white";
   const inactiveClass =
     "border-gray-200 bg-white text-gray-700 hover:bg-gray-50";
 
@@ -771,11 +771,18 @@ export default function CreatorLayoutShell({
         </div>
       ) : null}
 
-      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/95 backdrop-blur-xl">
+      <header className="sticky top-0 z-[100] border-b border-gray-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <Link href="/creator/dashboard" className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gray-950 text-sm font-black text-white shadow-sm">
-              T
+          <Link
+            href="/creator/dashboard"
+            className="flex min-w-0 items-center gap-3"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-950 shadow-sm ring-1 ring-black/5">
+              <img
+                src="/brand/trendre-mark.png"
+                alt="Trendre"
+                className="h-8 w-8 object-contain"
+              />
             </span>
             <span className="min-w-0">
               <span className="block truncate text-base font-black tracking-tight text-gray-950">
