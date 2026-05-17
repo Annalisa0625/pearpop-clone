@@ -66,6 +66,10 @@ type CreatorCard = {
   cardImageUrl: string | null;
   category: string | null;
   platforms: string[];
+  socialLinks: {
+    platform: string;
+    url: string | null;
+  }[];
   primaryPlatform: string | null;
   primaryAudienceCountry: string | null;
   followerRange: string | null;
@@ -1001,7 +1005,8 @@ function CreatorCardItem({
   onToggleSave: (creatorId: string) => void;
 }) {
   const followerLabel = formatFollowerLabel(creator.followerRange);
-  const visibleName = creator.primaryAccountName || creator.displayName;
+  const visibleName = creator.displayName;
+  const accountName = creator.primaryAccountName;
   const rating = getRatingValue(creator.rating);
   const shouldShowRating = rating !== null && creator.reviewCount > 0;
 
@@ -1013,32 +1018,54 @@ function CreatorCardItem({
             <CreatorImage creator={creator} index={index} />
 
             <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-
-            <div className="absolute left-3 bottom-3 flex flex-wrap items-center gap-2">
-              {creator.platforms.slice(0, 5).map((platform) => (
-                <span
-                  key={platform}
-                  title={getPlatformLabel(platform)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-xs font-black text-slate-900 shadow-sm backdrop-blur"
-                >
-                  {getPlatformIcon(platform)}
-                </span>
-              ))}
-
-              {creator.platforms.length > 5 ? (
-                <span className="inline-flex h-8 items-center rounded-full bg-white/95 px-2 text-xs font-black text-slate-900 shadow-sm backdrop-blur">
-                  +{creator.platforms.length - 5}
-                </span>
-              ) : null}
-
-              {followerLabel ? (
-                <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm">
-                  {followerLabel}
-                </span>
-              ) : null}
-            </div>
           </div>
         </Link>
+
+        <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-2">
+          {creator.socialLinks.slice(0, 5).map((social, socialIndex) => {
+            const key = `${social.platform}-${social.url ?? "no-url"}-${socialIndex}`;
+
+            if (social.url) {
+              return (
+                <a
+                  key={key}
+                  href={social.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={getPlatformLabel(social.platform)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-xs font-black text-slate-900 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+                >
+                  {getPlatformIcon(social.platform)}
+                </a>
+              );
+            }
+
+            return (
+              <span
+                key={key}
+                title={getPlatformLabel(social.platform)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-xs font-black text-slate-900 shadow-sm backdrop-blur"
+              >
+                {getPlatformIcon(social.platform)}
+              </span>
+            );
+          })}
+
+          {creator.socialLinks.length > 5 ? (
+            <span className="inline-flex h-8 items-center rounded-full bg-white/95 px-2 text-xs font-black text-slate-900 shadow-sm backdrop-blur">
+              +{creator.socialLinks.length - 5}
+            </span>
+          ) : null}
+
+          {followerLabel ? (
+            <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm">
+              {followerLabel}
+            </span>
+          ) : null}
+        </div>
 
         <button
           type="button"
@@ -1064,9 +1091,9 @@ function CreatorCardItem({
               {visibleName}
             </p>
 
-            {creator.displayName !== visibleName ? (
-              <p className="mt-1 truncate text-sm font-semibold text-slate-700">
-                {creator.displayName}
+            {accountName ? (
+              <p className="mt-1 truncate text-sm font-semibold text-slate-500">
+                @{accountName}
               </p>
             ) : null}
 
@@ -1511,6 +1538,13 @@ export default function CompanyCreatorsPage() {
               )
             );
 
+            const socialLinks = socials
+              .map((social) => ({
+                platform: social.platform?.trim() || "",
+                url: social.url?.trim() || null,
+              }))
+              .filter((social) => social.platform);
+
             const creatorMenus = menuMap.get(row.id) ?? [];
             const pricedMenus = creatorMenus
               .filter((menu) => typeof menu.price === "number")
@@ -1532,6 +1566,7 @@ export default function CompanyCreatorsPage() {
               cardImageUrl: firstPortfolioImage,
               category: row.category?.trim() || null,
               platforms,
+              socialLinks,
               primaryPlatform: platforms[0] || primary?.platform?.trim() || null,
               primaryAudienceCountry: primary?.audience_country?.trim() || null,
               followerRange: primary?.follower_range?.trim() || null,
