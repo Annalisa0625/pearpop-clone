@@ -508,13 +508,13 @@ export default function SignupCreatorClient() {
         ? {
             welcomeTitle: "Trendreで登録をはじめましょう",
             welcomeBody:
-              "プロフィール、SNS、ポートフォリオ画像、メニューを登録すると、企業があなたに依頼しやすくなります。",
+              "プロフィール、SNS、ポートフォリオ画像、メニューを登録しブランドがあなたに依頼しやすくなります。",
             identityTitle: "表示名と公開URLを設定してください",
             identityBody:
               "表示名は企業に見える名前です。公開URL用IDはプロフィールURLに使われます。",
-            displayName: "表示名（日本語OK）",
+            displayName: "表示名（SNSでの表示名と揃えてください）",
             displayNameHelp:
-              "例：京都美容ママ / 旅するRina / Yuna Beauty",
+              "例：関西グルメ /りょうFitness  / Yuna Beauty",
             username: "公開URL用ID",
             usernameHelp:
               "URLに使うため、英小文字・数字・_・- のみ使えます。SNSの英数字IDに近いものがおすすめです。",
@@ -528,25 +528,25 @@ export default function SignupCreatorClient() {
             profileTitle: "発信内容を教えてください",
             profileBody:
               "カテゴリは企業があなたを見つけるために使われます。地域は任意です。",
-            country: "国（任意）",
-            prefecture: "都道府県（任意）",
+            country: "国",
+            prefecture: "都道府県",
             mainCategory: "メインカテゴリ",
-            subCategories: "サブカテゴリ（任意）",
-            shortBio: "短い自己紹介（任意）",
+            subCategories: "サブカテゴリ",
+            shortBio: "短い自己紹介（発信内容など）",
             adultConfirm: "18歳以上です",
             socialTitle: "SNSアカウントを追加してください",
             socialBody:
-              "媒体を選び、ユーザーネームを貼り付けてください。プロフィールURLは自動で作成されます。",
+              "媒体を選び、ユーザーネームをコピペしてください",
             platform: "媒体",
             socialHandle: "ユーザーネーム",
-            followerRange: "フォロワー数の範囲",
-            audienceCountry: "主な視聴者の国",
+            followerRange: "フォロワー数",
+            audienceCountry: "主なフォロワー層",
             urlPreview: "プロフィールURLプレビュー",
             addSocial: "SNSを追加",
             remove: "削除",
             imagesTitle: "写真を追加してください",
             imagesBody:
-              "プロフィール画像は丸アイコン、ポートフォリオ画像はB側の一覧・詳細ページに表示されます。",
+              "プロフィール画像は丸アイコン、ポートフォリオ画像は一覧・詳細ページに表示されます。",
             avatar: "プロフィール画像",
             avatarHelp: "B側に小さな丸アイコンとして表示されます。",
             avatarChoose: "プロフィール画像を選択",
@@ -562,7 +562,7 @@ export default function SignupCreatorClient() {
             menuFeeNote: "Trendreの手数料は売上から差し引かれます。",
             menuType: "メニュー内容",
             price: "金額（円）",
-            menuDescription: "補足説明（任意）",
+            menuDescription: "メニューについての説明（任意）",
             addMenu: "メニューを追加",
             phoneTitle: "電話番号を確認してください",
             phoneBody:
