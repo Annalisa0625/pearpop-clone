@@ -582,18 +582,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-[100] border-b bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center gap-4">
-            <Link href="/b/dashboard" className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-950 shadow-sm ring-1 ring-black/5">
-                <img
-                  src="/brand/trendre-mark.png"
-                  alt="Trendre"
-                  className="h-8 w-8 object-contain"
-                />
-              </span>
-
-              <span className="text-xl font-black tracking-tight text-gray-950">
-                {copy.brandTitle}
-              </span>
+            <Link href="/b/dashboard" className="flex items-center">
+              <img
+                src="/brand/trendre-logo-full.png"
+                alt="Trendre"
+                className="h-9 w-auto object-contain"
+              />
             </Link>
 
             <span className="hidden rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 md:inline-flex">
