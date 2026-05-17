@@ -1428,7 +1428,7 @@ export default function SignupCreatorClient() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
-                placeholder="例：京都美容ママ"
+                placeholder="例：SNSアカウント名"
               />
               <p className="mt-2 text-xs leading-5 text-gray-500">
                 {copy.displayNameHelp}

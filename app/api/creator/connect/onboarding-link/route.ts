@@ -95,8 +95,6 @@ function splitJapaneseName(name: string) {
 function buildBusinessProfile(baseUrl: string): Stripe.AccountCreateParams.BusinessProfile {
   return {
     url: baseUrl,
-    // 7311 = Advertising Services.
-    // クリエイターがPR投稿・UGC制作を提供する用途に一番近い。
     mcc: "7311",
     product_description:
       "Creator provides sponsored social media posts, short videos, and UGC content for brands through Trendre.",
@@ -139,37 +137,49 @@ function buildAccountCreateParams({
   };
 }
 
-function buildAccountUpdateParams({
+async function safelyPatchExistingAccount({
+  stripe,
+  stripeAccountId,
   user,
   creator,
   baseUrl,
 }: {
+  stripe: Stripe;
+  stripeAccountId: string;
   user: User;
   creator: CreatorForConnect;
   baseUrl: string;
-}): Stripe.AccountUpdateParams {
-  const fullName = normalizeName(creator.full_name || creator.display_name);
-  const { firstName, lastName } = splitJapaneseName(fullName);
+}) {
+  try {
+    const fullName = normalizeName(creator.full_name || creator.display_name);
+    const { firstName, lastName } = splitJapaneseName(fullName);
 
-  return {
-    email: user.email ?? undefined,
-    business_profile: buildBusinessProfile(baseUrl),
-    individual: {
+    const account = (await stripe.accounts.update(stripeAccountId, {
       email: user.email ?? undefined,
-      first_name: firstName,
-      last_name: lastName,
-    },
-    metadata: {
-      app: "trendre",
-      supabase_user_id: user.id,
-      creator_id: creator.id,
-    },
-  };
+      business_profile: buildBusinessProfile(baseUrl),
+      individual: {
+        email: user.email ?? undefined,
+        first_name: firstName,
+        last_name: lastName,
+      },
+      metadata: {
+        app: "trendre",
+        supabase_user_id: user.id,
+        creator_id: creator.id,
+      },
+    })) as Stripe.Account;
+
+    return account;
+  } catch (error) {
+    console.warn(
+      "Stripe account patch skipped. Continue with account link creation.",
+      error
+    );
+
+    return (await stripe.accounts.retrieve(stripeAccountId)) as Stripe.Account;
+  }
 }
 
-// ルート存在確認用。
-// ブラウザで /api/creator/connect/onboarding-link を開いた時に、
-// 404ではなくこのJSONが出れば、Next.jsがAPIルートを認識できています。
 export async function GET() {
   return NextResponse.json({
     ok: true,
@@ -250,32 +260,29 @@ export async function POST(req: NextRequest) {
           throw error;
         }
 
-        // Stripe側でアカウントが消えている/存在しない場合は、新規作成し直す。
         stripeAccountId = null;
         stripeAccount = null;
       }
     }
 
     if (!stripeAccountId || !stripeAccount) {
-      stripeAccount = await stripe.accounts.create(
+      stripeAccount = (await stripe.accounts.create(
         buildAccountCreateParams({
           user,
           creator,
           baseUrl,
         })
-      );
+      )) as Stripe.Account;
 
       stripeAccountId = stripeAccount.id;
     } else {
-      // 既存アカウントでも、business_profileなど不足しやすい項目を補完する。
-      stripeAccount = (await stripe.accounts.update(
+      stripeAccount = await safelyPatchExistingAccount({
+        stripe,
         stripeAccountId,
-        buildAccountUpdateParams({
-          user,
-          creator,
-          baseUrl,
-        })
-      )) as Stripe.Account;
+        user,
+        creator,
+        baseUrl,
+      });
     }
 
     const onboardingCompleted = getConnectOnboardingCompleted(stripeAccount);
@@ -299,9 +306,6 @@ export async function POST(req: NextRequest) {
       type: "account_onboarding",
       refresh_url: `${baseUrl}/creator/payouts?connect=refresh`,
       return_url: `${baseUrl}/creator/payouts?connect=return`,
-      collection_options: {
-        fields: "currently_due",
-      },
     });
 
     return NextResponse.json({
@@ -313,8 +317,19 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("creator connect onboarding link error", error);
 
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Stripe Connectのオンボーディングリンク作成に失敗しました";
+
     return NextResponse.json(
-      { error: "Stripe Connectのオンボーディングリンク作成に失敗しました" },
+      {
+        error: "Stripe Connectのオンボーディングリンク作成に失敗しました",
+        detail:
+          process.env.NODE_ENV === "production"
+            ? undefined
+            : message,
+      },
       { status: 500 }
     );
   }
