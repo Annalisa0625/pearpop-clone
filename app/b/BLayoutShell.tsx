@@ -579,7 +579,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-[100] border-b bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center gap-4">
             <Link href="/b/dashboard" className="text-xl font-black tracking-tight">
@@ -641,7 +641,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               </button>
 
               {menuOpen ? (
-                <div className="absolute right-0 top-full z-50 w-56 pt-1">
+                <div className="absolute right-0 top-full z-[120] w-56 pt-1">
                   <div className="overflow-hidden rounded-2xl border bg-white shadow-2xl">
                     <div className="border-b px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
