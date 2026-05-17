@@ -12,7 +12,6 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-import type { AppLocale } from "@/lib/i18n/types";
 
 type NavBadgeKey = "requests" | "jobs";
 
@@ -113,50 +112,11 @@ function TopNavUnreadDot() {
   );
 }
 
-function LocaleSwitcher({
-  locale,
-  setLocale,
-}: {
-  locale: AppLocale;
-  setLocale: (locale: AppLocale) => void;
-}) {
-  const baseClass =
-    "rounded-full border px-3 py-2 text-sm font-bold transition";
-  const activeClass = "border-gray-950 bg-gray-950 text-white";
-  const inactiveClass =
-    "border-gray-200 bg-white text-gray-700 hover:bg-gray-50";
-
-  return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setLocale("ja")}
-        className={`${baseClass} ${
-          locale === "ja" ? activeClass : inactiveClass
-        }`}
-        aria-pressed={locale === "ja"}
-      >
-        JA
-      </button>
-      <button
-        type="button"
-        onClick={() => setLocale("en")}
-        className={`${baseClass} ${
-          locale === "en" ? activeClass : inactiveClass
-        }`}
-        aria-pressed={locale === "en"}
-      >
-        EN
-      </button>
-    </div>
-  );
-}
-
 export default function BLayoutShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const { locale, setLocale } = useAppLocale();
+  const { locale } = useAppLocale();
 
   const [loggingOut, setLoggingOut] = useState(false);
   const [limitReason, setLimitReason] = useState<string | null>(null);
@@ -172,8 +132,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     () =>
       locale === "ja"
         ? {
-            brandTitle: "Trendre",
-            consoleTitle: "Company",
             billing: "料金プラン",
             loggingOut: "ログアウト中...",
             logout: "ログアウト",
@@ -190,10 +148,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             pending: "Pending",
             pricing: "Pricing",
             company: "Company",
+            consoleTitle: "Company",
+            menu: "Menu",
           }
         : {
-            brandTitle: "Trendre",
-            consoleTitle: "Company",
             billing: "Billing",
             loggingOut: "Logging out...",
             logout: "Logout",
@@ -210,6 +168,8 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             pending: "Pending",
             pricing: "Pricing",
             company: "Company",
+            consoleTitle: "Company",
+            menu: "Menu",
           },
     [locale]
   );
@@ -580,8 +540,8 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       ) : null}
 
       <header className="sticky top-0 z-[100] border-b bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-          <div className="flex items-center gap-4">
+        <div className="flex w-full items-center justify-between px-6 py-3 md:px-10 lg:px-14">
+          <div className="flex items-center">
             <Link href="/b/dashboard" className="flex items-center">
               <img
                 src="/brand/trendre-logo-full.png"
@@ -589,10 +549,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                 className="h-9 w-auto object-contain"
               />
             </Link>
-
-            <span className="hidden rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 md:inline-flex">
-              B
-            </span>
           </div>
 
           <nav className="hidden items-center gap-7 md:flex">
@@ -622,9 +578,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher locale={locale} setLocale={setLocale} />
-
+          <div className="flex items-center">
             <div
               className="relative"
               onMouseEnter={openProfileMenu}
@@ -634,14 +588,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
                 onFocus={openProfileMenu}
-                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50"
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
               >
-                <span className="hidden md:inline">B</span>
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-700">
-                  B
-                </span>
+                <span className="text-lg leading-none">☰</span>
+                <span>{copy.menu}</span>
               </button>
 
               {menuOpen ? (
