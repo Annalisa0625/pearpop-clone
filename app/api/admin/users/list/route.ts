@@ -1,69 +1,17 @@
 // app/api/admin/users/list/route.ts
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/admin/guard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function requireAdmin() {
-  const supabase = await createSupabaseServerClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return {
-      ok: false as const,
-      status: 401,
-      message: "ログインが必要です",
-      userId: null,
-    };
-  }
-
-  const { data: roleRows, error: roleError } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id);
-
-  if (roleError) {
-    console.error("admin role check error:", roleError);
-    return {
-      ok: false as const,
-      status: 500,
-      message: "権限確認に失敗しました",
-      userId: user.id,
-    };
-  }
-
-  const isAdmin = (roleRows ?? []).some((row) => row.role === "admin");
-
-  if (!isAdmin) {
-    return {
-      ok: false as const,
-      status: 403,
-      message: "admin権限が必要です",
-      userId: user.id,
-    };
-  }
-
-  return {
-    ok: true as const,
-    userId: user.id,
-  };
-}
-
 export async function GET() {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdminApi();
 
     if (!admin.ok) {
-      return NextResponse.json(
-        { error: admin.message },
-        { status: admin.status }
-      );
+      return admin.response;
     }
 
     const { data: companies, error: companiesErr } = await supabaseAdmin

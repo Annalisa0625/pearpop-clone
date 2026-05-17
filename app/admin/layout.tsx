@@ -1,21 +1,16 @@
 // app/admin/layout.tsx
 import { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/checkRole";
+import { requireAdminPage } from "@/lib/admin/guard";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  const res = await requireRole(["admin"]);
-
-  if (!res.ok) {
-    if (res.reason === "not_logged_in") {
-      redirect("/login");
-    }
-    redirect("/");
-  }
+  await requireAdminPage();
 
   return <>{children}</>;
 }

@@ -1,6 +1,7 @@
 // app/api/admin/users/[userId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireAdminApi } from "@/lib/admin/guard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,6 +20,12 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ userId: string }> }
 ) {
+  const admin = await requireAdminApi();
+
+  if (!admin.ok) {
+    return admin.response;
+  }
+
   const { userId } = await context.params;
 
   if (!userId) {
