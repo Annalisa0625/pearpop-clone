@@ -16,127 +16,32 @@ type SocialAccountForm = {
   audience_country: string;
 };
 
+type MenuForm = {
+  menu_type: string;
+  price: string;
+  description: string;
+};
+
 type DraftState = {
   step: number;
+  displayName: string;
   username: string;
-  fullName: string;
   email: string;
-  password: string;
   country: string;
   prefecture: string;
-  city: string;
   mainCategory: string;
   subCategories: string[];
-  contentLanguage: string;
-  responseLanguage: string;
   shortBio: string;
   isAdultConfirmed: boolean;
   socialAccounts: SocialAccountForm[];
-  menuType: string;
-  menuPrice: string;
-  menuDeliveryDays: string;
-  menuDescription: string;
-  allowSecondaryUse: boolean;
-  phoneCountryCode: string;
+  menus: MenuForm[];
   phoneNumber: string;
   agreedToTerms: boolean;
   agreedToPrivacy: boolean;
 };
 
-type SignupCopy = {
-  welcomeBadge: string;
-  welcomeTitle: string;
-  welcomeBody: string;
-  welcomeTime: string;
-  usernameTitle: string;
-  usernameBody: string;
-  accountTitle: string;
-  accountBody: string;
-  oauthConnected: string;
-  fullName: string;
-  email: string;
-  password: string;
-  signUpWithGoogle: string;
-  orText: string;
-  locationTitle: string;
-  locationBody: string;
-  country: string;
-  prefecture: string;
-  city: string;
-  categoryTitle: string;
-  categoryBody: string;
-  mainCategory: string;
-  subCategories: string;
-  contentLanguage: string;
-  responseLanguage: string;
-  shortBio: string;
-  adultConfirm: string;
-  socialTitle: string;
-  socialBody: string;
-  platform: string;
-  usernameOrUrl: string;
-  followerRange: string;
-  audienceCountry: string;
-  addSocial: string;
-  remove: string;
-  imagesTitle: string;
-  imagesBody: string;
-  avatar: string;
-  avatarHelp: string;
-  portfolio: string;
-  portfolioHelp: string;
-  imageChoose: string;
-  portfolioChoose: string;
-  menuTitle: string;
-  menuBody: string;
-  menuFeeNote: string;
-  menuType: string;
-  price: string;
-  deliveryDays: string;
-  menuDescription: string;
-  secondaryUse: string;
-  phoneTitle: string;
-  phoneBody: string;
-  phoneCountryCode: string;
-  phoneNumber: string;
-  sendCode: string;
-  verificationCode: string;
-  verifyCode: string;
-  verified: string;
-  continue: string;
-  back: string;
-  finish: string;
-  loading: string;
-  selectPlease: string;
-  usernameRequired: string;
-  usernameInvalid: string;
-  fullNameRequired: string;
-  emailRequired: string;
-  emailInvalid: string;
-  passwordRequired: string;
-  locationRequired: string;
-  categoryRequired: string;
-  socialRequired: string;
-  avatarRequired: string;
-  portfolioRequired: string;
-  menuRequired: string;
-  phoneRequired: string;
-  phoneVerifyRequired: string;
-  termsRequired: string;
-  devCodeAlert: string;
-  codeInvalid: string;
-  signupFailed: string;
-  imageUploadFailed: string;
-  termsLabel: string;
-  privacyLabel: string;
-  termsLink: string;
-  privacyLink: string;
-  alreadyRegistered: string;
-  duplicateUsername: string;
-  sessionMissing: string;
-};
+const STORAGE_KEY = "trendre_creator_signup_draft_v3";
 
-const STORAGE_KEY = "trendre_creator_signup_draft_v2";
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
 
@@ -169,16 +74,6 @@ const CATEGORY_OPTIONS_EN: Record<string, string> = {
   教育: "Education",
   テック: "Tech",
   エンタメ: "Entertainment",
-  その他: "Other",
-};
-
-const LANGUAGE_OPTIONS = ["日本語", "英語", "韓国語", "中国語", "その他"];
-
-const LANGUAGE_OPTIONS_EN: Record<string, string> = {
-  日本語: "Japanese",
-  英語: "English",
-  韓国語: "Korean",
-  中国語: "Chinese",
   その他: "Other",
 };
 
@@ -255,16 +150,78 @@ const AUDIENCE_COUNTRY_OPTIONS_EN: Record<string, string> = {
 };
 
 const MENU_OPTIONS = [
-  { value: "Instagram Reel", platform: "Instagram" },
-  { value: "Instagram Story", platform: "Instagram" },
-  { value: "Instagram Feed Post", platform: "Instagram" },
-  { value: "TikTok Video", platform: "TikTok" },
-  { value: "YouTube Short", platform: "YouTube" },
-  { value: "YouTube Video", platform: "YouTube" },
-  { value: "UGC Video", platform: "UGC" },
-  { value: "UGC Photo", platform: "UGC" },
-  { value: "UGC Ad Creative", platform: "UGC" },
-  { value: "イベント訪問", platform: "Event" },
+  {
+    value: "Instagram投稿",
+    labelJa: "Instagram投稿",
+    labelEn: "Instagram Feed Post",
+    helpJa: "Instagramのフィード投稿として企業の商品・サービスを紹介します。",
+    helpEn: "A feed post published on Instagram.",
+  },
+  {
+    value: "Instagramリール",
+    labelJa: "Instagramリール",
+    labelEn: "Instagram Reel",
+    helpJa: "Instagramリール動画として投稿します。",
+    helpEn: "A short-form video published as an Instagram Reel.",
+  },
+  {
+    value: "Instagramストーリーズ",
+    labelJa: "Instagramストーリーズ",
+    labelEn: "Instagram Stories",
+    helpJa: "Instagramストーリーズで紹介します。",
+    helpEn: "A story placement published on Instagram.",
+  },
+  {
+    value: "TikTok投稿",
+    labelJa: "TikTok投稿",
+    labelEn: "TikTok Video",
+    helpJa: "TikTok動画として投稿します。",
+    helpEn: "A video published on TikTok.",
+  },
+  {
+    value: "YouTubeショート",
+    labelJa: "YouTubeショート",
+    labelEn: "YouTube Short",
+    helpJa: "YouTube Shortsとして投稿します。",
+    helpEn: "A short-form video published on YouTube Shorts.",
+  },
+  {
+    value: "YouTube動画",
+    labelJa: "YouTube動画",
+    labelEn: "YouTube Video",
+    helpJa: "YouTube動画として投稿します。",
+    helpEn: "A video published on YouTube.",
+  },
+  {
+    value: "投稿なし・動画素材のみ納品",
+    labelJa: "投稿なし・動画素材のみ納品",
+    labelEn: "Video asset only, no posting",
+    helpJa:
+      "企業が広告やSNSで使う動画素材だけを納品します。あなたのSNSには投稿しません。",
+    helpEn: "Deliver video assets only. You do not post on your own account.",
+  },
+  {
+    value: "投稿なし・写真素材のみ納品",
+    labelJa: "投稿なし・写真素材のみ納品",
+    labelEn: "Photo asset only, no posting",
+    helpJa:
+      "企業が広告やSNSで使う写真素材だけを納品します。あなたのSNSには投稿しません。",
+    helpEn: "Deliver photo assets only. You do not post on your own account.",
+  },
+  {
+    value: "イベント訪問",
+    labelJa: "イベント訪問",
+    labelEn: "Event visit",
+    helpJa: "店舗・イベント・展示会などに訪問して投稿または素材制作を行います。",
+    helpEn: "Visit an event, store, or location for content creation.",
+  },
+  {
+    value: "その他",
+    labelJa: "その他",
+    labelEn: "Other",
+    helpJa: "上記以外の依頼メニューです。説明欄に内容を書いてください。",
+    helpEn: "Use this for custom requests. Add details in the description.",
+  },
 ];
 
 function createEmptySocial(): SocialAccountForm {
@@ -272,7 +229,15 @@ function createEmptySocial(): SocialAccountForm {
     platform: "",
     username_or_url: "",
     follower_range: "",
-    audience_country: "",
+    audience_country: "日本",
+  };
+}
+
+function createEmptyMenu(): MenuForm {
+  return {
+    menu_type: "",
+    price: "",
+    description: "",
   };
 }
 
@@ -302,11 +267,29 @@ function safeSocialAccounts(value: unknown): SocialAccountForm[] {
       platform: safeString(row.platform),
       username_or_url: safeString(row.username_or_url),
       follower_range: safeString(row.follower_range),
-      audience_country: safeString(row.audience_country),
+      audience_country: safeString(row.audience_country, "日本"),
     };
   });
 
   return sanitized.length > 0 ? sanitized : [createEmptySocial()];
+}
+
+function safeMenus(value: unknown): MenuForm[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return [createEmptyMenu()];
+  }
+
+  const sanitized = value.map((item) => {
+    const row = item as Record<string, unknown>;
+
+    return {
+      menu_type: safeString(row.menu_type),
+      price: safeString(row.price),
+      description: safeString(row.description),
+    };
+  });
+
+  return sanitized.length > 0 ? sanitized : [createEmptyMenu()];
 }
 
 function getOAuthRedirectUrl() {
@@ -315,7 +298,95 @@ function getOAuthRedirectUrl() {
 }
 
 function buildUsernamePreview(username: string) {
-  return `trendre.jp/@${username || "username"}`;
+  return `trendre.jp/@${username || "your-id"}`;
+}
+
+function normalizeHandle(input: string) {
+  return input.trim().replace(/^@/, "");
+}
+
+function getSocialConfig(platform: string, locale: Locale) {
+  if (platform === "Instagram") {
+    return {
+      prefix: "https://www.instagram.com/",
+      placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
+      guide:
+        locale === "ja"
+          ? "Instagramアプリ → プロフィールを編集 → ユーザーネームをコピーして貼り付けてください。@は不要です。"
+          : "Open Instagram → Edit profile → Copy your username. You do not need @.",
+    };
+  }
+
+  if (platform === "TikTok") {
+    return {
+      prefix: "https://www.tiktok.com/@",
+      placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
+      guide:
+        locale === "ja"
+          ? "TikTokアプリ → プロフィール → @から始まるユーザー名をコピーして貼り付けてください。@は不要です。"
+          : "Open TikTok → Profile → Copy the username after @. You do not need @.",
+    };
+  }
+
+  if (platform === "YouTube") {
+    return {
+      prefix: "https://www.youtube.com/@",
+      placeholder: locale === "ja" ? "例：yourchannel" : "e.g. yourchannel",
+      guide:
+        locale === "ja"
+          ? "YouTubeのハンドル名を入力してください。@は不要です。"
+          : "Enter your YouTube handle. You do not need @.",
+    };
+  }
+
+  if (platform === "X") {
+    return {
+      prefix: "https://x.com/",
+      placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
+      guide:
+        locale === "ja"
+          ? "Xのユーザー名を入力してください。@は不要です。"
+          : "Enter your X username. You do not need @.",
+    };
+  }
+
+  if (platform === "Website") {
+    return {
+      prefix: "",
+      placeholder:
+        locale === "ja" ? "https://example.com" : "https://example.com",
+      guide:
+        locale === "ja"
+          ? "WebサイトやポートフォリオURLを入力してください。"
+          : "Enter your website or portfolio URL.",
+    };
+  }
+
+  return {
+    prefix: "",
+    placeholder:
+      locale === "ja" ? "ユーザーネームを入力" : "Enter username",
+    guide:
+      locale === "ja"
+        ? "媒体を選ぶと入力方法のガイドが表示されます。"
+        : "Select a platform to see input guidance.",
+  };
+}
+
+function buildSocialPreview(platform: string, handle: string) {
+  const normalized = normalizeHandle(handle);
+
+  if (!platform || !normalized) return "";
+
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+
+  if (platform === "Instagram") return `https://www.instagram.com/${normalized}`;
+  if (platform === "TikTok") return `https://www.tiktok.com/@${normalized}`;
+  if (platform === "YouTube") return `https://www.youtube.com/@${normalized}`;
+  if (platform === "X") return `https://x.com/${normalized}`;
+  if (platform === "Website") return normalized;
+
+  return normalized;
 }
 
 function formatOption(
@@ -324,6 +395,18 @@ function formatOption(
   enMap: Record<string, string>
 ) {
   return locale === "ja" ? value : enMap[value] ?? value;
+}
+
+function getMenuLabel(value: string, locale: Locale) {
+  const item = MENU_OPTIONS.find((option) => option.value === value);
+  if (!item) return value || (locale === "ja" ? "未選択" : "Not selected");
+  return locale === "ja" ? item.labelJa : item.labelEn;
+}
+
+function getMenuHelp(value: string, locale: Locale) {
+  const item = MENU_OPTIONS.find((option) => option.value === value);
+  if (!item) return "";
+  return locale === "ja" ? item.helpJa : item.helpEn;
 }
 
 function fileExtension(file: File) {
@@ -345,7 +428,7 @@ function LocaleTabs({
         onClick={() => setLocale("ja")}
         className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
           locale === "ja"
-            ? "border-gray-900 bg-gray-900 text-white"
+            ? "border-gray-950 bg-gray-950 text-white"
             : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
         }`}
       >
@@ -356,7 +439,7 @@ function LocaleTabs({
         onClick={() => setLocale("en")}
         className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
           locale === "en"
-            ? "border-gray-900 bg-gray-900 text-white"
+            ? "border-gray-950 bg-gray-950 text-white"
             : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
         }`}
       >
@@ -368,40 +451,15 @@ function LocaleTabs({
 
 function StepDots({ total, current }: { total: number; current: number }) {
   return (
-    <div className="mt-2 flex items-center gap-2">
+    <div className="mt-5 flex items-center gap-2">
       {Array.from({ length: total }).map((_, index) => (
         <div
           key={index}
-          className={`h-2 flex-1 rounded-full ${
-            index <= current ? "bg-gray-900" : "bg-gray-200"
+          className={`h-2 flex-1 rounded-full transition ${
+            index <= current ? "bg-gray-950" : "bg-gray-200"
           }`}
         />
       ))}
-    </div>
-  );
-}
-
-function ImagePreview({
-  src,
-  label,
-  onRemove,
-}: {
-  src: string;
-  label: string;
-  onRemove?: () => void;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl bg-gray-100">
-      <img src={src} alt={label} className="aspect-square w-full object-cover" />
-      {onRemove ? (
-        <button
-          type="button"
-          onClick={onRemove}
-          className="absolute right-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-bold text-white"
-        >
-          ×
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -410,13 +468,17 @@ function FilePickerButton({
   children,
   multiple,
   onChange,
+  className = "",
 }: {
   children: ReactNode;
   multiple?: boolean;
   onChange: (files: File[]) => void;
+  className?: string;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-black">
+    <label
+      className={`inline-flex cursor-pointer items-center justify-center rounded-2xl bg-gray-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-black ${className}`}
+    >
       {children}
       <input
         type="file"
@@ -438,76 +500,74 @@ export default function SignupCreatorClient() {
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
+  const appLocale = locale as Locale;
 
-  const copy: SignupCopy = useMemo(
+  const copy = useMemo(
     () =>
-      locale === "ja"
+      appLocale === "ja"
         ? {
-            welcomeBadge: "Creator Sign Up",
-            welcomeTitle: "Trendreでクリエイター登録を始めましょう",
+            welcomeTitle: "Trendreで登録をはじめましょう",
             welcomeBody:
-              "プロフィール、SNS、ポートフォリオ画像、最初のメニューを登録すると、企業に見つけてもらいやすくなります。",
-            welcomeTime: "約5〜8分",
-            usernameTitle: "ユーザーネームを決めてください",
-            usernameBody:
-              "Trendreの公開プロフィールURLに使われます。普段使っているSNS名に揃えるのがおすすめです。",
-            accountTitle: "アカウントを作成してください",
+              "プロフィール、SNS、ポートフォリオ画像、メニューを登録すると、企業があなたに依頼しやすくなります。",
+            identityTitle: "表示名と公開URLを設定してください",
+            identityBody:
+              "表示名は企業に見える名前です。公開URL用IDはプロフィールURLに使われます。",
+            displayName: "表示名（日本語OK）",
+            displayNameHelp:
+              "例：京都美容ママ / 旅するRina / Yuna Beauty",
+            username: "公開URL用ID",
+            usernameHelp:
+              "URLに使うため、英小文字・数字・_・- のみ使えます。SNSの英数字IDに近いものがおすすめです。",
+            accountTitle: "ログイン方法を設定してください",
             accountBody: "Google、またはメールアドレスで登録できます。",
             oauthConnected: "連携済みアカウント",
-            fullName: "氏名",
             email: "メールアドレス",
-            password: "パスワード",
+            password: "パスワード（8文字以上）",
             signUpWithGoogle: "Googleで登録",
             orText: "または",
-            locationTitle: "活動地域を教えてください",
-            locationBody:
-              "ブランドがあなたの活動地域を理解しやすくなります。",
-            country: "国",
-            prefecture: "都道府県 / 州",
-            city: "市区町村（任意）",
-            categoryTitle: "発信内容を教えてください",
-            categoryBody:
-              "ブランドがあなたを見つけやすくするための基本情報です。",
+            profileTitle: "発信内容を教えてください",
+            profileBody:
+              "カテゴリは企業があなたを見つけるために使われます。地域は任意です。",
+            country: "国（任意）",
+            prefecture: "都道府県（任意）",
             mainCategory: "メインカテゴリ",
             subCategories: "サブカテゴリ（任意）",
-            contentLanguage: "発信言語",
-            responseLanguage: "対応言語",
             shortBio: "短い自己紹介（任意）",
             adultConfirm: "18歳以上です",
             socialTitle: "SNSアカウントを追加してください",
             socialBody:
-              "少なくとも1つ追加すると、ブランドがあなたの活動を理解しやすくなります。",
+              "媒体を選び、ユーザーネームを貼り付けてください。プロフィールURLは自動で作成されます。",
             platform: "媒体",
-            usernameOrUrl: "ユーザーネーム / URL",
+            socialHandle: "ユーザーネーム",
             followerRange: "フォロワー数の範囲",
             audienceCountry: "主な視聴者の国",
+            urlPreview: "プロフィールURLプレビュー",
             addSocial: "SNSを追加",
             remove: "削除",
             imagesTitle: "写真を追加してください",
             imagesBody:
-              "プロフィール画像は丸アイコンに、ポートフォリオ画像はB側一覧・詳細ページのギャラリーに使われます。",
-            avatar: "プロフィール画像（アイコン用）",
-            avatarHelp:
-              "B側一覧・詳細ページの小さい丸アイコンとして表示されます。",
-            portfolio: "ポートフォリオ画像（3枚以上必須）",
+              "プロフィール画像は丸アイコン、ポートフォリオ画像はB側の一覧・詳細ページに表示されます。",
+            avatar: "プロフィール画像",
+            avatarHelp: "B側に小さな丸アイコンとして表示されます。",
+            avatarChoose: "プロフィール画像を選択",
+            portfolio: "ポートフォリオ画像",
             portfolioHelp:
-              "B側のクリエイター一覧カード、詳細ページ上部ギャラリー、Portfolio欄に表示されます。",
-            imageChoose: "画像を選択",
-            portfolioChoose: "ポートフォリオ画像を選択",
-            menuTitle: "最初のメニューを作成してください",
+              "3枚以上必須です。1枚目は一覧カード、2枚目以降は詳細ページのギャラリーに使われます。",
+            portfolioChoose: "ポートフォリオ画像を追加",
+            imageSafetyNote:
+              "画像は登録完了時にアップロードされます。ページを閉じると画像は再選択が必要です。",
+            menuTitle: "メニューを作成してください",
             menuBody:
-              "ブランドがすぐ依頼できるように、最初のメニューを1つ登録しましょう。",
+              "企業が依頼しやすいように、料金メニューを1つ以上登録してください。後から追加・編集できます。",
             menuFeeNote: "Trendreの手数料は売上から差し引かれます。",
-            menuType: "メニュー種別",
+            menuType: "メニュー内容",
             price: "金額（円）",
-            deliveryDays: "納期（日）",
-            menuDescription: "説明文（任意）",
-            secondaryUse: "二次利用を許可する",
+            menuDescription: "補足説明（任意）",
+            addMenu: "メニューを追加",
             phoneTitle: "電話番号を確認してください",
             phoneBody:
-              "Trendreを安全で信頼できる場にするため、電話番号の本人確認を行います。",
-            phoneCountryCode: "国番号",
-            phoneNumber: "電話番号",
+              "安全な取引のため、電話番号確認を行います。現在は開発用コードで確認します。",
+            phoneNumber: "電話番号（例：09012345678）",
             sendCode: "認証コードを送信",
             verificationCode: "6桁認証コード",
             verifyCode: "確認する",
@@ -517,20 +577,18 @@ export default function SignupCreatorClient() {
             finish: "登録を完了する",
             loading: "処理中...",
             selectPlease: "選択してください",
-            usernameRequired: "ユーザーネームを入力してください",
+            displayNameRequired: "表示名を入力してください",
+            usernameRequired: "公開URL用IDを入力してください",
             usernameInvalid:
-              "ユーザーネームは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
-            fullNameRequired: "氏名を入力してください",
+              "公開URL用IDは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
             emailRequired: "メールアドレスを入力してください",
             emailInvalid: "メールアドレスの形式が正しくありません",
             passwordRequired: "パスワードは8文字以上必要です",
-            locationRequired: "国と都道府県 / 州を入力してください",
-            categoryRequired:
-              "メインカテゴリ、発信言語、対応言語、18歳以上確認が必要です",
+            categoryRequired: "メインカテゴリと18歳以上確認が必要です",
             socialRequired: "SNSを少なくとも1件、正しく入力してください",
             avatarRequired: "プロフィール画像を追加してください",
             portfolioRequired: "ポートフォリオ画像を3枚以上追加してください",
-            menuRequired: "最初のメニュー情報を入力してください",
+            menuRequired: "メニューを少なくとも1つ正しく入力してください",
             phoneRequired: "電話番号を入力してください",
             phoneVerifyRequired: "電話番号の確認を完了してください",
             termsRequired:
@@ -543,75 +601,71 @@ export default function SignupCreatorClient() {
             privacyLabel: "プライバシーポリシーに同意する",
             termsLink: "利用規約",
             privacyLink: "プライバシーポリシー",
-            alreadyRegistered: "このアカウントは既にクリエイター登録済みです",
-            duplicateUsername: "このユーザーネームは既に使われています",
+            duplicateUsername: "この公開URL用IDは既に使われています",
             sessionMissing:
               "アカウント作成後のログイン状態を確認できませんでした。Supabase Authでメール確認が必須になっている可能性があります。",
           }
         : {
-            welcomeBadge: "Creator Sign Up",
-            welcomeTitle: "Start your creator profile on Trendre",
+            welcomeTitle: "Start your Trendre registration",
             welcomeBody:
-              "Create your profile, add social accounts, portfolio images, and your first menu so brands can discover you.",
-            welcomeTime: "About 5–8 minutes",
-            usernameTitle: "Choose your username",
-            usernameBody:
-              "This will be used in your public Trendre profile URL. Matching your main social handle is recommended.",
-            accountTitle: "Create your account",
+              "Add your profile, social accounts, portfolio images, and menus so brands can request you.",
+            identityTitle: "Set your display name and public URL",
+            identityBody:
+              "Your display name is shown to brands. Your public URL ID is used in your profile URL.",
+            displayName: "Display name",
+            displayNameHelp: "Example: Yuna Beauty / Kyoto Creator",
+            username: "Public URL ID",
+            usernameHelp:
+              "Used in your profile URL. Lowercase letters, numbers, _, and - only.",
+            accountTitle: "Set up your login",
             accountBody: "You can sign up with Google or email and password.",
             oauthConnected: "Connected account",
-            fullName: "Full name",
             email: "Email",
             password: "Password",
             signUpWithGoogle: "Sign up with Google",
             orText: "or",
-            locationTitle: "Where are you based?",
-            locationBody:
-              "This helps brands understand your market and location.",
-            country: "Country",
-            prefecture: "State / Prefecture",
-            city: "City (optional)",
-            categoryTitle: "Tell brands what you create",
-            categoryBody:
-              "These details help brands discover you more easily.",
+            profileTitle: "Tell brands what you create",
+            profileBody:
+              "Categories help brands discover you. Location is optional.",
+            country: "Country (optional)",
+            prefecture: "State / Prefecture (optional)",
             mainCategory: "Main category",
             subCategories: "Sub-categories (optional)",
-            contentLanguage: "Content language",
-            responseLanguage: "Response language",
             shortBio: "Short bio (optional)",
             adultConfirm: "I am 18 years old or older",
             socialTitle: "Add your social accounts",
             socialBody:
-              "Add at least one account so brands can understand your platform and audience.",
+              "Select a platform and paste your username. We will build your profile URL automatically.",
             platform: "Platform",
-            usernameOrUrl: "Username / URL",
+            socialHandle: "Username",
             followerRange: "Follower range",
             audienceCountry: "Main audience country",
+            urlPreview: "Profile URL preview",
             addSocial: "Add social account",
             remove: "Remove",
             imagesTitle: "Add your images",
             imagesBody:
-              "Profile image is used as your round icon. Portfolio images are used on brand-facing cards and galleries.",
+              "Profile image is used as your round icon. Portfolio images are shown to brands.",
             avatar: "Profile image",
-            avatarHelp:
-              "Displayed as your small round icon on brand-facing pages.",
-            portfolio: "Portfolio images (3+ required)",
+            avatarHelp: "Displayed as your small round icon.",
+            avatarChoose: "Choose profile image",
+            portfolio: "Portfolio images",
             portfolioHelp:
-              "Displayed on creator cards, detail gallery, and Portfolio section.",
-            imageChoose: "Choose image",
-            portfolioChoose: "Choose portfolio images",
-            menuTitle: "Create your first menu",
-            menuBody: "Add one menu so brands can request you right away.",
+              "At least 3 are required. The first image is used on creator cards.",
+            portfolioChoose: "Add portfolio images",
+            imageSafetyNote:
+              "Images are uploaded when you complete registration. If you close the page, you will need to select them again.",
+            menuTitle: "Create your menus",
+            menuBody:
+              "Add at least one menu so brands can request you. You can edit them later.",
             menuFeeNote: "Trendre fee will be deducted from your payout.",
-            menuType: "Menu type",
+            menuType: "Menu content",
             price: "Price (JPY)",
-            deliveryDays: "Delivery days",
-            menuDescription: "Description (optional)",
-            secondaryUse: "Allow secondary use",
+            menuDescription: "Notes (optional)",
+            addMenu: "Add menu",
             phoneTitle: "Verify your phone number",
             phoneBody:
-              "Phone verification helps keep Trendre safe and trustworthy.",
-            phoneCountryCode: "Country code",
+              "Phone verification helps keep transactions safe. Development code is currently used.",
             phoneNumber: "Phone number",
             sendCode: "Send verification code",
             verificationCode: "6-digit code",
@@ -622,20 +676,19 @@ export default function SignupCreatorClient() {
             finish: "Complete registration",
             loading: "Processing...",
             selectPlease: "Please select",
-            usernameRequired: "Please enter a username",
+            displayNameRequired: "Please enter your display name",
+            usernameRequired: "Please enter your public URL ID",
             usernameInvalid:
-              "Username must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
-            fullNameRequired: "Please enter your full name",
+              "Public URL ID must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
             emailRequired: "Please enter your email address",
             emailInvalid: "Please enter a valid email address",
             passwordRequired: "Password must be at least 8 characters",
-            locationRequired: "Please enter your country and state / prefecture",
             categoryRequired:
-              "Main category, content language, response language, and age confirmation are required",
+              "Main category and age confirmation are required",
             socialRequired: "Please add at least one valid social account",
             avatarRequired: "Please add a profile image",
             portfolioRequired: "Please add at least 3 portfolio images",
-            menuRequired: "Please fill in your first menu",
+            menuRequired: "Please add at least one valid menu",
             phoneRequired: "Please enter your phone number",
             phoneVerifyRequired: "Please complete phone verification",
             termsRequired: "You must agree to the Terms and Privacy Policy",
@@ -647,28 +700,26 @@ export default function SignupCreatorClient() {
             privacyLabel: "I agree to the Privacy Policy",
             termsLink: "Terms of Service",
             privacyLink: "Privacy Policy",
-            alreadyRegistered: "This account is already registered as a creator",
-            duplicateUsername: "This username is already taken",
+            duplicateUsername: "This public URL ID is already taken",
             sessionMissing:
               "Could not confirm your signed-in session after account creation. Email confirmation may be required in Supabase Auth settings.",
           },
-    [locale]
+    [appLocale]
   );
 
   const [step, setStep] = useState(0);
+
+  const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
-  const [fullName, setFullName] = useState("");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [country, setCountry] = useState("Japan");
+  const [country, setCountry] = useState("");
   const [prefecture, setPrefecture] = useState("");
-  const [city, setCity] = useState("");
 
   const [mainCategory, setMainCategory] = useState("");
   const [subCategories, setSubCategories] = useState<string[]>([]);
-  const [contentLanguage, setContentLanguage] = useState("日本語");
-  const [responseLanguage, setResponseLanguage] = useState("日本語");
   const [shortBio, setShortBio] = useState("");
   const [isAdultConfirmed, setIsAdultConfirmed] = useState(false);
 
@@ -681,13 +732,8 @@ export default function SignupCreatorClient() {
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
 
-  const [menuType, setMenuType] = useState("");
-  const [menuPrice, setMenuPrice] = useState("");
-  const [menuDeliveryDays, setMenuDeliveryDays] = useState("");
-  const [menuDescription, setMenuDescription] = useState("");
-  const [allowSecondaryUse, setAllowSecondaryUse] = useState(false);
+  const [menus, setMenus] = useState<MenuForm[]>([createEmptyMenu()]);
 
-  const [phoneCountryCode, setPhoneCountryCode] = useState("+81");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [sentCode, setSentCode] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -724,26 +770,18 @@ export default function SignupCreatorClient() {
           ? Math.max(0, Math.min(draft.step, TOTAL_STEPS - 1))
           : 0
       );
+
+      setDisplayName(safeString(draft.displayName));
       setUsername(safeString(draft.username));
-      setFullName(safeString(draft.fullName));
       setEmail(safeString(draft.email));
-      setPassword(safeString(draft.password));
-      setCountry(safeString(draft.country, "Japan"));
+      setCountry(safeString(draft.country));
       setPrefecture(safeString(draft.prefecture));
-      setCity(safeString(draft.city));
       setMainCategory(safeString(draft.mainCategory));
       setSubCategories(safeStringArray(draft.subCategories));
-      setContentLanguage(safeString(draft.contentLanguage, "日本語"));
-      setResponseLanguage(safeString(draft.responseLanguage, "日本語"));
       setShortBio(safeString(draft.shortBio));
       setIsAdultConfirmed(safeBoolean(draft.isAdultConfirmed));
       setSocialAccounts(safeSocialAccounts(draft.socialAccounts));
-      setMenuType(safeString(draft.menuType));
-      setMenuPrice(safeString(draft.menuPrice));
-      setMenuDeliveryDays(safeString(draft.menuDeliveryDays));
-      setMenuDescription(safeString(draft.menuDescription));
-      setAllowSecondaryUse(safeBoolean(draft.allowSecondaryUse));
-      setPhoneCountryCode(safeString(draft.phoneCountryCode, "+81"));
+      setMenus(safeMenus(draft.menus));
       setPhoneNumber(safeString(draft.phoneNumber));
       setAgreedToTerms(safeBoolean(draft.agreedToTerms));
       setAgreedToPrivacy(safeBoolean(draft.agreedToPrivacy));
@@ -755,26 +793,17 @@ export default function SignupCreatorClient() {
   useEffect(() => {
     const draft: DraftState = {
       step,
+      displayName,
       username,
-      fullName,
       email,
-      password,
       country,
       prefecture,
-      city,
       mainCategory,
       subCategories,
-      contentLanguage,
-      responseLanguage,
       shortBio,
       isAdultConfirmed,
       socialAccounts,
-      menuType,
-      menuPrice,
-      menuDeliveryDays,
-      menuDescription,
-      allowSecondaryUse,
-      phoneCountryCode,
+      menus,
       phoneNumber,
       agreedToTerms,
       agreedToPrivacy,
@@ -783,26 +812,17 @@ export default function SignupCreatorClient() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
   }, [
     step,
+    displayName,
     username,
-    fullName,
     email,
-    password,
     country,
     prefecture,
-    city,
     mainCategory,
     subCategories,
-    contentLanguage,
-    responseLanguage,
     shortBio,
     isAdultConfirmed,
     socialAccounts,
-    menuType,
-    menuPrice,
-    menuDeliveryDays,
-    menuDescription,
-    allowSecondaryUse,
-    phoneCountryCode,
+    menus,
     phoneNumber,
     agreedToTerms,
     agreedToPrivacy,
@@ -828,16 +848,19 @@ export default function SignupCreatorClient() {
 
       const meta = session.user.user_metadata ?? {};
       const oauthName =
-        typeof meta.full_name === "string" && meta.full_name.trim()
-          ? meta.full_name.trim()
-          : typeof meta.name === "string" && meta.name.trim()
-            ? meta.name.trim()
-            : "";
+        typeof meta.display_name === "string" && meta.display_name.trim()
+          ? meta.display_name.trim()
+          : typeof meta.full_name === "string" && meta.full_name.trim()
+            ? meta.full_name.trim()
+            : typeof meta.name === "string" && meta.name.trim()
+              ? meta.name.trim()
+              : "";
+
       const oauthEmail =
         typeof session.user.email === "string" ? session.user.email : "";
 
       setOauthSessionEmail(oauthEmail || null);
-      setFullName((prev) => (prev.trim() ? prev : oauthName));
+      setDisplayName((prev) => (prev.trim() ? prev : oauthName));
       setEmail((prev) => (prev.trim() ? prev : oauthEmail));
 
       const { data: existingCreator } = await supabase
@@ -904,6 +927,23 @@ export default function SignupCreatorClient() {
     });
   };
 
+  const updateMenu = (index: number, key: keyof MenuForm, value: string) => {
+    setMenus((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [key]: value } : item))
+    );
+  };
+
+  const addMenu = () => {
+    setMenus((prev) => [...prev, createEmptyMenu()]);
+  };
+
+  const removeMenu = (index: number) => {
+    setMenus((prev) => {
+      if (prev.length === 1) return [createEmptyMenu()];
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   const handleAvatarSelect = (files: File[]) => {
     const file = files[0] ?? null;
 
@@ -947,6 +987,11 @@ export default function SignupCreatorClient() {
       const normalized = username.trim().toLowerCase();
       const valid = /^[a-z0-9][a-z0-9_-]{2,29}$/.test(normalized);
 
+      if (!displayName.trim()) {
+        setError(copy.displayNameRequired);
+        return false;
+      }
+
       if (!normalized) {
         setError(copy.usernameRequired);
         return false;
@@ -979,39 +1024,26 @@ export default function SignupCreatorClient() {
     if (step === 2) {
       const hasOAuth = !!oauthSessionEmail;
 
-      if (!fullName.trim()) {
-        setError(copy.fullNameRequired);
-        return false;
-      }
+      if (!hasOAuth) {
+        if (!email.trim()) {
+          setError(copy.emailRequired);
+          return false;
+        }
 
-      if (!email.trim()) {
-        setError(copy.emailRequired);
-        return false;
-      }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+          setError(copy.emailInvalid);
+          return false;
+        }
 
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        setError(copy.emailInvalid);
-        return false;
-      }
-
-      if (!hasOAuth && password.trim().length < 8) {
-        setError(copy.passwordRequired);
-        return false;
+        if (password.trim().length < 8) {
+          setError(copy.passwordRequired);
+          return false;
+        }
       }
     }
 
     if (step === 3) {
-      if (!country.trim() || !prefecture.trim()) {
-        setError(copy.locationRequired);
-        return false;
-      }
-
-      if (
-        !mainCategory.trim() ||
-        !contentLanguage.trim() ||
-        !responseLanguage.trim() ||
-        !isAdultConfirmed
-      ) {
+      if (!mainCategory.trim() || !isAdultConfirmed) {
         setError(copy.categoryRequired);
         return false;
       }
@@ -1058,24 +1090,26 @@ export default function SignupCreatorClient() {
     }
 
     if (step === 6) {
-      const priceNumber = Number(menuPrice);
-      const deliveryNumber = Number(menuDeliveryDays);
+      const filledMenus = menus.filter(
+        (menu) => menu.menu_type.trim() || menu.price.trim()
+      );
 
-      if (!menuType || !menuPrice.trim() || !menuDeliveryDays.trim()) {
+      if (filledMenus.length === 0) {
         setError(copy.menuRequired);
         return false;
       }
 
-      if (!Number.isFinite(priceNumber) || priceNumber <= 0) {
-        setError(copy.menuRequired);
-        return false;
-      }
+      const hasInvalidMenu = filledMenus.some((menu) => {
+        const priceNumber = Number(menu.price);
+        return (
+          !menu.menu_type.trim() ||
+          !menu.price.trim() ||
+          !Number.isFinite(priceNumber) ||
+          priceNumber <= 0
+        );
+      });
 
-      if (
-        !Number.isFinite(deliveryNumber) ||
-        !Number.isInteger(deliveryNumber) ||
-        deliveryNumber < 1
-      ) {
+      if (hasInvalidMenu) {
         setError(copy.menuRequired);
         return false;
       }
@@ -1203,7 +1237,8 @@ export default function SignupCreatorClient() {
       options: {
         emailRedirectTo: getOAuthRedirectUrl(),
         data: {
-          full_name: fullName.trim(),
+          full_name: displayName.trim(),
+          display_name: displayName.trim(),
           creator_username: username.trim().toLowerCase(),
         },
       },
@@ -1250,6 +1285,18 @@ export default function SignupCreatorClient() {
         throw new Error(copy.portfolioRequired);
       }
 
+      const validMenus = menus
+        .map((menu) => ({
+          menu_type: menu.menu_type.trim(),
+          price: Number(menu.price),
+          description: menu.description.trim() || null,
+        }))
+        .filter((menu) => menu.menu_type && menu.price > 0);
+
+      if (validMenus.length === 0) {
+        throw new Error(copy.menuRequired);
+      }
+
       const session = await ensureAuthenticatedSession();
       const ownerKey = session.user.id || username.trim().toLowerCase();
 
@@ -1276,9 +1323,6 @@ export default function SignupCreatorClient() {
         })
       );
 
-      const priceNumber = Number(menuPrice);
-      const deliveryNumber = Number(menuDeliveryDays);
-
       const res = await fetch("/api/signup/complete-creator", {
         method: "POST",
         headers: {
@@ -1290,31 +1334,32 @@ export default function SignupCreatorClient() {
           access_token: session.access_token,
 
           username: username.trim().toLowerCase(),
-          full_name: fullName.trim(),
+          display_name: displayName.trim(),
+          full_name: displayName.trim(),
           email: email.trim(),
 
           avatar_url: avatarUrl,
           portfolio_assets: portfolioAssets,
 
-          country: country.trim(),
-          prefecture: prefecture.trim(),
-          city: city.trim() || null,
+          country: country.trim() || null,
+          prefecture: prefecture.trim() || null,
+          city: null,
 
           main_category: mainCategory,
           sub_categories: subCategories,
-          content_language: contentLanguage,
-          response_language: responseLanguage,
+          content_language: "日本語",
+          response_language: "日本語",
           short_bio: shortBio.trim() || null,
           is_adult_confirmed: isAdultConfirmed,
 
-          phone_country_code: phoneCountryCode.trim(),
+          phone_country_code: "+81",
           phone_number: phoneNumber.trim(),
           phone_verified: phoneVerified,
 
           social_accounts: socialAccounts
             .map((account) => ({
               platform: account.platform.trim(),
-              username_or_url: account.username_or_url.trim(),
+              username_or_url: normalizeHandle(account.username_or_url),
               follower_range: account.follower_range.trim(),
               audience_country: account.audience_country.trim(),
             }))
@@ -1326,13 +1371,7 @@ export default function SignupCreatorClient() {
                 account.audience_country
             ),
 
-          first_menu: {
-            menu_type: menuType,
-            price: priceNumber,
-            delivery_days: deliveryNumber,
-            description: menuDescription.trim() || null,
-            allow_secondary_use: allowSecondaryUse,
-          },
+          first_menus: validMenus,
 
           agreed_to_terms: agreedToTerms,
           agreed_to_privacy: agreedToPrivacy,
@@ -1359,18 +1398,12 @@ export default function SignupCreatorClient() {
   const renderStep = () => {
     if (step === 0) {
       return (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-blue-600">
-            {copy.welcomeBadge}
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight">
+        <div className="rounded-[2rem] bg-white p-7 shadow-sm ring-1 ring-gray-100">
+          <h1 className="text-3xl font-black tracking-tight text-gray-950">
             {copy.welcomeTitle}
           </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
+          <p className="mt-4 text-[15px] leading-8 text-gray-600">
             {copy.welcomeBody}
-          </p>
-          <p className="mt-5 inline-flex rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
-            {copy.welcomeTime}
           </p>
         </div>
       );
@@ -1378,62 +1411,88 @@ export default function SignupCreatorClient() {
 
     if (step === 1) {
       return (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold">{copy.usernameTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">
-            {copy.usernameBody}
+        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          <h1 className="text-2xl font-black text-gray-950">
+            {copy.identityTitle}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-gray-600">
+            {copy.identityBody}
           </p>
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase())}
-            className="mt-6 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-            placeholder="username"
-          />
-          <p className="mt-3 text-sm font-semibold text-gray-500">
-            {buildUsernamePreview(username)}
-          </p>
+
+          <div className="mt-6 space-y-5">
+            <div>
+              <label className="text-sm font-bold text-gray-900">
+                {copy.displayName}
+              </label>
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                placeholder="例：京都美容ママ"
+              />
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                {copy.displayNameHelp}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-gray-900">
+                {copy.username}
+              </label>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                placeholder="例：kyoto_beauty"
+              />
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                {copy.usernameHelp}
+              </p>
+              <p className="mt-3 rounded-2xl bg-gray-50 px-4 py-3 text-sm font-bold text-gray-600">
+                {buildUsernamePreview(username)}
+              </p>
+            </div>
+          </div>
         </div>
       );
     }
 
     if (step === 2) {
       return (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold">{copy.accountTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">
+        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          <h1 className="text-2xl font-black text-gray-950">
+            {copy.accountTitle}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-gray-600">
             {copy.accountBody}
           </p>
 
           <button
             type="button"
             onClick={handleGoogleSignup}
-            className="mt-6 w-full rounded-2xl border bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+            className="mt-6 flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm font-black text-gray-900 transition hover:bg-gray-50"
           >
             {copy.signUpWithGoogle}
           </button>
 
-          <div className="my-6 text-center text-sm text-gray-400">
+          <div className="my-6 flex items-center gap-4 text-xs font-bold text-gray-400">
+            <div className="h-px flex-1 bg-gray-200" />
             {copy.orText}
+            <div className="h-px flex-1 bg-gray-200" />
           </div>
 
           {oauthSessionEmail ? (
-            <div className="rounded-2xl bg-green-50 p-4 text-sm font-semibold text-green-700">
+            <div className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">
               {copy.oauthConnected}: {oauthSessionEmail}
             </div>
           ) : null}
 
           <div className="mt-5 grid gap-4">
             <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-              placeholder={copy.fullName}
-            />
-            <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
               placeholder={copy.email}
               disabled={!!oauthSessionEmail}
             />
@@ -1442,7 +1501,7 @@ export default function SignupCreatorClient() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
                 placeholder={copy.password}
               />
             ) : null}
@@ -1454,121 +1513,85 @@ export default function SignupCreatorClient() {
     if (step === 3) {
       return (
         <div className="space-y-5">
-          <div className="rounded-3xl bg-white p-6 shadow-sm">
-            <h1 className="text-2xl font-bold">{copy.locationTitle}</h1>
-            <p className="mt-2 text-sm leading-7 text-gray-600">
-              {copy.locationBody}
+          <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+            <h1 className="text-2xl font-black text-gray-950">
+              {copy.profileTitle}
+            </h1>
+            <p className="mt-3 text-sm leading-7 text-gray-600">
+              {copy.profileBody}
             </p>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="mt-6 grid gap-4">
               <input
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+                className="rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
                 placeholder={copy.country}
               />
               <input
                 value={prefecture}
                 onChange={(e) => setPrefecture(e.target.value)}
-                className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+                className="rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
                 placeholder={copy.prefecture}
-              />
-              <input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900 md:col-span-2"
-                placeholder={copy.city}
               />
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white p-6 shadow-sm">
-            <h1 className="text-2xl font-bold">{copy.categoryTitle}</h1>
-            <p className="mt-2 text-sm leading-7 text-gray-600">
-              {copy.categoryBody}
+          <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+            <p className="text-sm font-black text-gray-950">
+              {copy.mainCategory}
             </p>
-
-            <div className="mt-6">
-              <p className="mb-3 text-sm font-semibold">{copy.mainCategory}</p>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORY_OPTIONS.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setMainCategory(item)}
-                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
-                      mainCategory === item
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "bg-white text-gray-700"
-                    }`}
-                  >
-                    {formatOption(item, locale, CATEGORY_OPTIONS_EN)}
-                  </button>
-                ))}
-              </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setMainCategory(item)}
+                  className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                    mainCategory === item
+                      ? "border-gray-950 bg-gray-950 text-white"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
+                </button>
+              ))}
             </div>
 
-            <div className="mt-6">
-              <p className="mb-3 text-sm font-semibold">
-                {copy.subCategories}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORY_OPTIONS.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleSubCategory(item)}
-                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
-                      subCategories.includes(item)
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "bg-white text-gray-700"
-                    }`}
-                  >
-                    {formatOption(item, locale, CATEGORY_OPTIONS_EN)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <select
-                value={contentLanguage}
-                onChange={(e) => setContentLanguage(e.target.value)}
-                className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
-              >
-                {LANGUAGE_OPTIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {formatOption(item, locale, LANGUAGE_OPTIONS_EN)}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={responseLanguage}
-                onChange={(e) => setResponseLanguage(e.target.value)}
-                className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
-              >
-                {LANGUAGE_OPTIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {formatOption(item, locale, LANGUAGE_OPTIONS_EN)}
-                  </option>
-                ))}
-              </select>
+            <p className="mt-7 text-sm font-black text-gray-950">
+              {copy.subCategories}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => toggleSubCategory(item)}
+                  className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                    subCategories.includes(item)
+                      ? "border-gray-950 bg-gray-950 text-white"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
+                </button>
+              ))}
             </div>
 
             <textarea
               value={shortBio}
               onChange={(e) => setShortBio(e.target.value)}
               rows={4}
-              className="mt-4 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+              className="mt-6 w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
               placeholder={copy.shortBio}
             />
 
-            <label className="mt-4 flex items-center gap-3 text-sm font-semibold">
+            <label className="mt-5 flex items-center gap-3 text-sm font-bold text-gray-900">
               <input
                 type="checkbox"
                 checked={isAdultConfirmed}
                 onChange={(e) => setIsAdultConfirmed(e.target.checked)}
+                className="h-4 w-4"
               />
               {copy.adultConfirm}
             </label>
@@ -1579,97 +1602,133 @@ export default function SignupCreatorClient() {
 
     if (step === 4) {
       return (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold">{copy.socialTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">
+        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          <h1 className="text-2xl font-black text-gray-950">
+            {copy.socialTitle}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-gray-600">
             {copy.socialBody}
           </p>
 
           <div className="mt-6 space-y-4">
-            {socialAccounts.map((social, index) => (
-              <div key={index} className="rounded-2xl border bg-gray-50 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="font-semibold">SNS {index + 1}</p>
-                  <button
-                    type="button"
-                    onClick={() => removeSocial(index)}
-                    className="text-sm font-semibold text-red-600"
-                  >
-                    {copy.remove}
-                  </button>
+            {socialAccounts.map((social, index) => {
+              const config = getSocialConfig(social.platform, appLocale);
+              const previewUrl = buildSocialPreview(
+                social.platform,
+                social.username_or_url
+              );
+
+              return (
+                <div
+                  key={index}
+                  className="rounded-[1.5rem] border border-gray-200 bg-gray-50 p-4"
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="font-black text-gray-950">SNS {index + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeSocial(index)}
+                      className="text-sm font-bold text-red-600"
+                    >
+                      {copy.remove}
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3">
+                    <select
+                      value={social.platform}
+                      onChange={(e) =>
+                        updateSocial(index, "platform", e.target.value)
+                      }
+                      className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                    >
+                      <option value="">{copy.platform}</option>
+                      {PLATFORM_OPTIONS.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div>
+                      <div className="flex overflow-hidden rounded-2xl border border-gray-200 bg-white focus-within:border-gray-950">
+                        {config.prefix ? (
+                          <div className="flex max-w-[48%] items-center bg-gray-50 px-3 text-xs font-bold text-gray-500">
+                            <span className="truncate">{config.prefix}</span>
+                          </div>
+                        ) : null}
+                        <input
+                          value={social.username_or_url}
+                          onChange={(e) =>
+                            updateSocial(
+                              index,
+                              "username_or_url",
+                              e.target.value
+                            )
+                          }
+                          className="min-w-0 flex-1 px-4 py-3 text-base outline-none"
+                          placeholder={config.placeholder}
+                        />
+                      </div>
+
+                      <p className="mt-2 text-xs leading-5 text-gray-500">
+                        {config.guide}
+                      </p>
+
+                      {previewUrl ? (
+                        <p className="mt-2 rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-600 ring-1 ring-gray-100">
+                          {copy.urlPreview}: {previewUrl}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <select
+                      value={social.follower_range}
+                      onChange={(e) =>
+                        updateSocial(index, "follower_range", e.target.value)
+                      }
+                      className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                    >
+                      <option value="">{copy.followerRange}</option>
+                      {FOLLOWER_RANGE_OPTIONS.map((item) => (
+                        <option key={item} value={item}>
+                          {formatOption(
+                            item,
+                            appLocale,
+                            FOLLOWER_RANGE_OPTIONS_EN
+                          )}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={social.audience_country}
+                      onChange={(e) =>
+                        updateSocial(index, "audience_country", e.target.value)
+                      }
+                      className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                    >
+                      <option value="">{copy.audienceCountry}</option>
+                      {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
+                        <option key={item} value={item}>
+                          {formatOption(
+                            item,
+                            appLocale,
+                            AUDIENCE_COUNTRY_OPTIONS_EN
+                          )}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <select
-                    value={social.platform}
-                    onChange={(e) =>
-                      updateSocial(index, "platform", e.target.value)
-                    }
-                    className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
-                  >
-                    <option value="">{copy.platform}</option>
-                    {PLATFORM_OPTIONS.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-
-                  <input
-                    value={social.username_or_url}
-                    onChange={(e) =>
-                      updateSocial(index, "username_or_url", e.target.value)
-                    }
-                    className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
-                    placeholder={copy.usernameOrUrl}
-                  />
-
-                  <select
-                    value={social.follower_range}
-                    onChange={(e) =>
-                      updateSocial(index, "follower_range", e.target.value)
-                    }
-                    className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
-                  >
-                    <option value="">{copy.followerRange}</option>
-                    {FOLLOWER_RANGE_OPTIONS.map((item) => (
-                      <option key={item} value={item}>
-                        {formatOption(
-                          item,
-                          locale,
-                          FOLLOWER_RANGE_OPTIONS_EN
-                        )}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={social.audience_country}
-                    onChange={(e) =>
-                      updateSocial(index, "audience_country", e.target.value)
-                    }
-                    className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
-                  >
-                    <option value="">{copy.audienceCountry}</option>
-                    {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
-                      <option key={item} value={item}>
-                        {formatOption(
-                          item,
-                          locale,
-                          AUDIENCE_COUNTRY_OPTIONS_EN
-                        )}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <button
             type="button"
             onClick={addSocial}
-            className="mt-5 w-full rounded-2xl border px-4 py-3 text-sm font-semibold"
+            className="mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-black text-gray-900 transition hover:bg-gray-50"
           >
             + {copy.addSocial}
           </button>
@@ -1679,68 +1738,109 @@ export default function SignupCreatorClient() {
 
     if (step === 5) {
       return (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold">{copy.imagesTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">
+        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          <h1 className="text-2xl font-black text-gray-950">
+            {copy.imagesTitle}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-gray-600">
             {copy.imagesBody}
           </p>
 
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <p className="font-semibold">{copy.avatar}</p>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                {copy.avatarHelp}
-              </p>
+          <div className="mt-5 rounded-2xl bg-blue-50 p-4 text-xs font-bold leading-6 text-blue-800">
+            {copy.imageSafetyNote}
+          </div>
 
-              <div className="mt-4">
+          <div className="mt-6 rounded-[1.5rem] border border-gray-200 bg-gray-50 p-5">
+            <div className="flex items-center gap-5">
+              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white ring-1 ring-gray-200">
                 {avatarPreview ? (
-                  <ImagePreview
+                  <img
                     src={avatarPreview}
-                    label={copy.avatar}
-                    onRemove={() => handleAvatarSelect([])}
+                    alt={copy.avatar}
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex aspect-square items-center justify-center rounded-2xl bg-white text-sm text-gray-400">
-                    {copy.avatar}
+                  <div className="flex h-full w-full items-center justify-center text-xs font-bold text-gray-400">
+                    Icon
                   </div>
                 )}
               </div>
 
-              <div className="mt-4">
-                <FilePickerButton onChange={handleAvatarSelect}>
-                  {copy.imageChoose}
-                </FilePickerButton>
+              <div className="min-w-0 flex-1">
+                <p className="font-black text-gray-950">{copy.avatar}</p>
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  {copy.avatarHelp}
+                </p>
+                <div className="mt-3">
+                  <FilePickerButton onChange={handleAvatarSelect}>
+                    {copy.avatarChoose}
+                  </FilePickerButton>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[1.5rem] border border-gray-200 bg-gray-50 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-black text-gray-950">{copy.portfolio}</p>
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  {copy.portfolioHelp}
+                </p>
+              </div>
+              <div className="rounded-full bg-white px-3 py-1 text-xs font-black text-gray-700 ring-1 ring-gray-200">
+                {portfolioPreviews.length}/3
               </div>
             </div>
 
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <p className="font-semibold">{copy.portfolio}</p>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                {copy.portfolioHelp}
-              </p>
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              {Array.from({ length: Math.max(3, portfolioPreviews.length) }).map(
+                (_, index) => {
+                  const preview = portfolioPreviews[index];
 
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                {portfolioPreviews.map((preview, index) => (
-                  <ImagePreview
-                    key={preview}
-                    src={preview}
-                    label={`${copy.portfolio} ${index + 1}`}
-                    onRemove={() => removePortfolioFile(index)}
-                  />
-                ))}
+                  if (preview) {
+                    return (
+                      <div
+                        key={preview}
+                        className="group relative aspect-square overflow-hidden rounded-2xl bg-white ring-1 ring-gray-200"
+                      >
+                        <img
+                          src={preview}
+                          alt={`${copy.portfolio} ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePortfolioFile(index)}
+                          className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs font-black text-white"
+                        >
+                          ×
+                        </button>
+                        {index === 0 ? (
+                          <div className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-gray-800">
+                            Main
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  }
 
-                {portfolioPreviews.length < 3 ? (
-                  <div className="flex aspect-square items-center justify-center rounded-2xl bg-white text-sm font-semibold text-gray-400">
-                    {portfolioPreviews.length}/3
-                  </div>
-                ) : null}
-              </div>
+                  return (
+                    <div
+                      key={`empty-${index}`}
+                      className="flex aspect-square items-center justify-center rounded-2xl bg-white text-xs font-black text-gray-300 ring-1 ring-dashed ring-gray-200"
+                    >
+                      {index + 1}
+                    </div>
+                  );
+                }
+              )}
+            </div>
 
-              <div className="mt-4">
-                <FilePickerButton multiple onChange={handlePortfolioSelect}>
-                  {copy.portfolioChoose}
-                </FilePickerButton>
-              </div>
+            <div className="mt-5">
+              <FilePickerButton multiple onChange={handlePortfolioSelect}>
+                {copy.portfolioChoose}
+              </FilePickerButton>
             </div>
           </div>
         </div>
@@ -1749,93 +1849,119 @@ export default function SignupCreatorClient() {
 
     if (step === 6) {
       return (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold">{copy.menuTitle}</h1>
-          <p className="mt-2 text-sm leading-7 text-gray-600">
+        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          <h1 className="text-2xl font-black text-gray-950">
+            {copy.menuTitle}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-gray-600">
             {copy.menuBody}
           </p>
-          <p className="mt-3 rounded-2xl bg-blue-50 p-4 text-sm text-blue-800">
+          <p className="mt-4 rounded-2xl bg-blue-50 p-4 text-xs font-bold leading-6 text-blue-800">
             {copy.menuFeeNote}
           </p>
 
-          <div className="mt-6 grid gap-4">
-            <select
-              value={menuType}
-              onChange={(e) => setMenuType(e.target.value)}
-              className="rounded-2xl border bg-white px-4 py-3 text-sm outline-none focus:border-gray-900"
-            >
-              <option value="">{copy.selectPlease}</option>
-              {MENU_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.value}
-                </option>
-              ))}
-            </select>
+          <div className="mt-6 space-y-4">
+            {menus.map((menu, index) => (
+              <div
+                key={index}
+                className="rounded-[1.5rem] border border-gray-200 bg-gray-50 p-4"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="font-black text-gray-950">
+                    Menu {index + 1}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => removeMenu(index)}
+                    className="text-sm font-bold text-red-600"
+                  >
+                    {copy.remove}
+                  </button>
+                </div>
 
-            <input
-              type="number"
-              min={1}
-              value={menuPrice}
-              onChange={(e) => setMenuPrice(e.target.value)}
-              className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-              placeholder={copy.price}
-            />
+                <div className="grid gap-3">
+                  <select
+                    value={menu.menu_type}
+                    onChange={(e) =>
+                      updateMenu(index, "menu_type", e.target.value)
+                    }
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                  >
+                    <option value="">{copy.selectPlease}</option>
+                    {MENU_OPTIONS.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {appLocale === "ja" ? item.labelJa : item.labelEn}
+                      </option>
+                    ))}
+                  </select>
 
-            <input
-              type="number"
-              min={1}
-              value={menuDeliveryDays}
-              onChange={(e) => setMenuDeliveryDays(e.target.value)}
-              className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-              placeholder={copy.deliveryDays}
-            />
+                  {menu.menu_type ? (
+                    <p className="rounded-2xl bg-white px-4 py-3 text-xs font-bold leading-6 text-gray-600 ring-1 ring-gray-100">
+                      {getMenuLabel(menu.menu_type, appLocale)}：{" "}
+                      {getMenuHelp(menu.menu_type, appLocale)}
+                    </p>
+                  ) : null}
 
-            <textarea
-              value={menuDescription}
-              onChange={(e) => setMenuDescription(e.target.value)}
-              rows={4}
-              className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-              placeholder={copy.menuDescription}
-            />
+                  <input
+                    type="number"
+                    min={1}
+                    value={menu.price}
+                    onChange={(e) => updateMenu(index, "price", e.target.value)}
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                    placeholder={copy.price}
+                  />
 
-            <label className="flex items-center gap-3 text-sm font-semibold">
-              <input
-                type="checkbox"
-                checked={allowSecondaryUse}
-                onChange={(e) => setAllowSecondaryUse(e.target.checked)}
-              />
-              {copy.secondaryUse}
-            </label>
+                  <textarea
+                    value={menu.description}
+                    onChange={(e) =>
+                      updateMenu(index, "description", e.target.value)
+                    }
+                    rows={3}
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                    placeholder={copy.menuDescription}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
+
+          <button
+            type="button"
+            onClick={addMenu}
+            className="mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-black text-gray-900 transition hover:bg-gray-50"
+          >
+            + {copy.addMenu}
+          </button>
         </div>
       );
     }
 
     return (
-      <div className="rounded-3xl bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold">{copy.phoneTitle}</h1>
-        <p className="mt-2 text-sm leading-7 text-gray-600">{copy.phoneBody}</p>
+      <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
+        <h1 className="text-2xl font-black text-gray-950">
+          {copy.phoneTitle}
+        </h1>
+        <p className="mt-3 text-sm leading-7 text-gray-600">{copy.phoneBody}</p>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-[120px_1fr]">
-          <input
-            value={phoneCountryCode}
-            onChange={(e) => setPhoneCountryCode(e.target.value)}
-            className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
-            placeholder={copy.phoneCountryCode}
-          />
-
+        <div className="mt-6">
           <input
             value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            className="rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+            onChange={(e) => {
+              setPhoneNumber(e.target.value);
+              setPhoneVerified(false);
+              setSentCode("");
+              setVerificationCode("");
+            }}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
             placeholder={copy.phoneNumber}
+            inputMode="tel"
           />
         </div>
 
         <button
           type="button"
           onClick={sendDevCode}
-          className="mt-4 rounded-2xl border px-5 py-3 text-sm font-semibold"
+          className="mt-4 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-gray-900 transition hover:bg-gray-50"
         >
           {copy.sendCode}
         </button>
@@ -1844,13 +1970,14 @@ export default function SignupCreatorClient() {
           <input
             value={verificationCode}
             onChange={(e) => setVerificationCode(e.target.value)}
-            className="flex-1 rounded-2xl border px-4 py-3 text-sm outline-none focus:border-gray-900"
+            className="min-w-0 flex-1 rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
             placeholder={copy.verificationCode}
+            inputMode="numeric"
           />
           <button
             type="button"
             onClick={verifyDevCode}
-            className="rounded-2xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white"
+            className="rounded-2xl bg-gray-950 px-5 py-3 text-sm font-black text-white"
           >
             {phoneVerified ? copy.verified : copy.verifyCode}
           </button>
@@ -1862,6 +1989,7 @@ export default function SignupCreatorClient() {
               type="checkbox"
               checked={agreedToTerms}
               onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="h-4 w-4"
             />
             <span>
               {copy.termsLabel}{" "}
@@ -1876,6 +2004,7 @@ export default function SignupCreatorClient() {
               type="checkbox"
               checked={agreedToPrivacy}
               onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+              className="h-4 w-4"
             />
             <span>
               {copy.privacyLabel}{" "}
@@ -1891,12 +2020,12 @@ export default function SignupCreatorClient() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-xl">
         <div className="mb-6 flex items-center justify-between">
-          <Link href="/home" className="text-xl font-black">
+          <Link href="/home" className="text-xl font-black text-gray-950">
             Trendre
           </Link>
-          <LocaleTabs locale={locale as Locale} setLocale={setLocale} />
+          <LocaleTabs locale={appLocale} setLocale={setLocale} />
         </div>
 
         <StepDots total={TOTAL_STEPS} current={currentProgress} />
@@ -1904,17 +2033,17 @@ export default function SignupCreatorClient() {
         <div className="mt-6">{renderStep()}</div>
 
         {error ? (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-6 text-red-700">
             {error}
           </div>
         ) : null}
 
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+        <div className="mt-6 flex flex-col-reverse gap-3">
           <button
             type="button"
             onClick={goBack}
             disabled={step === 0 || loading}
-            className="rounded-2xl border bg-white px-5 py-3 text-sm font-semibold text-gray-700 disabled:opacity-40"
+            className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm font-black text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {copy.back}
           </button>
@@ -1924,7 +2053,7 @@ export default function SignupCreatorClient() {
               type="button"
               onClick={() => void goNext()}
               disabled={loading}
-              className="rounded-2xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              className="w-full rounded-2xl bg-gray-950 px-6 py-4 text-sm font-black text-white transition hover:bg-black disabled:opacity-50"
             >
               {copy.continue}
             </button>
@@ -1933,7 +2062,7 @@ export default function SignupCreatorClient() {
               type="button"
               onClick={() => void handleFinish()}
               disabled={loading}
-              className="rounded-2xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              className="w-full rounded-2xl bg-gray-950 px-6 py-4 text-sm font-black text-white transition hover:bg-black disabled:opacity-50"
             >
               {loading ? copy.loading : copy.finish}
             </button>
