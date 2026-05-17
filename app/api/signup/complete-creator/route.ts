@@ -9,11 +9,17 @@ type SocialAccountInput = {
   audience_country: string;
 };
 
-type FirstMenuInput = {
+type MenuInput = {
   menu_type: string;
   price: number;
-  delivery_days: number;
-  description?: string;
+  description?: string | null;
+};
+
+type LegacyFirstMenuInput = {
+  menu_type: string;
+  price: number;
+  delivery_days?: number;
+  description?: string | null;
   allow_secondary_use?: boolean;
 };
 
@@ -28,30 +34,33 @@ type RequestBody = {
   access_token?: string;
 
   username: string;
-  full_name: string;
+  display_name?: string;
+  full_name?: string;
   email?: string;
   password?: string;
 
   avatar_url?: string | null;
   portfolio_assets?: PortfolioAssetInput[];
 
-  country: string;
-  prefecture: string;
-  city?: string;
+  country?: string | null;
+  prefecture?: string | null;
+  city?: string | null;
 
   main_category: string;
   sub_categories?: string[];
-  content_language: string;
-  response_language: string;
-  short_bio?: string;
+  content_language?: string | null;
+  response_language?: string | null;
+  short_bio?: string | null;
   is_adult_confirmed: boolean;
 
-  phone_country_code: string;
+  phone_country_code?: string | null;
   phone_number: string;
   phone_verified: boolean;
 
   social_accounts: SocialAccountInput[];
-  first_menu: FirstMenuInput;
+
+  first_menus?: MenuInput[];
+  first_menu?: LegacyFirstMenuInput;
 
   agreed_to_terms?: boolean;
   agreed_to_privacy?: boolean;
@@ -82,22 +91,26 @@ function isValidUsername(input: string) {
   return /^[a-z0-9][a-z0-9_-]{2,29}$/.test(input);
 }
 
+function normalizeSocialHandle(input: string) {
+  return input.trim().replace(/^@/, "");
+}
+
 function buildSocialUrl(platform: string, usernameOrUrl: string) {
   const value = usernameOrUrl.trim();
 
   if (/^https?:\/\//i.test(value)) return value;
 
+  const handle = normalizeSocialHandle(value);
+
   switch (platform) {
     case "Instagram":
-      return `https://www.instagram.com/${value.replace(/^@/, "")}`;
+      return `https://www.instagram.com/${handle}`;
     case "TikTok":
-      return `https://www.tiktok.com/@${value.replace(/^@/, "")}`;
+      return `https://www.tiktok.com/@${handle}`;
     case "X":
-      return `https://x.com/${value.replace(/^@/, "")}`;
+      return `https://x.com/${handle}`;
     case "YouTube":
-      return value.startsWith("@")
-        ? `https://www.youtube.com/${value}`
-        : `https://www.youtube.com/@${value.replace(/^@/, "")}`;
+      return `https://www.youtube.com/@${handle}`;
     case "Website":
       return value;
     default:
@@ -106,10 +119,16 @@ function buildSocialUrl(platform: string, usernameOrUrl: string) {
 }
 
 function inferPlatformFromMenuType(menuType: string) {
-  if (menuType.startsWith("Instagram")) return "Instagram";
-  if (menuType.startsWith("TikTok")) return "TikTok";
-  if (menuType.startsWith("YouTube")) return "YouTube";
-  if (menuType.startsWith("UGC")) return "UGC";
+  if (menuType.includes("Instagram")) return "Instagram";
+  if (menuType.includes("TikTok")) return "TikTok";
+  if (menuType.includes("YouTube")) return "YouTube";
+  if (
+    menuType.includes("投稿なし") ||
+    menuType.includes("素材のみ") ||
+    menuType.toLowerCase().includes("ugc")
+  ) {
+    return "UGC";
+  }
   if (menuType.includes("イベント")) return "Event";
   return "Other";
 }
@@ -117,8 +136,17 @@ function inferPlatformFromMenuType(menuType: string) {
 function inferMenuType(menuType: string) {
   const normalized = menuType.toLowerCase();
 
+  if (menuType.includes("投稿なし") && menuType.includes("動画")) {
+    return "ugc_video";
+  }
+
+  if (menuType.includes("投稿なし") && menuType.includes("写真")) {
+    return "ugc_photo";
+  }
+
   if (inferPlatformFromMenuType(menuType) === "UGC") return "ugc";
   if (normalized.includes("story")) return "story";
+
   if (
     normalized.includes("short") ||
     normalized.includes("reel") ||
@@ -126,12 +154,20 @@ function inferMenuType(menuType: string) {
   ) {
     return "short_video";
   }
-  if (normalized.includes("video")) return "video";
+
+  if (normalized.includes("video") || menuType.includes("動画")) {
+    return "video";
+  }
+
   return "post";
 }
 
-function buildReferencePriceText(price: number) {
-  return `¥${price.toLocaleString()}〜`;
+function isMaterialOnlyMenu(menuType: string) {
+  return (
+    menuType.includes("投稿なし") ||
+    menuType.includes("素材のみ") ||
+    inferPlatformFromMenuType(menuType) === "UGC"
+  );
 }
 
 async function findExistingUserByEmail(email: string) {
@@ -165,6 +201,30 @@ async function ensureNoDuplicateUsername(username: string, userId?: string | nul
   return true;
 }
 
+function normalizeMenus(body: RequestBody) {
+  if (Array.isArray(body.first_menus) && body.first_menus.length > 0) {
+    return body.first_menus
+      .map((menu) => ({
+        menu_type: menu.menu_type?.trim() ?? "",
+        price: Number(menu.price),
+        description: menu.description?.trim() || null,
+      }))
+      .filter((menu) => menu.menu_type || Number.isFinite(menu.price));
+  }
+
+  if (body.first_menu) {
+    return [
+      {
+        menu_type: body.first_menu.menu_type?.trim() ?? "",
+        price: Number(body.first_menu.price),
+        description: body.first_menu.description?.trim() || null,
+      },
+    ];
+  }
+
+  return [];
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as RequestBody;
@@ -173,6 +233,7 @@ export async function POST(req: Request) {
       auth_mode,
       access_token,
       username,
+      display_name,
       full_name,
       email,
       password,
@@ -180,23 +241,32 @@ export async function POST(req: Request) {
       portfolio_assets,
       country,
       prefecture,
-      city,
       main_category,
       sub_categories,
-      content_language,
-      response_language,
       short_bio,
       is_adult_confirmed,
-      phone_country_code,
       phone_number,
       phone_verified,
       social_accounts,
-      first_menu,
       agreed_to_terms,
       agreed_to_privacy,
     } = body;
 
     const normalizedUsername = normalizeUsername(username ?? "");
+    const normalizedDisplayName =
+      display_name?.trim() || full_name?.trim() || normalizedUsername;
+
+    const normalizedFullName = full_name?.trim() || normalizedDisplayName;
+
+    const normalizedCountry = country?.trim() || null;
+    const normalizedPrefecture = prefecture?.trim() || null;
+    const normalizedContentLanguage =
+      body.content_language?.trim() || "日本語";
+    const normalizedResponseLanguage =
+      body.response_language?.trim() || "日本語";
+    const normalizedPhoneCountryCode =
+      body.phone_country_code?.trim() || "+81";
+
     const normalizedSubCategories = Array.isArray(sub_categories)
       ? sub_categories.filter(
           (item): item is string =>
@@ -206,7 +276,7 @@ export async function POST(req: Request) {
 
     if (!normalizedUsername) {
       return NextResponse.json(
-        { error: "ユーザーネームを入力してください" },
+        { error: "公開URL用IDを入力してください" },
         { status: 400 }
       );
     }
@@ -215,7 +285,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "ユーザーネームは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
+            "公開URL用IDは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
         },
         { status: 400 }
       );
@@ -223,14 +293,14 @@ export async function POST(req: Request) {
 
     if (RESERVED_USERNAMES.has(normalizedUsername)) {
       return NextResponse.json(
-        { error: "このユーザーネームは使用できません" },
+        { error: "この公開URL用IDは使用できません" },
         { status: 400 }
       );
     }
 
-    if (!full_name?.trim()) {
+    if (!normalizedDisplayName) {
       return NextResponse.json(
-        { error: "氏名を入力してください" },
+        { error: "表示名を入力してください" },
         { status: 400 }
       );
     }
@@ -259,23 +329,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!country?.trim() || !prefecture?.trim()) {
-      return NextResponse.json(
-        { error: "地域情報を入力してください" },
-        { status: 400 }
-      );
-    }
-
     if (!main_category?.trim()) {
       return NextResponse.json(
         { error: "メインカテゴリを選択してください" },
-        { status: 400 }
-      );
-    }
-
-    if (!content_language?.trim() || !response_language?.trim()) {
-      return NextResponse.json(
-        { error: "発信言語と対応言語を選択してください" },
         { status: 400 }
       );
     }
@@ -287,7 +343,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!phone_country_code?.trim() || !phone_number?.trim() || !phone_verified) {
+    if (!phone_number?.trim() || !phone_verified) {
       return NextResponse.json(
         { error: "電話番号の本人確認が必要です" },
         { status: 400 }
@@ -330,23 +386,25 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!first_menu?.menu_type?.trim()) {
+    const normalizedMenus = normalizeMenus(body);
+
+    if (normalizedMenus.length === 0) {
       return NextResponse.json(
-        { error: "最初のメニュー種別を選択してください" },
+        { error: "メニューを少なくとも1つ追加してください" },
         { status: 400 }
       );
     }
 
-    if (!first_menu.price || Number(first_menu.price) <= 0) {
-      return NextResponse.json(
-        { error: "メニュー価格を入力してください" },
-        { status: 400 }
-      );
-    }
+    const invalidMenu = normalizedMenus.some(
+      (menu) =>
+        !menu.menu_type ||
+        !Number.isFinite(menu.price) ||
+        Number(menu.price) <= 0
+    );
 
-    if (!first_menu.delivery_days || Number(first_menu.delivery_days) <= 0) {
+    if (invalidMenu) {
       return NextResponse.json(
-        { error: "納期を入力してください" },
+        { error: "メニュー種別と価格を正しく入力してください" },
         { status: 400 }
       );
     }
@@ -387,11 +445,14 @@ export async function POST(req: Request) {
         );
       }
 
-      const duplicateOk = await ensureNoDuplicateUsername(normalizedUsername, null);
+      const duplicateOk = await ensureNoDuplicateUsername(
+        normalizedUsername,
+        null
+      );
 
       if (!duplicateOk) {
         return NextResponse.json(
-          { error: "このユーザーネームは既に使われています" },
+          { error: "この公開URL用IDは既に使われています" },
           { status: 400 }
         );
       }
@@ -402,15 +463,15 @@ export async function POST(req: Request) {
           password,
           email_confirm: true,
           user_metadata: {
-            full_name: full_name.trim(),
+            full_name: normalizedFullName,
+            display_name: normalizedDisplayName,
             creator_username: normalizedUsername,
-            creator_country: country.trim(),
-            creator_prefecture: prefecture.trim(),
-            creator_city: city?.trim() || null,
-            creator_content_language: content_language.trim(),
-            creator_response_language: response_language.trim(),
+            creator_country: normalizedCountry,
+            creator_prefecture: normalizedPrefecture,
+            creator_content_language: normalizedContentLanguage,
+            creator_response_language: normalizedResponseLanguage,
             creator_sub_categories: normalizedSubCategories,
-            creator_phone: `${phone_country_code.trim()}${phone_number.trim()}`,
+            creator_phone: `${normalizedPhoneCountryCode}${phone_number.trim()}`,
           },
         });
 
@@ -461,11 +522,14 @@ export async function POST(req: Request) {
         );
       }
 
-      const duplicateOk = await ensureNoDuplicateUsername(normalizedUsername, userId);
+      const duplicateOk = await ensureNoDuplicateUsername(
+        normalizedUsername,
+        userId
+      );
 
       if (!duplicateOk) {
         return NextResponse.json(
-          { error: "このユーザーネームは既に使われています" },
+          { error: "この公開URL用IDは既に使われています" },
           { status: 400 }
         );
       }
@@ -474,15 +538,15 @@ export async function POST(req: Request) {
         await supabaseAdmin.auth.admin.updateUserById(userId, {
           user_metadata: {
             ...currentUserMetadata,
-            full_name: full_name.trim(),
+            full_name: normalizedFullName,
+            display_name: normalizedDisplayName,
             creator_username: normalizedUsername,
-            creator_country: country.trim(),
-            creator_prefecture: prefecture.trim(),
-            creator_city: city?.trim() || null,
-            creator_content_language: content_language.trim(),
-            creator_response_language: response_language.trim(),
+            creator_country: normalizedCountry,
+            creator_prefecture: normalizedPrefecture,
+            creator_content_language: normalizedContentLanguage,
+            creator_response_language: normalizedResponseLanguage,
             creator_sub_categories: normalizedSubCategories,
-            creator_phone: `${phone_country_code.trim()}${phone_number.trim()}`,
+            creator_phone: `${normalizedPhoneCountryCode}${phone_number.trim()}`,
           },
         });
 
@@ -510,17 +574,18 @@ export async function POST(req: Request) {
       .from("creators")
       .insert({
         user_id: userId,
-        display_name: normalizedUsername,
-        full_name: full_name.trim(),
+        contact_email: currentEmail || email?.trim() || null,
+        display_name: normalizedDisplayName,
+        full_name: normalizedFullName,
         bio: short_bio?.trim() || null,
         category: main_category.trim(),
-        country: country.trim(),
-        prefecture: prefecture.trim(),
-        city: city?.trim() || null,
-        content_language: content_language.trim(),
-        response_language: response_language.trim(),
+        country: normalizedCountry,
+        prefecture: normalizedPrefecture,
+        city: null,
+        content_language: normalizedContentLanguage,
+        response_language: normalizedResponseLanguage,
         sub_categories: normalizedSubCategories,
-        phone_country_code: phone_country_code.trim(),
+        phone_country_code: normalizedPhoneCountryCode,
         phone_number: phone_number.trim(),
         phone_verified_at: phoneVerifiedAt,
         approval_status: "approved",
@@ -583,6 +648,7 @@ export async function POST(req: Request) {
       creator_id: creatorId,
       platform: item.platform,
       url: buildSocialUrl(item.platform, item.username_or_url),
+      handle: normalizeSocialHandle(item.username_or_url),
       follower_range: item.follower_range,
       audience_country: item.audience_country,
     }));
@@ -598,35 +664,43 @@ export async function POST(req: Request) {
       );
     }
 
-    const menuType = first_menu.menu_type.trim();
-    const menuPrice = Number(first_menu.price);
-    const deliveryDays = Number(first_menu.delivery_days);
+    const menuRows = normalizedMenus.map((menu, index) => {
+      const menuType = menu.menu_type.trim();
+      const platform = inferPlatformFromMenuType(menuType);
+      const menuPrice = Number(menu.price);
+      const matchingSocial =
+        socialRows.find((social) => social.platform === platform)?.url ??
+        socialRows[0]?.url ??
+        null;
 
-    const { error: menuError } = await supabaseAdmin
-      .from("creator_menus")
-      .insert({
+      return {
         creator_id: creatorId,
         title: menuType,
-        description: first_menu.description?.trim() || null,
-        platform: inferPlatformFromMenuType(menuType),
-        sns: inferPlatformFromMenuType(menuType),
+        description: menu.description || null,
+        platform,
+        sns: platform,
         price: menuPrice,
         currency: "JPY",
-        delivery_days: deliveryDays,
+        delivery_days: 7,
         deliverables: menuType,
         is_active: true,
         notes: null,
-        account_url: socialRows[0]?.url ?? null,
+        account_url: matchingSocial,
         reference_price_text: null,
-        allow_secondary_use: !!first_menu.allow_secondary_use,
+        allow_secondary_use: isMaterialOnlyMenu(menuType),
         category: main_category.trim(),
         menu_type: inferMenuType(menuType),
-        sort_order: 0,
-      });
+        sort_order: index,
+      };
+    });
+
+    const { error: menuError } = await supabaseAdmin
+      .from("creator_menus")
+      .insert(menuRows);
 
     if (menuError) {
       return NextResponse.json(
-        { error: menuError.message ?? "最初のメニュー作成に失敗しました" },
+        { error: menuError.message ?? "メニュー作成に失敗しました" },
         { status: 500 }
       );
     }
@@ -715,8 +789,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "internal error",
+        error: error instanceof Error ? error.message : "internal error",
       },
       { status: 500 }
     );
