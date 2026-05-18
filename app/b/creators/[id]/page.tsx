@@ -95,10 +95,50 @@ function getPlatformLabel(value: string | null | undefined) {
 function getPlatformIcon(value: string | null | undefined) {
   const normalized = normalizePlatform(value);
 
-  if (normalized.includes("instagram")) return "◎";
-  if (normalized.includes("tiktok")) return "♪";
-  if (normalized.includes("youtube")) return "▶";
-  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
+  if (normalized.includes("instagram")) {
+    return (
+      <img
+        src="/brand/social/instagram.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (normalized.includes("tiktok")) {
+    return (
+      <img
+        src="/brand/social/tiktok.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (normalized.includes("youtube")) {
+    return (
+      <img
+        src="/brand/social/youtube.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (normalized === "x" || normalized.includes("twitter")) {
+    return (
+      <img
+        src="/brand/social/x.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
   if (normalized.includes("ugc")) return "▣";
 
   return "●";
