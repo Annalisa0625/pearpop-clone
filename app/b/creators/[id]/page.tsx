@@ -362,14 +362,39 @@ function Badge({
 function PlatformMetricBadge({
   platform,
   value,
+  url,
 }: {
   platform: string | null | undefined;
   value: string | null | undefined;
+  url?: string | null;
 }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm">
+  const content = (
+    <>
       <span>{getPlatformIcon(platform)}</span>
       <span>{value?.trim() || getPlatformLabel(platform)}</span>
+    </>
+  );
+
+  if (url?.trim()) {
+    return (
+      <a
+        href={url.trim()}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+        className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        title={getPlatformLabel(platform)}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm">
+      {content}
     </span>
   );
 }
@@ -1312,10 +1337,11 @@ export default function CreatorDetailPage() {
 
                   return (
                     <PlatformMetricBadge
-                      key={platform}
-                      platform={platform}
-                      value={formatFollowerRange(social?.follower_range)}
-                    />
+  key={platform}
+  platform={platform}
+  value={formatFollowerRange(social?.follower_range)}
+  url={social?.url}
+/>
                   );
                 })
               ) : (
