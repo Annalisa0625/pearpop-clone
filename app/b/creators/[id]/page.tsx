@@ -807,7 +807,7 @@ export default function CreatorDetailPage() {
             checkBilling: "料金プランを見る",
             audience: "Audience",
             audienceNote:
-              "SNS連携データをもとに、フォロワー数・平均再生数・エンゲージメント・視聴者属性を表示予定です。",
+              "登録済みSNS情報をもとに、フォロワー帯と主な視聴者地域を表示しています。",
             portfolio: "Portfolio",
             portfolioNote:
               "クリエイターが登録した投稿実績・サンプル画像です。",
@@ -857,7 +857,7 @@ export default function CreatorDetailPage() {
             checkBilling: "View billing plans",
             audience: "Audience",
             audienceNote:
-              "Follower count, average views, engagement, and audience attributes can be shown here based on connected social data.",
+              "Showing follower range and main audience region based on registered social accounts.",
             portfolio: "Portfolio",
             portfolioNote:
               "Past work and sample images uploaded by the creator.",
@@ -1454,14 +1454,6 @@ export default function CreatorDetailPage() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                    {copy.analytics}
-                  </p>
-                  <p className="mt-1 text-lg font-black text-slate-950">
-                    API ready
-                  </p>
-                </div>
               </div>
             </div>
 
