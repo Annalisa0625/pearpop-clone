@@ -165,14 +165,6 @@ function formatPrice(
   }
 }
 
-function formatBps(value: number | null | undefined) {
-  if (value == null) return "-";
-
-  const percent = value / 100;
-
-  return `${Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(2)}%`;
-}
-
 function getOrderStatusLabel(
   status: string,
   paymentStatus: string,
@@ -189,10 +181,29 @@ function getOrderStatusLabel(
   }
 
   if (paymentStatus === "authorized") {
-    return locale === "ja" ? "与信確保済み" : "Authorized";
+    return locale === "ja" ? "支払い方法確認済み" : "Payment authorized";
   }
 
   return status;
+}
+
+function getPaymentStatusLabel(
+  paymentStatus: string | null | undefined,
+  locale: "ja" | "en"
+) {
+  if (paymentStatus === "authorized") {
+    return locale === "ja" ? "支払い方法確認済み" : "Payment authorized";
+  }
+
+  if (paymentStatus === "captured") {
+    return locale === "ja" ? "決済確定済み" : "Captured";
+  }
+
+  if (paymentStatus === "canceled") {
+    return locale === "ja" ? "キャンセル済み" : "Canceled";
+  }
+
+  return paymentStatus || "-";
 }
 
 function getOrderBadgeClass(status: string) {
@@ -205,6 +216,22 @@ function getOrderBadgeClass(status: string) {
   }
 
   return "bg-slate-100 text-slate-700 ring-slate-200";
+}
+
+function getPaymentBadgeClass(paymentStatus: string | null | undefined) {
+  if (paymentStatus === "authorized") {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  }
+
+  if (paymentStatus === "captured") {
+    return "bg-blue-50 text-blue-700 ring-blue-200";
+  }
+
+  if (paymentStatus === "canceled") {
+    return "bg-slate-100 text-slate-500 ring-slate-200";
+  }
+
+  return "bg-slate-100 text-slate-600 ring-slate-200";
 }
 
 function getDeadlineTime(value: string | null | undefined) {
@@ -338,28 +365,23 @@ export default function RequestsListPage() {
             loading: "読み込み中...",
             title: "承認待ち",
             subtitle:
-              "クリエイター承認待ちの注文と、旧リクエスト型の承認待ち依頼を確認できます。",
+              "クリエイターの承認待ち注文を確認できます。承認されると決済が確定し、案件が開始されます。",
             viewJobs: "進行中案件を見る",
-            empty: "現在、承認待ちの注文・リクエストはありません。",
+            empty: "現在、承認待ちの注文はありません。",
             emptyBody:
               "新しく注文した案件や、クリエイターの承認待ち案件がここに表示されます。",
             unnamedCreator: "unknown",
             unnamedProduct: "未入力",
-            productName: "商品名・案件名",
             sentAt: "送信日",
             menu: "メニュー",
-            price: "価格",
             menuPrice: "メニュー価格",
-            buyerFeeRate: "B側手数料率",
             marketplaceFee: "Trendre手数料",
             buyerTotal: "お支払い合計",
-            stripeAmount: "Stripe決済額",
             creatorDeadline: "承認期限",
             creatorDeadlineExpired: "承認期限切れ",
             detail: "詳細を見る",
             legacyRequest: "旧リクエスト",
             order: "注文",
-            notSet: "未設定",
             newMessage: "新着メッセージあり",
             lastMessage: "最終メッセージ",
             urgentNotice:
@@ -367,33 +389,29 @@ export default function RequestsListPage() {
             total: "すべて",
             urgent: "期限間近",
             unread: "未読",
+            paymentStatus: "支払い状態",
           }
         : {
             loading: "Loading...",
             title: "Pending",
             subtitle:
-              "Review orders waiting for creator approval and legacy pending requests.",
+              "Review orders waiting for creator approval. Once accepted, the payment is captured and the job begins.",
             viewJobs: "View Active Jobs",
-            empty: "There are no pending orders or requests.",
+            empty: "There are no pending orders.",
             emptyBody:
-              "Newly placed orders and requests waiting for creator approval will appear here.",
+              "Newly placed orders waiting for creator approval will appear here.",
             unnamedCreator: "unknown",
             unnamedProduct: "Not entered",
-            productName: "Product / Campaign",
             sentAt: "Sent At",
             menu: "Menu",
-            price: "Price",
             menuPrice: "Menu price",
-            buyerFeeRate: "Buyer fee rate",
             marketplaceFee: "Trendre fee",
             buyerTotal: "Payment total",
-            stripeAmount: "Stripe amount",
             creatorDeadline: "Approval deadline",
             creatorDeadlineExpired: "Approval expired",
             detail: "View Details",
             legacyRequest: "Legacy Request",
             order: "Order",
-            notSet: "Not set",
             newMessage: "New messages",
             lastMessage: "Last message",
             urgentNotice:
@@ -401,6 +419,7 @@ export default function RequestsListPage() {
             total: "Total",
             urgent: "Urgent",
             unread: "Unread",
+            paymentStatus: "Payment",
           },
     [safeLocale]
   );
@@ -819,8 +838,8 @@ export default function RequestsListPage() {
                   isUrgent
                     ? "border-amber-200 ring-2 ring-amber-100"
                     : unread
-                    ? "border-blue-200 ring-2 ring-blue-100"
-                    : "border-slate-100"
+                      ? "border-blue-200 ring-2 ring-blue-100"
+                      : "border-slate-100"
                 }`}
               >
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -837,13 +856,24 @@ export default function RequestsListPage() {
                       </Pill>
 
                       {isOrder ? (
-                        <Pill className={getOrderBadgeClass(item.status)}>
-                          {getOrderStatusLabel(
-                            item.status,
-                            item.payment_status ?? "",
-                            safeLocale
-                          )}
-                        </Pill>
+                        <>
+                          <Pill className={getOrderBadgeClass(item.status)}>
+                            {getOrderStatusLabel(
+                              item.status,
+                              item.payment_status ?? "",
+                              safeLocale
+                            )}
+                          </Pill>
+
+                          <Pill
+                            className={getPaymentBadgeClass(item.payment_status)}
+                          >
+                            {getPaymentStatusLabel(
+                              item.payment_status,
+                              safeLocale
+                            )}
+                          </Pill>
+                        </>
                       ) : legacyMeta ? (
                         <Pill className={getRequestStatusBadgeClass(legacyMeta.tone)}>
                           {legacyMeta.shortLabel}
@@ -876,7 +906,7 @@ export default function RequestsListPage() {
 
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-slate-500">
-                          @{item.creator_name}
+                          {item.creator_name}
                         </p>
                         <h2 className="mt-1 truncate text-2xl font-black text-slate-950">
                           {item.product_name ?? copy.unnamedProduct}
@@ -902,10 +932,7 @@ export default function RequestsListPage() {
                         label={copy.menuPrice}
                         value={formatPrice(item.amount, item.currency, safeLocale)}
                       />
-                      <DetailRow
-                        label={copy.buyerFeeRate}
-                        value={formatBps(item.buyer_marketplace_fee_rate_bps)}
-                      />
+
                       <DetailRow
                         label={copy.marketplaceFee}
                         value={formatPrice(
@@ -914,6 +941,7 @@ export default function RequestsListPage() {
                           safeLocale
                         )}
                       />
+
                       <DetailRow
                         label={copy.buyerTotal}
                         value={formatPrice(
@@ -923,10 +951,7 @@ export default function RequestsListPage() {
                         )}
                         strong
                       />
-                      <DetailRow
-                        label={copy.stripeAmount}
-                        value={formatPrice(item.stripe_amount, item.currency, safeLocale)}
-                      />
+
                       <DetailRow
                         label={copy.sentAt}
                         value={formatDateTime(item.created_at, safeLocale)}
