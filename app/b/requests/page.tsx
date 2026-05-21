@@ -112,7 +112,7 @@ function Avatar({
       <img
         src={avatarUrl}
         alt={name}
-        className="h-14 w-14 rounded-2xl object-cover"
+        className="h-14 w-14 rounded-2xl object-cover shadow-sm"
       />
     );
   }
@@ -120,7 +120,7 @@ function Avatar({
   const initial = (name?.trim()?.[0] ?? "C").toUpperCase();
 
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 text-lg font-black text-white">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff6b6b] to-[#7bae6c] text-lg font-black text-white shadow-sm">
       {initial}
     </div>
   );
@@ -208,7 +208,7 @@ function getPaymentStatusLabel(
 
 function getOrderBadgeClass(status: string) {
   if (status === "authorized_pending_creator") {
-    return "bg-amber-100 text-amber-800 ring-amber-200";
+    return "bg-amber-50 text-amber-800 ring-amber-200";
   }
 
   if (status === "checkout_pending") {
@@ -284,31 +284,22 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  tone?: "default" | "dark" | "amber" | "blue";
+  tone?: "default" | "accent" | "amber" | "blue";
 }) {
   const styles = {
     default: "border-slate-100 bg-white text-slate-950",
-    dark: "border-slate-950 bg-slate-950 text-white",
+    accent:
+      "border-rose-100 bg-gradient-to-br from-white to-rose-50 text-slate-950",
     amber: "border-amber-100 bg-amber-50 text-slate-950",
     blue: "border-blue-100 bg-blue-50 text-slate-950",
   };
 
   return (
     <div className={`rounded-[26px] border p-5 shadow-sm ${styles[tone]}`}>
-      <p
-        className={`text-xs font-black uppercase tracking-[0.2em] ${
-          tone === "dark" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
         {label}
       </p>
-      <p
-        className={`mt-3 text-3xl font-black ${
-          tone === "dark" ? "text-white" : "text-slate-950"
-        }`}
-      >
-        {value}
-      </p>
+      <p className="mt-3 text-3xl font-black text-slate-950">{value}</p>
     </div>
   );
 }
@@ -354,6 +345,81 @@ function DetailRow({
   );
 }
 
+function EmptyState({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
+      <div className="grid gap-0 md:grid-cols-[1.15fr_0.85fr]">
+        <div className="p-8 md:p-10">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-rose-50 to-emerald-50 text-3xl">
+            🌱
+          </div>
+
+          <h2 className="text-2xl font-black tracking-tight text-slate-950">
+            {title}
+          </h2>
+
+          <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
+            {body}
+          </p>
+
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Link
+              href="/b/creators"
+              className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              クリエイターを探す
+            </Link>
+
+            <Link
+              href="/b/saved-creators"
+              className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
+            >
+              保存済みを見る
+            </Link>
+
+            <Link
+              href="/b/jobs"
+              className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
+            >
+              進行中案件を見る
+            </Link>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 bg-slate-50 p-8 md:border-l md:border-t-0">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+            Next steps
+          </p>
+
+          <div className="mt-5 space-y-4">
+            {[
+              ["1", "クリエイターを探す", "条件に合うCを検索します。"],
+              ["2", "メニューを選んで注文", "支払い方法を確認します。"],
+              ["3", "承認を待つ", "Cが承認すると案件が開始されます。"],
+            ].map(([number, heading, text]) => (
+              <div key={number} className="flex gap-3 rounded-2xl bg-white p-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+                  {number}
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-950">{heading}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RequestsListPage() {
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
@@ -365,11 +431,11 @@ export default function RequestsListPage() {
             loading: "読み込み中...",
             title: "承認待ち",
             subtitle:
-              "クリエイターの承認待ち注文を確認できます。承認されると決済が確定し、案件が開始されます。",
+              "注文した案件のクリエイター承認状況を確認できます。承認されると決済が確定し、案件が開始されます。",
             viewJobs: "進行中案件を見る",
-            empty: "現在、承認待ちの注文はありません。",
+            empty: "まだ承認待ちの注文はありません",
             emptyBody:
-              "新しく注文した案件や、クリエイターの承認待ち案件がここに表示されます。",
+              "新しい注文が入るとここに表示されます♪ 気になるクリエイターを探して、メニューを選んで注文してみましょう。",
             unnamedCreator: "unknown",
             unnamedProduct: "未入力",
             sentAt: "送信日",
@@ -397,9 +463,9 @@ export default function RequestsListPage() {
             subtitle:
               "Review orders waiting for creator approval. Once accepted, the payment is captured and the job begins.",
             viewJobs: "View Active Jobs",
-            empty: "There are no pending orders.",
+            empty: "No pending orders yet",
             emptyBody:
-              "Newly placed orders waiting for creator approval will appear here.",
+              "New orders waiting for creator approval will appear here. Find a creator, choose a menu, and place your first order.",
             unnamedCreator: "unknown",
             unnamedProduct: "Not entered",
             sentAt: "Sent At",
@@ -753,33 +819,39 @@ export default function RequestsListPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 pb-10 md:p-6">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          Company Pending
-        </p>
+    <div className="mx-auto max-w-6xl space-y-7 p-4 pb-10 md:p-6">
+      <section className="overflow-hidden rounded-[34px] border border-slate-100 bg-white shadow-sm">
+        <div className="relative p-7 md:p-8">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-rose-100/50 blur-3xl" />
+          <div className="absolute bottom-0 right-24 h-36 w-36 rounded-full bg-emerald-100/60 blur-3xl" />
 
-        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-              {copy.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
-              {copy.subtitle}
-            </p>
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-400">
+                Company Pending
+              </p>
+
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+                {copy.title}
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+                {copy.subtitle}
+              </p>
+            </div>
+
+            <Link
+              href="/b/jobs"
+              className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              {copy.viewJobs}
+            </Link>
           </div>
-
-          <Link
-            href="/b/jobs"
-            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-          >
-            {copy.viewJobs}
-          </Link>
         </div>
       </section>
 
       <section className="grid grid-cols-3 gap-4">
-        <StatCard label={copy.total} value={items.length} tone="dark" />
+        <StatCard label={copy.total} value={items.length} tone="accent" />
         <StatCard
           label={copy.urgent}
           value={urgentCount}
@@ -799,17 +871,7 @@ export default function RequestsListPage() {
       ) : null}
 
       {items.length === 0 ? (
-        <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
-            ◎
-          </div>
-          <h2 className="mt-5 text-xl font-black text-slate-950">
-            {copy.empty}
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
-            {copy.emptyBody}
-          </p>
-        </div>
+        <EmptyState title={copy.empty} body={copy.emptyBody} />
       ) : (
         <section className="space-y-4">
           {items.map((item) => {
