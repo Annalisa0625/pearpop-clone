@@ -1,4 +1,4 @@
-//app/components/PublicHeader.tsx
+// File: components/PublicHeader.tsx
 "use client";
 
 import Link from "next/link";
@@ -12,10 +12,10 @@ function LocaleTabs() {
       <button
         type="button"
         onClick={() => setLocale("ja")}
-        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+        className={`rounded-full border px-4 py-2 text-sm font-black transition ${
           locale === "ja"
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            ? "border-slate-950 bg-slate-950 text-white"
+            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
         }`}
       >
         JA
@@ -24,10 +24,10 @@ function LocaleTabs() {
       <button
         type="button"
         onClick={() => setLocale("en")}
-        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+        className={`rounded-full border px-4 py-2 text-sm font-black transition ${
           locale === "en"
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            ? "border-slate-950 bg-slate-950 text-white"
+            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
         }`}
       >
         EN
@@ -42,75 +42,70 @@ export default function PublicHeader() {
   const copy =
     locale === "ja"
       ? {
-          brand: "Trendre",
           home: "Home",
-          creators: "クリエイター向け",
           companies: "企業向け",
+          creators: "クリエイター向け",
           login: "ログイン",
-          signupCreator: "クリエイター登録",
-          signupCompany: "企業登録",
+          companySignup: "無料で企業登録",
+          creatorSignup: "クリエイター登録",
         }
       : {
-          brand: "Trendre",
           home: "Home",
+          companies: "For Brands",
           creators: "For Creators",
-          companies: "For Companies",
           login: "Login",
-          signupCreator: "Creator Signup",
-          signupCompany: "Company Signup",
+          companySignup: "Join as a Brand",
+          creatorSignup: "Creator Signup",
         };
 
   return (
-    <header className="border-b bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:px-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center justify-between gap-4">
-          <Link href="/" className="text-2xl font-bold tracking-tight">
-            {copy.brand}
+    <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
+        <Link href="/home" className="flex items-center">
+          <img
+            src="/brand/trendre-logo-full.png"
+            alt="Trendre"
+            className="h-10 w-auto object-contain md:h-11"
+          />
+        </Link>
+
+        <nav className="hidden items-center gap-8 text-sm font-black text-slate-700 md:flex">
+          <Link href="/home" className="transition hover:text-slate-950">
+            {copy.home}
           </Link>
-          <div className="lg:hidden">
-            <LocaleTabs />
-          </div>
+          <Link href="/for-companies" className="transition hover:text-slate-950">
+            {copy.companies}
+          </Link>
+          <Link href="/for-creators" className="transition hover:text-slate-950">
+            {copy.creators}
+          </Link>
+        </nav>
+
+        <div className="hidden items-center gap-3 lg:flex">
+          <LocaleTabs />
+
+          <Link
+            href="/login"
+            className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-300"
+          >
+            {copy.login}
+          </Link>
+
+          <Link
+            href="/signup/company"
+            className="rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-lg shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+          >
+            {copy.companySignup}
+          </Link>
         </div>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
-          <nav className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-700">
-            <Link href="/" className="hover:text-black">
-              {copy.home}
-            </Link>
-            <Link href="/for-creators" className="hover:text-black">
-              {copy.creators}
-            </Link>
-            <Link href="/for-companies" className="hover:text-black">
-              {copy.companies}
-            </Link>
-          </nav>
-
-          <div className="hidden lg:block">
-            <LocaleTabs />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/login"
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              {copy.login}
-            </Link>
-
-            <Link
-              href="/signup/creator-entry"
-              className="rounded-xl border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black"
-            >
-              {copy.signupCreator}
-            </Link>
-
-            <Link
-              href="/signup/company-entry"
-              className="rounded-xl border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-            >
-              {copy.signupCompany}
-            </Link>
-          </div>
+        <div className="flex items-center gap-2 lg:hidden">
+          <Link
+            href="/signup/company"
+            className="rounded-full bg-[#ff5f67] px-4 py-2 text-xs font-black text-white shadow-md shadow-rose-500/20"
+          >
+            {locale === "ja" ? "企業登録" : "Join"}
+          </Link>
         </div>
       </div>
     </header>
