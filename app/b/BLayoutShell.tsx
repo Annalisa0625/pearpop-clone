@@ -48,6 +48,10 @@ type UnreadState = {
 function isActivePath(pathname: string, href: string) {
   if (pathname === href) return true;
 
+  if (href === "/home") {
+    return pathname === "/home";
+  }
+
   if (href === "/b/dashboard") {
     return pathname === "/b" || pathname === "/b/dashboard";
   }
@@ -132,6 +136,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     () =>
       locale === "ja"
         ? {
+            dashboard: "ダッシュボード",
             billing: "料金プラン",
             loggingOut: "ログアウト中...",
             logout: "ログアウト",
@@ -145,13 +150,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             search: "クリエイター検索",
             saved: "保存済み",
             home: "Home",
-            pending: "Pending",
-            pricing: "Pricing",
             company: "Company",
             consoleTitle: "Company",
             menu: "Menu",
           }
         : {
+            dashboard: "Dashboard",
             billing: "Billing",
             loggingOut: "Logging out...",
             logout: "Logout",
@@ -165,8 +169,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             search: "Search",
             saved: "Saved",
             home: "Home",
-            pending: "Pending",
-            pricing: "Pricing",
             company: "Company",
             consoleTitle: "Company",
             menu: "Menu",
@@ -177,7 +179,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   const topNavItems: TopNavItem[] = useMemo(
     () => [
       {
-        href: "/b/dashboard",
+        href: "/home",
         label: copy.home,
       },
       {
@@ -196,7 +198,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     () => [
       {
         href: "/b/dashboard",
-        shortLabel: locale === "ja" ? "ホーム" : "Home",
+        shortLabel: locale === "ja" ? "管理" : "Dashboard",
       },
       {
         href: "/b/creators",
@@ -204,7 +206,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       },
       {
         href: "/b/requests",
-        shortLabel: locale === "ja" ? "依頼" : "Pending",
+        shortLabel: locale === "ja" ? "承認待ち" : "Pending",
         badgeKey: "requests",
       },
       {
@@ -528,7 +530,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-[100] border-b bg-white/95 backdrop-blur">
         <div className="flex w-full items-center justify-between px-6 py-3 md:px-10 lg:px-14">
           <div className="flex items-center">
-            <Link href="/b/dashboard" className="flex items-center">
+            <Link href="/home" className="flex items-center">
               <img
                 src="/brand/trendre-logo-full.png"
                 alt="Trendre"
@@ -593,6 +595,14 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                         {copy.consoleTitle}
                       </p>
                     </div>
+
+                    <Link
+                      href="/b/dashboard"
+                      onClick={closeProfileMenu}
+                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      {copy.dashboard}
+                    </Link>
 
                     <Link
                       href="/b/profile"
