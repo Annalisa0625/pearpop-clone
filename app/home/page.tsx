@@ -231,14 +231,14 @@ export default function HomePage() {
             "Trendreは、Instagram・TikTokなど各種媒体でのPR投稿やUGC制作（画像・動画素材）をインフルエンサーに直接依頼できるマーケットプレイスです。一覧から実際のSNSアカウントや価格を確認・比較し、支払いから納品確認までオンラインで完結できます。",
           primaryCta: "無料で企業登録",
           secondaryCta: "クリエイターを探す",
-          mini1: "実際のSNSを見て比較",
-          mini2: "価格を見てその場で依頼",
-          mini3: "支払いから納品までオンライン完結",
+          mini1: "実際のSNSを確認",
+          mini2: "表示価格で即依頼",
+          mini3: "支払も納品もオンライン完結",
 
           sectionLabel: "WHY TRENDRE",
-          sectionTitle: "DM営業ではなく、探して・比較して・そのまま依頼。",
+          sectionTitle: "小額から試せる。表示価格以外の支払いはゼロ",
           sectionBody:
-            "インフルエンサーPRやUGC制作で起こりがちな、相場確認・見積もり・支払い・納品管理の手間を、ひとつの流れに整理します。",
+            "インフルエンサーPR施策で起こりがちな、相場確認・見積・支払い・納品管理の手間を、ひとつの流れで完結させます。",
 
           feature1Label: "PRICE",
           feature1Title: "価格が見えるから依頼しやすい",
