@@ -200,11 +200,11 @@ export default function HomePage() {
   const copy =
     locale === "ja"
       ? {
-          eyebrow: "インフルエンサーへのPR案件を、もっと手軽に",
-          titleLine1: "インフルエンサーPR投稿も",
-          titleLine2: "素材制作依頼も、",
-          titleAccent: "すぐ探せる。",
-          titleLine3: "その場で依頼できる。",
+          eyebrow: "インフルエンサーPRを、もっと手軽に",
+          titleLine1: "インフルエンサーを",
+          titleLine2: "探してすぐ依頼",
+          titleAccent: "何度でもトレンドに火をつける。",
+          titleLine3: "1件のテストマーケにも。",
           body:
             "Trendreは、Instagram・TikTokなど各種媒体でのPR投稿やUGC制作（画像・動画素材）をインフルエンサーに直接依頼できるマーケットプレイスです。一覧から実際のSNSアカウントや価格を確認・比較し、支払いから納品確認までオンラインで完結できます。",
           primaryCta: "無料で企業登録",
