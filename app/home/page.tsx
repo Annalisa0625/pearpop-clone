@@ -75,7 +75,7 @@ function HeroPlaceholder() {
       <div className="relative mx-auto mt-4 max-w-[300px] rounded-[26px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
         <div className="h-40 overflow-hidden rounded-[22px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
           <div className="flex h-full items-center justify-center">
-            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white text-5xl shadow-xl">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-4xl shadow-xl">
               📱
             </div>
           </div>
@@ -83,9 +83,7 @@ function HeroPlaceholder() {
 
         <div className="mt-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-black text-slate-950">
-              Beauty Creator
-            </p>
+            <p className="text-sm font-black text-slate-950">Beauty Creator</p>
             <p className="mt-1 text-xs font-semibold text-slate-400">
               Instagram / TikTok
             </p>
@@ -106,16 +104,12 @@ function HeroPlaceholder() {
 
           <div className="rounded-2xl bg-slate-50 p-3 text-center">
             <p className="text-sm font-black text-slate-950">4.9</p>
-            <p className="mt-1 text-[10px] font-bold text-slate-400">
-              Rating
-            </p>
+            <p className="mt-1 text-[10px] font-bold text-slate-400">Rating</p>
           </div>
 
           <div className="rounded-2xl bg-slate-50 p-3 text-center">
             <p className="text-sm font-black text-slate-950">¥20k</p>
-            <p className="mt-1 text-[10px] font-bold text-slate-400">
-              Price
-            </p>
+            <p className="mt-1 text-[10px] font-bold text-slate-400">Price</p>
           </div>
         </div>
       </div>
@@ -133,13 +127,6 @@ function HeroPlaceholder() {
           </div>
         </div>
       </div>
-
-      <div className="absolute bottom-7 left-7 rounded-3xl bg-white px-6 py-4 shadow-xl shadow-slate-950/10">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-          Order
-        </p>
-        <p className="mt-1 text-2xl font-black text-slate-950">¥22,000</p>
-      </div>
     </div>
   );
 }
@@ -149,7 +136,7 @@ function HeroVisual() {
 
   return (
     <div className="relative mx-auto w-full max-w-[520px]">
-      <div className="absolute -left-8 top-10 hidden rounded-3xl bg-white p-5 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
+      <div className="absolute -left-8 top-10 z-10 hidden rounded-3xl bg-white p-5 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-xl font-black text-[#ff5f67]">
             PR
@@ -166,7 +153,7 @@ function HeroVisual() {
         </div>
       </div>
 
-      <div className="absolute -right-3 top-28 hidden rounded-2xl bg-white p-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
+      <div className="absolute -right-3 top-28 z-10 hidden rounded-2xl bg-white p-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="space-y-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-sm font-black text-rose-600">
             ◎
@@ -180,20 +167,11 @@ function HeroVisual() {
         </div>
       </div>
 
-      <div className="absolute -bottom-4 left-8 hidden rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
+      <div className="absolute -bottom-4 left-8 z-10 hidden rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-          UGC
+          Order
         </p>
-        <p className="mt-1 text-2xl font-black text-slate-950">
-          Photo / Video
-        </p>
-      </div>
-
-      <div className="absolute -bottom-8 right-8 hidden rounded-3xl bg-white p-5 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-          Payment
-        </p>
-        <p className="mt-1 text-lg font-black text-slate-950">Stripe</p>
+        <p className="mt-1 text-2xl font-black text-slate-950">¥22,000</p>
       </div>
 
       <div className="relative rounded-[46px] bg-white p-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100">
@@ -515,10 +493,22 @@ export default function HomePage() {
               </h2>
 
               <div className="mt-10 grid gap-5 md:grid-cols-2">
-                <UseCaseCard title={copy.useCase1Title} body={copy.useCase1Body} />
-                <UseCaseCard title={copy.useCase2Title} body={copy.useCase2Body} />
-                <UseCaseCard title={copy.useCase3Title} body={copy.useCase3Body} />
-                <UseCaseCard title={copy.useCase4Title} body={copy.useCase4Body} />
+                <UseCaseCard
+                  title={copy.useCase1Title}
+                  body={copy.useCase1Body}
+                />
+                <UseCaseCard
+                  title={copy.useCase2Title}
+                  body={copy.useCase2Body}
+                />
+                <UseCaseCard
+                  title={copy.useCase3Title}
+                  body={copy.useCase3Body}
+                />
+                <UseCaseCard
+                  title={copy.useCase4Title}
+                  body={copy.useCase4Body}
+                />
               </div>
             </div>
           </div>
