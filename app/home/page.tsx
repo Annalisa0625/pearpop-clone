@@ -67,6 +67,26 @@ function UseCaseCard({ title, body }: UseCaseCardProps) {
   );
 }
 
+function MiniAppIcon() {
+  return (
+    <div className="grid h-12 w-12 grid-cols-3 gap-1 rounded-2xl bg-slate-950 p-2 shadow-xl shadow-slate-950/10">
+      {Array.from({ length: 9 }).map((_, index) => (
+        <span
+          key={index}
+          className={[
+            "rounded-[3px]",
+            index % 3 === 0
+              ? "bg-[#ff5f67]"
+              : index % 3 === 1
+                ? "bg-[#7bae6c]"
+                : "bg-slate-200",
+          ].join(" ")}
+        />
+      ))}
+    </div>
+  );
+}
+
 function HeroPlaceholder() {
   return (
     <div className="relative min-h-[330px] overflow-hidden rounded-[32px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-5">
@@ -75,8 +95,8 @@ function HeroPlaceholder() {
       <div className="relative mx-auto mt-4 max-w-[280px] rounded-[26px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
         <div className="h-36 overflow-hidden rounded-[22px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
           <div className="flex h-full items-center justify-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-3xl shadow-xl">
-              📱
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl">
+              <MiniAppIcon />
             </div>
           </div>
         </div>
@@ -116,14 +136,14 @@ function HeroPlaceholder() {
 
       <div className="absolute right-7 top-7 rounded-2xl bg-white p-3 shadow-xl shadow-slate-950/10">
         <div className="space-y-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-xs font-black text-rose-600">
-            ◎
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-[10px] font-black text-rose-600">
+            IG
           </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white">
-            ♪
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black text-white">
+            TT
           </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-xs font-black text-red-600">
-            ▶
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-[10px] font-black text-red-600">
+            YT
           </div>
         </div>
       </div>
@@ -155,14 +175,14 @@ function HeroVisual() {
 
       <div className="absolute -right-2 top-28 z-10 hidden rounded-2xl bg-white p-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="space-y-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-xs font-black text-rose-600">
-            ◎
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-[10px] font-black text-rose-600">
+            IG
           </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white">
-            ♪
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black text-white">
+            TT
           </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-xs font-black text-red-600">
-            ▶
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-[10px] font-black text-red-600">
+            YT
           </div>
         </div>
       </div>
@@ -203,7 +223,7 @@ export default function HomePage() {
           eyebrow: "インフルエンサーPRを、もっと手軽に",
           titleLine1: "インフルエンサーをさがして",
           titleLine2: "その場ですぐ依頼。",
-          titleAccent: "売上・認知度向上。",
+          titleAccent: "認知拡大へ。",
           titleLine3: "1件から始められる。",
           body:
             "Trendreは、Instagram・TikTokなど各種媒体でのPR投稿やUGC制作（広告素材）をインフルエンサーに直接依頼できるマーケットプレイスです。一覧から実際のSNSアカウントや価格を確認・比較し、支払いから納品確認までオンラインで完結できます。",
@@ -346,13 +366,13 @@ export default function HomePage() {
           <div className="absolute -left-40 top-28 h-96 w-96 rounded-full bg-rose-100/50 blur-3xl" />
           <div className="absolute -right-40 top-40 h-[420px] w-[420px] rounded-full bg-emerald-100/50 blur-3xl" />
 
-          <div className="relative mx-auto grid max-w-7xl gap-14 px-4 py-16 md:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-20 lg:py-24">
-            <div className="max-w-[620px]">
+          <div className="relative mx-auto grid max-w-7xl gap-14 px-4 pb-16 pt-12 md:px-6 md:pb-18 md:pt-14 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-20 lg:pb-20 lg:pt-16">
+            <div className="max-w-[660px]">
               <p className="text-sm font-black leading-7 text-slate-600 md:text-base">
                 {copy.eyebrow}
               </p>
 
-              <h1 className="mt-7 max-w-2xl text-[30px] font-black leading-[1.22] tracking-[-0.035em] text-slate-950 md:text-[40px] lg:text-[46px]">
+              <h1 className="mt-6 max-w-2xl text-[30px] font-black leading-[1.24] tracking-[-0.035em] text-slate-950 md:text-[38px] lg:text-[44px]">
                 {copy.titleLine1}
                 <br />
                 {copy.titleLine2}
@@ -362,7 +382,7 @@ export default function HomePage() {
                 {copy.titleLine3}
               </h1>
 
-              <p className="mt-8 max-w-xl text-[15px] font-medium leading-8 text-slate-600 md:text-base md:leading-9">
+              <p className="mt-8 max-w-[640px] text-[15px] font-medium leading-8 text-slate-600 md:text-base md:leading-9">
                 {copy.body}
               </p>
 
