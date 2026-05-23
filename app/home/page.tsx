@@ -69,13 +69,13 @@ function UseCaseCard({ title, body }: UseCaseCardProps) {
 
 function HeroPlaceholder() {
   return (
-    <div className="relative min-h-[350px] overflow-hidden rounded-[32px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-5">
+    <div className="relative min-h-[330px] overflow-hidden rounded-[32px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-5">
       <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
 
-      <div className="relative mx-auto mt-4 max-w-[300px] rounded-[26px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
-        <div className="h-40 overflow-hidden rounded-[22px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
+      <div className="relative mx-auto mt-4 max-w-[280px] rounded-[26px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
+        <div className="h-36 overflow-hidden rounded-[22px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
           <div className="flex h-full items-center justify-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-4xl shadow-xl">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-3xl shadow-xl">
               📱
             </div>
           </div>
@@ -114,15 +114,15 @@ function HeroPlaceholder() {
         </div>
       </div>
 
-      <div className="absolute right-8 top-8 rounded-2xl bg-white p-3 shadow-xl shadow-slate-950/10">
+      <div className="absolute right-7 top-7 rounded-2xl bg-white p-3 shadow-xl shadow-slate-950/10">
         <div className="space-y-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-sm font-black text-rose-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-xs font-black text-rose-600">
             ◎
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white">
             ♪
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-sm font-black text-red-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-xs font-black text-red-600">
             ▶
           </div>
         </div>
@@ -135,15 +135,15 @@ function HeroVisual() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto w-full max-w-[520px]">
-      <div className="absolute -left-8 top-10 z-10 hidden rounded-3xl bg-white p-5 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
+    <div className="relative mx-auto w-full max-w-[500px] lg:translate-x-4">
+      <div className="absolute -left-6 top-12 z-10 hidden rounded-3xl bg-white p-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-xl font-black text-[#ff5f67]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-lg font-black text-[#ff5f67]">
             PR
           </div>
 
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
               Creator
             </p>
             <p className="mt-1 text-sm font-black text-slate-950">
@@ -153,39 +153,39 @@ function HeroVisual() {
         </div>
       </div>
 
-      <div className="absolute -right-3 top-28 z-10 hidden rounded-2xl bg-white p-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
+      <div className="absolute -right-2 top-28 z-10 hidden rounded-2xl bg-white p-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="space-y-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-sm font-black text-rose-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-xs font-black text-rose-600">
             ◎
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white">
             ♪
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-sm font-black text-red-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-xs font-black text-red-600">
             ▶
           </div>
         </div>
       </div>
 
-      <div className="absolute -bottom-4 left-8 z-10 hidden rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+      <div className="absolute -bottom-2 left-8 z-10 hidden rounded-3xl bg-white px-5 py-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
           Order
         </p>
-        <p className="mt-1 text-2xl font-black text-slate-950">¥22,000</p>
+        <p className="mt-1 text-xl font-black text-slate-950">¥22,000</p>
       </div>
 
-      <div className="relative rounded-[46px] bg-white p-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100">
+      <div className="relative rounded-[42px] bg-white p-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100">
         {imageFailed ? (
           <HeroPlaceholder />
         ) : (
-          <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-rose-50 via-white to-emerald-50">
+          <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-rose-50 via-white to-emerald-50">
             <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
 
             <img
               src="/brand/trendre-home-hero.png"
               alt=""
               onError={() => setImageFailed(true)}
-              className="relative h-auto min-h-[350px] w-full object-contain"
+              className="relative h-auto min-h-[330px] w-full object-contain"
             />
           </div>
         )}
@@ -209,9 +209,9 @@ export default function HomePage() {
             "Trendreは、Instagram・TikTokなど各種媒体でのPR投稿やUGC制作（広告素材）をインフルエンサーに直接依頼できるマーケットプレイスです。一覧から実際のSNSアカウントや価格を確認・比較し、支払いから納品確認までオンラインで完結できます。",
           primaryCta: "無料で企業登録",
           secondaryCta: "クリエイターを探す",
-          mini1: "実際のSNSを確認",
-          mini2: "表示価格で即依頼",
-          mini3: "支払も納品もオンライン完結",
+          mini1: "SNSを確認",
+          mini2: "表示価格で依頼",
+          mini3: "納品まで管理",
 
           sectionLabel: "WHY TRENDRE",
           sectionTitle: "小額から試せる。表示価格以外の支払いはゼロ",
@@ -269,20 +269,20 @@ export default function HomePage() {
         }
       : {
           eyebrow: "Find influencer PR and UGC creators faster",
-          titleLine1: "Influencer PR",
-          titleLine2: "and UGC creation,",
-          titleAccent: "easy to find.",
-          titleLine3: "Ready to order.",
+          titleLine1: "Find creators",
+          titleLine2: "and order PR",
+          titleAccent: "in one place.",
+          titleLine3: "Start from one request.",
           body:
-            "Trendre is a marketplace where brands can request Instagram and TikTok PR posts or UGC creation, including photo and video assets, directly from influencers. Compare real social accounts and prices, then manage payment and delivery online.",
+            "Trendre is a marketplace where brands can request Instagram and TikTok PR posts or UGC creation, including ad-ready photo and video assets, directly from influencers. Compare real social accounts and prices, then manage payment and delivery online.",
           primaryCta: "Join as a Brand",
           secondaryCta: "Search Creators",
-          mini1: "Compare real social accounts",
+          mini1: "Check social accounts",
           mini2: "Order with visible pricing",
-          mini3: "Manage payment and delivery online",
+          mini3: "Manage delivery online",
 
           sectionLabel: "WHY TRENDRE",
-          sectionTitle: "Search, compare, and order without messy DMs.",
+          sectionTitle: "Start small. Order with clear creator pricing.",
           sectionBody:
             "Trendre turns creator discovery, pricing, payment, and delivery into one clear workflow for influencer PR and UGC creation.",
 
@@ -342,17 +342,17 @@ export default function HomePage() {
 
       <main>
         <section className="relative overflow-hidden bg-white">
-          <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:22px_22px] opacity-[0.08]" />
-          <div className="absolute -left-40 top-24 h-96 w-96 rounded-full bg-rose-100/60 blur-3xl" />
-          <div className="absolute -right-40 top-36 h-[420px] w-[420px] rounded-full bg-emerald-100/60 blur-3xl" />
+          <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:22px_22px] opacity-[0.07]" />
+          <div className="absolute -left-40 top-28 h-96 w-96 rounded-full bg-rose-100/50 blur-3xl" />
+          <div className="absolute -right-40 top-40 h-[420px] w-[420px] rounded-full bg-emerald-100/50 blur-3xl" />
 
-          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 md:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-16">
-            <div>
-              <p className="text-base font-black leading-7 text-slate-600 md:text-lg">
+          <div className="relative mx-auto grid max-w-7xl gap-14 px-4 py-16 md:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-20 lg:py-24">
+            <div className="max-w-[620px]">
+              <p className="text-sm font-black leading-7 text-slate-600 md:text-base">
                 {copy.eyebrow}
               </p>
 
-              <h1 className="mt-6 max-w-3xl text-[36px] font-black leading-[1.12] tracking-[-0.04em] text-slate-950 md:text-[48px] lg:text-[56px]">
+              <h1 className="mt-7 max-w-2xl text-[30px] font-black leading-[1.22] tracking-[-0.035em] text-slate-950 md:text-[40px] lg:text-[46px]">
                 {copy.titleLine1}
                 <br />
                 {copy.titleLine2}
@@ -362,11 +362,11 @@ export default function HomePage() {
                 {copy.titleLine3}
               </h1>
 
-              <p className="mt-7 max-w-2xl text-base font-medium leading-8 text-slate-600">
+              <p className="mt-8 max-w-xl text-[15px] font-medium leading-8 text-slate-600 md:text-base md:leading-9">
                 {copy.body}
               </p>
 
-              <div className="mt-9 flex flex-wrap gap-4">
+              <div className="mt-10 flex flex-wrap gap-4">
                 <Link
                   href="/signup/company"
                   className="rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
@@ -382,11 +382,11 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              <div className="mt-10 grid max-w-2xl gap-3 sm:grid-cols-3">
+              <div className="mt-12 grid max-w-xl gap-3 sm:grid-cols-3">
                 {[copy.mini1, copy.mini2, copy.mini3].map((item) => (
                   <div
                     key={item}
-                    className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-3 text-sm font-black text-slate-700 shadow-sm backdrop-blur"
+                    className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-3 text-xs font-black text-slate-700 shadow-sm backdrop-blur md:text-[13px]"
                   >
                     <span className="mr-2 text-[#7bae6c]">●</span>
                     {item}
