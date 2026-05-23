@@ -69,11 +69,11 @@ function UseCaseCard({ title, body }: UseCaseCardProps) {
 
 function HeroPlaceholder() {
   return (
-    <div className="relative min-h-[420px] overflow-hidden rounded-[36px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-6">
+    <div className="relative min-h-[350px] overflow-hidden rounded-[32px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-5">
       <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
 
-      <div className="relative mx-auto mt-6 max-w-[360px] rounded-[30px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
-        <div className="h-52 overflow-hidden rounded-[24px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
+      <div className="relative mx-auto mt-4 max-w-[300px] rounded-[26px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
+        <div className="h-40 overflow-hidden rounded-[22px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
           <div className="flex h-full items-center justify-center">
             <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white text-5xl shadow-xl">
               📱
@@ -148,7 +148,7 @@ function HeroVisual() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto w-full max-w-[620px]">
+    <div className="relative mx-auto w-full max-w-[520px]">
       <div className="absolute -left-8 top-10 hidden rounded-3xl bg-white p-5 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-xl font-black text-[#ff5f67]">
@@ -207,7 +207,7 @@ function HeroVisual() {
               src="/brand/trendre-home-hero.png"
               alt=""
               onError={() => setImageFailed(true)}
-              className="relative h-auto min-h-[420px] w-full object-contain"
+              className="relative h-auto min-h-[350px] w-full object-contain"
             />
           </div>
         )}
@@ -368,13 +368,13 @@ export default function HomePage() {
           <div className="absolute -left-40 top-24 h-96 w-96 rounded-full bg-rose-100/60 blur-3xl" />
           <div className="absolute -right-40 top-36 h-[420px] w-[420px] rounded-full bg-emerald-100/60 blur-3xl" />
 
-          <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-14 md:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:py-20">
+          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 md:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-16">
             <div>
               <p className="text-base font-black leading-7 text-slate-600 md:text-lg">
                 {copy.eyebrow}
               </p>
 
-              <h1 className="mt-6 max-w-4xl text-[42px] font-black leading-[1.08] tracking-[-0.04em] text-slate-950 md:text-[60px] lg:text-[68px]">
+              <h1 className="mt-6 max-w-3xl text-[36px] font-black leading-[1.12] tracking-[-0.04em] text-slate-950 md:text-[48px] lg:text-[56px]">
                 {copy.titleLine1}
                 <br />
                 {copy.titleLine2}
