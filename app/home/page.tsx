@@ -2,25 +2,28 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useAppLocale } from "@/lib/i18n/locale";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 
 type FeatureCardProps = {
-  icon: string;
+  label: string;
   title: string;
   body: string;
 };
 
-function FeatureCard({ icon, title, body }: FeatureCardProps) {
+function FeatureCard({ label, title, body }: FeatureCardProps) {
   return (
     <div className="group rounded-[30px] border border-slate-100 bg-white p-7 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/5">
-      <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-slate-50 text-2xl ring-1 ring-slate-100">
-        {icon}
+      <div className="inline-flex rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+        {label}
       </div>
+
       <h3 className="mt-6 text-xl font-black tracking-tight text-slate-950">
         {title}
       </h3>
+
       <p className="mt-3 text-sm leading-7 text-slate-500">{body}</p>
     </div>
   );
@@ -36,12 +39,15 @@ function StepCard({ number, title, body }: StepCardProps) {
   return (
     <div className="relative overflow-hidden rounded-[30px] border border-slate-100 bg-white p-7 shadow-sm">
       <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-rose-50" />
+
       <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
         {number}
       </div>
+
       <h3 className="relative mt-6 text-xl font-black tracking-tight text-slate-950">
         {title}
       </h3>
+
       <p className="relative mt-3 text-sm leading-7 text-slate-500">{body}</p>
     </div>
   );
@@ -61,20 +67,100 @@ function UseCaseCard({ title, body }: UseCaseCardProps) {
   );
 }
 
+function HeroPlaceholder() {
+  return (
+    <div className="relative min-h-[420px] overflow-hidden rounded-[36px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-6">
+      <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
+
+      <div className="relative mx-auto mt-6 max-w-[360px] rounded-[30px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
+        <div className="h-52 overflow-hidden rounded-[24px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
+          <div className="flex h-full items-center justify-center">
+            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white text-5xl shadow-xl">
+              📱
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-black text-slate-950">
+              Beauty Creator
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              Instagram / TikTok
+            </p>
+          </div>
+
+          <div className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-[#ff5f67]">
+            PR
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-slate-50 p-3 text-center">
+            <p className="text-sm font-black text-slate-950">12.8k</p>
+            <p className="mt-1 text-[10px] font-bold text-slate-400">
+              Followers
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3 text-center">
+            <p className="text-sm font-black text-slate-950">4.9</p>
+            <p className="mt-1 text-[10px] font-bold text-slate-400">
+              Rating
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3 text-center">
+            <p className="text-sm font-black text-slate-950">¥20k</p>
+            <p className="mt-1 text-[10px] font-bold text-slate-400">
+              Price
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute right-8 top-8 rounded-2xl bg-white p-3 shadow-xl shadow-slate-950/10">
+        <div className="space-y-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-sm font-black text-rose-600">
+            ◎
+          </div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+            ♪
+          </div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-sm font-black text-red-600">
+            ▶
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-7 left-7 rounded-3xl bg-white px-6 py-4 shadow-xl shadow-slate-950/10">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+          Order
+        </p>
+        <p className="mt-1 text-2xl font-black text-slate-950">¥22,000</p>
+      </div>
+    </div>
+  );
+}
+
 function HeroVisual() {
+  const [imageFailed, setImageFailed] = useState(false);
+
   return (
     <div className="relative mx-auto w-full max-w-[620px]">
       <div className="absolute -left-8 top-10 hidden rounded-3xl bg-white p-5 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-xl font-black text-[#ff5f67]">
-            72%
+            PR
           </div>
+
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-              Match Rate
+              Creator
             </p>
             <p className="mt-1 text-sm font-black text-slate-950">
-              Creator Fit
+              Direct Order
             </p>
           </div>
         </div>
@@ -82,9 +168,6 @@ function HeroVisual() {
 
       <div className="absolute -right-3 top-28 hidden rounded-2xl bg-white p-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <div className="space-y-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-600">
-            f
-          </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-sm font-black text-rose-600">
             ◎
           </div>
@@ -99,28 +182,35 @@ function HeroVisual() {
 
       <div className="absolute -bottom-4 left-8 hidden rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-          Followers
+          UGC
         </p>
-        <p className="mt-1 text-2xl font-black text-slate-950">128,000</p>
+        <p className="mt-1 text-2xl font-black text-slate-950">
+          Photo / Video
+        </p>
       </div>
 
       <div className="absolute -bottom-8 right-8 hidden rounded-3xl bg-white p-5 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-          Order
+          Payment
         </p>
-        <p className="mt-1 text-lg font-black text-slate-950">¥22,000</p>
+        <p className="mt-1 text-lg font-black text-slate-950">Stripe</p>
       </div>
 
       <div className="relative rounded-[46px] bg-white p-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100">
-        <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-rose-50 via-white to-emerald-50">
-          <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
+        {imageFailed ? (
+          <HeroPlaceholder />
+        ) : (
+          <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-rose-50 via-white to-emerald-50">
+            <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
 
-          <img
-            src="/brand/trendre-home-hero.png"
-            alt="Trendre creator marketing visual"
-            className="relative h-auto w-full object-contain"
-          />
-        </div>
+            <img
+              src="/brand/trendre-home-hero.png"
+              alt=""
+              onError={() => setImageFailed(true)}
+              className="relative h-auto min-h-[420px] w-full object-contain"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -132,30 +222,33 @@ export default function HomePage() {
   const copy =
     locale === "ja"
       ? {
-          eyebrow: "インフルエンサー検索・UGC制作・商品PRをこれひとつで",
-          titleLine1: "商品に合うクリエイターを見つけて",
-          titleAccent1: "ブランドの認知と売上",
-          titleLine2: "につながる",
-          titleAccent2: "クリエイターマーケティング",
+          eyebrow: "インフルエンサーへのPR案件を、もっと手軽に",
+          titleLine1: "インフルエンサーPRも",
+          titleLine2: "UGC制作も、",
+          titleAccent: "すぐ探せる。",
+          titleLine3: "その場で依頼できる。",
           body:
-            "Trendreは、企業がInstagram・TikTok・UGC制作をクリエイターに直接依頼できるマーケットプレイスです。価格・SNS・ポートフォリオを見て比較し、支払いから納品確認までオンラインで完結できます。",
+            "Trendreは、企業がInstagram・TikTokでのPR投稿やUGC制作（画像・動画素材）をインフルエンサーに直接依頼できるマーケットプレイスです。一覧から実際のSNSアカウントや価格を確認・比較し、支払いから納品確認までオンラインで完結できます。",
           primaryCta: "無料で企業登録",
           secondaryCta: "クリエイターを探す",
-          mini1: "1件から依頼",
-          mini2: "Stripeで支払い確認",
-          mini3: "納品までオンライン管理",
+          mini1: "実際のSNSを見て比較",
+          mini2: "価格を見てその場で依頼",
+          mini3: "支払いから納品までオンライン完結",
 
           sectionLabel: "WHY TRENDRE",
           sectionTitle: "DM営業ではなく、探して・比較して・そのまま依頼。",
           sectionBody:
             "インフルエンサーPRやUGC制作で起こりがちな、相場確認・見積もり・支払い・納品管理の手間を、ひとつの流れに整理します。",
 
+          feature1Label: "PRICE",
           feature1Title: "価格が見えるから依頼しやすい",
           feature1Body:
             "クリエイターごとのメニュー価格を見て比較できます。はじめてのPR依頼でも予算感をつかみやすくなります。",
+          feature2Label: "UGC",
           feature2Title: "SNS投稿もUGC素材も依頼できる",
           feature2Body:
             "Instagram投稿、TikTok動画、商品レビュー、広告素材用のUGC制作など、ブランド施策に合わせて依頼できます。",
+          feature3Label: "FLOW",
           feature3Title: "支払いから納品確認までオンラインで完結",
           feature3Body:
             "Stripe Checkoutで支払い方法を確認し、クリエイター承認後に案件が開始。納品URLや完了状態も画面上で確認できます。",
@@ -197,30 +290,33 @@ export default function HomePage() {
           finalSecondary: "クリエイター検索を見る",
         }
       : {
-          eyebrow: "Influencer search, UGC creation, and product promotion in one place",
-          titleLine1: "Find creators that fit your product",
-          titleAccent1: "grow brand awareness",
-          titleLine2: "and unlock",
-          titleAccent2: "creator marketing",
+          eyebrow: "Find influencer PR and UGC creators faster",
+          titleLine1: "Influencer PR",
+          titleLine2: "and UGC creation,",
+          titleAccent: "easy to find.",
+          titleLine3: "Ready to order.",
           body:
-            "Trendre is a creator marketplace where brands can request Instagram posts, TikTok videos, UGC assets, and product promotion directly from creators. Compare prices, social accounts, and portfolios, then manage payment and delivery online.",
+            "Trendre is a marketplace where brands can request Instagram and TikTok PR posts or UGC creation, including photo and video assets, directly from influencers. Compare real social accounts and prices, then manage payment and delivery online.",
           primaryCta: "Join as a Brand",
           secondaryCta: "Search Creators",
-          mini1: "Start with one order",
-          mini2: "Stripe payment check",
-          mini3: "Manage delivery online",
+          mini1: "Compare real social accounts",
+          mini2: "Order with visible pricing",
+          mini3: "Manage payment and delivery online",
 
           sectionLabel: "WHY TRENDRE",
           sectionTitle: "Search, compare, and order without messy DMs.",
           sectionBody:
             "Trendre turns creator discovery, pricing, payment, and delivery into one clear workflow for influencer PR and UGC creation.",
 
+          feature1Label: "PRICE",
           feature1Title: "Visible pricing makes ordering easier",
           feature1Body:
             "Compare creator menu prices before ordering, making early creator campaigns easier to budget and test.",
+          feature2Label: "UGC",
           feature2Title: "Request both social posts and UGC",
           feature2Body:
             "Use Trendre for Instagram posts, TikTok videos, product reviews, and UGC assets for ads or social content.",
+          feature3Label: "FLOW",
           feature3Title: "Payment and delivery in one workflow",
           feature3Body:
             "Stripe Checkout confirms the payment method, and the order begins after creator acceptance. Delivery URLs and status are managed online.",
@@ -272,19 +368,20 @@ export default function HomePage() {
           <div className="absolute -left-40 top-24 h-96 w-96 rounded-full bg-rose-100/60 blur-3xl" />
           <div className="absolute -right-40 top-36 h-[420px] w-[420px] rounded-full bg-emerald-100/60 blur-3xl" />
 
-          <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 md:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-24">
+          <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-14 md:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:py-20">
             <div>
               <p className="text-base font-black leading-7 text-slate-600 md:text-lg">
                 {copy.eyebrow}
               </p>
 
-              <h1 className="mt-6 max-w-4xl text-[42px] font-black leading-[1.08] tracking-[-0.04em] text-slate-950 md:text-[64px] lg:text-[72px]">
+              <h1 className="mt-6 max-w-4xl text-[42px] font-black leading-[1.08] tracking-[-0.04em] text-slate-950 md:text-[60px] lg:text-[68px]">
                 {copy.titleLine1}
                 <br />
-                <span className="text-[#ff5f67]">{copy.titleAccent1}</span>
                 {copy.titleLine2}
                 <br />
-                <span className="text-[#ff5f67]">{copy.titleAccent2}</span>
+                <span className="text-[#ff5f67]">{copy.titleAccent}</span>
+                <br />
+                {copy.titleLine3}
               </h1>
 
               <p className="mt-7 max-w-2xl text-base font-medium leading-8 text-slate-600">
@@ -330,9 +427,11 @@ export default function HomePage() {
               <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
                 {copy.sectionLabel}
               </p>
+
               <h2 className="mt-4 text-3xl font-black leading-tight tracking-[-0.03em] text-slate-950 md:text-5xl">
                 {copy.sectionTitle}
               </h2>
+
               <p className="mt-5 text-base leading-8 text-slate-500">
                 {copy.sectionBody}
               </p>
@@ -340,17 +439,17 @@ export default function HomePage() {
 
             <div className="mt-10 grid gap-5 md:grid-cols-3">
               <FeatureCard
-                icon="💰"
+                label={copy.feature1Label}
                 title={copy.feature1Title}
                 body={copy.feature1Body}
               />
               <FeatureCard
-                icon="🎬"
+                label={copy.feature2Label}
                 title={copy.feature2Title}
                 body={copy.feature2Body}
               />
               <FeatureCard
-                icon="🛡️"
+                label={copy.feature3Label}
                 title={copy.feature3Title}
                 body={copy.feature3Body}
               />
@@ -365,6 +464,7 @@ export default function HomePage() {
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-[#ff5f67]">
                   {copy.howLabel}
                 </p>
+
                 <h2 className="mt-4 text-3xl font-black tracking-[-0.03em] text-slate-950 md:text-5xl">
                   {copy.howTitle}
                 </h2>
@@ -409,6 +509,7 @@ export default function HomePage() {
               <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
                 {copy.useCaseLabel}
               </p>
+
               <h2 className="mt-4 text-3xl font-black tracking-[-0.03em] text-slate-950 md:text-5xl">
                 {copy.useCaseTitle}
               </h2>
@@ -430,6 +531,7 @@ export default function HomePage() {
                 <h2 className="max-w-3xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-5xl">
                   {copy.finalTitle}
                 </h2>
+
                 <p className="mt-5 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
                   {copy.finalBody}
                 </p>
