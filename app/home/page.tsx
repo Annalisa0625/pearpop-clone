@@ -126,19 +126,17 @@ function HeroVisual() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto w-full max-w-[560px] lg:translate-x-2">
-      <div className="relative overflow-hidden rounded-[38px] border border-slate-100 bg-white p-3 shadow-2xl shadow-slate-950/8">
-        {imageFailed ? (
-          <HeroPlaceholder />
-        ) : (
-          <img
-            src="/brand/trendre-home-hero.png"
-            alt=""
-            onError={() => setImageFailed(true)}
-            className="block h-auto w-full rounded-[30px] object-contain"
-          />
-        )}
-      </div>
+    <div className="relative mx-auto flex w-full max-w-[620px] items-center justify-center lg:translate-x-2">
+      {imageFailed ? (
+        <HeroPlaceholder />
+      ) : (
+        <img
+          src="/brand/trendre-home-hero.png"
+          alt=""
+          onError={() => setImageFailed(true)}
+          className="block h-auto w-full object-contain"
+        />
+      )}
     </div>
   );
 }
