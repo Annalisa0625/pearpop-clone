@@ -67,84 +67,55 @@ function UseCaseCard({ title, body }: UseCaseCardProps) {
   );
 }
 
-function MiniAppIcon() {
-  return (
-    <div className="grid h-12 w-12 grid-cols-3 gap-1 rounded-2xl bg-slate-950 p-2 shadow-xl shadow-slate-950/10">
-      {Array.from({ length: 9 }).map((_, index) => (
-        <span
-          key={index}
-          className={[
-            "rounded-[3px]",
-            index % 3 === 0
-              ? "bg-[#ff5f67]"
-              : index % 3 === 1
-                ? "bg-[#7bae6c]"
-                : "bg-slate-200",
-          ].join(" ")}
-        />
-      ))}
-    </div>
-  );
-}
-
 function HeroPlaceholder() {
   return (
-    <div className="relative min-h-[330px] overflow-hidden rounded-[32px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-5">
-      <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
+    <div className="flex min-h-[330px] items-center justify-center rounded-[30px] bg-white">
+      <div className="w-full max-w-[360px] rounded-[28px] border border-slate-100 bg-white p-5 shadow-xl shadow-slate-950/5">
+        <div className="rounded-[22px] bg-slate-50 p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ff5f67]/10 text-lg font-black text-[#ff5f67]">
+              PR
+            </div>
 
-      <div className="relative mx-auto mt-4 max-w-[280px] rounded-[26px] border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-950/10">
-        <div className="h-36 overflow-hidden rounded-[22px] bg-gradient-to-br from-[#ff6b6b]/20 via-white to-[#7bae6c]/20">
-          <div className="flex h-full items-center justify-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl">
-              <MiniAppIcon />
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                Creator
+              </p>
+              <p className="mt-1 text-lg font-black text-slate-950">
+                Direct Order
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="rounded-2xl bg-white p-3 text-center">
+              <p className="text-sm font-black text-slate-950">12.8k</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                Followers
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-white p-3 text-center">
+              <p className="text-sm font-black text-slate-950">4.9</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                Rating
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-white p-3 text-center">
+              <p className="text-sm font-black text-slate-950">¥20k</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                Price
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-black text-slate-950">Beauty Creator</p>
-            <p className="mt-1 text-xs font-semibold text-slate-400">
-              Instagram / TikTok
-            </p>
-          </div>
-
-          <div className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-[#ff5f67]">
-            PR
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl bg-slate-50 p-3 text-center">
-            <p className="text-sm font-black text-slate-950">12.8k</p>
-            <p className="mt-1 text-[10px] font-bold text-slate-400">
-              Followers
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-3 text-center">
-            <p className="text-sm font-black text-slate-950">4.9</p>
-            <p className="mt-1 text-[10px] font-bold text-slate-400">Rating</p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-3 text-center">
-            <p className="text-sm font-black text-slate-950">¥20k</p>
-            <p className="mt-1 text-[10px] font-bold text-slate-400">Price</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute right-7 top-7 rounded-2xl bg-white p-3 shadow-xl shadow-slate-950/10">
-        <div className="space-y-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-[10px] font-black text-rose-600">
-            IG
-          </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black text-white">
-            TT
-          </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-[10px] font-black text-red-600">
-            YT
-          </div>
+        <div className="mt-4 rounded-2xl bg-slate-950 px-5 py-4 text-white">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/40">
+            Order
+          </p>
+          <p className="mt-1 text-2xl font-black">¥22,000</p>
         </div>
       </div>
     </div>
@@ -155,59 +126,17 @@ function HeroVisual() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto w-full max-w-[500px] lg:translate-x-4">
-      <div className="absolute -left-6 top-12 z-10 hidden rounded-3xl bg-white p-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-lg font-black text-[#ff5f67]">
-            PR
-          </div>
-
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-              Creator
-            </p>
-            <p className="mt-1 text-sm font-black text-slate-950">
-              Direct Order
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute -right-2 top-28 z-10 hidden rounded-2xl bg-white p-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
-        <div className="space-y-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-[10px] font-black text-rose-600">
-            IG
-          </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black text-white">
-            TT
-          </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-[10px] font-black text-red-600">
-            YT
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute -bottom-2 left-8 z-10 hidden rounded-3xl bg-white px-5 py-3 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100 md:block">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-          Order
-        </p>
-        <p className="mt-1 text-xl font-black text-slate-950">¥22,000</p>
-      </div>
-
-      <div className="relative rounded-[42px] bg-white p-4 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-100">
+    <div className="relative mx-auto w-full max-w-[560px] lg:translate-x-2">
+      <div className="relative overflow-hidden rounded-[38px] border border-slate-100 bg-white p-3 shadow-2xl shadow-slate-950/8">
         {imageFailed ? (
           <HeroPlaceholder />
         ) : (
-          <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-rose-50 via-white to-emerald-50">
-            <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12]" />
-
-            <img
-              src="/brand/trendre-home-hero.png"
-              alt=""
-              onError={() => setImageFailed(true)}
-              className="relative h-auto min-h-[330px] w-full object-contain"
-            />
-          </div>
+          <img
+            src="/brand/trendre-home-hero.png"
+            alt=""
+            onError={() => setImageFailed(true)}
+            className="block h-auto w-full rounded-[30px] object-contain"
+          />
         )}
       </div>
     </div>
@@ -362,10 +291,6 @@ export default function HomePage() {
 
       <main>
         <section className="relative overflow-hidden bg-white">
-          <div className="absolute inset-0 bg-[radial-gradient(#ff6b6b_1px,transparent_1px)] [background-size:22px_22px] opacity-[0.07]" />
-          <div className="absolute -left-40 top-28 h-96 w-96 rounded-full bg-rose-100/50 blur-3xl" />
-          <div className="absolute -right-40 top-40 h-[420px] w-[420px] rounded-full bg-emerald-100/50 blur-3xl" />
-
           <div className="relative mx-auto grid max-w-7xl gap-14 px-4 pb-16 pt-12 md:px-6 md:pb-18 md:pt-14 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-20 lg:pb-20 lg:pt-16">
             <div className="max-w-[660px]">
               <p className="text-sm font-black leading-7 text-slate-600 md:text-base">
