@@ -1,4 +1,3 @@
-// File: app/home/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -107,24 +106,20 @@ function ProductCard({ title, body, accent }: ProductCardProps) {
 
 function FlowStep({ number, title, body }: FlowStepProps) {
   return (
-    <article className="group relative overflow-hidden rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-slate-100 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-950/10">
-      <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-slate-50 transition duration-300 group-hover:scale-125" />
+    <article className="group relative overflow-hidden rounded-[28px] bg-white p-6 shadow-[0_14px_40px_rgba(15,23,42,0.05)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+      <div className="absolute -right-10 -top-10 h-24 w-24 rounded-full bg-slate-50 transition duration-300 group-hover:scale-110" />
 
       <div className="relative flex gap-5">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-950/15">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-950/10">
           {number}
         </div>
 
         <div className="pt-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-300">
-            Step {number}
-          </p>
-
-          <h3 className="mt-2 text-xl font-black tracking-[-0.03em] text-slate-950">
+          <h3 className="text-2xl font-black tracking-[-0.03em] text-slate-950">
             {title}
           </h3>
 
-          <p className="mt-3 text-sm font-medium leading-7 text-slate-500">
+          <p className="mt-3 text-[15px] font-medium leading-8 text-slate-500">
             {body}
           </p>
         </div>
@@ -266,7 +261,7 @@ export default function HomePage() {
           howLabel: "HOW IT WORKS",
           howTitle: "依頼までの流れ",
           howBody:
-            "DMで個別交渉するのではなく、インフルエンサー探しから納品確認までをオンラインで完結できます。",
+            "DMで個別交渉するのではなく、検索から納品確認までをオンラインで完結できます。",
           howCta: "インフルエンサーを探す",
           howMini1: "SNSを確認",
           howMini2: "価格を比較",
@@ -520,10 +515,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section
-          id="service-overview"
-          className="scroll-mt-24 bg-[#F3F7FB]"
-        >
+        <section id="service-overview" className="scroll-mt-24 bg-[#F3F7FB]">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 py-20 md:px-6 lg:grid-cols-[0.72fr_1.28fr] lg:py-28">
             <div className="lg:sticky lg:top-28 lg:self-start lg:pt-28">
               <div className="inline-flex rounded-full border-2 border-[#ff5f67] bg-white px-5 py-3 text-sm font-black text-slate-950">
@@ -553,43 +545,43 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="bg-white px-4 py-20 md:px-6 lg:py-24">
-          <div className="mx-auto max-w-7xl overflow-hidden rounded-[44px] bg-slate-950 p-7 text-white shadow-2xl shadow-slate-950/10 md:p-10 lg:p-12">
-            <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
-                  {copy.howLabel}
-                </p>
+        <section className="bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-20 md:px-6 lg:py-24">
+            <div className="rounded-[40px] bg-[#F7FAFC] p-6 md:p-8 lg:p-10">
+              <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+                <div className="lg:pt-4">
+                  <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
+                    {copy.howLabel}
+                  </p>
 
-                <h2 className="mt-5 max-w-xl text-3xl font-black leading-tight tracking-[-0.035em] text-white md:text-5xl">
-                  {copy.howTitle}
-                </h2>
+                  <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
+                    {copy.howTitle}
+                  </h2>
 
-                <p className="mt-5 max-w-xl text-base font-medium leading-8 text-white/62">
-                  {copy.howBody}
-                </p>
+                  <p className="mt-5 max-w-xl text-base font-medium leading-8 text-slate-600">
+                    {copy.howBody}
+                  </p>
 
-                <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
-                  {[copy.howMini1, copy.howMini2, copy.howMini3].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-xs font-black text-white/80"
-                    >
-                      <span className="mr-2 text-[#7bae6c]">●</span>
-                      {item}
-                    </div>
-                  ))}
+                  <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
+                    {[copy.howMini1, copy.howMini2, copy.howMini3].map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm"
+                      >
+                        <span className="mr-2 text-[#7bae6c]">●</span>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+
+                  <Link
+                    href="/b/creators"
+                    className="mt-9 inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+                  >
+                    {copy.howCta}
+                  </Link>
                 </div>
 
-                <Link
-                  href="/b/creators"
-                  className="mt-9 inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-black text-slate-950 shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-slate-100"
-                >
-                  {copy.howCta}
-                </Link>
-              </div>
-
-              <div className="rounded-[36px] bg-white p-4 shadow-2xl shadow-black/20 md:p-5">
                 <div className="grid gap-4">
                   {flowSteps.map((item) => (
                     <FlowStep
