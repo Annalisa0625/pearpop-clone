@@ -148,8 +148,8 @@ export default function HomePage() {
     locale === "ja"
       ? {
           eyebrow: "インフルエンサーPRを、もっと手軽に",
-          titleLine1: "市場の小額テストも継続的な広告運用も",
-          titleLine2: "すぐに探してその場で依頼できる。",
+          titleLine1: "商品や店舗、求人のPRも",
+          titleLine2: "すぐに探して依頼できる。",
           titleAccent: "価格、成果を可視化し。",
           titleLine3: "認知拡大へ。",
           body:
