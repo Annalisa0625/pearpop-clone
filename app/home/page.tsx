@@ -8,12 +8,9 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 
 type ProductCardProps = {
-  icon: string;
-  label: string;
   title: string;
   body: string;
   accent: "rose" | "emerald" | "blue" | "amber" | "violet" | "slate";
-  mock: "search" | "price" | "ugc" | "payment" | "delivery" | "manage";
 };
 
 type FlowStepProps = {
@@ -27,259 +24,89 @@ type UseCaseCardProps = {
   body: string;
 };
 
-const accentClasses = {
-  rose: "bg-rose-50 text-[#ff5f67]",
-  emerald: "bg-emerald-50 text-emerald-600",
-  blue: "bg-blue-50 text-blue-600",
-  amber: "bg-amber-50 text-amber-600",
-  violet: "bg-violet-50 text-violet-600",
-  slate: "bg-slate-100 text-slate-700",
+const markClasses = {
+  rose: {
+    bg: "bg-rose-50",
+    main: "bg-[#ff5f67]",
+    sub: "bg-[#ffb3b8]",
+    line: "bg-[#ff5f67]/20",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    main: "bg-[#7bae6c]",
+    sub: "bg-emerald-300",
+    line: "bg-[#7bae6c]/20",
+  },
+  blue: {
+    bg: "bg-blue-50",
+    main: "bg-blue-500",
+    sub: "bg-blue-300",
+    line: "bg-blue-500/20",
+  },
+  amber: {
+    bg: "bg-amber-50",
+    main: "bg-amber-500",
+    sub: "bg-amber-300",
+    line: "bg-amber-500/20",
+  },
+  violet: {
+    bg: "bg-violet-50",
+    main: "bg-violet-500",
+    sub: "bg-violet-300",
+    line: "bg-violet-500/20",
+  },
+  slate: {
+    bg: "bg-slate-100",
+    main: "bg-slate-900",
+    sub: "bg-slate-400",
+    line: "bg-slate-300",
+  },
 };
 
-function MiniProductMock({ type }: { type: ProductCardProps["mock"] }) {
-  if (type === "search") {
-    return (
-      <div className="relative mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-[#ff5f67]" />
-          <div className="h-2 w-2 rounded-full bg-amber-300" />
-          <div className="h-2 w-2 rounded-full bg-emerald-400" />
-        </div>
-
-        <div className="mt-4 rounded-2xl bg-white p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-24 rounded-full bg-slate-200" />
-            <div className="h-7 w-20 rounded-full bg-blue-50" />
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <div className="h-9 rounded-xl bg-slate-50" />
-            <div className="h-9 rounded-xl bg-slate-50" />
-            <div className="h-9 rounded-xl bg-slate-50" />
-          </div>
-
-          <div className="mt-3 space-y-2">
-            <div className="h-2 rounded-full bg-slate-100" />
-            <div className="h-2 w-4/5 rounded-full bg-slate-100" />
-            <div className="h-2 w-2/3 rounded-full bg-slate-100" />
-          </div>
-        </div>
-
-        <div className="absolute bottom-3 right-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-            Match
-          </p>
-          <p className="mt-1 text-lg font-black text-slate-950">92%</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "price") {
-    return (
-      <div className="relative mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-rose-100" />
-            <div className="flex-1">
-              <div className="h-3 w-28 rounded-full bg-slate-200" />
-              <div className="mt-2 h-2 w-20 rounded-full bg-slate-100" />
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            <div className="rounded-2xl bg-slate-50 p-3 text-center">
-              <p className="text-sm font-black text-slate-950">12.8k</p>
-              <p className="mt-1 text-[10px] font-bold text-slate-400">
-                SNS
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-3 text-center">
-              <p className="text-sm font-black text-slate-950">4.9</p>
-              <p className="mt-1 text-[10px] font-bold text-slate-400">
-                Rate
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-950 p-3 text-center">
-              <p className="text-sm font-black text-white">¥20k</p>
-              <p className="mt-1 text-[10px] font-bold text-white/40">
-                Price
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-3 left-4 rounded-2xl bg-white px-4 py-3 shadow-lg">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ff5f67]">
-            Order
-          </p>
-          <p className="mt-1 text-lg font-black text-slate-950">¥22,000</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "ugc") {
-    return (
-      <div className="relative mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="h-28 rounded-2xl bg-white p-3 shadow-sm">
-            <div className="h-12 rounded-xl bg-rose-50" />
-            <div className="mt-3 h-2 rounded-full bg-slate-100" />
-            <div className="mt-2 h-2 w-2/3 rounded-full bg-slate-100" />
-          </div>
-
-          <div className="h-28 rounded-2xl bg-white p-3 shadow-sm">
-            <div className="h-12 rounded-xl bg-emerald-50" />
-            <div className="mt-3 h-2 rounded-full bg-slate-100" />
-            <div className="mt-2 h-2 w-2/3 rounded-full bg-slate-100" />
-          </div>
-
-          <div className="h-28 rounded-2xl bg-white p-3 shadow-sm">
-            <div className="h-12 rounded-xl bg-blue-50" />
-            <div className="mt-3 h-2 rounded-full bg-slate-100" />
-            <div className="mt-2 h-2 w-2/3 rounded-full bg-slate-100" />
-          </div>
-        </div>
-
-        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-28 rounded-full bg-slate-200" />
-            <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-600">
-              UGC / PR
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "payment") {
-    return (
-      <div className="mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="h-3 w-24 rounded-full bg-slate-200" />
-              <div className="mt-3 h-2 w-32 rounded-full bg-slate-100" />
-            </div>
-            <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-600">
-              Protected
-            </div>
-          </div>
-
-          <div className="mt-7 flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white">
-              ✓
-            </div>
-            <div className="h-1 flex-1 rounded-full bg-emerald-100" />
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white">
-              ✓
-            </div>
-            <div className="h-1 flex-1 rounded-full bg-slate-100" />
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-xs font-black text-white">
-              3
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-2 text-center text-[10px] font-black text-slate-400">
-            <span>支払い確認</span>
-            <span>承認</span>
-            <span>納品</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "delivery") {
-    return (
-      <div className="mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-28 rounded-full bg-slate-200" />
-            <div className="rounded-full bg-violet-50 px-3 py-1 text-[10px] font-black text-violet-600">
-              Delivered
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <div className="h-3 w-32 rounded-full bg-slate-200" />
-            <div className="mt-4 h-10 rounded-xl bg-white" />
-            <div className="mt-3 h-10 rounded-xl bg-white" />
-          </div>
-
-          <div className="mt-4 rounded-full bg-slate-950 px-4 py-3 text-center text-xs font-black text-white">
-            納品URLを確認
-          </div>
-        </div>
-      </div>
-    );
-  }
+function ProductMark({ accent }: { accent: ProductCardProps["accent"] }) {
+  const classes = markClasses[accent];
 
   return (
-    <div className="mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
-      <div className="grid gap-3">
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-28 rounded-full bg-slate-200" />
-            <div className="h-8 w-8 rounded-full bg-rose-50" />
-          </div>
-        </div>
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-36 rounded-full bg-slate-200" />
-            <div className="h-8 w-8 rounded-full bg-emerald-50" />
-          </div>
-        </div>
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-24 rounded-full bg-slate-200" />
-            <div className="h-8 w-8 rounded-full bg-blue-50" />
-          </div>
-        </div>
-      </div>
+    <div
+      className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${classes.bg}`}
+    >
+      <span
+        className={`absolute left-3 top-3 h-3 w-3 rounded-full ${classes.main}`}
+      />
+      <span
+        className={`absolute right-3 top-4 h-2.5 w-2.5 rounded-full ${classes.sub}`}
+      />
+      <span
+        className={`absolute bottom-3 left-4 h-2 w-5 rounded-full ${classes.line}`}
+      />
     </div>
   );
 }
 
-function ProductCard({
-  icon,
-  label,
-  title,
-  body,
-  accent,
-  mock,
-}: ProductCardProps) {
+function ProductCard({ title, body, accent }: ProductCardProps) {
   return (
-    <article className="group flex min-h-[480px] flex-col overflow-hidden rounded-[30px] bg-white p-8 shadow-[0_22px_70px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_rgba(15,23,42,0.1)]">
-      <div
-        className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ${accentClasses[accent]}`}
-      >
-        {icon}
+    <article className="group relative overflow-hidden rounded-[30px] bg-white p-8 shadow-[0_22px_70px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_rgba(15,23,42,0.1)]">
+      <div className="absolute -right-14 -top-14 h-36 w-36 rounded-full bg-slate-50 opacity-80 transition group-hover:scale-110" />
+
+      <div className="relative flex items-start gap-5">
+        <ProductMark accent={accent} />
+
+        <div>
+          <h3 className="text-2xl font-black leading-tight tracking-[-0.03em] text-slate-950">
+            {title}
+          </h3>
+
+          <p className="mt-4 text-[15px] font-medium leading-8 text-slate-600">
+            {body}
+          </p>
+        </div>
       </div>
 
-      <p className="mt-8 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
-        {label}
-      </p>
+      <div className="relative mt-8 h-px w-full bg-slate-100" />
 
-      <h3 className="mt-3 text-2xl font-black leading-tight tracking-[-0.03em] text-slate-950">
-        {title}
-      </h3>
-
-      <p className="mt-4 text-[15px] font-medium leading-8 text-slate-600">
-        {body}
-      </p>
-
-      <div className="mt-6 inline-flex items-center gap-3 text-sm font-black text-slate-950">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white transition group-hover:bg-[#ff5f67]">
-          →
-        </span>
-        もっと見る
-      </div>
-
-      <div className="mt-auto">
-        <MiniProductMock type={mock} />
+      <div className="relative mt-5 flex items-center gap-2 text-xs font-black text-slate-400">
+        <span className={`h-2 w-2 rounded-full ${markClasses[accent].main}`} />
+        Trendre workflow
       </div>
     </article>
   );
@@ -416,29 +243,22 @@ export default function HomePage() {
           productTitleAccent: "1つで完結",
           productBody:
             "検索、価格比較、注文、支払い確認、承認、納品確認までをひとつの流れに整理。DM営業や個別見積もりに頼らず、商品や店舗に合うインフルエンサーへスムーズに依頼できます。",
-          productCta: "もっと見る",
 
-          card1Label: "SEARCH",
           card1Title: "インフルエンサー検索",
           card1Body:
             "SNS、カテゴリ、価格、フォロワー帯などを見ながら、商品や店舗に合うインフルエンサーを探せます。",
-          card2Label: "PRICE",
           card2Title: "表示価格で即依頼",
           card2Body:
             "メニュー価格を見て比較できるため、相場が分からない企業でも小額からPR施策を試せます。",
-          card3Label: "UGC",
           card3Title: "PR投稿・UGC制作",
           card3Body:
             "Instagram投稿、TikTok動画、商品レビュー、広告素材向けUGCなどを依頼できます。",
-          card4Label: "PAYMENT",
           card4Title: "支払い・承認フロー",
           card4Body:
             "Stripeで支払い方法を確認し、インフルエンサーが承認した場合のみ案件が開始されます。",
-          card5Label: "DELIVERY",
           card5Title: "納品URLで確認",
           card5Body:
             "投稿URLや成果物URLを画面上で確認し、問題なければ案件を完了できます。",
-          card6Label: "MANAGEMENT",
           card6Title: "案件をオンライン管理",
           card6Body:
             "承認待ち、進行中、納品済み、完了まで、案件状況を一覧で確認できます。",
@@ -513,29 +333,22 @@ export default function HomePage() {
           productTitleAccent: "in one place",
           productBody:
             "Search, compare pricing, order, confirm payment, wait for acceptance, and review delivery in one workflow. Trendre helps brands request influencer PR and UGC without relying on manual DMs.",
-          productCta: "Learn more",
 
-          card1Label: "SEARCH",
           card1Title: "Influencer search",
           card1Body:
             "Find influencers by social platform, category, price, follower range, and audience fit.",
-          card2Label: "PRICE",
           card2Title: "Order with visible pricing",
           card2Body:
             "Compare menu prices and start small without spending time on individual estimates.",
-          card3Label: "UGC",
           card3Title: "PR posts and UGC",
           card3Body:
             "Request Instagram posts, TikTok videos, product reviews, and UGC assets.",
-          card4Label: "PAYMENT",
           card4Title: "Payment and approval flow",
           card4Body:
             "Confirm payment with Stripe and start only after the influencer accepts.",
-          card5Label: "DELIVERY",
           card5Title: "Review delivery URLs",
           card5Body:
             "Check submitted post URLs or deliverable links and complete the order online.",
-          card6Label: "MANAGEMENT",
           card6Title: "Manage orders online",
           card6Body:
             "Track pending, active, delivered, and completed orders from one place.",
@@ -592,52 +405,34 @@ export default function HomePage() {
 
   const productCards: ProductCardProps[] = [
     {
-      icon: "🌎",
-      label: copy.card1Label,
       title: copy.card1Title,
       body: copy.card1Body,
       accent: "rose",
-      mock: "search",
     },
     {
-      icon: "¥",
-      label: copy.card2Label,
       title: copy.card2Title,
       body: copy.card2Body,
       accent: "blue",
-      mock: "price",
     },
     {
-      icon: "▶",
-      label: copy.card3Label,
       title: copy.card3Title,
       body: copy.card3Body,
       accent: "amber",
-      mock: "ugc",
     },
     {
-      icon: "✓",
-      label: copy.card4Label,
       title: copy.card4Title,
       body: copy.card4Body,
       accent: "emerald",
-      mock: "payment",
     },
     {
-      icon: "↗",
-      label: copy.card5Label,
       title: copy.card5Title,
       body: copy.card5Body,
       accent: "violet",
-      mock: "delivery",
     },
     {
-      icon: "□",
-      label: copy.card6Label,
       title: copy.card6Title,
       body: copy.card6Body,
       accent: "slate",
-      mock: "manage",
     },
   ];
 
@@ -744,21 +539,11 @@ export default function HomePage() {
               <p className="mt-7 max-w-xl text-[15px] font-medium leading-8 text-slate-600">
                 {copy.productBody}
               </p>
-
-              <Link
-                href="/b/creators"
-                className="mt-8 inline-flex items-center gap-3 text-sm font-black text-slate-950"
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-white">
-                  →
-                </span>
-                {copy.productCta}
-              </Link>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
               {productCards.map((card) => (
-                <ProductCard key={card.label} {...card} />
+                <ProductCard key={card.title} {...card} />
               ))}
             </div>
           </div>
