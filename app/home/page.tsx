@@ -126,7 +126,7 @@ function HeroVisual() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto flex w-full max-w-[620px] items-center justify-center lg:translate-x-2">
+    <div className="relative mx-auto flex w-full max-w-[575px] items-center justify-center lg:-mt-10 lg:translate-x-2 xl:-mt-12">
       {imageFailed ? (
         <HeroPlaceholder />
       ) : (
