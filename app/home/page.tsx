@@ -107,21 +107,29 @@ function ProductCard({ title, body, accent }: ProductCardProps) {
 
 function FlowStep({ number, title, body }: FlowStepProps) {
   return (
-    <div className="relative rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+    <article className="group relative overflow-hidden rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-slate-100 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-950/10">
+      <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-slate-50 transition duration-300 group-hover:scale-125" />
+
+      <div className="relative flex gap-5">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-950/15">
           {number}
         </div>
 
-        <h3 className="text-lg font-black tracking-tight text-slate-950">
-          {title}
-        </h3>
-      </div>
+        <div className="pt-1">
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-300">
+            Step {number}
+          </p>
 
-      <p className="mt-4 text-sm font-medium leading-7 text-slate-500">
-        {body}
-      </p>
-    </div>
+          <h3 className="mt-2 text-xl font-black tracking-[-0.03em] text-slate-950">
+            {title}
+          </h3>
+
+          <p className="mt-3 text-sm font-medium leading-7 text-slate-500">
+            {body}
+          </p>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -258,7 +266,11 @@ export default function HomePage() {
           howLabel: "HOW IT WORKS",
           howTitle: "依頼までの流れ",
           howBody:
-            "DMで個別交渉するのではなく、検索から納品確認までをオンラインで完結できます。",
+            "DMで個別交渉するのではなく、インフルエンサー探しから納品確認までをオンラインで完結できます。",
+          howCta: "インフルエンサーを探す",
+          howMini1: "SNSを確認",
+          howMini2: "価格を比較",
+          howMini3: "納品まで管理",
           step1Title: "探す",
           step1Body:
             "SNS、カテゴリ、価格、フォロワー帯などから、商品や店舗に合うインフルエンサーを検索します。",
@@ -349,6 +361,10 @@ export default function HomePage() {
           howTitle: "From search to delivery",
           howBody:
             "Move from discovery to delivery without managing everything through DMs.",
+          howCta: "Search Influencers",
+          howMini1: "Check SNS",
+          howMini2: "Compare pricing",
+          howMini3: "Manage delivery",
           step1Title: "Search",
           step1Body:
             "Find influencers by platform, category, price, follower range, and audience fit.",
@@ -537,39 +553,53 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-20 md:px-6 lg:py-24">
-            <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-              <div className="lg:sticky lg:top-28">
+        <section className="bg-white px-4 py-20 md:px-6 lg:py-24">
+          <div className="mx-auto max-w-7xl overflow-hidden rounded-[44px] bg-slate-950 p-7 text-white shadow-2xl shadow-slate-950/10 md:p-10 lg:p-12">
+            <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+              <div>
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
                   {copy.howLabel}
                 </p>
 
-                <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
+                <h2 className="mt-5 max-w-xl text-3xl font-black leading-tight tracking-[-0.035em] text-white md:text-5xl">
                   {copy.howTitle}
                 </h2>
 
-                <p className="mt-5 text-base font-medium leading-8 text-slate-500">
+                <p className="mt-5 max-w-xl text-base font-medium leading-8 text-white/62">
                   {copy.howBody}
                 </p>
 
+                <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
+                  {[copy.howMini1, copy.howMini2, copy.howMini3].map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-xs font-black text-white/80"
+                    >
+                      <span className="mr-2 text-[#7bae6c]">●</span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+
                 <Link
-                  href="/signup/company"
-                  className="mt-8 inline-flex rounded-full bg-slate-950 px-7 py-4 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5"
+                  href="/b/creators"
+                  className="mt-9 inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-black text-slate-950 shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-slate-100"
                 >
-                  {copy.primaryCta}
+                  {copy.howCta}
                 </Link>
               </div>
 
-              <div className="grid gap-4">
-                {flowSteps.map((item) => (
-                  <FlowStep
-                    key={item.number}
-                    number={item.number}
-                    title={item.title}
-                    body={item.body}
-                  />
-                ))}
+              <div className="rounded-[36px] bg-white p-4 shadow-2xl shadow-black/20 md:p-5">
+                <div className="grid gap-4">
+                  {flowSteps.map((item) => (
+                    <FlowStep
+                      key={item.number}
+                      number={item.number}
+                      title={item.title}
+                      body={item.body}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </div>
