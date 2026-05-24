@@ -1,3 +1,4 @@
+// File: app/home/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -19,8 +20,10 @@ type FlowStepProps = {
 };
 
 type UseCaseCardProps = {
+  number: string;
   title: string;
   body: string;
+  accent: "rose" | "emerald" | "slate";
 };
 
 const markClasses = {
@@ -59,6 +62,30 @@ const markClasses = {
     main: "bg-slate-900",
     sub: "bg-slate-400",
     line: "bg-slate-300",
+  },
+};
+
+const useCaseAccentClasses = {
+  rose: {
+    bg: "bg-rose-50",
+    text: "text-[#ff5f67]",
+    dot: "bg-[#ff5f67]",
+    glow: "bg-rose-100/70",
+    soft: "bg-rose-50/70",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    text: "text-[#7bae6c]",
+    dot: "bg-[#7bae6c]",
+    glow: "bg-emerald-100/70",
+    soft: "bg-emerald-50/70",
+  },
+  slate: {
+    bg: "bg-slate-100",
+    text: "text-slate-700",
+    dot: "bg-slate-900",
+    glow: "bg-slate-100",
+    soft: "bg-slate-50",
   },
 };
 
@@ -128,14 +155,56 @@ function FlowStep({ number, title, body }: FlowStepProps) {
   );
 }
 
-function UseCaseCard({ title, body }: UseCaseCardProps) {
+function UseCaseMark({ accent }: { accent: UseCaseCardProps["accent"] }) {
+  const classes = useCaseAccentClasses[accent];
+
   return (
-    <div className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/5">
-      <p className="text-lg font-black text-slate-950">{title}</p>
-      <p className="mt-3 text-sm font-medium leading-7 text-slate-500">
-        {body}
-      </p>
+    <div
+      className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${classes.bg}`}
+    >
+      <span className={`h-3 w-3 rounded-full ${classes.dot}`} />
+      <span
+        className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${classes.dot} opacity-40`}
+      />
+      <span
+        className={`absolute bottom-3 left-3 h-2 w-7 rounded-full ${classes.dot} opacity-20`}
+      />
     </div>
+  );
+}
+
+function UseCaseCard({ number, title, body, accent }: UseCaseCardProps) {
+  const classes = useCaseAccentClasses[accent];
+
+  return (
+    <article className="group relative min-h-[210px] overflow-hidden rounded-[30px] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(15,23,42,0.1)]">
+      <div
+        className={`absolute -right-16 -top-16 h-40 w-40 rounded-full ${classes.glow} blur-2xl transition duration-300 group-hover:scale-110`}
+      />
+      <div
+        className={`absolute bottom-0 left-0 h-20 w-full ${classes.soft} opacity-0 transition duration-300 group-hover:opacity-100`}
+      />
+
+      <div className="relative flex items-start justify-between gap-5">
+        <UseCaseMark accent={accent} />
+
+        <div
+          className={`rounded-full ${classes.bg} px-3 py-1 text-xs font-black ${classes.text}`}
+        >
+          {number}
+        </div>
+      </div>
+
+      <div className="relative mt-7">
+        <h3 className="text-2xl font-black leading-tight tracking-[-0.03em] text-slate-950">
+          {title}
+        </h3>
+
+        <p className="mt-4 text-[15px] font-medium leading-8 text-slate-600">
+          {body}
+        </p>
+      </div>
+    </article>
   );
 }
 
@@ -258,7 +327,6 @@ export default function HomePage() {
           card6Body:
             "承認待ち、進行中、納品済み、完了まで、案件状況を一覧で確認できます。",
 
-          howLabel: "HOW IT WORKS",
           howTitle: "依頼までの流れ",
           howBody:
             "DMで個別交渉するのではなく、検索から納品確認までをオンラインで完結できます。",
@@ -282,7 +350,6 @@ export default function HomePage() {
           step5Body:
             "投稿URLや成果物URLを確認し、問題なければ案件完了です。",
 
-          useCaseLabel: "USE CASES",
           useCaseTitle: "こんなPRに使えます",
           useCaseBody:
             "美容・コスメだけでなく、店舗、求人、D2C、EC、海外ブランドの日本展開まで幅広く活用できます。",
@@ -352,7 +419,6 @@ export default function HomePage() {
           card6Body:
             "Track pending, active, delivered, and completed orders from one place.",
 
-          howLabel: "HOW IT WORKS",
           howTitle: "From search to delivery",
           howBody:
             "Move from discovery to delivery without managing everything through DMs.",
@@ -376,7 +442,6 @@ export default function HomePage() {
           step5Body:
             "Check submitted post URLs or deliverable links and complete the order.",
 
-          useCaseLabel: "USE CASES",
           useCaseTitle: "Built for different PR needs",
           useCaseBody:
             "Use Trendre for beauty, stores, recruiting, D2C, UGC assets, and Japan market entry.",
@@ -447,13 +512,43 @@ export default function HomePage() {
     { number: "5", title: copy.step5Title, body: copy.step5Body },
   ];
 
-  const useCases = [
-    { title: copy.useCase1Title, body: copy.useCase1Body },
-    { title: copy.useCase2Title, body: copy.useCase2Body },
-    { title: copy.useCase3Title, body: copy.useCase3Body },
-    { title: copy.useCase4Title, body: copy.useCase4Body },
-    { title: copy.useCase5Title, body: copy.useCase5Body },
-    { title: copy.useCase6Title, body: copy.useCase6Body },
+  const useCases: UseCaseCardProps[] = [
+    {
+      number: "01",
+      title: copy.useCase1Title,
+      body: copy.useCase1Body,
+      accent: "rose",
+    },
+    {
+      number: "02",
+      title: copy.useCase2Title,
+      body: copy.useCase2Body,
+      accent: "emerald",
+    },
+    {
+      number: "03",
+      title: copy.useCase3Title,
+      body: copy.useCase3Body,
+      accent: "slate",
+    },
+    {
+      number: "04",
+      title: copy.useCase4Title,
+      body: copy.useCase4Body,
+      accent: "rose",
+    },
+    {
+      number: "05",
+      title: copy.useCase5Title,
+      body: copy.useCase5Body,
+      accent: "emerald",
+    },
+    {
+      number: "06",
+      title: copy.useCase6Title,
+      body: copy.useCase6Body,
+      accent: "slate",
+    },
   ];
 
   return (
@@ -550,11 +645,7 @@ export default function HomePage() {
             <div className="rounded-[40px] bg-[#F7FAFC] p-6 md:p-8 lg:p-10">
               <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
                 <div className="lg:pt-4">
-                  <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
-                    {copy.howLabel}
-                  </p>
-
-                  <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
+                  <h2 className="text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
                     {copy.howTitle}
                   </h2>
 
@@ -563,15 +654,17 @@ export default function HomePage() {
                   </p>
 
                   <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
-                    {[copy.howMini1, copy.howMini2, copy.howMini3].map((item) => (
-                      <div
-                        key={item}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm"
-                      >
-                        <span className="mr-2 text-[#7bae6c]">●</span>
-                        {item}
-                      </div>
-                    ))}
+                    {[copy.howMini1, copy.howMini2, copy.howMini3].map(
+                      (item) => (
+                        <div
+                          key={item}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm"
+                        >
+                          <span className="mr-2 text-[#7bae6c]">●</span>
+                          {item}
+                        </div>
+                      )
+                    )}
                   </div>
 
                   <Link
@@ -597,29 +690,30 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="bg-[#F3F7FB] px-4 py-20 md:px-6 lg:py-24">
-          <div className="mx-auto max-w-7xl">
-            <div className="max-w-3xl">
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#ff5f67]">
-                {copy.useCaseLabel}
-              </p>
+        <section className="relative overflow-hidden bg-[#F3F7FB] px-4 py-20 md:px-6 lg:py-24">
+          <div className="absolute left-[-120px] top-20 h-72 w-72 rounded-full bg-rose-100/50 blur-3xl" />
+          <div className="absolute bottom-10 right-[-140px] h-80 w-80 rounded-full bg-emerald-100/50 blur-3xl" />
 
-              <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
-                {copy.useCaseTitle}
-              </h2>
+          <div className="relative mx-auto max-w-7xl">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h2 className="max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
+                  {copy.useCaseTitle}
+                </h2>
 
-              <p className="mt-5 text-base font-medium leading-8 text-slate-500">
-                {copy.useCaseBody}
-              </p>
+                <p className="mt-5 max-w-3xl text-base font-medium leading-8 text-slate-600">
+                  {copy.useCaseBody}
+                </p>
+              </div>
+
+              <div className="hidden rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm lg:inline-flex">
+                PR / UGC / SNS
+              </div>
             </div>
 
             <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {useCases.map((item) => (
-                <UseCaseCard
-                  key={item.title}
-                  title={item.title}
-                  body={item.body}
-                />
+                <UseCaseCard key={item.number} {...item} />
               ))}
             </div>
           </div>
