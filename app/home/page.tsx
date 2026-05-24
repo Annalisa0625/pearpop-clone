@@ -7,42 +7,283 @@ import { useAppLocale } from "@/lib/i18n/locale";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 
-type CapabilityCardProps = {
+type ProductCardProps = {
+  icon: string;
   label: string;
   title: string;
   body: string;
-  icon: string;
+  accent: "rose" | "emerald" | "blue" | "amber" | "violet" | "slate";
+  mock: "search" | "price" | "ugc" | "payment" | "delivery" | "manage";
 };
-
-function CapabilityCard({ label, title, body, icon }: CapabilityCardProps) {
-  return (
-    <div className="group rounded-[30px] border border-slate-100 bg-white p-7 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/5">
-      <div className="flex items-start justify-between gap-5">
-        <div className="inline-flex rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-          {label}
-        </div>
-
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-xl">
-          {icon}
-        </div>
-      </div>
-
-      <h3 className="mt-7 text-xl font-black tracking-tight text-slate-950">
-        {title}
-      </h3>
-
-      <p className="mt-3 text-sm font-medium leading-7 text-slate-500">
-        {body}
-      </p>
-    </div>
-  );
-}
 
 type FlowStepProps = {
   number: string;
   title: string;
   body: string;
 };
+
+type UseCaseCardProps = {
+  title: string;
+  body: string;
+};
+
+const accentClasses = {
+  rose: "bg-rose-50 text-[#ff5f67]",
+  emerald: "bg-emerald-50 text-emerald-600",
+  blue: "bg-blue-50 text-blue-600",
+  amber: "bg-amber-50 text-amber-600",
+  violet: "bg-violet-50 text-violet-600",
+  slate: "bg-slate-100 text-slate-700",
+};
+
+function MiniProductMock({ type }: { type: ProductCardProps["mock"] }) {
+  if (type === "search") {
+    return (
+      <div className="relative mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-[#ff5f67]" />
+          <div className="h-2 w-2 rounded-full bg-amber-300" />
+          <div className="h-2 w-2 rounded-full bg-emerald-400" />
+        </div>
+
+        <div className="mt-4 rounded-2xl bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-24 rounded-full bg-slate-200" />
+            <div className="h-7 w-20 rounded-full bg-blue-50" />
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="h-9 rounded-xl bg-slate-50" />
+            <div className="h-9 rounded-xl bg-slate-50" />
+            <div className="h-9 rounded-xl bg-slate-50" />
+          </div>
+
+          <div className="mt-3 space-y-2">
+            <div className="h-2 rounded-full bg-slate-100" />
+            <div className="h-2 w-4/5 rounded-full bg-slate-100" />
+            <div className="h-2 w-2/3 rounded-full bg-slate-100" />
+          </div>
+        </div>
+
+        <div className="absolute bottom-3 right-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+            Match
+          </p>
+          <p className="mt-1 text-lg font-black text-slate-950">92%</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "price") {
+    return (
+      <div className="relative mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-full bg-rose-100" />
+            <div className="flex-1">
+              <div className="h-3 w-28 rounded-full bg-slate-200" />
+              <div className="mt-2 h-2 w-20 rounded-full bg-slate-100" />
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-slate-50 p-3 text-center">
+              <p className="text-sm font-black text-slate-950">12.8k</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                SNS
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-3 text-center">
+              <p className="text-sm font-black text-slate-950">4.9</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                Rate
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-950 p-3 text-center">
+              <p className="text-sm font-black text-white">¥20k</p>
+              <p className="mt-1 text-[10px] font-bold text-white/40">
+                Price
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-3 left-4 rounded-2xl bg-white px-4 py-3 shadow-lg">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ff5f67]">
+            Order
+          </p>
+          <p className="mt-1 text-lg font-black text-slate-950">¥22,000</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "ugc") {
+    return (
+      <div className="relative mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="h-28 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="h-12 rounded-xl bg-rose-50" />
+            <div className="mt-3 h-2 rounded-full bg-slate-100" />
+            <div className="mt-2 h-2 w-2/3 rounded-full bg-slate-100" />
+          </div>
+
+          <div className="h-28 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="h-12 rounded-xl bg-emerald-50" />
+            <div className="mt-3 h-2 rounded-full bg-slate-100" />
+            <div className="mt-2 h-2 w-2/3 rounded-full bg-slate-100" />
+          </div>
+
+          <div className="h-28 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="h-12 rounded-xl bg-blue-50" />
+            <div className="mt-3 h-2 rounded-full bg-slate-100" />
+            <div className="mt-2 h-2 w-2/3 rounded-full bg-slate-100" />
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-28 rounded-full bg-slate-200" />
+            <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-600">
+              UGC / PR
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "payment") {
+    return (
+      <div className="mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-3 w-24 rounded-full bg-slate-200" />
+              <div className="mt-3 h-2 w-32 rounded-full bg-slate-100" />
+            </div>
+            <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-600">
+              Protected
+            </div>
+          </div>
+
+          <div className="mt-7 flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white">
+              ✓
+            </div>
+            <div className="h-1 flex-1 rounded-full bg-emerald-100" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white">
+              ✓
+            </div>
+            <div className="h-1 flex-1 rounded-full bg-slate-100" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-xs font-black text-white">
+              3
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2 text-center text-[10px] font-black text-slate-400">
+            <span>支払い確認</span>
+            <span>承認</span>
+            <span>納品</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "delivery") {
+    return (
+      <div className="mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-28 rounded-full bg-slate-200" />
+            <div className="rounded-full bg-violet-50 px-3 py-1 text-[10px] font-black text-violet-600">
+              Delivered
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <div className="h-3 w-32 rounded-full bg-slate-200" />
+            <div className="mt-4 h-10 rounded-xl bg-white" />
+            <div className="mt-3 h-10 rounded-xl bg-white" />
+          </div>
+
+          <div className="mt-4 rounded-full bg-slate-950 px-4 py-3 text-center text-xs font-black text-white">
+            納品URLを確認
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 overflow-hidden rounded-[22px] bg-slate-50 p-4">
+      <div className="grid gap-3">
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-28 rounded-full bg-slate-200" />
+            <div className="h-8 w-8 rounded-full bg-rose-50" />
+          </div>
+        </div>
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-36 rounded-full bg-slate-200" />
+            <div className="h-8 w-8 rounded-full bg-emerald-50" />
+          </div>
+        </div>
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-24 rounded-full bg-slate-200" />
+            <div className="h-8 w-8 rounded-full bg-blue-50" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductCard({
+  icon,
+  label,
+  title,
+  body,
+  accent,
+  mock,
+}: ProductCardProps) {
+  return (
+    <article className="group flex min-h-[480px] flex-col overflow-hidden rounded-[30px] bg-white p-8 shadow-[0_22px_70px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_rgba(15,23,42,0.1)]">
+      <div
+        className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ${accentClasses[accent]}`}
+      >
+        {icon}
+      </div>
+
+      <p className="mt-8 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
+        {label}
+      </p>
+
+      <h3 className="mt-3 text-2xl font-black leading-tight tracking-[-0.03em] text-slate-950">
+        {title}
+      </h3>
+
+      <p className="mt-4 text-[15px] font-medium leading-8 text-slate-600">
+        {body}
+      </p>
+
+      <div className="mt-6 inline-flex items-center gap-3 text-sm font-black text-slate-950">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white transition group-hover:bg-[#ff5f67]">
+          →
+        </span>
+        もっと見る
+      </div>
+
+      <div className="mt-auto">
+        <MiniProductMock type={mock} />
+      </div>
+    </article>
+  );
+}
 
 function FlowStep({ number, title, body }: FlowStepProps) {
   return (
@@ -64,106 +305,13 @@ function FlowStep({ number, title, body }: FlowStepProps) {
   );
 }
 
-type UseCaseCardProps = {
-  title: string;
-  body: string;
-};
-
 function UseCaseCard({ title, body }: UseCaseCardProps) {
   return (
-    <div className="rounded-[26px] border border-white/10 bg-white/[0.06] p-6 backdrop-blur">
-      <p className="text-lg font-black text-white">{title}</p>
-      <p className="mt-3 text-sm font-medium leading-7 text-white/60">
-        {body}
-      </p>
-    </div>
-  );
-}
-
-type TrustCardProps = {
-  title: string;
-  body: string;
-};
-
-function TrustCard({ title, body }: TrustCardProps) {
-  return (
-    <div className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm">
-      <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-sm font-black text-emerald-600">
-        ✓
-      </div>
-
-      <h3 className="text-lg font-black text-slate-950">{title}</h3>
+    <div className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/5">
+      <p className="text-lg font-black text-slate-950">{title}</p>
       <p className="mt-3 text-sm font-medium leading-7 text-slate-500">
         {body}
       </p>
-    </div>
-  );
-}
-
-function OverviewVisual() {
-  return (
-    <div className="relative overflow-hidden rounded-[38px] border border-slate-100 bg-white p-6 shadow-2xl shadow-slate-950/5">
-      <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-rose-100/60 blur-3xl" />
-      <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-emerald-100/60 blur-3xl" />
-
-      <div className="relative rounded-[30px] border border-slate-100 bg-slate-50/70 p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-400">
-              Trendre Flow
-            </p>
-            <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">
-              PR案件をオンラインで管理
-            </p>
-          </div>
-
-          <div className="rounded-full bg-[#ff5f67] px-4 py-2 text-xs font-black text-white">
-            Live
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-3">
-          {[
-            ["01", "インフルエンサー検索", "SNS・価格・カテゴリで比較"],
-            ["02", "メニュー選択", "PR投稿・UGC制作を選択"],
-            ["03", "注文・支払い確認", "Stripeで安全に支払い方法を確認"],
-            ["04", "納品確認", "投稿URL・成果物URLで確認"],
-          ].map(([number, title, body]) => (
-            <div
-              key={number}
-              className="grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl bg-white p-4 shadow-sm"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white">
-                {number}
-              </div>
-
-              <div>
-                <p className="text-sm font-black text-slate-950">{title}</p>
-                <p className="mt-1 text-xs font-bold text-slate-400">{body}</p>
-              </div>
-
-              <div className="h-2 w-2 rounded-full bg-[#7bae6c]" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-slate-100 bg-white p-4">
-          <p className="text-xs font-black text-slate-400">Search</p>
-          <p className="mt-1 text-lg font-black text-slate-950">比較</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-white p-4">
-          <p className="text-xs font-black text-slate-400">Order</p>
-          <p className="mt-1 text-lg font-black text-slate-950">依頼</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-white p-4">
-          <p className="text-xs font-black text-slate-400">Delivery</p>
-          <p className="mt-1 text-lg font-black text-slate-950">納品</p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -261,41 +409,39 @@ export default function HomePage() {
           mini2: "表示価格で依頼",
           mini3: "納品まで管理",
 
-          overviewLabel: "SERVICE OVERVIEW",
-          overviewTitle:
-            "探す・比較・依頼・納品確認まで、PR案件をひとつの流れに。",
-          overviewBody:
-            "Trendreは、インフルエンサーPRやUGC制作で発生する相場確認、見積もり、支払い、納品確認の手間をまとめて整理します。企業は一覧からインフルエンサーを比較し、表示価格のまま依頼できます。",
+          productLabel: "SERVICE",
+          productPill: "サービス概要",
+          productTitle1: "インフルエンサーPRの",
+          productTitle2: "すべてがこれ",
+          productTitleAccent: "1つで完結",
+          productBody:
+            "検索、価格比較、注文、支払い確認、承認、納品確認までをひとつの流れに整理。DM営業や個別見積もりに頼らず、商品や店舗に合うインフルエンサーへスムーズに依頼できます。",
+          productCta: "もっと見る",
 
-          capabilityLabel: "WHAT YOU CAN DO",
-          capabilityTitle: "Trendreでできること",
-          capabilityBody:
-            "はじめてのPR依頼でも迷わないように、検索・価格比較・注文・支払い・納品確認までをシンプルに設計しています。",
-
-          capability1Label: "SEARCH",
-          capability1Title: "SNSアカウントを見て比較",
-          capability1Body:
-            "InstagramやTikTokなどのSNS情報、投稿イメージ、価格帯を確認しながら、商品に合うインフルエンサーを探せます。",
-          capability2Label: "PRICE",
-          capability2Title: "表示価格でそのまま依頼",
-          capability2Body:
-            "メニュー価格が見えるので、相場が分からない企業でも予算に合わせて小額から試せます。",
-          capability3Label: "UGC",
-          capability3Title: "PR投稿もUGC制作も対応",
-          capability3Body:
-            "SNS投稿だけでなく、広告素材や商品ページに使える画像・動画UGCの制作依頼にも対応できます。",
-          capability4Label: "PAYMENT",
-          capability4Title: "Stripeで支払い方法を確認",
-          capability4Body:
-            "支払い方法をオンラインで確認し、インフルエンサーが承認した場合のみ案件が開始されます。",
-          capability5Label: "APPROVAL",
-          capability5Title: "承認後に案件開始",
-          capability5Body:
-            "インフルエンサーが内容を確認して承認すると案件が進行します。辞退された場合、請求は確定しません。",
-          capability6Label: "DELIVERY",
-          capability6Title: "納品URLで確認",
-          capability6Body:
-            "投稿URLや成果物URLを画面上で確認し、問題なければ完了できます。案件状況も一覧で管理できます。",
+          card1Label: "SEARCH",
+          card1Title: "インフルエンサー検索",
+          card1Body:
+            "SNS、カテゴリ、価格、フォロワー帯などを見ながら、商品や店舗に合うインフルエンサーを探せます。",
+          card2Label: "PRICE",
+          card2Title: "表示価格で即依頼",
+          card2Body:
+            "メニュー価格を見て比較できるため、相場が分からない企業でも小額からPR施策を試せます。",
+          card3Label: "UGC",
+          card3Title: "PR投稿・UGC制作",
+          card3Body:
+            "Instagram投稿、TikTok動画、商品レビュー、広告素材向けUGCなどを依頼できます。",
+          card4Label: "PAYMENT",
+          card4Title: "支払い・承認フロー",
+          card4Body:
+            "Stripeで支払い方法を確認し、インフルエンサーが承認した場合のみ案件が開始されます。",
+          card5Label: "DELIVERY",
+          card5Title: "納品URLで確認",
+          card5Body:
+            "投稿URLや成果物URLを画面上で確認し、問題なければ案件を完了できます。",
+          card6Label: "MANAGEMENT",
+          card6Title: "案件をオンライン管理",
+          card6Body:
+            "承認待ち、進行中、納品済み、完了まで、案件状況を一覧で確認できます。",
 
           howLabel: "HOW IT WORKS",
           howTitle: "依頼までの流れ",
@@ -340,20 +486,6 @@ export default function HomePage() {
           useCase6Body:
             "日本の生活者に届くインフルエンサーを探し、日本向けPRを始めたい企業に。",
 
-          trustLabel: "TRUST & CONTROL",
-          trustTitle: "安心して依頼できる理由",
-          trustBody:
-            "はじめてのインフルエンサー施策でも、価格・支払い・承認・納品確認の流れが見えるため、社内でも説明しやすくなります。",
-          trust1Title: "表示価格で依頼できる",
-          trust1Body:
-            "見積もりのやり取りを減らし、メニュー価格を見てそのまま依頼できます。",
-          trust2Title: "承認後に案件開始",
-          trust2Body:
-            "インフルエンサーが内容を確認し、承認した場合のみ案件が進行します。",
-          trust3Title: "支払いと納品をオンライン管理",
-          trust3Body:
-            "支払い確認、納品URL、完了確認まで、案件ごとに画面上で管理できます。",
-
           finalTitle: "まずは、商品や店舗に合うインフルエンサーを探してみましょう。",
           finalBody:
             "検索・比較・注文・納品確認まで、Trendre上でスムーズに進められます。",
@@ -374,41 +506,39 @@ export default function HomePage() {
           mini2: "Order with visible pricing",
           mini3: "Manage delivery online",
 
-          overviewLabel: "SERVICE OVERVIEW",
-          overviewTitle:
-            "Search, compare, order, and review delivery in one workflow.",
-          overviewBody:
-            "Trendre organizes influencer discovery, pricing, payment, and delivery into one clear flow. Brands can compare influencers and order directly from visible menu pricing.",
+          productLabel: "SERVICE",
+          productPill: "Overview",
+          productTitle1: "Everything for",
+          productTitle2: "influencer PR",
+          productTitleAccent: "in one place",
+          productBody:
+            "Search, compare pricing, order, confirm payment, wait for acceptance, and review delivery in one workflow. Trendre helps brands request influencer PR and UGC without relying on manual DMs.",
+          productCta: "Learn more",
 
-          capabilityLabel: "WHAT YOU CAN DO",
-          capabilityTitle: "What you can do with Trendre",
-          capabilityBody:
-            "Designed for simple influencer PR and UGC ordering, from discovery to delivery confirmation.",
-
-          capability1Label: "SEARCH",
-          capability1Title: "Compare social accounts",
-          capability1Body:
-            "Check Instagram and TikTok profiles, content examples, and pricing before choosing influencers.",
-          capability2Label: "PRICE",
-          capability2Title: "Order with visible pricing",
-          capability2Body:
-            "Start small with clear menu pricing and reduce back-and-forth estimation work.",
-          capability3Label: "UGC",
-          capability3Title: "Request posts and UGC",
-          capability3Body:
-            "Order social posts or UGC assets for ads, product pages, and social content.",
-          capability4Label: "PAYMENT",
-          capability4Title: "Confirm payment with Stripe",
-          capability4Body:
-            "Payment is handled online and the order begins after influencer acceptance.",
-          capability5Label: "APPROVAL",
-          capability5Title: "Start after acceptance",
-          capability5Body:
-            "Influencers review the request and accept before the job begins.",
-          capability6Label: "DELIVERY",
-          capability6Title: "Review delivery URLs",
-          capability6Body:
+          card1Label: "SEARCH",
+          card1Title: "Influencer search",
+          card1Body:
+            "Find influencers by social platform, category, price, follower range, and audience fit.",
+          card2Label: "PRICE",
+          card2Title: "Order with visible pricing",
+          card2Body:
+            "Compare menu prices and start small without spending time on individual estimates.",
+          card3Label: "UGC",
+          card3Title: "PR posts and UGC",
+          card3Body:
+            "Request Instagram posts, TikTok videos, product reviews, and UGC assets.",
+          card4Label: "PAYMENT",
+          card4Title: "Payment and approval flow",
+          card4Body:
+            "Confirm payment with Stripe and start only after the influencer accepts.",
+          card5Label: "DELIVERY",
+          card5Title: "Review delivery URLs",
+          card5Body:
             "Check submitted post URLs or deliverable links and complete the order online.",
+          card6Label: "MANAGEMENT",
+          card6Title: "Manage orders online",
+          card6Body:
+            "Track pending, active, delivered, and completed orders from one place.",
 
           howLabel: "HOW IT WORKS",
           howTitle: "From search to delivery",
@@ -453,20 +583,6 @@ export default function HomePage() {
           useCase6Body:
             "Find influencers who can reach Japanese consumers and support Japan PR.",
 
-          trustLabel: "TRUST & CONTROL",
-          trustTitle: "Designed for safer ordering",
-          trustBody:
-            "Clear pricing, online payment, influencer acceptance, and delivery review make campaigns easier to manage.",
-          trust1Title: "Visible menu pricing",
-          trust1Body:
-            "Reduce estimation work and order directly from clear influencer menus.",
-          trust2Title: "Starts after acceptance",
-          trust2Body:
-            "The job begins only after the influencer reviews and accepts the request.",
-          trust3Title: "Payment and delivery online",
-          trust3Body:
-            "Track payment, delivery URL, and completion status for each order.",
-
           finalTitle: "Start by finding influencers that fit your product.",
           finalBody:
             "Search, compare, order, and review delivery in one online workflow.",
@@ -474,42 +590,54 @@ export default function HomePage() {
           finalSecondary: "Search Influencers",
         };
 
-  const capabilities = [
+  const productCards: ProductCardProps[] = [
     {
-      label: copy.capability1Label,
-      title: copy.capability1Title,
-      body: copy.capability1Body,
-      icon: "🔎",
+      icon: "🌎",
+      label: copy.card1Label,
+      title: copy.card1Title,
+      body: copy.card1Body,
+      accent: "rose",
+      mock: "search",
     },
     {
-      label: copy.capability2Label,
-      title: copy.capability2Title,
-      body: copy.capability2Body,
       icon: "¥",
+      label: copy.card2Label,
+      title: copy.card2Title,
+      body: copy.card2Body,
+      accent: "blue",
+      mock: "price",
     },
     {
-      label: copy.capability3Label,
-      title: copy.capability3Title,
-      body: copy.capability3Body,
       icon: "▶",
+      label: copy.card3Label,
+      title: copy.card3Title,
+      body: copy.card3Body,
+      accent: "amber",
+      mock: "ugc",
     },
     {
-      label: copy.capability4Label,
-      title: copy.capability4Title,
-      body: copy.capability4Body,
-      icon: "□",
-    },
-    {
-      label: copy.capability5Label,
-      title: copy.capability5Title,
-      body: copy.capability5Body,
       icon: "✓",
+      label: copy.card4Label,
+      title: copy.card4Title,
+      body: copy.card4Body,
+      accent: "emerald",
+      mock: "payment",
     },
     {
-      label: copy.capability6Label,
-      title: copy.capability6Title,
-      body: copy.capability6Body,
       icon: "↗",
+      label: copy.card5Label,
+      title: copy.card5Title,
+      body: copy.card5Body,
+      accent: "violet",
+      mock: "delivery",
+    },
+    {
+      icon: "□",
+      label: copy.card6Label,
+      title: copy.card6Title,
+      body: copy.card6Body,
+      accent: "slate",
+      mock: "manage",
     },
   ];
 
@@ -528,12 +656,6 @@ export default function HomePage() {
     { title: copy.useCase4Title, body: copy.useCase4Body },
     { title: copy.useCase5Title, body: copy.useCase5Body },
     { title: copy.useCase6Title, body: copy.useCase6Body },
-  ];
-
-  const trustCards = [
-    { title: copy.trust1Title, body: copy.trust1Body },
-    { title: copy.trust2Title, body: copy.trust2Body },
-    { title: copy.trust3Title, body: copy.trust3Body },
   ];
 
   return (
@@ -597,88 +719,53 @@ export default function HomePage() {
 
         <section
           id="service-overview"
-          className="scroll-mt-24 border-y border-slate-100 bg-[#F8FAFC]"
+          className="scroll-mt-24 bg-[#F3F7FB]"
         >
-          <div className="mx-auto grid max-w-7xl gap-12 px-4 py-18 md:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-24">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
-                {copy.overviewLabel}
-              </p>
-
-              <h2 className="mt-5 max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
-                {copy.overviewTitle}
-              </h2>
-
-              <p className="mt-6 max-w-2xl text-base font-medium leading-8 text-slate-500">
-                {copy.overviewBody}
-              </p>
-
-              <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                    Search
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    比較
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                    Order
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    依頼
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                    Manage
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    管理
-                  </p>
-                </div>
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-20 md:px-6 lg:grid-cols-[0.72fr_1.28fr] lg:py-28">
+            <div className="lg:sticky lg:top-28 lg:self-start lg:pt-28">
+              <div className="inline-flex rounded-full border-2 border-[#ff5f67] bg-white px-5 py-3 text-sm font-black text-slate-950">
+                {copy.productPill}
               </div>
-            </div>
 
-            <OverviewVisual />
-          </div>
-        </section>
-
-        <section className="bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-18 md:px-6 lg:py-24">
-            <div className="max-w-4xl">
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#ff5f67]">
-                {copy.capabilityLabel}
+              <p className="mt-8 text-xs font-black uppercase tracking-[0.28em] text-slate-400">
+                {copy.productLabel}
               </p>
 
-              <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
-                {copy.capabilityTitle}
+              <h2 className="mt-5 max-w-lg text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
+                {copy.productTitle1}
+                <br />
+                {copy.productTitle2}
+                <br />
+                <span className="text-[#ff5f67]">
+                  {copy.productTitleAccent}
+                </span>
               </h2>
 
-              <p className="mt-5 max-w-3xl text-base font-medium leading-8 text-slate-500">
-                {copy.capabilityBody}
+              <p className="mt-7 max-w-xl text-[15px] font-medium leading-8 text-slate-600">
+                {copy.productBody}
               </p>
+
+              <Link
+                href="/b/creators"
+                className="mt-8 inline-flex items-center gap-3 text-sm font-black text-slate-950"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-white">
+                  →
+                </span>
+                {copy.productCta}
+              </Link>
             </div>
 
-            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {capabilities.map((item) => (
-                <CapabilityCard
-                  key={item.label}
-                  label={item.label}
-                  title={item.title}
-                  body={item.body}
-                  icon={item.icon}
-                />
+            <div className="grid gap-6 md:grid-cols-2">
+              {productCards.map((card) => (
+                <ProductCard key={card.label} {...card} />
               ))}
             </div>
           </div>
         </section>
 
-        <section className="bg-[#F8FAFC]">
-          <div className="mx-auto max-w-7xl px-4 py-18 md:px-6 lg:py-24">
+        <section className="bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-20 md:px-6 lg:py-24">
             <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
               <div className="lg:sticky lg:top-28">
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
@@ -715,67 +802,35 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="bg-white px-4 py-18 md:px-6 lg:py-24">
-          <div className="mx-auto max-w-7xl overflow-hidden rounded-[44px] bg-slate-950 p-7 text-white shadow-2xl shadow-slate-950/10 md:p-10 lg:p-12">
-            <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#ff7a82]">
-                  {copy.useCaseLabel}
-                </p>
+        <section className="bg-[#F3F7FB] px-4 py-20 md:px-6 lg:py-24">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-3xl">
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#ff5f67]">
+                {copy.useCaseLabel}
+              </p>
 
-                <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-white md:text-5xl">
-                  {copy.useCaseTitle}
-                </h2>
+              <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
+                {copy.useCaseTitle}
+              </h2>
 
-                <p className="mt-5 text-base font-medium leading-8 text-white/60">
-                  {copy.useCaseBody}
-                </p>
-              </div>
+              <p className="mt-5 text-base font-medium leading-8 text-slate-500">
+                {copy.useCaseBody}
+              </p>
+            </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {useCases.map((item) => (
-                  <UseCaseCard
-                    key={item.title}
-                    title={item.title}
-                    body={item.body}
-                  />
-                ))}
-              </div>
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {useCases.map((item) => (
+                <UseCaseCard
+                  key={item.title}
+                  title={item.title}
+                  body={item.body}
+                />
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="bg-[#F8FAFC]">
-          <div className="mx-auto max-w-7xl px-4 py-18 md:px-6 lg:py-24">
-            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
-                  {copy.trustLabel}
-                </p>
-
-                <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
-                  {copy.trustTitle}
-                </h2>
-
-                <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-500">
-                  {copy.trustBody}
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-1">
-                {trustCards.map((item) => (
-                  <TrustCard
-                    key={item.title}
-                    title={item.title}
-                    body={item.body}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-white px-4 py-18 md:px-6 lg:py-24">
+        <section className="bg-white px-4 py-20 md:px-6 lg:py-24">
           <div className="mx-auto max-w-7xl overflow-hidden rounded-[42px] bg-slate-950 p-8 text-white shadow-2xl shadow-slate-950/10 md:p-12">
             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
