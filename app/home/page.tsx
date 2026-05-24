@@ -342,7 +342,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="border-y border-slate-100 bg-[#F8FAFC]">
+        <section
+  id="service-overview"
+  className="scroll-mt-24 border-y border-slate-100 bg-[#F8FAFC]"
+>
           <div className="mx-auto max-w-7xl px-4 py-16 md:px-6 lg:py-20">
             <div className="max-w-4xl">
               <p className="text-xs font-black uppercase tracking-[0.28em] text-[#7bae6c]">
