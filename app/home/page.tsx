@@ -85,7 +85,7 @@ function ProductMark({ accent }: { accent: ProductCardProps["accent"] }) {
 
 function ProductCard({ title, body, accent }: ProductCardProps) {
   return (
-    <article className="group relative overflow-hidden rounded-[30px] bg-white p-8 shadow-[0_22px_70px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_rgba(15,23,42,0.1)]">
+    <article className="group relative min-h-[280px] overflow-hidden rounded-[30px] bg-white p-8 shadow-[0_22px_70px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_rgba(15,23,42,0.1)]">
       <div className="absolute -right-14 -top-14 h-36 w-36 rounded-full bg-slate-50 opacity-80 transition group-hover:scale-110" />
 
       <div className="relative flex items-start gap-5">
@@ -96,17 +96,10 @@ function ProductCard({ title, body, accent }: ProductCardProps) {
             {title}
           </h3>
 
-          <p className="mt-4 text-[15px] font-medium leading-8 text-slate-600">
+          <p className="mt-5 text-[15px] font-medium leading-8 text-slate-600">
             {body}
           </p>
         </div>
-      </div>
-
-      <div className="relative mt-8 h-px w-full bg-slate-100" />
-
-      <div className="relative mt-5 flex items-center gap-2 text-xs font-black text-slate-400">
-        <span className={`h-2 w-2 rounded-full ${markClasses[accent].main}`} />
-        Trendre workflow
       </div>
     </article>
   );
