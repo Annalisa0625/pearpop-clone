@@ -126,7 +126,7 @@ function HeroVisual() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto flex w-full max-w-[575px] items-center justify-center lg:-mt-10 lg:translate-x-2 xl:-mt-12">
+    <div className="relative mx-auto flex w-full max-w-[535px] items-center justify-center lg:-mt-6 lg:translate-x-2 xl:-mt-8">
       {imageFailed ? (
         <HeroPlaceholder />
       ) : (
@@ -148,10 +148,10 @@ export default function HomePage() {
     locale === "ja"
       ? {
           eyebrow: "インフルエンサーPRを、もっと手軽に",
-          titleLine1: "インフルエンサーをさがして",
-          titleLine2: "その場ですぐ依頼。",
-          titleAccent: "認知拡大へ。",
-          titleLine3: "1件から始められる。",
+          titleLine1: "市場の小額テストも継続的な広告運用も",
+          titleLine2: "すぐに探してその場で依頼できる。",
+          titleAccent: "価格、成果を可視化し。",
+          titleLine3: "認知拡大へ。",
           body:
             "Trendreは、Instagram・TikTokなど各種媒体でのPR投稿やUGC制作（広告素材）をインフルエンサーに直接依頼できるマーケットプレイスです。一覧から実際のSNSアカウントや価格を確認・比較し、支払いから納品確認までオンラインで完結できます。",
           primaryCta: "無料で企業登録",
