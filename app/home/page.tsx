@@ -229,7 +229,6 @@ export default function HomePage() {
           mini2: "表示価格で依頼",
           mini3: "納品まで管理",
 
-          productLabel: "SERVICE",
           productPill: "サービス概要",
           productTitle1: "インフルエンサーPRの",
           productTitle2: "すべてがこれ",
@@ -299,7 +298,8 @@ export default function HomePage() {
           useCase6Body:
             "日本の生活者に届くインフルエンサーを探し、日本向けPRを始めたい企業に。",
 
-          finalTitle: "まずは、商品や店舗に合うインフルエンサーを探してみましょう。",
+          finalTitle:
+            "まずは、商品や店舗に合うインフルエンサーを探してみましょう。",
           finalBody:
             "検索・比較・注文・納品確認まで、Trendre上でスムーズに進められます。",
           finalPrimary: "無料で企業登録",
@@ -319,7 +319,6 @@ export default function HomePage() {
           mini2: "Order with visible pricing",
           mini3: "Manage delivery online",
 
-          productLabel: "SERVICE",
           productPill: "Overview",
           productTitle1: "Everything for",
           productTitle2: "influencer PR",
@@ -515,11 +514,7 @@ export default function HomePage() {
                 {copy.productPill}
               </div>
 
-              <p className="mt-8 text-xs font-black uppercase tracking-[0.28em] text-slate-400">
-                {copy.productLabel}
-              </p>
-
-              <h2 className="mt-5 max-w-lg text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
+              <h2 className="mt-8 max-w-lg text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
                 {copy.productTitle1}
                 <br />
                 {copy.productTitle2}
