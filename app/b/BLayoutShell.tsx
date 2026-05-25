@@ -135,7 +135,8 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   // ここだけ公開ページ扱い。
   // /b/creators は未ログインでも見せるため、B専用ヘッダーではなくPublicHeaderを使う。
-  const isPublicInfluencerSearchPage = pathname === "/b/creators";
+  const isPublicInfluencerSearchPage =
+  pathname === "/b/creators" || pathname.startsWith("/b/creators/");
 
   const copy = useMemo(
     () =>
