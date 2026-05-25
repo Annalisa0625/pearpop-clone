@@ -161,9 +161,15 @@ function UseCaseMark({ accent }: { accent: UseCaseCardProps["accent"] }) {
     <div
       className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${classes.iconBg}`}
     >
-      <span className={`absolute left-4 top-4 h-3 w-3 rounded-full ${classes.main}`} />
-      <span className={`absolute right-4 top-3 h-2.5 w-2.5 rounded-full ${classes.sub}`} />
-      <span className={`absolute bottom-4 left-4 h-2 w-7 rounded-full ${classes.line}`} />
+      <span
+        className={`absolute left-4 top-4 h-3 w-3 rounded-full ${classes.main}`}
+      />
+      <span
+        className={`absolute right-4 top-3 h-2.5 w-2.5 rounded-full ${classes.sub}`}
+      />
+      <span
+        className={`absolute bottom-4 left-4 h-2 w-7 rounded-full ${classes.line}`}
+      />
     </div>
   );
 }
@@ -176,6 +182,7 @@ function UseCaseCard({ title, body, accent }: UseCaseCardProps) {
       <div
         className={`absolute -right-16 -top-16 h-40 w-40 rounded-full ${classes.cardGlow} blur-2xl transition duration-300 group-hover:scale-110`}
       />
+
       <div className="relative">
         <UseCaseMark accent={accent} />
 
@@ -682,15 +689,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="bg-white px-4 py-20 md:px-6 lg:py-24">
-          <div className="mx-auto max-w-7xl overflow-hidden rounded-[42px] bg-slate-950 p-8 text-white shadow-2xl shadow-slate-950/10 md:p-12">
-            <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+        <section className="bg-white px-4 py-16 md:px-6 lg:py-20">
+          <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[42px] border border-slate-100 bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-8 shadow-[0_28px_90px_rgba(15,23,42,0.08)] md:p-12">
+            <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-rose-100/70 blur-3xl" />
+            <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
+
+            <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
-                <h2 className="max-w-3xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-5xl">
+                <h2 className="max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
                   {copy.finalTitle}
                 </h2>
 
-                <p className="mt-5 max-w-2xl text-sm font-medium leading-7 text-white/60 md:text-base">
+                <p className="mt-5 max-w-2xl text-sm font-medium leading-7 text-slate-600 md:text-base">
                   {copy.finalBody}
                 </p>
               </div>
@@ -698,14 +708,14 @@ export default function HomePage() {
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/signup/company"
-                  className="rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-lg shadow-rose-500/20"
+                  className="rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
                 >
                   {copy.finalPrimary}
                 </Link>
 
                 <Link
                   href="/b/creators"
-                  className="rounded-full border border-white/20 bg-white/10 px-7 py-4 text-sm font-black text-white"
+                  className="rounded-full border border-slate-200 bg-white/80 px-7 py-4 text-sm font-black text-slate-800 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
                 >
                   {copy.finalSecondary}
                 </Link>
