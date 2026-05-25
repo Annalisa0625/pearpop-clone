@@ -12,6 +12,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import PublicHeader from "@/components/PublicHeader";
 
 type NavBadgeKey = "requests" | "jobs";
 
@@ -132,6 +133,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
+  // ここだけ公開ページ扱い。
+  // /b/creators は未ログインでも見せるため、B専用ヘッダーではなくPublicHeaderを使う。
+  const isPublicInfluencerSearchPage = pathname === "/b/creators";
+
   const copy = useMemo(
     () =>
       locale === "ja"
@@ -147,7 +152,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             profile: "プロフィール",
             requests: "承認待ち",
             jobs: "進行中案件",
-            search: "クリエイター検索",
+            search: "インフルエンサー検索",
             saved: "保存済み",
             home: "Home",
             company: "Company",
@@ -166,7 +171,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             profile: "Profile",
             requests: "Pending",
             jobs: "Active Jobs",
-            search: "Search",
+            search: "Influencer Search",
             saved: "Saved",
             home: "Home",
             company: "Company",
@@ -223,6 +228,11 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   );
 
   const loadUnreadBadges = useCallback(async () => {
+    if (isPublicInfluencerSearchPage) {
+      setUnread({ requests: false, jobs: false });
+      return;
+    }
+
     const {
       data: { user },
       error: userError,
@@ -401,9 +411,14 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         hasUnreadChats(activeOrderChats, user.id) ||
         hasUnreadChats(activeRequestChats, user.id),
     });
-  }, [supabase]);
+  }, [supabase, isPublicInfluencerSearchPage]);
 
   useEffect(() => {
+    if (isPublicInfluencerSearchPage) {
+      setLimitReason(null);
+      return;
+    }
+
     const loadLimit = async () => {
       const {
         data: { user },
@@ -434,9 +449,14 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     };
 
     void loadLimit();
-  }, [supabase]);
+  }, [supabase, isPublicInfluencerSearchPage]);
 
   useEffect(() => {
+    if (isPublicInfluencerSearchPage) {
+      setUnread({ requests: false, jobs: false });
+      return;
+    }
+
     void loadUnreadBadges();
 
     const channel = supabase
@@ -490,7 +510,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("trendre:chat-read-changed", onFocus);
     };
-  }, [loadUnreadBadges, supabase]);
+  }, [loadUnreadBadges, supabase, isPublicInfluencerSearchPage]);
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -513,6 +533,17 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   const openProfileMenu = () => {
     setMenuOpen(true);
   };
+
+  if (isPublicInfluencerSearchPage) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-950">
+        <PublicHeader />
+        <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-6 lg:py-10">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
