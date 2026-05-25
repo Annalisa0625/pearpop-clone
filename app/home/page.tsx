@@ -361,8 +361,6 @@ export default function HomePage() {
 
           finalTitle:
             "まずは、商品や店舗に合うインフルエンサーを探してみましょう。",
-          finalBody:
-            "検索・比較・注文・納品確認まで、Trendre上でスムーズに進められます。",
           finalPrimary: "無料で企業登録",
           finalSecondary: "インフルエンサー検索を見る",
         }
@@ -449,8 +447,6 @@ export default function HomePage() {
             "Find influencers who can reach Japanese consumers and support Japan PR.",
 
           finalTitle: "Start by finding influencers that fit your product.",
-          finalBody:
-            "Search, compare, order, and review delivery in one online workflow.",
           finalPrimary: "Join as a Brand",
           finalSecondary: "Search Influencers",
         };
@@ -699,10 +695,6 @@ export default function HomePage() {
                 <h2 className="max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] text-slate-950 md:text-5xl">
                   {copy.finalTitle}
                 </h2>
-
-                <p className="mt-5 max-w-2xl text-sm font-medium leading-7 text-slate-600 md:text-base">
-                  {copy.finalBody}
-                </p>
               </div>
 
               <div className="flex flex-wrap gap-3">

@@ -10,15 +10,10 @@ export default function PublicFooter() {
   const copy =
     locale === "ja"
       ? {
-          description:
-            "企業がインフルエンサーを探して直接依頼できるインフルエンサーマッチングサービス。",
           service: "サービス",
           overview: "サービス概要",
           search: "インフルエンサー検索",
-          forCreators: "インフルエンサー向け",
-          forCompanies: "企業向け",
           login: "ログイン",
-          creatorSignup: "インフルエンサー登録",
           companySignup: "企業登録",
           policy: "ポリシー",
           terms: "利用規約",
@@ -26,15 +21,10 @@ export default function PublicFooter() {
           legal: "事業者情報",
         }
       : {
-          description:
-            "An influencer marketplace where brands can find influencers and request PR or UGC directly.",
           service: "Service",
           overview: "Overview",
           search: "Influencer Search",
-          forCreators: "For Influencers",
-          forCompanies: "For Brands",
           login: "Login",
-          creatorSignup: "Influencer Signup",
           companySignup: "Brand Signup",
           policy: "Policy",
           terms: "Terms",
@@ -53,10 +43,6 @@ export default function PublicFooter() {
               className="h-11 w-auto object-contain"
             />
           </Link>
-
-          <p className="mt-6 max-w-md text-sm font-medium leading-7 text-slate-500">
-            {copy.description}
-          </p>
         </div>
 
         <div>
@@ -66,21 +52,15 @@ export default function PublicFooter() {
             <Link href="/home#service-overview" className="hover:text-slate-950">
               {copy.overview}
             </Link>
+
             <Link href="/b/creators" className="hover:text-slate-950">
               {copy.search}
             </Link>
-            <Link href="/for-creators" className="hover:text-slate-950">
-              {copy.forCreators}
-            </Link>
-            <Link href="/for-companies" className="hover:text-slate-950">
-              {copy.forCompanies}
-            </Link>
+
             <Link href="/login" className="hover:text-slate-950">
               {copy.login}
             </Link>
-            <Link href="/signup/creator" className="hover:text-slate-950">
-              {copy.creatorSignup}
-            </Link>
+
             <Link href="/signup/company" className="hover:text-slate-950">
               {copy.companySignup}
             </Link>
@@ -94,9 +74,11 @@ export default function PublicFooter() {
             <Link href="/terms" className="hover:text-slate-950">
               {copy.terms}
             </Link>
+
             <Link href="/privacy" className="hover:text-slate-950">
               {copy.privacy}
             </Link>
+
             <Link href="/legal" className="hover:text-slate-950">
               {copy.legal}
             </Link>
