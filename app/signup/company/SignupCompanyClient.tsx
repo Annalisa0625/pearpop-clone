@@ -1,4 +1,4 @@
-// app/signup/company/SignupCompanyClient.tsx
+// File: app/signup/company/SignupCompanyClient.tsx
 "use client";
 
 import Link from "next/link";
@@ -14,57 +14,103 @@ type LocaleOption = {
 };
 
 const USAGE_PURPOSE_OPTIONS: LocaleOption[] = [
-  { value: "新規顧客の獲得", ja: "新規顧客の獲得", en: "Acquire New Customers" },
-  { value: "認知拡大", ja: "認知拡大", en: "Increase Brand Awareness" },
-  { value: "商品PR", ja: "商品PR", en: "Product Promotion" },
+  { value: "新規顧客の獲得", ja: "新規顧客の獲得", en: "Acquire new customers" },
+  { value: "認知拡大", ja: "認知拡大", en: "Increase brand awareness" },
+  { value: "商品PR", ja: "商品PR", en: "Product promotion" },
   {
     value: "SNS運用強化",
     ja: "SNS運用強化",
-    en: "Strengthen Social Media Marketing",
+    en: "Strengthen social media marketing",
   },
-  { value: "海外向けPR", ja: "海外向けPR", en: "Global Promotion" },
+  { value: "海外向けPR", ja: "海外向けPR", en: "Global promotion" },
   { value: "その他", ja: "その他", en: "Other" },
 ];
 
-function LocaleTabs({
-  locale,
-  setLocale,
-}: {
-  locale: "ja" | "en";
-  setLocale: (locale: "ja" | "en") => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setLocale("ja")}
-        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
-          locale === "ja"
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        JA
-      </button>
+function normalizeNextPath(value: string | null) {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//")) return null;
+  return value;
+}
 
-      <button
-        type="button"
-        onClick={() => setLocale("en")}
-        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
-          locale === "en"
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        EN
-      </button>
-    </div>
+function getOAuthRedirectUrl(nextPath: string | null) {
+  if (typeof window === "undefined") return "";
+
+  const url = new URL("/signup/company", window.location.origin);
+  url.searchParams.set("oauth", "1");
+
+  const safeNext = normalizeNextPath(nextPath);
+  if (safeNext) {
+    url.searchParams.set("next", safeNext);
+  }
+
+  return url.toString();
+}
+
+function GoogleIcon() {
+  return (
+    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">
+      G
+    </span>
   );
 }
 
-function getOAuthRedirectUrl() {
-  if (typeof window === "undefined") return "";
-  return `${window.location.origin}/signup/company?oauth=1`;
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m4.5 10.4 3.4 3.4 7.6-8.1"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h10.5M10.5 5.5 15 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function InputField({
+  label,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+  autoComplete,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  autoComplete?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-black text-slate-800">{label}</label>
+      <input
+        type={type}
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+      />
+    </div>
+  );
 }
 
 export default function SignupCompanyClient() {
@@ -72,23 +118,36 @@ export default function SignupCompanyClient() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const token = searchParams.get("token");
+  const nextParam = searchParams.get("next");
   const hasOAuthReturn = searchParams.get("oauth") === "1";
-  const { locale, setLocale } = useAppLocale();
+  const { locale } = useAppLocale();
+
+  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeNextPath = normalizeNextPath(nextParam);
+  const afterSignupPath = safeNextPath || "/b/dashboard";
 
   const copy = useMemo(
     () =>
-      locale === "ja"
+      safeLocale === "ja"
         ? {
-            badge: "Company Signup",
-            title: "企業登録",
+            badge: "Brand Signup",
+            title: "企業アカウントを作成",
             subtitle:
-              "Googleまたはメールアドレスで企業アカウントを作成します。登録後、Basicプランでクリエイター検索と注文を開始できます。",
+              "インフルエンサーの検索、価格確認、依頼、支払い、納品確認までオンラインで進められます。",
+            sideTitle: "商品や店舗に合うインフルエンサーを、すぐに探せます。",
+            sideBody:
+              "登録後はBasicプランでインフルエンサー検索を開始できます。気になるメニューを選び、そのまま依頼へ進めます。",
+            point1: "表示価格を見て比較",
+            point2: "Stripeで安全に支払い",
+            point3: "納品確認までオンライン管理",
+            returnNote:
+              "登録完了後、元のインフルエンサー詳細ページに戻って依頼を続けられます。",
             companyName: "会社名",
             companyNamePlaceholder: "例：株式会社〇〇 / 〇〇合同会社",
             websiteUrl: "会社HP URL または ECサイト URL",
             websiteUrlPlaceholder: "https://example.com",
             websiteHelp:
-              "会社やブランド、事業内容が分かるURLを入力してください。",
+              "会社・ブランド・店舗・商品内容が分かるURLを入力してください。",
             phoneNumber: "電話番号",
             phoneNumberPlaceholder: "例：03-1234-5678",
             usagePurpose: "利用目的",
@@ -109,6 +168,7 @@ export default function SignupCompanyClient() {
             submit: "企業アカウントを作成する",
             submitting: "登録中...",
             selectPlease: "選択してください",
+            login: "すでにアカウントをお持ちの方はログイン",
             companyNameRequired: "会社名を入力してください",
             websiteRequired:
               "会社HP URL または ECサイト URL を入力してください",
@@ -127,26 +187,34 @@ export default function SignupCompanyClient() {
             googleFailed: "Google登録を開始できませんでした",
           }
         : {
-            badge: "Company Signup",
-            title: "Company Registration",
+            badge: "Brand Signup",
+            title: "Create a brand account",
             subtitle:
-              "Create a company account with Google or email. You can start searching creators and placing orders on the Basic plan after registration.",
-            companyName: "Company Name",
-            companyNamePlaceholder: "Example: Example Inc. / Example LLC",
-            websiteUrl: "Company Website or Store URL",
+              "Search influencers, compare pricing, send requests, manage payment, and confirm delivery online.",
+            sideTitle: "Find influencers that fit your product or store.",
+            sideBody:
+              "After registration, you can start searching influencers on the Basic plan and continue directly to your request.",
+            point1: "Compare visible pricing",
+            point2: "Secure payment with Stripe",
+            point3: "Manage delivery online",
+            returnNote:
+              "After registration, you can return to the influencer page and continue your request.",
+            companyName: "Company name",
+            companyNamePlaceholder: "Example Inc. / Example LLC",
+            websiteUrl: "Company website or store URL",
             websiteUrlPlaceholder: "https://example.com",
             websiteHelp:
-              "Please enter a URL that shows your company, brand, or business overview.",
-            phoneNumber: "Phone Number",
+              "Please enter a URL that shows your company, brand, store, or product overview.",
+            phoneNumber: "Phone number",
             phoneNumberPlaceholder: "Example: +81-3-1234-5678",
-            usagePurpose: "Usage Purpose",
+            usagePurpose: "Usage purpose",
             usagePurposeHelp:
               "This will be used for usage guidance and account review if needed.",
             email: "Email",
             emailPlaceholder: "company@example.com",
             password: "Password",
             passwordPlaceholder: "12 characters or more",
-            confirmPassword: "Confirm Password",
+            confirmPassword: "Confirm password",
             confirmPasswordPlaceholder: "Enter again",
             agree: "I agree to the Terms of Service and Privacy Policy",
             agreementNotePrefix: "Please review the",
@@ -155,9 +223,10 @@ export default function SignupCompanyClient() {
             agreementNoteSuffix: "before registering.",
             google: "Sign up with Google",
             oauthConnected: "Google account connected",
-            submit: "Create Company Account",
+            submit: "Create brand account",
             submitting: "Creating...",
             selectPlease: "Please select",
+            login: "Already have an account? Log in",
             companyNameRequired: "Please enter your company name",
             websiteRequired:
               "Please enter your company website or store URL",
@@ -175,7 +244,7 @@ export default function SignupCompanyClient() {
             networkError: "A network error occurred",
             googleFailed: "Failed to start Google signup",
           },
-    [locale]
+    [safeLocale]
   );
 
   const [companyName, setCompanyName] = useState("");
@@ -216,12 +285,12 @@ export default function SignupCompanyClient() {
         .maybeSingle();
 
       if (existingCompany) {
-        router.replace("/b/dashboard");
+        router.replace(afterSignupPath);
       }
     };
 
     void hydrateSession();
-  }, [hasOAuthReturn, router, supabase]);
+  }, [afterSignupPath, hasOAuthReturn, router, supabase]);
 
   const handleGoogleSignup = async () => {
     setError(null);
@@ -231,7 +300,7 @@ export default function SignupCompanyClient() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getOAuthRedirectUrl(),
+          redirectTo: getOAuthRedirectUrl(nextParam),
         },
       });
 
@@ -354,7 +423,7 @@ export default function SignupCompanyClient() {
         }
       }
 
-      router.replace("/b/dashboard");
+      router.replace(afterSignupPath);
     } catch {
       setError(copy.networkError);
     } finally {
@@ -363,168 +432,263 @@ export default function SignupCompanyClient() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 md:px-6 md:py-12">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-4 flex justify-end">
-          <LocaleTabs locale={locale} setLocale={setLocale} />
-        </div>
-
-        <div className="space-y-6 rounded-2xl border bg-white p-6 shadow-sm">
-          <div>
-            <p className="text-sm font-semibold text-blue-600">{copy.badge}</p>
-            <h1 className="text-2xl font-bold">{copy.title}</h1>
-            <p className="mt-2 text-sm text-gray-600">{copy.subtitle}</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogleSignup}
-            disabled={loading || oauthLoading}
-            className="w-full rounded-xl border border-gray-300 bg-white py-3 font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60"
-          >
-            {oauthLoading ? copy.submitting : copy.google}
-          </button>
-
-          {isOAuthMode ? (
-            <div className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-green-900">
-              <p className="font-semibold">{copy.oauthConnected}</p>
-              <p className="mt-1">{oauthEmail}</p>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{copy.email}</label>
-                <input
-                  type="email"
-                  className="w-full rounded-lg border px-3 py-2"
-                  placeholder={copy.emailPlaceholder}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{copy.password}</label>
-                  <input
-                    type="password"
-                    className="w-full rounded-lg border px-3 py-2"
-                    placeholder={copy.passwordPlaceholder}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {copy.confirmPassword}
-                  </label>
-                  <input
-                    type="password"
-                    className="w-full rounded-lg border px-3 py-2"
-                    placeholder={copy.confirmPasswordPlaceholder}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{copy.companyName}</label>
-            <input
-              className="w-full rounded-lg border px-3 py-2"
-              placeholder={copy.companyNamePlaceholder}
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{copy.websiteUrl}</label>
-            <input
-              className="w-full rounded-lg border px-3 py-2"
-              placeholder={copy.websiteUrlPlaceholder}
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-            />
-            <p className="text-xs text-gray-500">{copy.websiteHelp}</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{copy.phoneNumber}</label>
-            <input
-              className="w-full rounded-lg border px-3 py-2"
-              placeholder={copy.phoneNumberPlaceholder}
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{copy.usagePurpose}</label>
-            <select
-              className="w-full rounded-lg border px-3 py-2"
-              value={usagePurpose}
-              onChange={(e) => setUsagePurpose(e.target.value)}
-            >
-              <option value="">{copy.selectPlease}</option>
-              {USAGE_PURPOSE_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {locale === "ja" ? item.ja : item.en}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">{copy.usagePurposeHelp}</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={agree}
-                onChange={(e) => setAgree(e.target.checked)}
-              />
-              <span>{copy.agree}</span>
-            </label>
-
-            <p className="pl-6 text-xs text-gray-500">
-              {copy.agreementNotePrefix}{" "}
-              <Link
-                href="/terms"
-                target="_blank"
-                className="underline underline-offset-4"
-              >
-                {copy.terms}
-              </Link>{" "}
-              /{" "}
-              <Link
-                href="/privacy"
-                target="_blank"
-                className="underline underline-offset-4"
-              >
-                {copy.privacy}
-              </Link>{" "}
-              {copy.agreementNoteSuffix}
-            </p>
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading || oauthLoading}
-            className="w-full rounded-lg bg-black py-3 font-semibold text-white disabled:opacity-60"
-          >
-            {loading ? copy.submitting : copy.submit}
-          </button>
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-[#f8fafc]">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/75 blur-3xl" />
+        <div className="absolute right-[-180px] top-[14%] h-[520px] w-[520px] rounded-full bg-emerald-100/70 blur-3xl" />
+        <div className="absolute bottom-[-220px] left-[22%] h-[460px] w-[460px] rounded-full bg-slate-200/60 blur-3xl" />
       </div>
-    </div>
+
+      <div className="relative mx-auto grid min-h-screen max-w-7xl gap-8 px-4 py-10 md:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:py-14">
+        <section className="hidden lg:block">
+          <div className="max-w-xl">
+            <Link href="/home" className="inline-flex items-center">
+              <img
+                src="/brand/trendre-logo-full.png"
+                alt="Trendre"
+                className="h-11 w-auto object-contain"
+              />
+            </Link>
+
+            <div className="mt-12 inline-flex rounded-full border border-rose-100 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#ff5f67] shadow-sm">
+              {copy.badge}
+            </div>
+
+            <h1 className="mt-7 text-[42px] font-black leading-[1.12] tracking-[-0.045em] text-slate-950 xl:text-[56px]">
+              {copy.sideTitle}
+            </h1>
+
+            <p className="mt-6 text-base font-medium leading-8 text-slate-600">
+              {copy.sideBody}
+            </p>
+
+            <div className="mt-8 grid gap-3">
+              {[copy.point1, copy.point2, copy.point3].map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[#7bae6c]">
+                    <CheckIcon />
+                  </span>
+                  <span className="text-sm font-black text-slate-800">
+                    {item}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {safeNextPath ? (
+              <div className="mt-8 rounded-[26px] border border-rose-100 bg-white/80 p-5 shadow-sm">
+                <p className="text-sm font-bold leading-7 text-slate-600">
+                  {copy.returnNote}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-2xl">
+          <div className="mb-6 flex justify-center lg:hidden">
+            <Link href="/home" className="inline-flex items-center">
+              <img
+                src="/brand/trendre-logo-full.png"
+                alt="Trendre"
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
+          </div>
+
+          <div className="relative overflow-hidden rounded-[34px] border border-white/80 bg-white/95 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.13)] md:p-8">
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-rose-50 blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-50 blur-3xl" />
+
+            <div className="relative">
+              <div className="mb-7">
+                <div className="inline-flex rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-[11px] font-black text-[#ff5f67]">
+                  {copy.badge}
+                </div>
+
+                <h2 className="mt-5 text-[30px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[40px]">
+                  {copy.title}
+                </h2>
+
+                <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
+                  {copy.subtitle}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleSignup}
+                disabled={loading || oauthLoading}
+                className="inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+              >
+                <GoogleIcon />
+                {oauthLoading ? copy.submitting : copy.google}
+              </button>
+
+              <div className="my-6 flex items-center gap-4">
+                <div className="h-px flex-1 bg-slate-100" />
+                <span className="text-xs font-bold text-slate-300">or</span>
+                <div className="h-px flex-1 bg-slate-100" />
+              </div>
+
+              {isOAuthMode ? (
+                <div className="mb-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+                  <p className="font-black">{copy.oauthConnected}</p>
+                  <p className="mt-1 font-medium">{oauthEmail}</p>
+                </div>
+              ) : (
+                <div className="mb-5 space-y-5">
+                  <InputField
+                    label={copy.email}
+                    placeholder={copy.emailPlaceholder}
+                    value={email}
+                    onChange={setEmail}
+                    type="email"
+                    autoComplete="email"
+                  />
+
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <InputField
+                      label={copy.password}
+                      placeholder={copy.passwordPlaceholder}
+                      value={password}
+                      onChange={setPassword}
+                      type="password"
+                      autoComplete="new-password"
+                    />
+
+                    <InputField
+                      label={copy.confirmPassword}
+                      placeholder={copy.confirmPasswordPlaceholder}
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      type="password"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <form
+                className="space-y-5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleSubmit();
+                }}
+              >
+                <InputField
+                  label={copy.companyName}
+                  placeholder={copy.companyNamePlaceholder}
+                  value={companyName}
+                  onChange={setCompanyName}
+                  autoComplete="organization"
+                />
+
+                <div className="space-y-2">
+                  <InputField
+                    label={copy.websiteUrl}
+                    placeholder={copy.websiteUrlPlaceholder}
+                    value={websiteUrl}
+                    onChange={setWebsiteUrl}
+                    autoComplete="url"
+                  />
+                  <p className="px-1 text-xs font-medium leading-5 text-slate-400">
+                    {copy.websiteHelp}
+                  </p>
+                </div>
+
+                <InputField
+                  label={copy.phoneNumber}
+                  placeholder={copy.phoneNumberPlaceholder}
+                  value={phoneNumber}
+                  onChange={setPhoneNumber}
+                  autoComplete="tel"
+                />
+
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-800">
+                    {copy.usagePurpose}
+                  </label>
+                  <select
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                    value={usagePurpose}
+                    onChange={(e) => setUsagePurpose(e.target.value)}
+                  >
+                    <option value="">{copy.selectPlease}</option>
+                    {USAGE_PURPOSE_OPTIONS.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {safeLocale === "ja" ? item.ja : item.en}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="px-1 text-xs font-medium leading-5 text-slate-400">
+                    {copy.usagePurposeHelp}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <label className="flex items-start gap-3 text-sm font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-[#ff5f67] focus:ring-[#ff5f67]"
+                      checked={agree}
+                      onChange={(e) => setAgree(e.target.checked)}
+                    />
+                    <span>{copy.agree}</span>
+                  </label>
+
+                  <p className="mt-3 pl-7 text-xs font-medium leading-6 text-slate-400">
+                    {copy.agreementNotePrefix}{" "}
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      className="font-bold text-slate-600 underline underline-offset-4"
+                    >
+                      {copy.terms}
+                    </Link>{" "}
+                    /{" "}
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      className="font-bold text-slate-600 underline underline-offset-4"
+                    >
+                      {copy.privacy}
+                    </Link>{" "}
+                    {copy.agreementNoteSuffix}
+                  </p>
+                </div>
+
+                {error ? (
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+                    {error}
+                  </div>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={loading || oauthLoading}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:opacity-60"
+                >
+                  {loading ? copy.submitting : copy.submit}
+                  {!loading ? <ArrowIcon /> : null}
+                </button>
+
+                <div className="text-center">
+                  <Link
+                    href={`/login${safeNextPath ? `?next=${encodeURIComponent(safeNextPath)}` : ""}`}
+                    className="text-sm font-bold text-slate-400 underline underline-offset-4 transition hover:text-slate-700"
+                  >
+                    {copy.login}
+                  </Link>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
