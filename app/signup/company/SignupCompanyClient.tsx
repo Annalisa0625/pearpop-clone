@@ -17,11 +17,7 @@ const USAGE_PURPOSE_OPTIONS: LocaleOption[] = [
   { value: "新規顧客の獲得", ja: "新規顧客の獲得", en: "Acquire new customers" },
   { value: "認知拡大", ja: "認知拡大", en: "Increase brand awareness" },
   { value: "商品PR", ja: "商品PR", en: "Product promotion" },
-  {
-    value: "SNS運用強化",
-    ja: "SNS運用強化",
-    en: "Strengthen social media marketing",
-  },
+  { value: "SNS運用強化", ja: "SNS運用強化", en: "Strengthen social media marketing" },
   { value: "海外向けPR", ja: "海外向けPR", en: "Global promotion" },
   { value: "その他", ja: "その他", en: "Other" },
 ];
@@ -40,9 +36,7 @@ function getOAuthRedirectUrl(nextPath: string | null) {
   url.searchParams.set("oauth", "1");
 
   const safeNext = normalizeNextPath(nextPath);
-  if (safeNext) {
-    url.searchParams.set("next", safeNext);
-  }
+  if (safeNext) url.searchParams.set("next", safeNext);
 
   return url.toString();
 }
@@ -52,20 +46,6 @@ function GoogleIcon() {
     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">
       G
     </span>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m4.5 10.4 3.4 3.4 7.6-8.1"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -134,20 +114,13 @@ export default function SignupCompanyClient() {
             title: "企業アカウントを作成",
             subtitle:
               "インフルエンサーの検索、価格確認、依頼、支払い、納品確認までオンラインで進められます。",
-            sideTitle: "商品や店舗に合うインフルエンサーを、すぐに探せます。",
-            sideBody:
-              "登録後はBasicプランでインフルエンサー検索を開始できます。気になるメニューを選び、そのまま依頼へ進めます。",
-            point1: "表示価格を見て比較",
-            point2: "Stripeで安全に支払い",
-            point3: "納品確認までオンライン管理",
             returnNote:
-              "登録完了後、元のインフルエンサー詳細ページに戻って依頼を続けられます。",
+              "登録後、元のインフルエンサー詳細ページに戻って依頼を続けられます。",
             companyName: "会社名",
             companyNamePlaceholder: "例：株式会社〇〇 / 〇〇合同会社",
             websiteUrl: "会社HP URL または ECサイト URL",
             websiteUrlPlaceholder: "https://example.com",
-            websiteHelp:
-              "会社・ブランド・店舗・商品内容が分かるURLを入力してください。",
+            websiteHelp: "会社・ブランド・店舗・商品内容が分かるURLを入力してください。",
             phoneNumber: "電話番号",
             phoneNumberPlaceholder: "例：03-1234-5678",
             usagePurpose: "利用目的",
@@ -170,18 +143,15 @@ export default function SignupCompanyClient() {
             selectPlease: "選択してください",
             login: "すでにアカウントをお持ちの方はログイン",
             companyNameRequired: "会社名を入力してください",
-            websiteRequired:
-              "会社HP URL または ECサイト URL を入力してください",
-            invalidWebsite:
-              "URLは http:// または https:// から入力してください",
+            websiteRequired: "会社HP URL または ECサイト URL を入力してください",
+            invalidWebsite: "URLは http:// または https:// から入力してください",
             phoneRequired: "電話番号を入力してください",
             usageRequired: "利用目的を選択してください",
             emailRequired: "メールアドレスを入力してください",
             emailInvalid: "メールアドレスの形式が正しくありません",
             passwordTooShort: "パスワードは12文字以上必要です",
             passwordMismatch: "パスワードが一致しません",
-            agreeRequired:
-              "利用規約とプライバシーポリシーへの同意が必要です",
+            agreeRequired: "利用規約とプライバシーポリシーへの同意が必要です",
             signupFailed: "登録に失敗しました",
             networkError: "通信エラーが発生しました",
             googleFailed: "Google登録を開始できませんでした",
@@ -191,12 +161,6 @@ export default function SignupCompanyClient() {
             title: "Create a brand account",
             subtitle:
               "Search influencers, compare pricing, send requests, manage payment, and confirm delivery online.",
-            sideTitle: "Find influencers that fit your product or store.",
-            sideBody:
-              "After registration, you can start searching influencers on the Basic plan and continue directly to your request.",
-            point1: "Compare visible pricing",
-            point2: "Secure payment with Stripe",
-            point3: "Manage delivery online",
             returnNote:
               "After registration, you can return to the influencer page and continue your request.",
             companyName: "Company name",
@@ -228,18 +192,15 @@ export default function SignupCompanyClient() {
             selectPlease: "Please select",
             login: "Already have an account? Log in",
             companyNameRequired: "Please enter your company name",
-            websiteRequired:
-              "Please enter your company website or store URL",
-            invalidWebsite:
-              "The URL must start with http:// or https://",
+            websiteRequired: "Please enter your company website or store URL",
+            invalidWebsite: "The URL must start with http:// or https://",
             phoneRequired: "Please enter your phone number",
             usageRequired: "Please select a usage purpose",
             emailRequired: "Please enter your email address",
             emailInvalid: "Please enter a valid email address",
             passwordTooShort: "Password must be at least 12 characters",
             passwordMismatch: "Passwords do not match",
-            agreeRequired:
-              "You must agree to the Terms of Service and Privacy Policy",
+            agreeRequired: "You must agree to the Terms of Service and Privacy Policy",
             signupFailed: "Failed to complete registration",
             networkError: "A network error occurred",
             googleFailed: "Failed to start Google signup",
@@ -434,69 +395,41 @@ export default function SignupCompanyClient() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f8fafc]">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/75 blur-3xl" />
-        <div className="absolute right-[-180px] top-[14%] h-[520px] w-[520px] rounded-full bg-emerald-100/70 blur-3xl" />
+        <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/70 blur-3xl" />
+        <div className="absolute right-[-180px] top-[14%] h-[520px] w-[520px] rounded-full bg-emerald-100/65 blur-3xl" />
         <div className="absolute bottom-[-220px] left-[22%] h-[460px] w-[460px] rounded-full bg-slate-200/60 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto grid min-h-screen max-w-7xl gap-8 px-4 py-10 md:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:py-14">
-        <section className="hidden lg:block">
-          <div className="max-w-xl">
-            <Link href="/home" className="inline-flex items-center">
-              <img
-                src="/brand/trendre-logo-full.png"
-                alt="Trendre"
-                className="h-11 w-auto object-contain"
-              />
-            </Link>
+      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-8 md:px-6 md:py-10">
+        <div className="mb-8 flex items-center justify-center">
+          <Link href="/home" className="inline-flex items-center">
+            <img
+              src="/brand/trendre-logo-full.png"
+              alt="Trendre"
+              className="h-10 w-auto object-contain"
+            />
+          </Link>
+        </div>
 
-            <div className="mt-12 inline-flex rounded-full border border-rose-100 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#ff5f67] shadow-sm">
+        <section className="mx-auto w-full max-w-3xl">
+          <div className="mb-6 text-center">
+            <div className="inline-flex rounded-full border border-rose-100 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#ff5f67] shadow-sm">
               {copy.badge}
             </div>
 
-            <h1 className="mt-7 text-[42px] font-black leading-[1.12] tracking-[-0.045em] text-slate-950 xl:text-[56px]">
-              {copy.sideTitle}
+            <h1 className="mt-5 text-[32px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[44px]">
+              {copy.title}
             </h1>
 
-            <p className="mt-6 text-base font-medium leading-8 text-slate-600">
-              {copy.sideBody}
+            <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-7 text-slate-600 md:text-base">
+              {copy.subtitle}
             </p>
 
-            <div className="mt-8 grid gap-3">
-              {[copy.point1, copy.point2, copy.point3].map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur"
-                >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[#7bae6c]">
-                    <CheckIcon />
-                  </span>
-                  <span className="text-sm font-black text-slate-800">
-                    {item}
-                  </span>
-                </div>
-              ))}
-            </div>
-
             {safeNextPath ? (
-              <div className="mt-8 rounded-[26px] border border-rose-100 bg-white/80 p-5 shadow-sm">
-                <p className="text-sm font-bold leading-7 text-slate-600">
-                  {copy.returnNote}
-                </p>
-              </div>
+              <p className="mx-auto mt-3 max-w-2xl text-xs font-bold leading-6 text-slate-400">
+                {copy.returnNote}
+              </p>
             ) : null}
-          </div>
-        </section>
-
-        <section className="mx-auto w-full max-w-2xl">
-          <div className="mb-6 flex justify-center lg:hidden">
-            <Link href="/home" className="inline-flex items-center">
-              <img
-                src="/brand/trendre-logo-full.png"
-                alt="Trendre"
-                className="h-10 w-auto object-contain"
-              />
-            </Link>
           </div>
 
           <div className="relative overflow-hidden rounded-[34px] border border-white/80 bg-white/95 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.13)] md:p-8">
@@ -504,20 +437,6 @@ export default function SignupCompanyClient() {
             <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-50 blur-3xl" />
 
             <div className="relative">
-              <div className="mb-7">
-                <div className="inline-flex rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-[11px] font-black text-[#ff5f67]">
-                  {copy.badge}
-                </div>
-
-                <h2 className="mt-5 text-[30px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[40px]">
-                  {copy.title}
-                </h2>
-
-                <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
-                  {copy.subtitle}
-                </p>
-              </div>
-
               <button
                 type="button"
                 onClick={handleGoogleSignup}
@@ -600,33 +519,35 @@ export default function SignupCompanyClient() {
                   </p>
                 </div>
 
-                <InputField
-                  label={copy.phoneNumber}
-                  placeholder={copy.phoneNumberPlaceholder}
-                  value={phoneNumber}
-                  onChange={setPhoneNumber}
-                  autoComplete="tel"
-                />
+                <div className="grid gap-5 md:grid-cols-2">
+                  <InputField
+                    label={copy.phoneNumber}
+                    placeholder={copy.phoneNumberPlaceholder}
+                    value={phoneNumber}
+                    onChange={setPhoneNumber}
+                    autoComplete="tel"
+                  />
 
-                <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-800">
-                    {copy.usagePurpose}
-                  </label>
-                  <select
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
-                    value={usagePurpose}
-                    onChange={(e) => setUsagePurpose(e.target.value)}
-                  >
-                    <option value="">{copy.selectPlease}</option>
-                    {USAGE_PURPOSE_OPTIONS.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {safeLocale === "ja" ? item.ja : item.en}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="px-1 text-xs font-medium leading-5 text-slate-400">
-                    {copy.usagePurposeHelp}
-                  </p>
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-slate-800">
+                      {copy.usagePurpose}
+                    </label>
+                    <select
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                      value={usagePurpose}
+                      onChange={(e) => setUsagePurpose(e.target.value)}
+                    >
+                      <option value="">{copy.selectPlease}</option>
+                      {USAGE_PURPOSE_OPTIONS.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {safeLocale === "ja" ? item.ja : item.en}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="px-1 text-xs font-medium leading-5 text-slate-400">
+                      {copy.usagePurposeHelp}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
@@ -678,7 +599,11 @@ export default function SignupCompanyClient() {
 
                 <div className="text-center">
                   <Link
-                    href={`/login${safeNextPath ? `?next=${encodeURIComponent(safeNextPath)}` : ""}`}
+                    href={`/login${
+                      safeNextPath
+                        ? `?next=${encodeURIComponent(safeNextPath)}`
+                        : ""
+                    }`}
                     className="text-sm font-bold text-slate-400 underline underline-offset-4 transition hover:text-slate-700"
                   >
                     {copy.login}
@@ -688,6 +613,10 @@ export default function SignupCompanyClient() {
             </div>
           </div>
         </section>
+
+        <p className="mt-8 text-center text-xs font-medium text-slate-400">
+          © 2026 Trendre
+        </p>
       </div>
     </main>
   );
