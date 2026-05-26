@@ -17,7 +17,11 @@ const USAGE_PURPOSE_OPTIONS: LocaleOption[] = [
   { value: "新規顧客の獲得", ja: "新規顧客の獲得", en: "Acquire new customers" },
   { value: "認知拡大", ja: "認知拡大", en: "Increase brand awareness" },
   { value: "商品PR", ja: "商品PR", en: "Product promotion" },
-  { value: "SNS運用強化", ja: "SNS運用強化", en: "Strengthen social media marketing" },
+  {
+    value: "SNS運用強化",
+    ja: "SNS運用強化",
+    en: "Strengthen social media marketing",
+  },
   { value: "海外向けPR", ja: "海外向けPR", en: "Global promotion" },
   { value: "その他", ja: "その他", en: "Other" },
 ];
@@ -36,16 +40,33 @@ function getOAuthRedirectUrl(nextPath: string | null) {
   url.searchParams.set("oauth", "1");
 
   const safeNext = normalizeNextPath(nextPath);
-  if (safeNext) url.searchParams.set("next", safeNext);
+  if (safeNext) {
+    url.searchParams.set("next", safeNext);
+  }
 
   return url.toString();
 }
 
 function GoogleIcon() {
   return (
-    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">
-      G
-    </span>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.58c2.09-1.93 3.27-4.78 3.27-8.09Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.58-2.77c-.98.66-2.23 1.06-3.7 1.06-2.84 0-5.25-1.92-6.12-4.5H2.18v2.84C3.99 20.53 7.7 23 12 23Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.88 14.13A6.6 6.6 0 0 1 5.53 12c0-.74.13-1.45.35-2.13V7.03H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.44 1.18 4.97l3.7-2.84Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.03l3.7 2.84c.87-2.58 3.28-4.49 6.12-4.49Z"
+      />
+    </svg>
   );
 }
 
@@ -110,17 +131,17 @@ export default function SignupCompanyClient() {
     () =>
       safeLocale === "ja"
         ? {
-            badge: "Brand Signup",
-            title: "企業アカウントを作成",
+            title: "アカウント作成",
             subtitle:
-              "インフルエンサーの検索、価格確認、依頼、支払い、納品確認までオンラインで進められます。",
+              "依頼を続けるために、必要な情報を入力してください。",
             returnNote:
               "登録後、元のインフルエンサー詳細ページに戻って依頼を続けられます。",
             companyName: "会社名",
             companyNamePlaceholder: "例：株式会社〇〇 / 〇〇合同会社",
             websiteUrl: "会社HP URL または ECサイト URL",
             websiteUrlPlaceholder: "https://example.com",
-            websiteHelp: "会社・ブランド・店舗・商品内容が分かるURLを入力してください。",
+            websiteHelp:
+              "会社・ブランド・店舗・商品内容が分かるURLを入力してください。",
             phoneNumber: "電話番号",
             phoneNumberPlaceholder: "例：03-1234-5678",
             usagePurpose: "利用目的",
@@ -136,31 +157,32 @@ export default function SignupCompanyClient() {
             terms: "利用規約",
             privacy: "プライバシーポリシー",
             agreementNoteSuffix: "をご確認ください。",
-            google: "Googleで企業登録",
+            google: "Googleで続ける",
             oauthConnected: "Googleアカウント連携済み",
-            submit: "企業アカウントを作成する",
+            submit: "登録して続ける",
             submitting: "登録中...",
             selectPlease: "選択してください",
             login: "すでにアカウントをお持ちの方はログイン",
             companyNameRequired: "会社名を入力してください",
-            websiteRequired: "会社HP URL または ECサイト URL を入力してください",
-            invalidWebsite: "URLは http:// または https:// から入力してください",
+            websiteRequired:
+              "会社HP URL または ECサイト URL を入力してください",
+            invalidWebsite:
+              "URLは http:// または https:// から入力してください",
             phoneRequired: "電話番号を入力してください",
             usageRequired: "利用目的を選択してください",
             emailRequired: "メールアドレスを入力してください",
             emailInvalid: "メールアドレスの形式が正しくありません",
             passwordTooShort: "パスワードは12文字以上必要です",
             passwordMismatch: "パスワードが一致しません",
-            agreeRequired: "利用規約とプライバシーポリシーへの同意が必要です",
+            agreeRequired:
+              "利用規約とプライバシーポリシーへの同意が必要です",
             signupFailed: "登録に失敗しました",
             networkError: "通信エラーが発生しました",
             googleFailed: "Google登録を開始できませんでした",
           }
         : {
-            badge: "Brand Signup",
-            title: "Create a brand account",
-            subtitle:
-              "Search influencers, compare pricing, send requests, manage payment, and confirm delivery online.",
+            title: "Create account",
+            subtitle: "Enter your details to continue your request.",
             returnNote:
               "After registration, you can return to the influencer page and continue your request.",
             companyName: "Company name",
@@ -185,22 +207,25 @@ export default function SignupCompanyClient() {
             terms: "Terms of Service",
             privacy: "Privacy Policy",
             agreementNoteSuffix: "before registering.",
-            google: "Sign up with Google",
+            google: "Continue with Google",
             oauthConnected: "Google account connected",
-            submit: "Create brand account",
+            submit: "Sign up and continue",
             submitting: "Creating...",
             selectPlease: "Please select",
             login: "Already have an account? Log in",
             companyNameRequired: "Please enter your company name",
-            websiteRequired: "Please enter your company website or store URL",
-            invalidWebsite: "The URL must start with http:// or https://",
+            websiteRequired:
+              "Please enter your company website or store URL",
+            invalidWebsite:
+              "The URL must start with http:// or https://",
             phoneRequired: "Please enter your phone number",
             usageRequired: "Please select a usage purpose",
             emailRequired: "Please enter your email address",
             emailInvalid: "Please enter a valid email address",
             passwordTooShort: "Password must be at least 12 characters",
             passwordMismatch: "Passwords do not match",
-            agreeRequired: "You must agree to the Terms of Service and Privacy Policy",
+            agreeRequired:
+              "You must agree to the Terms of Service and Privacy Policy",
             signupFailed: "Failed to complete registration",
             networkError: "A network error occurred",
             googleFailed: "Failed to start Google signup",
@@ -401,7 +426,7 @@ export default function SignupCompanyClient() {
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-8 md:px-6 md:py-10">
-        <div className="mb-8 flex items-center justify-center">
+        <div className="mb-7 flex items-center justify-center">
           <Link href="/home" className="inline-flex items-center">
             <img
               src="/brand/trendre-logo-full.png"
@@ -413,20 +438,16 @@ export default function SignupCompanyClient() {
 
         <section className="mx-auto w-full max-w-3xl">
           <div className="mb-6 text-center">
-            <div className="inline-flex rounded-full border border-rose-100 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#ff5f67] shadow-sm">
-              {copy.badge}
-            </div>
-
-            <h1 className="mt-5 text-[32px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[44px]">
+            <h1 className="text-[30px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[38px]">
               {copy.title}
             </h1>
 
-            <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-7 text-slate-600 md:text-base">
+            <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-600 md:text-[15px]">
               {copy.subtitle}
             </p>
 
             {safeNextPath ? (
-              <p className="mx-auto mt-3 max-w-2xl text-xs font-bold leading-6 text-slate-400">
+              <p className="mx-auto mt-2 max-w-2xl text-xs font-bold leading-6 text-slate-400">
                 {copy.returnNote}
               </p>
             ) : null}
@@ -441,7 +462,7 @@ export default function SignupCompanyClient() {
                 type="button"
                 onClick={handleGoogleSignup}
                 disabled={loading || oauthLoading}
-                className="inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
               >
                 <GoogleIcon />
                 {oauthLoading ? copy.submitting : copy.google}
