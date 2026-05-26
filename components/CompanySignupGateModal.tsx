@@ -27,7 +27,7 @@ function CloseIcon() {
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
       <path
         d="m4.5 10.4 3.4 3.4 7.6-8.1"
         stroke="currentColor"
@@ -41,10 +41,10 @@ function CheckIcon() {
 
 function MiniLogoMark() {
   return (
-    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-50">
-      <span className="absolute left-4 top-4 h-3 w-3 rounded-full bg-[#ff5f67]" />
-      <span className="absolute right-4 top-4 h-2.5 w-2.5 rounded-full bg-[#ffb3b8]" />
-      <span className="absolute bottom-4 left-4 h-2 w-7 rounded-full bg-[#ff5f67]/20" />
+    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-50">
+      <span className="absolute left-3 top-3 h-2.5 w-2.5 rounded-full bg-[#ff5f67]" />
+      <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-[#ffb3b8]" />
+      <span className="absolute bottom-3 left-3 h-1.5 w-6 rounded-full bg-[#ff5f67]/20" />
     </div>
   );
 }
@@ -64,15 +64,15 @@ export default function CompanySignupGateModal({
   useEffect(() => {
     if (!open) return;
 
-    const originalOverflow = document.body.style.overflow;
-    const originalPaddingRight = document.body.style.paddingRight;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
 
     document.body.style.overflow = "hidden";
-    document.body.style.paddingRight = "0px";
+    document.documentElement.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, [open]);
 
@@ -80,9 +80,7 @@ export default function CompanySignupGateModal({
     if (!open) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -102,7 +100,7 @@ export default function CompanySignupGateModal({
           badge: "企業アカウントが必要です",
           title: "このインフルエンサーに依頼するには、企業登録が必要です。",
           body:
-            "無料で企業アカウントを作成すると、インフルエンサーのメニュー確認、依頼、支払い、納品確認までオンラインで進められます。",
+            "無料で企業アカウントを作成すると、メニュー確認・依頼・支払い・納品確認までオンラインで進められます。",
           primary: "企業登録して続ける",
           secondary: "ログインはこちら",
           close: "あとで見る",
@@ -133,108 +131,108 @@ export default function CompanySignupGateModal({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[2147483647] min-h-screen overflow-y-auto bg-[#f8fafc]"
+      className="fixed inset-0 z-[2147483647] overflow-hidden bg-[#f8fafc]"
       role="dialog"
       aria-modal="true"
     >
       <div className="fixed inset-0 -z-10 overflow-hidden bg-[#f8fafc]">
-        <div className="absolute left-[-140px] top-[-140px] h-[380px] w-[380px] rounded-full bg-rose-100/90 blur-3xl" />
-        <div className="absolute right-[-160px] top-[18%] h-[520px] w-[520px] rounded-full bg-emerald-100/80 blur-3xl" />
-        <div className="absolute bottom-[-180px] left-[22%] h-[480px] w-[480px] rounded-full bg-slate-200/70 blur-3xl" />
+        <div className="absolute left-[-160px] top-[-160px] h-[380px] w-[380px] rounded-full bg-rose-100/90 blur-3xl" />
+        <div className="absolute right-[-160px] top-[15%] h-[520px] w-[520px] rounded-full bg-emerald-100/80 blur-3xl" />
+        <div className="absolute bottom-[-180px] left-[25%] h-[420px] w-[420px] rounded-full bg-slate-200/70 blur-3xl" />
       </div>
 
-      <div className="flex min-h-screen items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl">
-          <div className="mb-6 flex items-center justify-center">
+      <div className="flex h-[100dvh] items-center justify-center px-4 py-4">
+        <div className="w-full max-w-[600px]">
+          <div className="mb-3 flex items-center justify-center">
             <img
               src="/brand/trendre-logo-full.png"
               alt="Trendre"
-              className="h-11 w-auto object-contain"
+              className="h-9 w-auto object-contain"
             />
           </div>
 
-          <div className="relative overflow-hidden rounded-[34px] border border-white/80 bg-white p-6 shadow-[0_40px_120px_rgba(15,23,42,0.16)] md:p-9">
-            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-rose-50 blur-3xl" />
-            <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-emerald-50 blur-3xl" />
+          <div className="relative overflow-hidden rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_34px_100px_rgba(15,23,42,0.16)] md:p-7">
+            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-rose-50 blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-emerald-50 blur-3xl" />
 
             <div className="relative">
               <div className="flex items-start justify-between gap-4">
-                <div className="inline-flex rounded-full border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-black text-[#ff5f67]">
+                <div className="inline-flex rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-[11px] font-black text-[#ff5f67]">
                   {copy.badge}
                 </div>
 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
                   aria-label="Close"
                 >
                   <CloseIcon />
                 </button>
               </div>
 
-              <div className="mt-8 flex items-center gap-4 rounded-[26px] border border-slate-100 bg-white/80 p-4 shadow-sm">
+              <div className="mt-5 flex items-center gap-3 rounded-[22px] border border-slate-100 bg-white/80 p-3.5 shadow-sm">
                 <MiniLogoMark />
 
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
                     {copy.visualTitle}
                   </p>
-                  <p className="mt-1 text-base font-black text-slate-950">
+                  <p className="mt-1 text-sm font-black text-slate-950">
                     {copy.visualSubtitle}
                   </p>
                 </div>
               </div>
 
-              <h2 className="mt-8 text-[32px] font-black leading-[1.18] tracking-[-0.045em] text-slate-950 md:text-[46px]">
+              <h2 className="mt-6 text-[28px] font-black leading-[1.18] tracking-[-0.045em] text-slate-950 md:text-[38px]">
                 {copy.title}
               </h2>
 
-              <p className="mt-5 text-[15px] font-medium leading-8 text-slate-600 md:text-base">
+              <p className="mt-4 text-[14px] font-medium leading-7 text-slate-600">
                 {copy.body}
               </p>
 
-              <div className="mt-8 grid gap-3">
+              <div className="mt-5 grid gap-2.5">
                 {[copy.point1, copy.point2, copy.point3].map((item) => (
                   <div
                     key={item}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3.5 py-3 shadow-sm"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[#7bae6c]">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[#7bae6c]">
                       <CheckIcon />
                     </span>
-                    <span className="text-sm font-black text-slate-800">
+                    <span className="text-[13px] font-black text-slate-800">
                       {item}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-9 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
                 <Link
                   href={`/signup/company?next=${encodedNext}`}
-                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/25 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-3.5 text-sm font-black text-white shadow-xl shadow-rose-500/25 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
                 >
                   {copy.primary}
                 </Link>
 
                 <Link
                   href={`/login?next=${encodedNext}`}
-                  className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-7 py-3.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
                 >
                   {copy.secondary}
                 </Link>
               </div>
 
-              <p className="mt-5 text-center text-xs font-medium leading-6 text-slate-400">
+              <p className="mt-3 text-center text-[11px] font-medium leading-5 text-slate-400">
                 {copy.smallNote}
               </p>
 
-              <div className="mt-5 text-center">
+              <div className="mt-3 text-center">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-sm font-bold text-slate-400 underline underline-offset-4 transition hover:text-slate-700"
+                  className="text-xs font-bold text-slate-400 underline underline-offset-4 transition hover:text-slate-700"
                 >
                   {copy.close}
                 </button>
@@ -242,7 +240,7 @@ export default function CompanySignupGateModal({
             </div>
           </div>
 
-          <p className="mt-6 text-center text-xs font-medium text-slate-400">
+          <p className="mt-3 text-center text-[11px] font-medium text-slate-400">
             © 2026 Trendre
           </p>
         </div>
