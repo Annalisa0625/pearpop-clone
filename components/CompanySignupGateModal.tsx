@@ -86,29 +86,29 @@ export default function CompanySignupGateModal({
     locale === "ja"
       ? {
           badge: "企業アカウントが必要です",
-          title: "このインフルエンサーに依頼するには、企業登録が必要です。",
+          title: "依頼を続けるには企業登録が必要です",
           body:
-            "無料で企業アカウントを作成すると、インフルエンサーのメニュー確認、依頼、支払い、納品確認までオンラインで進められます。",
+            "無料の企業アカウントを作成すると、メニュー確認・依頼・支払い・納品確認までオンラインで進められます。",
           primary: "企業登録して続ける",
-          secondary: "ログインはこちら",
+          secondary: "ログイン",
           close: "あとで見る",
-          point1: "表示価格を見てその場で依頼",
-          point2: "支払いはStripeで安全に管理",
-          point3: "納品確認までオンラインで完結",
+          point1: "表示価格を見て依頼",
+          point2: "支払いはStripeで管理",
+          point3: "納品確認までオンライン完結",
           smallNote:
             "登録後、このインフルエンサー詳細ページに戻って依頼を続けられます。",
         }
       : {
           badge: "Brand account required",
-          title: "Create a brand account to request this influencer.",
+          title: "Create a brand account to continue",
           body:
-            "Create a free brand account to review menus, send requests, pay securely, and manage delivery online.",
+            "With a free brand account, you can review menus, send requests, manage payment, and confirm delivery online.",
           primary: "Continue with brand signup",
-          secondary: "Log in instead",
+          secondary: "Log in",
           close: "Maybe later",
-          point1: "Request instantly with visible pricing",
-          point2: "Payments are managed securely with Stripe",
-          point3: "Delivery confirmation is completed online",
+          point1: "Request with visible pricing",
+          point2: "Payment managed by Stripe",
+          point3: "Delivery confirmation online",
           smallNote:
             "After signup, you can return to this influencer page and continue your request.",
         };
@@ -120,22 +120,22 @@ export default function CompanySignupGateModal({
       aria-modal="true"
     >
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-140px] top-[-120px] h-[320px] w-[320px] rounded-full bg-rose-100/80 blur-3xl" />
-        <div className="absolute right-[-140px] top-[10%] h-[420px] w-[420px] rounded-full bg-emerald-100/75 blur-3xl" />
-        <div className="absolute bottom-[-140px] left-[20%] h-[320px] w-[320px] rounded-full bg-slate-200/60 blur-3xl" />
+        <div className="absolute left-[-160px] top-[-140px] h-[340px] w-[340px] rounded-full bg-rose-100/70 blur-3xl" />
+        <div className="absolute right-[-160px] top-[12%] h-[460px] w-[460px] rounded-full bg-emerald-100/70 blur-3xl" />
+        <div className="absolute bottom-[-160px] left-[25%] h-[360px] w-[360px] rounded-full bg-slate-200/60 blur-3xl" />
       </div>
 
-      <div className="relative flex min-h-[100dvh] items-center justify-center px-4 py-6 md:py-8">
-        <div className="w-full max-w-[700px]">
-          <div className="mb-4 flex items-center justify-center">
+      <div className="relative flex h-[100dvh] items-center justify-center px-4 py-5">
+        <div className="w-full max-w-[560px]">
+          <div className="mb-5 flex items-center justify-center">
             <img
               src="/brand/trendre-logo-full.png"
               alt="Trendre"
-              className="h-8 w-auto object-contain md:h-10"
+              className="h-8 w-auto object-contain md:h-9"
             />
           </div>
 
-          <div className="relative overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.14)] md:p-8">
+          <div className="relative overflow-hidden rounded-[28px] border border-white/80 bg-white/95 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.13)] md:p-7">
             <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-rose-50 blur-3xl" />
             <div className="absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-emerald-50 blur-3xl" />
 
@@ -148,54 +148,54 @@ export default function CompanySignupGateModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
                   aria-label="Close"
                 >
                   <CloseIcon />
                 </button>
               </div>
 
-              <h2 className="mt-6 text-[34px] font-black leading-[1.15] tracking-[-0.045em] text-slate-950 md:text-[54px]">
+              <h2 className="mt-6 text-[28px] font-black leading-[1.22] tracking-[-0.035em] text-slate-950 md:text-[36px]">
                 {copy.title}
               </h2>
 
-              <p className="mt-4 text-[15px] font-medium leading-8 text-slate-600">
+              <p className="mt-4 text-[14px] font-medium leading-7 text-slate-600">
                 {copy.body}
               </p>
 
-              <div className="mt-6 grid gap-3">
+              <div className="mt-6 grid gap-2.5">
                 {[copy.point1, copy.point2, copy.point3].map((item) => (
                   <div
                     key={item}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[#7bae6c]">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[#7bae6c]">
                       <CheckIcon />
                     </span>
-                    <span className="text-[15px] font-bold text-slate-800">
+                    <span className="text-[13px] font-bold text-slate-800">
                       {item}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-7 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
                 <Link
                   href={`/signup/company?next=${encodedNext}`}
-                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-4 text-base font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.30)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,95,103,0.25)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
                 >
                   {copy.primary}
                 </Link>
 
                 <Link
                   href={`/login?next=${encodedNext}`}
-                  className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
                 >
                   {copy.secondary}
                 </Link>
               </div>
 
-              <p className="mt-4 text-center text-[12px] font-medium leading-5 text-slate-400">
+              <p className="mt-3 text-center text-[11px] font-medium leading-5 text-slate-400">
                 {copy.smallNote}
               </p>
 
@@ -203,7 +203,7 @@ export default function CompanySignupGateModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-sm font-bold text-slate-400 underline underline-offset-4 transition hover:text-slate-700"
+                  className="text-xs font-bold text-slate-400 underline underline-offset-4 transition hover:text-slate-700"
                 >
                   {copy.close}
                 </button>
@@ -211,7 +211,7 @@ export default function CompanySignupGateModal({
             </div>
           </div>
 
-          <p className="mt-4 text-center text-[11px] font-medium text-slate-400">
+          <p className="mt-3 text-center text-[11px] font-medium text-slate-400">
             © 2026 Trendre
           </p>
         </div>
