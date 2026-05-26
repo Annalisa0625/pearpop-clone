@@ -2,7 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 type CompanySignupGateModalProps = {
   open: boolean;
@@ -40,7 +41,7 @@ function CheckIcon() {
 
 function MiniLogoMark() {
   return (
-    <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
+    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-50">
       <span className="absolute left-4 top-4 h-3 w-3 rounded-full bg-[#ff5f67]" />
       <span className="absolute right-4 top-4 h-2.5 w-2.5 rounded-full bg-[#ffb3b8]" />
       <span className="absolute bottom-4 left-4 h-2 w-7 rounded-full bg-[#ff5f67]/20" />
@@ -54,18 +55,44 @@ export default function CompanySignupGateModal({
   locale,
   onClose,
 }: CompanySignupGateModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
 
     const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
     document.body.style.overflow = "hidden";
+    document.body.style.paddingRight = "0px";
 
     return () => {
       document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
     };
   }, [open]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, onClose]);
+
+  if (!mounted || !open) return null;
 
   const encodedNext = encodeURIComponent(nextPath || "/b/creators");
 
@@ -84,7 +111,7 @@ export default function CompanySignupGateModal({
           point3: "納品確認までオンラインで完結",
           smallNote:
             "登録後、このインフルエンサー詳細ページに戻って依頼を続けられます。",
-          visualTitle: "Direct Request",
+          visualTitle: "DIRECT REQUEST",
           visualSubtitle: "価格を確認して、そのまま依頼",
         }
       : {
@@ -100,19 +127,23 @@ export default function CompanySignupGateModal({
           point3: "Manage delivery online",
           smallNote:
             "After signing up, you can return to this influencer page and continue your request.",
-          visualTitle: "Direct Request",
+          visualTitle: "DIRECT REQUEST",
           visualSubtitle: "Check the price and request directly",
         };
 
-  return (
-    <div className="fixed inset-0 z-[9999] min-h-screen overflow-y-auto bg-[#f8fafc]">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-120px] top-[-120px] h-[360px] w-[360px] rounded-full bg-rose-100/80 blur-3xl" />
-        <div className="absolute right-[-120px] top-[20%] h-[420px] w-[420px] rounded-full bg-emerald-100/70 blur-3xl" />
-        <div className="absolute bottom-[-160px] left-[25%] h-[420px] w-[420px] rounded-full bg-slate-200/60 blur-3xl" />
+  const modal = (
+    <div
+      className="fixed inset-0 z-[2147483647] min-h-screen overflow-y-auto bg-[#f8fafc]"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="fixed inset-0 -z-10 overflow-hidden bg-[#f8fafc]">
+        <div className="absolute left-[-140px] top-[-140px] h-[380px] w-[380px] rounded-full bg-rose-100/90 blur-3xl" />
+        <div className="absolute right-[-160px] top-[18%] h-[520px] w-[520px] rounded-full bg-emerald-100/80 blur-3xl" />
+        <div className="absolute bottom-[-180px] left-[22%] h-[480px] w-[480px] rounded-full bg-slate-200/70 blur-3xl" />
       </div>
 
-      <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="flex min-h-screen items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
           <div className="mb-6 flex items-center justify-center">
             <img
@@ -218,4 +249,6 @@ export default function CompanySignupGateModal({
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
