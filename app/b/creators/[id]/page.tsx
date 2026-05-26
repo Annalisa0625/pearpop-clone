@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import CompanySignupGateModal from "@/components/CompanySignupGateModal";
 
 const BILLING_PATH = "/b/billing";
 
@@ -145,7 +146,7 @@ function getPlatformIcon(value: string | null | undefined) {
 }
 
 function getCreatorInitial(name: string) {
-  return (name || "C").trim().slice(0, 1).toUpperCase();
+  return (name || "I").trim().slice(0, 1).toUpperCase();
 }
 
 function getCountryLabel(country: string | null | undefined, locale: "ja" | "en") {
@@ -429,7 +430,7 @@ function FallbackGallery({ creator }: { creator: Creator }) {
           {getCreatorInitial(creator.display_name)}
         </div>
         <div className="mt-3 text-xs font-bold uppercase tracking-[0.35em] text-white/70">
-          Trendre Creator
+          Trendre Influencer
         </div>
       </div>
     </div>
@@ -631,7 +632,6 @@ function PackageCard({
   selected: boolean;
   locale: "ja" | "en";
   copy: {
-    priceNotSet: string;
     delivery: string;
     deliverables: string;
     secondaryUse: string;
@@ -670,6 +670,7 @@ function PackageCard({
                 {getPlatformLabel(platform)}
               </Badge>
             ) : null}
+
             <Badge tone="gray">
               {menuTypeLabel(menu.menu_type, locale, menu.category || "Menu")}
             </Badge>
@@ -775,8 +776,8 @@ export default function CreatorDetailPage() {
         ? {
             loading: "読み込み中...",
             notFound:
-              "クリエイターが見つかりません。現在注文受付できない状態の可能性があります。",
-            backToCreators: "クリエイター一覧へ戻る",
+              "インフルエンサーが見つかりません。現在注文受付できない状態の可能性があります。",
+            backToCreators: "インフルエンサー一覧へ戻る",
             share: "Share",
             save: "Save",
             saved: "Saved",
@@ -784,7 +785,7 @@ export default function CreatorDetailPage() {
             followers: "Followers",
             mainAudience: "Main audience",
             profileFallback:
-              "このクリエイターの公開プロフィールとメニューを確認し、条件に合うメニューを選んで注文できます。",
+              "このインフルエンサーの公開プロフィールとメニューを確認し、条件に合うメニューを選んで注文できます。",
             packages: "Packages",
             all: "All",
             noMenus: "公開中のメニューがありません。",
@@ -801,7 +802,7 @@ export default function CreatorDetailPage() {
             select: "選択する",
             orderButton: "注文へ進む",
             howItWorks:
-              "支払いはStripeで保護され、クリエイターが72時間以内に承認した場合のみ決済が確定します。",
+              "支払いはStripeで保護され、インフルエンサーが72時間以内に承認した場合のみ決済が確定します。",
             billingRequired:
               "このプランの注文機能を使うには、有料プランの有効化が必要です。",
             checkBilling: "料金プランを見る",
@@ -810,23 +811,23 @@ export default function CreatorDetailPage() {
               "登録済みSNS情報をもとに、フォロワー帯と主な視聴者地域を表示しています。",
             portfolio: "Portfolio",
             portfolioNote:
-              "クリエイターが登録した投稿実績・サンプル画像です。",
+              "インフルエンサーが登録した投稿実績・サンプル画像です。",
             plan: "Plan",
             verified: "Payout verified",
-            noReviews: "New creator",
+            noReviews: "New influencer",
             analytics: "Analytics",
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
-            loginToOrder: "ログインして注文",
+            signupToOrder: "企業登録して注文",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
           }
         : {
             loading: "Loading...",
             notFound:
-              "Creator not found. This creator may not currently be ready to receive orders.",
-            backToCreators: "Back to creators",
+              "Influencer not found. This influencer may not currently be ready to receive orders.",
+            backToCreators: "Back to influencers",
             share: "Share",
             save: "Save",
             saved: "Saved",
@@ -834,7 +835,7 @@ export default function CreatorDetailPage() {
             followers: "Followers",
             mainAudience: "Main audience",
             profileFallback:
-              "Review this creator's public profile and menus, then choose a menu that fits your campaign.",
+              "Review this influencer's public profile and menus, then choose a menu that fits your campaign.",
             packages: "Packages",
             all: "All",
             noMenus: "There are no public menus.",
@@ -851,7 +852,7 @@ export default function CreatorDetailPage() {
             select: "Select",
             orderButton: "Continue to order",
             howItWorks:
-              "Payments are protected by Stripe. The payment is captured only if the creator accepts within 72 hours.",
+              "Payments are protected by Stripe. The payment is captured only if the influencer accepts within 72 hours.",
             billingRequired:
               "Your paid plan must be active before using this order flow.",
             checkBilling: "View billing plans",
@@ -860,15 +861,15 @@ export default function CreatorDetailPage() {
               "Showing follower range and main audience region based on registered social accounts.",
             portfolio: "Portfolio",
             portfolioNote:
-              "Past work and sample images uploaded by the creator.",
+              "Past work and sample images uploaded by the influencer.",
             plan: "Plan",
             verified: "Payout verified",
-            noReviews: "New creator",
+            noReviews: "New influencer",
             analytics: "Analytics",
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
-            loginToOrder: "Log in to order",
+            signupToOrder: "Sign up to order",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
           },
@@ -891,6 +892,18 @@ export default function CreatorDetailPage() {
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [signupGateOpen, setSignupGateOpen] = useState(false);
+  const [signupGateNextPath, setSignupGateNextPath] = useState("");
+
+  const openSignupGate = () => {
+    const nextPath =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}`
+        : `/b/creators/${creatorId}`;
+
+    setSignupGateNextPath(nextPath);
+    setSignupGateOpen(true);
+  };
 
   useEffect(() => {
     if (!creatorId) return;
@@ -1191,7 +1204,7 @@ export default function CreatorDetailPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        router.replace("/login");
+        openSignupGate();
         return;
       }
 
@@ -1216,7 +1229,7 @@ export default function CreatorDetailPage() {
         setIsSaved(true);
       }
     } catch (e) {
-      console.error("save creator error:", e);
+      console.error("save influencer error:", e);
     } finally {
       setSaving(false);
     }
@@ -1226,7 +1239,7 @@ export default function CreatorDetailPage() {
     if (!creator) return;
 
     if (!gate.isLoggedIn) {
-      router.push("/login");
+      openSignupGate();
       return;
     }
 
@@ -1337,11 +1350,11 @@ export default function CreatorDetailPage() {
 
                   return (
                     <PlatformMetricBadge
-  key={platform}
-  platform={platform}
-  value={formatFollowerRange(social?.follower_range)}
-  url={social?.url}
-/>
+                      key={platform}
+                      platform={platform}
+                      value={formatFollowerRange(social?.follower_range)}
+                      url={social?.url}
+                    />
                   );
                 })
               ) : (
@@ -1404,7 +1417,6 @@ export default function CreatorDetailPage() {
                     selected={selectedMenu?.id === menu.id}
                     locale={safeLocale}
                     copy={{
-                      priceNotSet: copy.priceNotSet,
                       delivery: copy.delivery,
                       deliverables: copy.deliverables,
                       secondaryUse: copy.secondaryUse,
@@ -1453,7 +1465,6 @@ export default function CreatorDetailPage() {
                     {audienceCountryLabels.join(" / ") || "-"}
                   </p>
                 </div>
-
               </div>
             </div>
 
@@ -1539,10 +1550,12 @@ export default function CreatorDetailPage() {
                     {formatDeliveryDays(selectedMenu.delivery_days, safeLocale, "-")}
                   </span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <CheckIcon />
                   <span>{copy.howItWorks}</span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <CheckIcon />
                   <span>
@@ -1565,10 +1578,10 @@ export default function CreatorDetailPage() {
               className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-4 text-base font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
             >
               {!gate.isLoggedIn
-                ? copy.loginToOrder
+                ? copy.signupToOrder
                 : gate.needsBilling
-                ? copy.checkBilling
-                : copy.orderButton}
+                  ? copy.checkBilling
+                  : copy.orderButton}
             </button>
 
             <button
@@ -1581,6 +1594,13 @@ export default function CreatorDetailPage() {
           </div>
         </aside>
       </section>
+
+      <CompanySignupGateModal
+        open={signupGateOpen}
+        nextPath={signupGateNextPath}
+        locale={safeLocale}
+        onClose={() => setSignupGateOpen(false)}
+      />
     </div>
   );
 }
