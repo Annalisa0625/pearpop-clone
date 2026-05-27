@@ -819,7 +819,7 @@ export default function CreatorDetailPage() {
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
-            signupToOrder: "企業登録して注文",
+            signupToOrder: "注文",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
           }
@@ -869,7 +869,7 @@ export default function CreatorDetailPage() {
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
-            signupToOrder: "Sign up to order",
+            signupToOrder: "Order",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
           },

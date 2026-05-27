@@ -1,3 +1,4 @@
+// File: components/CompanySignupGateModal.tsx
 "use client";
 
 import Link from "next/link";
@@ -85,32 +86,32 @@ export default function CompanySignupGateModal({
   const copy =
     locale === "ja"
       ? {
-          badge: "企業アカウントが必要です",
-          title: "依頼を続けるには企業登録が必要です",
+          badge: "サインアップが必要です",
+          title: "注文にはサインアップが必要です",
           body:
-            "無料の企業アカウントを作成すると、メニュー確認・依頼・支払い・納品確認までオンラインで進められます。",
-          primary: "企業登録して続ける",
+            "アカウントを作成すると、表示価格の確認、注文、支払い、納品確認までオンラインで進められます。",
+          primary: "新規登録",
           secondary: "ログイン",
           close: "あとで見る",
-          point1: "表示価格を見て依頼",
+          point1: "表示価格を確認して注文",
           point2: "支払いはStripeで管理",
-          point3: "納品確認までオンライン完結",
+          point3: "納品確認までオンラインで完結",
           smallNote:
-            "登録後、このインフルエンサー詳細ページに戻って依頼を続けられます。",
+            "登録後、このインフルエンサー詳細ページに戻って注文を続けられます。",
         }
       : {
-          badge: "Brand account required",
-          title: "Create a brand account to continue",
+          badge: "Sign up required",
+          title: "Sign up to place an order",
           body:
-            "With a free brand account, you can review menus, send requests, manage payment, and confirm delivery online.",
-          primary: "Continue with brand signup",
+            "Create an account to review pricing, place orders, manage payment, and confirm delivery online.",
+          primary: "Sign up",
           secondary: "Log in",
           close: "Maybe later",
-          point1: "Request with visible pricing",
+          point1: "Review pricing and order",
           point2: "Payment managed by Stripe",
-          point3: "Delivery confirmation online",
+          point3: "Confirm delivery online",
           smallNote:
-            "After signup, you can return to this influencer page and continue your request.",
+            "After signing up, you can return to this influencer page and continue your order.",
         };
 
   const modal = (
