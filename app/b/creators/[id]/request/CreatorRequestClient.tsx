@@ -278,10 +278,10 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-slate-500">{label}</span>
+      <span className="text-sm font-medium text-slate-500">{label}</span>
       <span
         className={`text-right text-sm ${
-          bold ? "font-black text-slate-950" : "font-semibold text-slate-800"
+          bold ? "font-black text-slate-950" : "font-bold text-slate-800"
         }`}
       >
         {value}
@@ -324,27 +324,53 @@ function ShieldIcon() {
   );
 }
 
-function SectionTitle({
-  eyebrow,
-  title,
-  body,
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h10.5M10.5 5.5 15 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function InfoPill({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-4 py-2 text-xs font-black text-slate-700 shadow-sm backdrop-blur">
+      <span className="mr-2 h-2 w-2 rounded-full bg-[#7bae6c]" />
+      {children}
+    </span>
+  );
+}
+
+function TextInput({
+  label,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
 }: {
-  eyebrow?: string;
-  title: string;
-  body?: string;
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
 }) {
   return (
-    <div>
-      {eyebrow ? (
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-          {eyebrow}
-        </p>
-      ) : null}
-      <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
-        {title}
-      </h1>
-      {body ? <p className="mt-3 text-sm leading-7 text-slate-500">{body}</p> : null}
-    </div>
+    <label className="block">
+      <span className="text-sm font-black text-slate-800">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+      />
+    </label>
   );
 }
 
@@ -353,11 +379,10 @@ export default function CreatorRequestClient() {
   const params = useParams();
   const searchParams = useSearchParams();
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
   const creatorId = params.id as string;
   const initialMenuId = searchParams.get("menuId") ?? "";
-
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const copy = useMemo(
@@ -366,7 +391,7 @@ export default function CreatorRequestClient() {
         ? {
             loading: "読み込み中...",
             creatorNotFound:
-              "クリエイターが見つかりません。現在注文受付できない状態の可能性があります。",
+              "インフルエンサーが見つかりません。現在注文受付できない状態の可能性があります。",
             companyOnlyTitle: "企業アカウントのみ利用できます",
             companyOnlyBody: "この注文フォームは企業アカウント専用です。",
             unavailableTitle: "現在この機能は利用できません",
@@ -376,24 +401,22 @@ export default function CreatorRequestClient() {
             profileRequiredBody:
               "注文の前に、企業プロフィールを完了してください。",
             profileRequiredCta: "企業プロフィールを入力する",
-            billingTitle: "有料プランの有効化が必要です",
+            billingTitle: "プランの確認が必要です",
             billingBody:
-              "現在の有料プランが有効ではありません。Basicの場合は月額課金なしで注文できます。",
+              "現在のプラン状態では注文を開始できません。料金プランを確認してください。",
             billingCta: "料金プランを見る",
-            backToCreator: "クリエイター詳細へ戻る",
+            backToCreator: "詳細へ戻る",
             mainAudience: "主な視聴者",
             notSet: "未設定",
-            pageStepLabel: "Place Order",
-            pageTitle: "注文内容を入力",
+            pageTitle: "注文内容の確認",
             pageSubtitle:
-              "次の画面でカードの与信枠を確保します。クリエイターが72時間以内に承認した場合のみ決済が確定します。",
-            creatorInfo: "Creator",
-            platforms: "対応SNS",
+              "内容を入力して次へ進むと、Stripe Checkoutで支払い確認に進みます。インフルエンサーが承認した場合のみ決済が確定します。",
+            creatorInfo: "インフルエンサー",
             currentPlan: "現在プラン",
-            remainingThisMonth: "残り注文可能数",
+            remainingThisMonth: "今月の残り注文数",
             nextReset: "次回リセット目安",
             unlimited: "無制限",
-            selectedMenu: "選択中のメニュー",
+            selectedMenu: "選択中",
             selectMenu: "注文するメニュー",
             noMenus: "公開メニューがありません。",
             price: "価格",
@@ -404,47 +427,49 @@ export default function CreatorRequestClient() {
             notAllowed: "不可",
             notes: "注意事項",
             none: "なし",
-            productInfo: "Requirements",
             productName: "商品名・案件名",
-            productNamePlaceholder: "例：新作美容液PR",
-            productUrl: "商品URL",
+            productNamePlaceholder: "例：新作美容液PR / 新店舗オープン告知",
+            productUrl: "商品URL・サービスURL",
             productUrlPlaceholder: "https://...",
             deadline: "希望納期",
             freeOffer: "商品の無償提供あり",
-            wantsSecondaryUse: "二次利用を希望する",
+            wantsSecondaryUse: "広告素材として二次利用したい",
             secondaryUseUnavailable:
               "このメニューでは二次利用は許可されていません。",
-            requirements: "注文内容・要件",
+            requirements: "依頼内容",
             requirementsPlaceholder:
-              "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現、参考イメージなどを記入してください。",
+              "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現、参考イメージなどを入力してください。",
             productRequired: "商品名・案件名を入力してください。",
-            noteRequired: "注文内容・要件は10文字以上で入力してください。",
+            noteRequired: "依頼内容は10文字以上で入力してください。",
             menuRequired: "注文するメニューを選択してください。",
             freeLimitReached:
               "Basicでは月5件まで注文できます。上限に達したため、プラン変更をご検討ください。",
-            submitError: "注文用Checkoutの作成に失敗しました。",
+            submitError: "Checkoutの作成に失敗しました。",
             networkError: "通信エラーが発生しました。",
             authError: "ログイン情報を取得できませんでした。",
             checkoutUrlMissing: "Checkout URLを取得できませんでした。",
             submitting: "Checkout作成中...",
             limitReachedButton: "上限に達しています",
-            submitButton: "Checkoutへ進む",
+            submitButton: "支払い確認へ進む",
             pieces: "件",
             orderNotice:
-              "支払いはStripeで保護されます。クリエイターが辞退した場合、請求は確定しません。",
+              "支払いはStripeで保護され、インフルエンサーが辞退した場合は決済確定されません。",
             orderSummary: "注文サマリー",
             menuPrice: "メニュー価格",
             marketplaceFee: "Trendre手数料",
             total: "お支払い合計",
             paymentProtection:
-              "Payment Protection: クリエイターが辞退した場合、請求は確定しません。",
-            included: "このメニューに含まれる内容",
-            orderDetails: "注文詳細",
+              "インフルエンサーが72時間以内に承認した場合のみ決済が確定します。",
+            included: "メニュー内容",
+            orderDetails: "依頼内容を入力",
+            selectedMenuLabel: "選択中のメニュー",
+            securePayment: "Stripeで安全に確認",
+            onlineComplete: "納品確認までオンライン",
           }
         : {
             loading: "Loading...",
             creatorNotFound:
-              "Creator not found. This creator may not currently be ready to receive orders.",
+              "Influencer not found. This influencer may not currently be ready to receive orders.",
             companyOnlyTitle: "Company accounts only",
             companyOnlyBody:
               "This order form is only available to company accounts.",
@@ -455,24 +480,22 @@ export default function CreatorRequestClient() {
             profileRequiredBody:
               "Please complete your company profile before placing orders.",
             profileRequiredCta: "Complete Company Profile",
-            billingTitle: "Paid plan activation is required",
+            billingTitle: "Plan confirmation is required",
             billingBody:
-              "Your paid plan is not active. Basic can place orders without a monthly subscription.",
+              "Your current plan status does not allow ordering. Please check your billing plan.",
             billingCta: "View Billing Plans",
-            backToCreator: "Back to Creator Detail",
+            backToCreator: "Back to detail",
             mainAudience: "Main audience",
             notSet: "Not set",
-            pageStepLabel: "Place Order",
-            pageTitle: "Place Order",
+            pageTitle: "Review your order",
             pageSubtitle:
-              "Your card will be authorized on the next screen. Payment will only be captured if the creator accepts within 72 hours.",
-            creatorInfo: "Creator",
-            platforms: "Platforms",
+              "Enter the details and continue to Stripe Checkout. Payment is only captured if the influencer accepts.",
+            creatorInfo: "Influencer",
             currentPlan: "Current Plan",
             remainingThisMonth: "Remaining orders",
             nextReset: "Next reset",
             unlimited: "Unlimited",
-            selectedMenu: "Selected package",
+            selectedMenu: "Selected",
             selectMenu: "Menu to order",
             noMenus: "No public menus are available.",
             price: "Price",
@@ -483,10 +506,9 @@ export default function CreatorRequestClient() {
             notAllowed: "Not allowed",
             notes: "Notes",
             none: "None",
-            productInfo: "Requirements",
             productName: "Product or campaign name",
             productNamePlaceholder: "Example: New skincare serum PR",
-            productUrl: "Product URL",
+            productUrl: "Product or service URL",
             productUrlPlaceholder: "https://...",
             deadline: "Preferred deadline",
             freeOffer: "Product will be provided for free",
@@ -495,7 +517,7 @@ export default function CreatorRequestClient() {
               "Secondary use is not allowed for this menu.",
             requirements: "Order requirements",
             requirementsPlaceholder:
-              "Describe key selling points, requested content, preferred format, expressions to avoid, reference ideas, and any important details.",
+              "Describe key selling points, requested content, preferred format, expressions to avoid, reference ideas, and important details.",
             productRequired: "Please enter a product or campaign name.",
             noteRequired: "Please enter at least 10 characters.",
             menuRequired: "Please select a menu to order.",
@@ -507,18 +529,21 @@ export default function CreatorRequestClient() {
             checkoutUrlMissing: "Checkout URL was not returned.",
             submitting: "Creating Checkout...",
             limitReachedButton: "Limit Reached",
-            submitButton: "Continue to Checkout",
+            submitButton: "Continue to payment",
             pieces: "",
             orderNotice:
-              "Payment is protected by Stripe. If the creator declines, the charge will not be finalized.",
+              "Payment is protected by Stripe. If the influencer declines, the charge will not be finalized.",
             orderSummary: "Order Summary",
             menuPrice: "Menu price",
-            marketplaceFee: "Trendre marketplace fee",
+            marketplaceFee: "Trendre fee",
             total: "Total",
             paymentProtection:
-              "Payment Protection: If the creator declines, the charge will not be finalized.",
+              "Payment is only captured if the influencer accepts within 72 hours.",
             included: "What's included",
-            orderDetails: "Order details",
+            orderDetails: "Enter order details",
+            selectedMenuLabel: "Selected menu",
+            securePayment: "Secure payment",
+            onlineComplete: "Online delivery confirmation",
           },
     [safeLocale]
   );
@@ -609,10 +634,12 @@ export default function CreatorRequestClient() {
         typeof userState?.monthly_request_limit === "number"
           ? userState.monthly_request_limit
           : null;
+
       const monthlyRequestUsed =
         typeof userState?.monthly_request_used === "number"
           ? userState.monthly_request_used
           : 0;
+
       const requestUsageResetAt = userState?.request_usage_reset_at ?? null;
 
       const accountReady =
@@ -767,6 +794,7 @@ export default function CreatorRequestClient() {
 
   const menuPriceAmount =
     typeof selectedMenu?.price === "number" ? selectedMenu.price : 0;
+
   const buyerFeeRateBps = getBuyerFeeRateBps(gate.companyPlanCode);
   const buyerFeeAmount = Math.round((menuPriceAmount * buyerFeeRateBps) / 10000);
   const buyerTotalAmount = menuPriceAmount + buyerFeeAmount;
@@ -782,10 +810,21 @@ export default function CreatorRequestClient() {
   const audienceCountries = uniqueNonEmpty(
     socialAccounts.map((s) => s.audience_country)
   );
+
   const audienceCountryLabels = audienceCountries.map((country) =>
     getCountryLabel(country, safeLocale)
   );
+
   const platforms = uniqueNonEmpty(socialAccounts.map((s) => s.platform));
+
+  const selectedMenuPriceText = selectedMenu
+    ? formatPrice(
+        selectedMenu.price,
+        selectedMenu.currency,
+        selectedMenu.reference_price_text,
+        safeLocale
+      )
+    : "-";
 
   const handleMenuChange = (menuId: string) => {
     const nextMenu = menus.find((menu) => menu.id === menuId) ?? null;
@@ -880,11 +919,9 @@ export default function CreatorRequestClient() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-[28px] border border-slate-100 bg-white p-8 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500">
-            {copy.loading}
-          </p>
+      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+        <div className="mx-auto max-w-5xl rounded-[30px] border border-white/80 bg-white/90 p-8 shadow-sm">
+          <p className="text-sm font-bold text-slate-500">{copy.loading}</p>
         </div>
       </div>
     );
@@ -892,9 +929,9 @@ export default function CreatorRequestClient() {
 
   if (!creator) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-slate-600">
+      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-[30px] border border-rose-100 bg-white p-7 shadow-sm">
+          <p className="text-sm font-bold text-slate-600">
             {copy.creatorNotFound}
           </p>
         </div>
@@ -904,10 +941,14 @@ export default function CreatorRequestClient() {
 
   if (!gate.isCompany) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
-          <h1 className="mb-2 text-2xl font-bold">{copy.companyOnlyTitle}</h1>
-          <p className="text-sm text-gray-700">{copy.companyOnlyBody}</p>
+      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-[30px] border border-rose-100 bg-white p-7 shadow-sm">
+          <h1 className="text-2xl font-black text-slate-950">
+            {copy.companyOnlyTitle}
+          </h1>
+          <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
+            {copy.companyOnlyBody}
+          </p>
         </div>
       </div>
     );
@@ -915,10 +956,14 @@ export default function CreatorRequestClient() {
 
   if (gate.isSuspended || gate.companyAccessStatus !== "approved") {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
-          <h1 className="mb-2 text-2xl font-bold">{copy.unavailableTitle}</h1>
-          <p className="text-sm text-gray-700">{copy.unavailableBody}</p>
+      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-[30px] border border-rose-100 bg-white p-7 shadow-sm">
+          <h1 className="text-2xl font-black text-slate-950">
+            {copy.unavailableTitle}
+          </h1>
+          <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
+            {copy.unavailableBody}
+          </p>
         </div>
       </div>
     );
@@ -926,18 +971,18 @@ export default function CreatorRequestClient() {
 
   if (!gate.companyProfileCompleted) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-3xl border border-yellow-200 bg-yellow-50 p-6">
-          <h1 className="mb-2 text-2xl font-bold">
+      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-[30px] border border-amber-100 bg-white p-7 shadow-sm">
+          <h1 className="text-2xl font-black text-slate-950">
             {copy.profileRequiredTitle}
           </h1>
-          <p className="mb-4 text-sm text-gray-700">
+          <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
             {copy.profileRequiredBody}
           </p>
           <button
             type="button"
             onClick={() => router.push("/b/onboarding")}
-            className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+            className="mt-5 rounded-full bg-[#ff5f67] px-6 py-3 text-sm font-black text-white shadow-lg shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
           >
             {copy.profileRequiredCta}
           </button>
@@ -948,23 +993,29 @@ export default function CreatorRequestClient() {
 
   if (gate.needsBilling) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-3xl border border-blue-200 bg-blue-50 p-6">
-          <p className="mb-2 text-sm text-gray-600">@{creator.display_name}</p>
-          <h1 className="mb-2 text-2xl font-bold">{copy.billingTitle}</h1>
-          <p className="mb-4 text-sm text-gray-700">{copy.billingBody}</p>
-          <div className="flex flex-wrap gap-3">
+      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-[30px] border border-blue-100 bg-white p-7 shadow-sm">
+          <p className="text-sm font-bold text-slate-400">
+            @{creator.display_name}
+          </p>
+          <h1 className="mt-2 text-2xl font-black text-slate-950">
+            {copy.billingTitle}
+          </h1>
+          <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
+            {copy.billingBody}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => router.push(BILLING_PATH)}
-              className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+              className="rounded-full bg-[#ff5f67] px-6 py-3 text-sm font-black text-white shadow-lg shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
             >
               {copy.billingCta}
             </button>
             <button
               type="button"
               onClick={() => router.push(`/b/creators/${creator.id}`)}
-              className="rounded-2xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+              className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 transition hover:border-slate-300"
             >
               {copy.backToCreator}
             </button>
@@ -974,471 +1025,479 @@ export default function CreatorRequestClient() {
     );
   }
 
-  const selectedMenuPriceText = selectedMenu
-    ? formatPrice(
-        selectedMenu.price,
-        selectedMenu.currency,
-        selectedMenu.reference_price_text,
-        safeLocale
-      )
-    : "-";
-
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-        <SectionTitle
-          eyebrow={copy.pageStepLabel}
-          title={copy.pageTitle}
-          body={copy.pageSubtitle}
-        />
-
-        <button
-          type="button"
-          onClick={() => router.push(`/b/creators/${creator.id}`)}
-          className="w-fit rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-        >
-          {copy.backToCreator}
-        </button>
+    <form onSubmit={onSubmit} className="relative overflow-hidden bg-[#f8fafc]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/55 blur-3xl" />
+        <div className="absolute right-[-180px] top-[8%] h-[520px] w-[520px] rounded-full bg-emerald-100/55 blur-3xl" />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <main className="min-w-0 space-y-6">
-          <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                  {copy.creatorInfo}
-                </p>
-                <h2 className="mt-2 text-2xl font-black text-slate-950">
-                  {creator.display_name}
-                </h2>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {platforms.length > 0 ? (
-                    platforms.map((platform) => (
-                      <Badge key={platform} tone="black">
-                        <span className="mr-1">{getPlatformIcon(platform)}</span>
-                        {platform}
-                      </Badge>
-                    ))
-                  ) : (
-                    <Badge tone="gray">{copy.notSet}</Badge>
-                  )}
-
-                  {audienceCountryLabels.length > 0 ? (
-                    <Badge tone="blue">
-                      {copy.mainAudience}: {audienceCountryLabels.join(" / ")}
-                    </Badge>
-                  ) : null}
-                </div>
+      <div className="relative mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
+        <section className="mb-8 overflow-hidden rounded-[34px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur md:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-[11px] font-black text-[#ff5f67]">
+                ORDER
               </div>
 
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm">
-                <Row label={copy.currentPlan} value={getPlanLabel(gate.companyPlanCode)} />
-                <div className="my-3 border-t border-slate-200" />
-                <Row
-                  label={copy.remainingThisMonth}
-                  value={
-                    gate.monthlyRequestLimit === null
-                      ? copy.unlimited
-                      : `${remainingRequests ?? 0}${copy.pieces}`
-                  }
-                  bold
-                />
-                <div className="mt-3">
+              <h1 className="mt-5 text-[34px] font-black leading-tight tracking-[-0.045em] text-slate-950 md:text-[48px]">
+                {copy.pageTitle}
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-slate-600 md:text-base">
+                {copy.pageSubtitle}
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <InfoPill>{copy.selectedMenuLabel}</InfoPill>
+                <InfoPill>{copy.securePayment}</InfoPill>
+                <InfoPill>{copy.onlineComplete}</InfoPill>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => router.push(`/b/creators/${creator.id}`)}
+              className="w-fit rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
+            >
+              {copy.backToCreator}
+            </button>
+          </div>
+        </section>
+
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
+          <main className="min-w-0 space-y-6">
+            <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
+              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                    {copy.creatorInfo}
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950 md:text-3xl">
+                    {creator.display_name}
+                  </h2>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {platforms.length > 0 ? (
+                      platforms.map((platform) => (
+                        <Badge key={platform} tone="black">
+                          <span className="mr-1">{getPlatformIcon(platform)}</span>
+                          {platform}
+                        </Badge>
+                      ))
+                    ) : (
+                      <Badge tone="gray">{copy.notSet}</Badge>
+                    )}
+
+                    {audienceCountryLabels.length > 0 ? (
+                      <Badge tone="blue">
+                        {copy.mainAudience}: {audienceCountryLabels.join(" / ")}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="min-w-[230px] rounded-[24px] bg-slate-50 p-4">
+                  <Row
+                    label={copy.currentPlan}
+                    value={getPlanLabel(gate.companyPlanCode)}
+                    bold
+                  />
+                  <div className="my-3 border-t border-slate-200" />
+                  <Row
+                    label={copy.remainingThisMonth}
+                    value={
+                      gate.monthlyRequestLimit === null
+                        ? copy.unlimited
+                        : `${remainingRequests ?? 0}${copy.pieces}`
+                    }
+                    bold
+                  />
+                  <div className="my-3 border-t border-slate-200" />
                   <Row
                     label={copy.nextReset}
                     value={formatDate(gate.requestUsageResetAt, safeLocale)}
                   />
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-2xl font-black text-slate-950">
-                {copy.selectMenu}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {copy.orderNotice}
-              </p>
-            </div>
-
-            {menus.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center">
-                <p className="text-sm font-semibold text-slate-500">
-                  {copy.noMenus}
-                </p>
+            <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
+              <div className="mb-5 flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black tracking-[-0.03em] text-slate-950">
+                    {copy.selectMenu}
+                  </h2>
+                  <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+                    {copy.orderNotice}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <div className="grid gap-4">
-                {menus.map((menu) => {
-                  const isSelected = form.creator_menu_id === menu.id;
-                  const platform = menu.platform || menu.sns;
 
-                  return (
-                    <button
-                      key={menu.id}
-                      type="button"
-                      onClick={() => handleMenuChange(menu.id)}
-                      className={`rounded-[24px] border p-5 text-left transition ${
-                        isSelected
-                          ? "border-slate-950 bg-white ring-2 ring-slate-950/5"
-                          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:shadow-md"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="mb-3 flex flex-wrap gap-2">
-                            {platform ? (
-                              <Badge tone="black">
-                                <span className="mr-1">{getPlatformIcon(platform)}</span>
-                                {platform}
+              {menus.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center">
+                  <p className="text-sm font-semibold text-slate-500">
+                    {copy.noMenus}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {menus.map((menu) => {
+                    const isSelected = form.creator_menu_id === menu.id;
+                    const platform = menu.platform || menu.sns;
+
+                    return (
+                      <button
+                        key={menu.id}
+                        type="button"
+                        onClick={() => handleMenuChange(menu.id)}
+                        className={`group rounded-[26px] border p-5 text-left transition ${
+                          isSelected
+                            ? "border-[#ff5f67]/60 bg-rose-50/40 shadow-[0_18px_45px_rgba(255,95,103,0.12)] ring-4 ring-rose-100/60"
+                            : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="mb-3 flex flex-wrap gap-2">
+                              {platform ? (
+                                <Badge tone="black">
+                                  <span className="mr-1">
+                                    {getPlatformIcon(platform)}
+                                  </span>
+                                  {platform}
+                                </Badge>
+                              ) : null}
+                              <Badge tone="gray">
+                                {menuTypeLabel(
+                                  menu.menu_type,
+                                  safeLocale,
+                                  menu.category || "Menu"
+                                )}
                               </Badge>
+                              {isSelected ? (
+                                <Badge tone="red">{copy.selectedMenu}</Badge>
+                              ) : null}
+                            </div>
+
+                            <h3 className="text-lg font-black text-slate-950">
+                              {menu.title}
+                            </h3>
+
+                            {menu.description ? (
+                              <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-500">
+                                {menu.description}
+                              </p>
                             ) : null}
-                            <Badge tone="gray">
-                              {menuTypeLabel(
-                                menu.menu_type,
-                                safeLocale,
-                                menu.category || "Menu"
-                              )}
-                            </Badge>
                           </div>
 
-                          <h3 className="text-lg font-black text-slate-950">
-                            {menu.title}
-                          </h3>
-
-                          {menu.description ? (
-                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
-                              {menu.description}
+                          <div className="shrink-0 text-right">
+                            <p className="text-xl font-black text-slate-950">
+                              {formatPrice(
+                                menu.price,
+                                menu.currency,
+                                menu.reference_price_text,
+                                safeLocale
+                              )}
                             </p>
-                          ) : null}
+                            <p className="mt-1 text-xs font-bold text-slate-400">
+                              {formatDeliveryDays(
+                                menu.delivery_days,
+                                safeLocale,
+                                "-"
+                              )}
+                            </p>
+                          </div>
                         </div>
-
-                        <div className="shrink-0 text-right">
-                          <p className="text-lg font-black text-slate-950">
-                            {formatPrice(
-                              menu.price,
-                              menu.currency,
-                              menu.reference_price_text,
-                              safeLocale
-                            )}
-                          </p>
-                          <p className="mt-1 text-xs font-semibold text-slate-400">
-                            {formatDeliveryDays(menu.delivery_days, safeLocale, "-")}
-                          </p>
-                        </div>
-                      </div>
-
-                      {isSelected ? (
-                        <div className="mt-4 flex items-center gap-2 text-sm font-bold text-slate-950">
-                          <CheckIcon />
-                          {copy.selectedMenu}
-                        </div>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {selectedMenu ? (
-            <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-black text-slate-950">
-                {copy.included}
-              </h2>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                    {copy.delivery}
-                  </p>
-                  <p className="mt-1 font-black text-slate-950">
-                    {formatDeliveryDays(selectedMenu.delivery_days, safeLocale, "-")}
-                  </p>
+                      </button>
+                    );
+                  })}
                 </div>
-
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                    {copy.secondaryUse}
-                  </p>
-                  <p className="mt-1 font-black text-slate-950">
-                    {selectedMenu.allow_secondary_use ? copy.allowed : copy.notAllowed}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                    {copy.price}
-                  </p>
-                  <p className="mt-1 font-black text-slate-950">
-                    {selectedMenuPriceText}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                  {copy.deliverables}
-                </p>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  {selectedMenu.deliverables?.trim() || copy.none}
-                </p>
-              </div>
-
-              {selectedMenu.notes ? (
-                <div className="mt-5 rounded-2xl bg-amber-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                    {copy.notes}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-amber-800">
-                    {selectedMenu.notes}
-                  </p>
-                </div>
-              ) : null}
+              )}
             </section>
-          ) : null}
 
-          <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-2xl font-black text-slate-950">
-                {copy.orderDetails}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {copy.requirementsPlaceholder}
-              </p>
-            </div>
+            {selectedMenu ? (
+              <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
+                <h2 className="text-2xl font-black tracking-[-0.03em] text-slate-950">
+                  {copy.included}
+                </h2>
 
-            <div className="grid gap-5">
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700">
-                  {copy.productName}
-                </span>
-                <input
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-[24px] bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                      {copy.delivery}
+                    </p>
+                    <p className="mt-1 font-black text-slate-950">
+                      {formatDeliveryDays(
+                        selectedMenu.delivery_days,
+                        safeLocale,
+                        "-"
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                      {copy.secondaryUse}
+                    </p>
+                    <p className="mt-1 font-black text-slate-950">
+                      {selectedMenu.allow_secondary_use
+                        ? copy.allowed
+                        : copy.notAllowed}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                      {copy.price}
+                    </p>
+                    <p className="mt-1 font-black text-slate-950">
+                      {selectedMenuPriceText}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                    {copy.deliverables}
+                  </p>
+                  <p className="mt-2 text-sm font-medium leading-7 text-slate-600">
+                    {selectedMenu.deliverables?.trim() || copy.none}
+                  </p>
+                </div>
+
+                {selectedMenu.notes ? (
+                  <div className="mt-5 rounded-2xl bg-amber-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+                      {copy.notes}
+                    </p>
+                    <p className="mt-2 text-sm font-medium leading-7 text-amber-800">
+                      {selectedMenu.notes}
+                    </p>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
+              <div className="mb-6">
+                <h2 className="text-2xl font-black tracking-[-0.03em] text-slate-950">
+                  {copy.orderDetails}
+                </h2>
+                <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+                  {copy.requirementsPlaceholder}
+                </p>
+              </div>
+
+              <div className="grid gap-5">
+                <TextInput
+                  label={copy.productName}
                   value={form.product_name}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      product_name: e.target.value,
-                    }))
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, product_name: value }))
                   }
                   placeholder={copy.productNamePlaceholder}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-4 text-sm outline-none transition focus:border-slate-950"
                 />
-              </label>
 
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700">
-                  {copy.productUrl}
-                </span>
-                <input
+                <TextInput
+                  label={copy.productUrl}
                   value={form.product_url}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      product_url: e.target.value,
-                    }))
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, product_url: value }))
                   }
                   placeholder={copy.productUrlPlaceholder}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-4 text-sm outline-none transition focus:border-slate-950"
                 />
-              </label>
 
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700">
-                  {copy.deadline}
-                </span>
-                <input
+                <TextInput
                   type="date"
+                  label={copy.deadline}
                   value={form.deadline}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      deadline: e.target.value,
-                    }))
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, deadline: value }))
                   }
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-4 text-sm outline-none transition focus:border-slate-950"
                 />
-              </label>
 
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700">
-                  {copy.requirements}
-                </span>
-                <textarea
-                  value={form.note}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      note: e.target.value,
-                    }))
-                  }
-                  placeholder={copy.requirementsPlaceholder}
-                  rows={8}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-4 text-sm leading-7 outline-none transition focus:border-slate-950"
-                />
-              </label>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-950">
-                  <input
-                    type="checkbox"
-                    checked={form.has_free_offer}
+                <label className="block">
+                  <span className="text-sm font-black text-slate-800">
+                    {copy.requirements}
+                  </span>
+                  <textarea
+                    value={form.note}
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
-                        has_free_offer: e.target.checked,
+                        note: e.target.value,
                       }))
                     }
-                    className="mt-1"
+                    placeholder={copy.requirementsPlaceholder}
+                    rows={7}
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
                   />
-                  <span>
+                </label>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={form.has_free_offer}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          has_free_offer: e.target.checked,
+                        }))
+                      }
+                      className="mt-1"
+                    />
                     <span className="block text-sm font-bold text-slate-800">
                       {copy.freeOffer}
                     </span>
-                  </span>
-                </label>
+                  </label>
 
-                <label
-                  className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
-                    selectedMenu?.allow_secondary_use
-                      ? "border-slate-200 hover:border-slate-950"
-                      : "cursor-not-allowed border-slate-100 bg-slate-50 opacity-60"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={
-                      !!selectedMenu?.allow_secondary_use &&
-                      form.wants_secondary_use
-                    }
-                    disabled={!selectedMenu?.allow_secondary_use}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        wants_secondary_use: e.target.checked,
-                      }))
-                    }
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="block text-sm font-bold text-slate-800">
-                      {copy.wantsSecondaryUse}
-                    </span>
-                    {!selectedMenu?.allow_secondary_use ? (
-                      <span className="mt-1 block text-xs text-slate-500">
-                        {copy.secondaryUseUnavailable}
+                  <label
+                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border bg-white p-4 transition ${
+                      selectedMenu?.allow_secondary_use
+                        ? "border-slate-200 hover:border-slate-300"
+                        : "cursor-not-allowed border-slate-100 bg-slate-50 opacity-60"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        !!selectedMenu?.allow_secondary_use &&
+                        form.wants_secondary_use
+                      }
+                      disabled={!selectedMenu?.allow_secondary_use}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          wants_secondary_use: e.target.checked,
+                        }))
+                      }
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-slate-800">
+                        {copy.wantsSecondaryUse}
                       </span>
-                    ) : null}
+                      {!selectedMenu?.allow_secondary_use ? (
+                        <span className="mt-1 block text-xs font-medium text-slate-500">
+                          {copy.secondaryUseUnavailable}
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </section>
+          </main>
+
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.09)] backdrop-blur">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                {copy.orderSummary}
+              </p>
+
+              <h2 className="mt-3 text-2xl font-black leading-tight tracking-[-0.03em] text-slate-950">
+                {selectedMenu?.title || copy.selectedMenu}
+              </h2>
+
+              <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+                <Row
+                  label={copy.menuPrice}
+                  value={formatPlainPrice(
+                    menuPriceAmount,
+                    selectedMenu?.currency ?? "JPY",
+                    safeLocale
+                  )}
+                />
+
+                <div className="my-4 border-t border-slate-200" />
+
+                <Row
+                  label={copy.marketplaceFee}
+                  value={formatPlainPrice(
+                    buyerFeeAmount,
+                    selectedMenu?.currency ?? "JPY",
+                    safeLocale
+                  )}
+                />
+
+                <div className="my-4 border-t border-slate-200" />
+
+                <Row
+                  label={copy.total}
+                  value={formatPlainPrice(
+                    buyerTotalAmount,
+                    selectedMenu?.currency ?? "JPY",
+                    safeLocale
+                  )}
+                  bold
+                />
+              </div>
+
+              <div className="mt-5 space-y-3 text-sm font-medium leading-6 text-slate-600">
+                <div className="flex gap-2">
+                  <span className="mt-0.5 text-[#7bae6c]">
+                    <CheckIcon />
                   </span>
-                </label>
+                  <span>{copy.orderNotice}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="mt-0.5 text-[#7bae6c]">
+                    <ShieldIcon />
+                  </span>
+                  <span>{copy.paymentProtection}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="mt-0.5 text-[#7bae6c]">
+                    <CheckIcon />
+                  </span>
+                  <span>
+                    {copy.currentPlan}: {getPlanLabel(gate.companyPlanCode)}
+                  </span>
+                </div>
               </div>
+
+              {reachedLimit ? (
+                <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                  {copy.freeLimitReached}
+                </div>
+              ) : null}
+
+              {errorMsg ? (
+                <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                  {errorMsg}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  !selectedMenu ||
+                  !gate.canSendRequests ||
+                  reachedLimit
+                }
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-4 text-base font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting
+                  ? copy.submitting
+                  : reachedLimit
+                  ? copy.limitReachedButton
+                  : copy.submitButton}
+                {!submitting && !reachedLimit ? <ArrowIcon /> : null}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push(`/b/creators/${creator.id}`)}
+                className="mt-3 w-full rounded-full border border-slate-200 bg-white px-5 py-3.5 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                {copy.backToCreator}
+              </button>
             </div>
-          </section>
-        </main>
-
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-[rgba(120,120,170,0.18)_0_18px_50px_-24px]">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-              {copy.orderSummary}
-            </p>
-
-            <h2 className="mt-3 text-2xl font-black leading-tight text-slate-950">
-              {selectedMenu?.title || copy.selectedMenu}
-            </h2>
-
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-              <Row
-                label={copy.menuPrice}
-                value={formatPlainPrice(
-                  menuPriceAmount,
-                  selectedMenu?.currency ?? "JPY",
-                  safeLocale
-                )}
-              />
-
-              <div className="my-4 border-t border-slate-200" />
-
-              <Row
-                label={copy.marketplaceFee}
-                value={formatPlainPrice(
-                  buyerFeeAmount,
-                  selectedMenu?.currency ?? "JPY",
-                  safeLocale
-                )}
-              />
-
-              <div className="my-4 border-t border-slate-200" />
-
-              <Row
-                label={copy.total}
-                value={formatPlainPrice(
-                  buyerTotalAmount,
-                  selectedMenu?.currency ?? "JPY",
-                  safeLocale
-                )}
-                bold
-              />
-            </div>
-
-            <div className="mt-5 space-y-3 text-sm text-slate-600">
-              <div className="flex gap-2">
-                <CheckIcon />
-                <span>{copy.orderNotice}</span>
-              </div>
-              <div className="flex gap-2">
-                <ShieldIcon />
-                <span>{copy.paymentProtection}</span>
-              </div>
-              <div className="flex gap-2">
-                <CheckIcon />
-                <span>
-                  {copy.currentPlan}: {getPlanLabel(gate.companyPlanCode)}
-                </span>
-              </div>
-            </div>
-
-            {reachedLimit ? (
-              <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-700">
-                {copy.freeLimitReached}
-              </div>
-            ) : null}
-
-            {errorMsg ? (
-              <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-700">
-                {errorMsg}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={
-                submitting ||
-                !selectedMenu ||
-                !gate.canSendRequests ||
-                reachedLimit
-              }
-              className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-4 text-base font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting
-                ? copy.submitting
-                : reachedLimit
-                ? copy.limitReachedButton
-                : copy.submitButton}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => router.push(`/b/creators/${creator.id}`)}
-              className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-            >
-              {copy.backToCreator}
-            </button>
-          </div>
-        </aside>
+          </aside>
+        </div>
       </div>
     </form>
   );
