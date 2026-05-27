@@ -14,6 +14,8 @@ import { useAppLocale } from "@/lib/i18n/locale";
 
 const BILLING_PATH = "/b/billing";
 
+type ProjectType = "visit_experience" | "product_delivery" | "provided_assets";
+
 type Creator = {
   id: string;
   user_id: string;
@@ -50,12 +52,11 @@ type SocialAccount = {
 };
 
 type FormState = {
+  project_type: ProjectType | "";
   product_name: string;
   product_url: string;
   deadline: string;
   note: string;
-  has_free_offer: boolean;
-  wants_secondary_use: boolean;
   creator_menu_id: string;
 };
 
@@ -221,6 +222,29 @@ function getPlatformLabel(value: string | null | undefined) {
   return raw || "SNS";
 }
 
+function isUgcMenu(menu: CreatorMenu | null) {
+  if (!menu) return false;
+
+  const text = [
+    menu.menu_type,
+    menu.category,
+    menu.platform,
+    menu.sns,
+    menu.title,
+    menu.description,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    text.includes("ugc") ||
+    text.includes("素材") ||
+    text.includes("動画素材") ||
+    text.includes("画像素材")
+  );
+}
+
 function PlatformIcon({ platform }: { platform: string | null | undefined }) {
   const label = getPlatformLabel(platform);
   const normalized = label.toLowerCase();
@@ -265,6 +289,14 @@ function PlatformIcon({ platform }: { platform: string | null | undefined }) {
     );
   }
 
+  if (normalized === "ugc") {
+    return (
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-black text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+        UGC
+      </span>
+    );
+  }
+
   return (
     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">
       SNS
@@ -288,12 +320,13 @@ function Badge({
   tone = "gray",
 }: {
   children: ReactNode;
-  tone?: "gray" | "blue" | "red";
+  tone?: "gray" | "blue" | "red" | "green";
 }) {
   const styles = {
     gray: "bg-slate-100 text-slate-700",
     blue: "bg-blue-50 text-blue-700",
     red: "bg-rose-50 text-[#ff5f67]",
+    green: "bg-emerald-50 text-emerald-700",
   };
 
   return (
@@ -425,18 +458,28 @@ export default function CreatorRequestClient() {
             selectMenu: "メニュー",
             noMenus: "公開メニューがありません。",
             delivery: "納期",
-            secondaryUse: "二次利用",
-            allowed: "許可",
-            notAllowed: "不可",
+            projectType: "案件タイプ",
+            visitExperience: "来店・体験して投稿",
+            visitExperienceBody:
+              "店舗・施設・サービスを体験して投稿してもらう案件です。",
+            productDelivery: "商品を受け取って投稿",
+            productDeliveryBody:
+              "商品を配送し、使用・撮影・投稿してもらう案件です。",
+            providedAssets: "素材を使って投稿",
+            providedAssetsBody:
+              "写真・動画・商品画像など、企業側の素材を使って投稿してもらう案件です。",
+            projectTypeRequired: "案件タイプを選択してください。",
+            productDeliveryNotice:
+              "商品配送が必要な案件です。インフルエンサー承認後、チャットで配送先や発送方法を確認してください。自宅住所の共有が不安な場合は、事務所・仕事用住所・受取可能な住所などの利用をおすすめします。",
+            postUrlUsageNote:
+              "このメニューの納品物は投稿URLです。投稿内容の広告利用・画像/動画素材としての再利用は含まれません。",
+            ugcUsageNote:
+              "このメニューはUGC素材制作です。納品された画像・動画素材は、広告・LP・SNS・ECページ等での利用を前提とします。",
             productName: "商品名・案件名",
             productNamePlaceholder: "例：新作美容液PR / 新店舗オープン告知",
             productUrl: "商品URL・サービスURL",
             productUrlPlaceholder: "https://...",
             deadline: "希望納期",
-            freeOffer: "商品の無償提供あり",
-            wantsSecondaryUse: "広告素材として二次利用したい",
-            secondaryUseUnavailable:
-              "このメニューでは二次利用は許可されていません。",
             requirements: "依頼内容",
             requirementsPlaceholder:
               "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現、参考イメージなどを入力してください。",
@@ -491,18 +534,28 @@ export default function CreatorRequestClient() {
             selectMenu: "Menu",
             noMenus: "No public menus are available.",
             delivery: "Delivery",
-            secondaryUse: "Secondary use",
-            allowed: "Allowed",
-            notAllowed: "Not allowed",
+            projectType: "Project type",
+            visitExperience: "Visit / experience and post",
+            visitExperienceBody:
+              "The influencer visits your store, facility, or service experience and posts about it.",
+            productDelivery: "Receive a product and post",
+            productDeliveryBody:
+              "You ship a product to the influencer for use, content creation, and posting.",
+            providedAssets: "Post using provided assets",
+            providedAssetsBody:
+              "The influencer posts using images, videos, or assets provided by your brand.",
+            projectTypeRequired: "Please select a project type.",
+            productDeliveryNotice:
+              "This project requires product delivery. After the influencer accepts, please confirm the shipping method and delivery address in chat. If the influencer is concerned about sharing a home address, using an office, work address, or other receivable address is recommended.",
+            postUrlUsageNote:
+              "This menu delivers a post URL. Reusing the post content as advertising material, images, or video assets is not included.",
+            ugcUsageNote:
+              "This is a UGC content creation menu. Delivered image or video assets are intended for use in ads, landing pages, social media, or ecommerce pages.",
             productName: "Product or campaign name",
             productNamePlaceholder: "Example: New skincare serum PR",
             productUrl: "Product or service URL",
             productUrlPlaceholder: "https://...",
             deadline: "Preferred deadline",
-            freeOffer: "Product will be provided for free",
-            wantsSecondaryUse: "Request secondary use",
-            secondaryUseUnavailable:
-              "Secondary use is not allowed for this menu.",
             requirements: "Order requirements",
             requirementsPlaceholder:
               "Describe key selling points, requested content, preferred format, expressions to avoid, reference ideas, and important details.",
@@ -531,6 +584,34 @@ export default function CreatorRequestClient() {
     [safeLocale]
   );
 
+  const projectTypes = useMemo(
+    () => [
+      {
+        value: "visit_experience" as const,
+        title: copy.visitExperience,
+        body: copy.visitExperienceBody,
+      },
+      {
+        value: "product_delivery" as const,
+        title: copy.productDelivery,
+        body: copy.productDeliveryBody,
+      },
+      {
+        value: "provided_assets" as const,
+        title: copy.providedAssets,
+        body: copy.providedAssetsBody,
+      },
+    ],
+    [
+      copy.visitExperience,
+      copy.visitExperienceBody,
+      copy.productDelivery,
+      copy.productDeliveryBody,
+      copy.providedAssets,
+      copy.providedAssetsBody,
+    ]
+  );
+
   const [creator, setCreator] = useState<Creator | null>(null);
   const [menus, setMenus] = useState<CreatorMenu[]>([]);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
@@ -553,12 +634,11 @@ export default function CreatorRequestClient() {
   });
 
   const [form, setForm] = useState<FormState>({
+    project_type: "",
     product_name: "",
     product_url: "",
     deadline: "",
     note: "",
-    has_free_offer: false,
-    wants_secondary_use: false,
     creator_menu_id: "",
   });
 
@@ -733,14 +813,9 @@ export default function CreatorRequestClient() {
             ? initialMenuId
             : nextMenus[0]?.id ?? "";
 
-        const selected = nextMenus.find((m) => m.id === defaultSelectedId);
-
         setForm((prev) => ({
           ...prev,
           creator_menu_id: defaultSelectedId,
-          wants_secondary_use: selected?.allow_secondary_use
-            ? prev.wants_secondary_use
-            : false,
         }));
       }
 
@@ -779,6 +854,8 @@ export default function CreatorRequestClient() {
   const selectedMenu =
     menus.find((menu) => menu.id === form.creator_menu_id) ?? null;
 
+  const selectedMenuIsUgc = isUgcMenu(selectedMenu);
+
   const menuPriceAmount =
     typeof selectedMenu?.price === "number" ? selectedMenu.price : 0;
 
@@ -804,16 +881,34 @@ export default function CreatorRequestClient() {
 
   const platforms = uniqueNonEmpty(socialAccounts.map((s) => s.platform));
 
-  const handleMenuChange = (menuId: string) => {
-    const nextMenu = menus.find((menu) => menu.id === menuId) ?? null;
+  const selectedProjectTypeLabel =
+    projectTypes.find((item) => item.value === form.project_type)?.title ?? "";
 
+  const handleMenuChange = (menuId: string) => {
     setForm((prev) => ({
       ...prev,
       creator_menu_id: menuId,
-      wants_secondary_use: nextMenu?.allow_secondary_use
-        ? prev.wants_secondary_use
-        : false,
     }));
+  };
+
+  const buildFinalRequirements = () => {
+    const usageNote = selectedMenuIsUgc
+      ? copy.ugcUsageNote
+      : copy.postUrlUsageNote;
+
+    const deliveryNote =
+      form.project_type === "product_delivery"
+        ? `\n\n【商品配送について】\n${copy.productDeliveryNotice}`
+        : "";
+
+    return `【案件タイプ】
+${selectedProjectTypeLabel}
+
+【利用範囲】
+${usageNote}${deliveryNote}
+
+【依頼内容】
+${form.note.trim()}`;
   };
 
   const onSubmit = async (e: FormEvent) => {
@@ -825,6 +920,11 @@ export default function CreatorRequestClient() {
 
     if (!selectedMenu) {
       setErrorMsg(copy.menuRequired);
+      return;
+    }
+
+    if (!form.project_type) {
+      setErrorMsg(copy.projectTypeRequired);
       return;
     }
 
@@ -867,10 +967,11 @@ export default function CreatorRequestClient() {
           product_name: form.product_name.trim(),
           product_url: form.product_url.trim() || null,
           deadline: form.deadline || null,
-          requirements: form.note.trim(),
-          has_free_offer: form.has_free_offer,
-          wants_secondary_use:
-            !!selectedMenu.allow_secondary_use && form.wants_secondary_use,
+          requirements: buildFinalRequirements(),
+          has_free_offer:
+            form.project_type === "visit_experience" ||
+            form.project_type === "product_delivery",
+          wants_secondary_use: selectedMenuIsUgc,
         }),
       });
 
@@ -1030,32 +1131,73 @@ export default function CreatorRequestClient() {
         <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
           <main className="min-w-0 space-y-5">
             <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                    {copy.creatorInfo}
-                  </p>
-                  <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
-                    {creator.display_name}
-                  </h2>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                  {copy.creatorInfo}
+                </p>
+                <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
+                  {creator.display_name}
+                </h2>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {platforms.length > 0 ? (
-                      platforms.map((platform) => (
-                        <PlatformBadge key={platform} platform={platform} />
-                      ))
-                    ) : (
-                      <Badge tone="gray">{copy.notSet}</Badge>
-                    )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {platforms.length > 0 ? (
+                    platforms.map((platform) => (
+                      <PlatformBadge key={platform} platform={platform} />
+                    ))
+                  ) : (
+                    <Badge tone="gray">{copy.notSet}</Badge>
+                  )}
 
-                    {audienceCountryLabels.length > 0 ? (
-                      <Badge tone="blue">
-                        {copy.mainAudience}: {audienceCountryLabels.join(" / ")}
-                      </Badge>
-                    ) : null}
-                  </div>
+                  {audienceCountryLabels.length > 0 ? (
+                    <Badge tone="blue">
+                      {copy.mainAudience}: {audienceCountryLabels.join(" / ")}
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
+            </section>
+
+            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                {copy.projectType}
+              </h2>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {projectTypes.map((item) => {
+                  const selected = form.project_type === item.value;
+
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          project_type: item.value,
+                        }))
+                      }
+                      className={`rounded-[24px] border p-4 text-left transition ${
+                        selected
+                          ? "border-[#ff5f67]/60 bg-rose-50/50 shadow-[0_12px_34px_rgba(255,95,103,0.10)] ring-4 ring-rose-100/60"
+                          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300"
+                      }`}
+                    >
+                      <p className="text-sm font-black text-slate-950">
+                        {item.title}
+                      </p>
+                      <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
+                        {item.body}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {form.project_type === "product_delivery" ? (
+                <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-800">
+                  {copy.productDeliveryNotice}
+                </div>
+              ) : null}
             </section>
 
             <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
@@ -1076,6 +1218,7 @@ export default function CreatorRequestClient() {
                   {menus.map((menu) => {
                     const isSelected = form.creator_menu_id === menu.id;
                     const platform = menu.platform || menu.sns;
+                    const menuIsUgc = isUgcMenu(menu);
 
                     return (
                       <button
@@ -1091,9 +1234,11 @@ export default function CreatorRequestClient() {
                         <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0">
                             <div className="mb-2 flex flex-wrap items-center gap-2">
-                              {platform ? <PlatformBadge platform={platform} /> : null}
+                              {platform ? (
+                                <PlatformBadge platform={platform} />
+                              ) : null}
 
-                              <Badge tone="gray">
+                              <Badge tone={menuIsUgc ? "green" : "gray"}>
                                 {menuTypeLabel(
                                   menu.menu_type,
                                   safeLocale,
@@ -1109,6 +1254,14 @@ export default function CreatorRequestClient() {
                             <h3 className="text-base font-black text-slate-950">
                               {menu.title}
                             </h3>
+
+                            {isSelected ? (
+                              <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
+                                {menuIsUgc
+                                  ? copy.ugcUsageNote
+                                  : copy.postUrlUsageNote}
+                              </p>
+                            ) : null}
                           </div>
 
                           <div className="shrink-0 text-right">
@@ -1193,59 +1346,6 @@ export default function CreatorRequestClient() {
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
                   />
                 </label>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={form.has_free_offer}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          has_free_offer: e.target.checked,
-                        }))
-                      }
-                      className="mt-1"
-                    />
-                    <span className="block text-sm font-bold text-slate-800">
-                      {copy.freeOffer}
-                    </span>
-                  </label>
-
-                  <label
-                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border bg-white p-4 transition ${
-                      selectedMenu?.allow_secondary_use
-                        ? "border-slate-200 hover:border-slate-300"
-                        : "cursor-not-allowed border-slate-100 bg-slate-50 opacity-60"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={
-                        !!selectedMenu?.allow_secondary_use &&
-                        form.wants_secondary_use
-                      }
-                      disabled={!selectedMenu?.allow_secondary_use}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          wants_secondary_use: e.target.checked,
-                        }))
-                      }
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="block text-sm font-bold text-slate-800">
-                        {copy.wantsSecondaryUse}
-                      </span>
-                      {!selectedMenu?.allow_secondary_use ? (
-                        <span className="mt-1 block text-xs font-medium text-slate-500">
-                          {copy.secondaryUseUnavailable}
-                        </span>
-                      ) : null}
-                    </span>
-                  </label>
-                </div>
               </div>
             </section>
           </main>
@@ -1259,6 +1359,12 @@ export default function CreatorRequestClient() {
               <h2 className="mt-3 text-2xl font-black leading-tight tracking-[-0.03em] text-slate-950">
                 {selectedMenu?.title || copy.selectedMenu}
               </h2>
+
+              {selectedProjectTypeLabel ? (
+                <div className="mt-3">
+                  <Badge tone="red">{selectedProjectTypeLabel}</Badge>
+                </div>
+              ) : null}
 
               <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
                 <Row
