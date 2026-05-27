@@ -227,23 +227,31 @@ function PlatformIcon({ platform }: { platform: string | null | undefined }) {
 
   if (normalized === "instagram") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#ffdd55] via-[#ff4f8b] to-[#7b3cff] text-[10px] font-black text-white shadow-sm">
-        IG
+      <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-slate-100">
+        <img
+          src="/brand/social/instagram.png"
+          alt="Instagram"
+          className="h-5 w-5 object-contain"
+        />
       </span>
     );
   }
 
   if (normalized === "tiktok") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-950 text-[13px] font-black text-white shadow-sm">
-        ♪
+      <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-slate-100">
+        <img
+          src="/brand/social/tiktok.png"
+          alt="TikTok"
+          className="h-5 w-5 object-contain"
+        />
       </span>
     );
   }
 
   if (normalized === "youtube") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white shadow-sm">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white shadow-sm">
         ▶
       </span>
     );
@@ -251,14 +259,14 @@ function PlatformIcon({ platform }: { platform: string | null | undefined }) {
 
   if (normalized === "x") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-950 text-[11px] font-black text-white shadow-sm">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-[11px] font-black text-white shadow-sm">
         X
       </span>
     );
   }
 
   return (
-    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">
+    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">
       SNS
     </span>
   );
