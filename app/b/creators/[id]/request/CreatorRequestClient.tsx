@@ -90,18 +90,6 @@ function getBuyerFeeRateBps(planCode: GateState["companyPlanCode"]) {
   return planCode === "global_pro" ? 500 : 1000;
 }
 
-function getPlanLabel(planCode: GateState["companyPlanCode"]) {
-  switch (planCode) {
-    case "standard":
-      return "Pro";
-    case "global_pro":
-      return "Premium";
-    case "free":
-    default:
-      return "Basic";
-  }
-}
-
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return Array.from(
     new Set(values.map((v) => (v ?? "").trim()).filter(Boolean))
@@ -146,15 +134,6 @@ function getCountryLabel(
   return locale === "ja"
     ? jaMap[raw] ?? jaMap[normalized] ?? raw
     : enMap[raw] ?? enMap[normalized] ?? raw;
-}
-
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-
-  return d.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
 }
 
 function formatPrice(
@@ -229,16 +208,71 @@ function menuTypeLabel(
   return labels[value || ""]?.[locale] || fallback;
 }
 
-function getPlatformIcon(value: string | null | undefined) {
-  const normalized = (value ?? "").trim().toLowerCase();
+function getPlatformLabel(value: string | null | undefined) {
+  const raw = (value ?? "").trim();
+  const normalized = raw.toLowerCase();
 
-  if (normalized.includes("instagram")) return "◎";
-  if (normalized.includes("tiktok")) return "♪";
-  if (normalized.includes("youtube")) return "▶";
-  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
-  if (normalized.includes("ugc")) return "▣";
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("tiktok")) return "TikTok";
+  if (normalized.includes("youtube")) return "YouTube";
+  if (normalized === "x" || normalized.includes("twitter")) return "X";
+  if (normalized.includes("ugc")) return "UGC";
 
-  return "●";
+  return raw || "SNS";
+}
+
+function PlatformIcon({ platform }: { platform: string | null | undefined }) {
+  const label = getPlatformLabel(platform);
+  const normalized = label.toLowerCase();
+
+  if (normalized === "instagram") {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#ffdd55] via-[#ff4f8b] to-[#7b3cff] text-[10px] font-black text-white shadow-sm">
+        IG
+      </span>
+    );
+  }
+
+  if (normalized === "tiktok") {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-950 text-[13px] font-black text-white shadow-sm">
+        ♪
+      </span>
+    );
+  }
+
+  if (normalized === "youtube") {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white shadow-sm">
+        ▶
+      </span>
+    );
+  }
+
+  if (normalized === "x") {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-950 text-[11px] font-black text-white shadow-sm">
+        X
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">
+      SNS
+    </span>
+  );
+}
+
+function PlatformBadge({ platform }: { platform: string | null | undefined }) {
+  const label = getPlatformLabel(platform);
+
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-black text-slate-800 shadow-sm">
+      <PlatformIcon platform={platform} />
+      {label}
+    </span>
+  );
 }
 
 function Badge({
@@ -246,21 +280,17 @@ function Badge({
   tone = "gray",
 }: {
   children: ReactNode;
-  tone?: "gray" | "blue" | "green" | "yellow" | "purple" | "red" | "black";
+  tone?: "gray" | "blue" | "red";
 }) {
   const styles = {
     gray: "bg-slate-100 text-slate-700",
     blue: "bg-blue-50 text-blue-700",
-    green: "bg-emerald-50 text-emerald-700",
-    yellow: "bg-amber-50 text-amber-800",
-    purple: "bg-purple-50 text-purple-700",
-    red: "bg-rose-50 text-rose-700",
-    black: "bg-slate-950 text-white",
+    red: "bg-rose-50 text-[#ff5f67]",
   };
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${styles[tone]}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ${styles[tone]}`}
     >
       {children}
     </span>
@@ -304,26 +334,6 @@ function CheckIcon() {
   );
 }
 
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M12 3.5 19 6v5.5c0 4.5-2.9 7.8-7 9-4.1-1.2-7-4.5-7-9V6l7-2.5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m8.8 12.1 2.1 2.1 4.5-4.8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function ArrowIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
@@ -335,15 +345,6 @@ function ArrowIcon() {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-function InfoPill({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-4 py-2 text-xs font-black text-slate-700 shadow-sm backdrop-blur">
-      <span className="mr-2 h-2 w-2 rounded-full bg-[#7bae6c]" />
-      {children}
-    </span>
   );
 }
 
@@ -368,7 +369,7 @@ function TextInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
       />
     </label>
   );
@@ -408,25 +409,17 @@ export default function CreatorRequestClient() {
             backToCreator: "詳細へ戻る",
             mainAudience: "主な視聴者",
             notSet: "未設定",
-            pageTitle: "注文内容の確認",
+            pageTitle: "注文内容を入力",
             pageSubtitle:
-              "内容を入力して次へ進むと、Stripe Checkoutで支払い確認に進みます。インフルエンサーが承認した場合のみ決済が確定します。",
+              "必要な内容を入力して、支払い確認へ進んでください。インフルエンサーが承認した場合のみ決済が確定します。",
             creatorInfo: "インフルエンサー",
-            currentPlan: "現在プラン",
-            remainingThisMonth: "今月の残り注文数",
-            nextReset: "次回リセット目安",
-            unlimited: "無制限",
             selectedMenu: "選択中",
-            selectMenu: "注文するメニュー",
+            selectMenu: "メニュー",
             noMenus: "公開メニューがありません。",
-            price: "価格",
             delivery: "納期",
-            deliverables: "納品物",
             secondaryUse: "二次利用",
             allowed: "許可",
             notAllowed: "不可",
-            notes: "注意事項",
-            none: "なし",
             productName: "商品名・案件名",
             productNamePlaceholder: "例：新作美容液PR / 新店舗オープン告知",
             productUrl: "商品URL・サービスURL",
@@ -452,19 +445,14 @@ export default function CreatorRequestClient() {
             limitReachedButton: "上限に達しています",
             submitButton: "支払い確認へ進む",
             pieces: "件",
-            orderNotice:
-              "支払いはStripeで保護され、インフルエンサーが辞退した場合は決済確定されません。",
             orderSummary: "注文サマリー",
             menuPrice: "メニュー価格",
             marketplaceFee: "Trendre手数料",
             total: "お支払い合計",
             paymentProtection:
+              "支払いはStripeで保護されます。インフルエンサーが辞退した場合、請求は確定しません。",
+            paymentCapture:
               "インフルエンサーが72時間以内に承認した場合のみ決済が確定します。",
-            included: "メニュー内容",
-            orderDetails: "依頼内容を入力",
-            selectedMenuLabel: "選択中のメニュー",
-            securePayment: "Stripeで安全に確認",
-            onlineComplete: "納品確認までオンライン",
           }
         : {
             loading: "Loading...",
@@ -487,25 +475,17 @@ export default function CreatorRequestClient() {
             backToCreator: "Back to detail",
             mainAudience: "Main audience",
             notSet: "Not set",
-            pageTitle: "Review your order",
+            pageTitle: "Enter order details",
             pageSubtitle:
-              "Enter the details and continue to Stripe Checkout. Payment is only captured if the influencer accepts.",
+              "Enter the required details and continue to payment confirmation. Payment is only captured if the influencer accepts.",
             creatorInfo: "Influencer",
-            currentPlan: "Current Plan",
-            remainingThisMonth: "Remaining orders",
-            nextReset: "Next reset",
-            unlimited: "Unlimited",
             selectedMenu: "Selected",
-            selectMenu: "Menu to order",
+            selectMenu: "Menu",
             noMenus: "No public menus are available.",
-            price: "Price",
             delivery: "Delivery",
-            deliverables: "Deliverables",
             secondaryUse: "Secondary use",
             allowed: "Allowed",
             notAllowed: "Not allowed",
-            notes: "Notes",
-            none: "None",
             productName: "Product or campaign name",
             productNamePlaceholder: "Example: New skincare serum PR",
             productUrl: "Product or service URL",
@@ -531,19 +511,14 @@ export default function CreatorRequestClient() {
             limitReachedButton: "Limit Reached",
             submitButton: "Continue to payment",
             pieces: "",
-            orderNotice:
-              "Payment is protected by Stripe. If the influencer declines, the charge will not be finalized.",
             orderSummary: "Order Summary",
             menuPrice: "Menu price",
             marketplaceFee: "Trendre fee",
             total: "Total",
             paymentProtection:
+              "Payment is protected by Stripe. If the influencer declines, the charge will not be finalized.",
+            paymentCapture:
               "Payment is only captured if the influencer accepts within 72 hours.",
-            included: "What's included",
-            orderDetails: "Enter order details",
-            selectedMenuLabel: "Selected menu",
-            securePayment: "Secure payment",
-            onlineComplete: "Online delivery confirmation",
           },
     [safeLocale]
   );
@@ -593,7 +568,11 @@ export default function CreatorRequestClient() {
       if (!isMounted) return;
 
       if (!user) {
-        router.replace("/login");
+        const nextPath = `/b/creators/${creatorId}/request${
+          initialMenuId ? `?menuId=${encodeURIComponent(initialMenuId)}` : ""
+        }`;
+
+        router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
 
@@ -817,15 +796,6 @@ export default function CreatorRequestClient() {
 
   const platforms = uniqueNonEmpty(socialAccounts.map((s) => s.platform));
 
-  const selectedMenuPriceText = selectedMenu
-    ? formatPrice(
-        selectedMenu.price,
-        selectedMenu.currency,
-        selectedMenu.reference_price_text,
-        safeLocale
-      )
-    : "-";
-
   const handleMenuChange = (menuId: string) => {
     const nextMenu = menus.find((menu) => menu.id === menuId) ?? null;
 
@@ -919,7 +889,7 @@ export default function CreatorRequestClient() {
 
   if (loading) {
     return (
-      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+      <div className="min-h-[60vh] bg-[#f8fafc] px-4 py-10">
         <div className="mx-auto max-w-5xl rounded-[30px] border border-white/80 bg-white/90 p-8 shadow-sm">
           <p className="text-sm font-bold text-slate-500">{copy.loading}</p>
         </div>
@@ -929,7 +899,7 @@ export default function CreatorRequestClient() {
 
   if (!creator) {
     return (
-      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+      <div className="min-h-[60vh] bg-[#f8fafc] px-4 py-10">
         <div className="mx-auto max-w-3xl rounded-[30px] border border-rose-100 bg-white p-7 shadow-sm">
           <p className="text-sm font-bold text-slate-600">
             {copy.creatorNotFound}
@@ -941,7 +911,7 @@ export default function CreatorRequestClient() {
 
   if (!gate.isCompany) {
     return (
-      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+      <div className="min-h-[60vh] bg-[#f8fafc] px-4 py-10">
         <div className="mx-auto max-w-3xl rounded-[30px] border border-rose-100 bg-white p-7 shadow-sm">
           <h1 className="text-2xl font-black text-slate-950">
             {copy.companyOnlyTitle}
@@ -956,7 +926,7 @@ export default function CreatorRequestClient() {
 
   if (gate.isSuspended || gate.companyAccessStatus !== "approved") {
     return (
-      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+      <div className="min-h-[60vh] bg-[#f8fafc] px-4 py-10">
         <div className="mx-auto max-w-3xl rounded-[30px] border border-rose-100 bg-white p-7 shadow-sm">
           <h1 className="text-2xl font-black text-slate-950">
             {copy.unavailableTitle}
@@ -971,7 +941,7 @@ export default function CreatorRequestClient() {
 
   if (!gate.companyProfileCompleted) {
     return (
-      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+      <div className="min-h-[60vh] bg-[#f8fafc] px-4 py-10">
         <div className="mx-auto max-w-3xl rounded-[30px] border border-amber-100 bg-white p-7 shadow-sm">
           <h1 className="text-2xl font-black text-slate-950">
             {copy.profileRequiredTitle}
@@ -993,12 +963,9 @@ export default function CreatorRequestClient() {
 
   if (gate.needsBilling) {
     return (
-      <div className="relative min-h-[60vh] bg-[#f8fafc] px-4 py-10">
+      <div className="min-h-[60vh] bg-[#f8fafc] px-4 py-10">
         <div className="mx-auto max-w-3xl rounded-[30px] border border-blue-100 bg-white p-7 shadow-sm">
-          <p className="text-sm font-bold text-slate-400">
-            @{creator.display_name}
-          </p>
-          <h1 className="mt-2 text-2xl font-black text-slate-950">
+          <h1 className="text-2xl font-black text-slate-950">
             {copy.billingTitle}
           </h1>
           <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
@@ -1028,62 +995,46 @@ export default function CreatorRequestClient() {
   return (
     <form onSubmit={onSubmit} className="relative overflow-hidden bg-[#f8fafc]">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/55 blur-3xl" />
-        <div className="absolute right-[-180px] top-[8%] h-[520px] w-[520px] rounded-full bg-emerald-100/55 blur-3xl" />
+        <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/45 blur-3xl" />
+        <div className="absolute right-[-180px] top-[10%] h-[520px] w-[520px] rounded-full bg-emerald-100/45 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
-        <section className="mb-8 overflow-hidden rounded-[34px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur md:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-[11px] font-black text-[#ff5f67]">
-                ORDER
-              </div>
-
-              <h1 className="mt-5 text-[34px] font-black leading-tight tracking-[-0.045em] text-slate-950 md:text-[48px]">
-                {copy.pageTitle}
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-slate-600 md:text-base">
-                {copy.pageSubtitle}
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <InfoPill>{copy.selectedMenuLabel}</InfoPill>
-                <InfoPill>{copy.securePayment}</InfoPill>
-                <InfoPill>{copy.onlineComplete}</InfoPill>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => router.push(`/b/creators/${creator.id}`)}
-              className="w-fit rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
-            >
-              {copy.backToCreator}
-            </button>
+      <div className="relative mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
+        <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-[30px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[40px]">
+              {copy.pageTitle}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-600">
+              {copy.pageSubtitle}
+            </p>
           </div>
-        </section>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
-          <main className="min-w-0 space-y-6">
-            <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
+          <button
+            type="button"
+            onClick={() => router.push(`/b/creators/${creator.id}`)}
+            className="w-fit rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
+          >
+            {copy.backToCreator}
+          </button>
+        </div>
+
+        <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <main className="min-w-0 space-y-5">
+            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
                     {copy.creatorInfo}
                   </p>
-                  <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950 md:text-3xl">
+                  <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
                     {creator.display_name}
                   </h2>
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {platforms.length > 0 ? (
                       platforms.map((platform) => (
-                        <Badge key={platform} tone="black">
-                          <span className="mr-1">{getPlatformIcon(platform)}</span>
-                          {platform}
-                        </Badge>
+                        <PlatformBadge key={platform} platform={platform} />
                       ))
                     ) : (
                       <Badge tone="gray">{copy.notSet}</Badge>
@@ -1096,42 +1047,14 @@ export default function CreatorRequestClient() {
                     ) : null}
                   </div>
                 </div>
-
-                <div className="min-w-[230px] rounded-[24px] bg-slate-50 p-4">
-                  <Row
-                    label={copy.currentPlan}
-                    value={getPlanLabel(gate.companyPlanCode)}
-                    bold
-                  />
-                  <div className="my-3 border-t border-slate-200" />
-                  <Row
-                    label={copy.remainingThisMonth}
-                    value={
-                      gate.monthlyRequestLimit === null
-                        ? copy.unlimited
-                        : `${remainingRequests ?? 0}${copy.pieces}`
-                    }
-                    bold
-                  />
-                  <div className="my-3 border-t border-slate-200" />
-                  <Row
-                    label={copy.nextReset}
-                    value={formatDate(gate.requestUsageResetAt, safeLocale)}
-                  />
-                </div>
               </div>
             </section>
 
-            <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
-              <div className="mb-5 flex items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-black tracking-[-0.03em] text-slate-950">
-                    {copy.selectMenu}
-                  </h2>
-                  <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
-                    {copy.orderNotice}
-                  </p>
-                </div>
+            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <div className="mb-4">
+                <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                  {copy.selectMenu}
+                </h2>
               </div>
 
               {menus.length === 0 ? (
@@ -1141,7 +1064,7 @@ export default function CreatorRequestClient() {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-3">
                   {menus.map((menu) => {
                     const isSelected = form.creator_menu_id === menu.id;
                     const platform = menu.platform || menu.sns;
@@ -1151,23 +1074,17 @@ export default function CreatorRequestClient() {
                         key={menu.id}
                         type="button"
                         onClick={() => handleMenuChange(menu.id)}
-                        className={`group rounded-[26px] border p-5 text-left transition ${
+                        className={`rounded-[24px] border p-4 text-left transition ${
                           isSelected
-                            ? "border-[#ff5f67]/60 bg-rose-50/40 shadow-[0_18px_45px_rgba(255,95,103,0.12)] ring-4 ring-rose-100/60"
-                            : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                            ? "border-[#ff5f67]/60 bg-rose-50/40 shadow-[0_12px_34px_rgba(255,95,103,0.10)] ring-4 ring-rose-100/60"
+                            : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0">
-                            <div className="mb-3 flex flex-wrap gap-2">
-                              {platform ? (
-                                <Badge tone="black">
-                                  <span className="mr-1">
-                                    {getPlatformIcon(platform)}
-                                  </span>
-                                  {platform}
-                                </Badge>
-                              ) : null}
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              {platform ? <PlatformBadge platform={platform} /> : null}
+
                               <Badge tone="gray">
                                 {menuTypeLabel(
                                   menu.menu_type,
@@ -1175,24 +1092,19 @@ export default function CreatorRequestClient() {
                                   menu.category || "Menu"
                                 )}
                               </Badge>
+
                               {isSelected ? (
                                 <Badge tone="red">{copy.selectedMenu}</Badge>
                               ) : null}
                             </div>
 
-                            <h3 className="text-lg font-black text-slate-950">
+                            <h3 className="text-base font-black text-slate-950">
                               {menu.title}
                             </h3>
-
-                            {menu.description ? (
-                              <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-500">
-                                {menu.description}
-                              </p>
-                            ) : null}
                           </div>
 
                           <div className="shrink-0 text-right">
-                            <p className="text-xl font-black text-slate-950">
+                            <p className="text-lg font-black text-slate-950">
                               {formatPrice(
                                 menu.price,
                                 menu.currency,
@@ -1200,13 +1112,15 @@ export default function CreatorRequestClient() {
                                 safeLocale
                               )}
                             </p>
-                            <p className="mt-1 text-xs font-bold text-slate-400">
-                              {formatDeliveryDays(
-                                menu.delivery_days,
-                                safeLocale,
-                                "-"
-                              )}
-                            </p>
+                            {menu.delivery_days != null ? (
+                              <p className="mt-1 text-xs font-bold text-slate-400">
+                                {formatDeliveryDays(
+                                  menu.delivery_days,
+                                  safeLocale,
+                                  "-"
+                                )}
+                              </p>
+                            ) : null}
                           </div>
                         </div>
                       </button>
@@ -1216,73 +1130,10 @@ export default function CreatorRequestClient() {
               )}
             </section>
 
-            {selectedMenu ? (
-              <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
-                <h2 className="text-2xl font-black tracking-[-0.03em] text-slate-950">
-                  {copy.included}
-                </h2>
-
-                <div className="mt-5 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-[24px] bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                      {copy.delivery}
-                    </p>
-                    <p className="mt-1 font-black text-slate-950">
-                      {formatDeliveryDays(
-                        selectedMenu.delivery_days,
-                        safeLocale,
-                        "-"
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[24px] bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                      {copy.secondaryUse}
-                    </p>
-                    <p className="mt-1 font-black text-slate-950">
-                      {selectedMenu.allow_secondary_use
-                        ? copy.allowed
-                        : copy.notAllowed}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[24px] bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                      {copy.price}
-                    </p>
-                    <p className="mt-1 font-black text-slate-950">
-                      {selectedMenuPriceText}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                    {copy.deliverables}
-                  </p>
-                  <p className="mt-2 text-sm font-medium leading-7 text-slate-600">
-                    {selectedMenu.deliverables?.trim() || copy.none}
-                  </p>
-                </div>
-
-                {selectedMenu.notes ? (
-                  <div className="mt-5 rounded-2xl bg-amber-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                      {copy.notes}
-                    </p>
-                    <p className="mt-2 text-sm font-medium leading-7 text-amber-800">
-                      {selectedMenu.notes}
-                    </p>
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
-
-            <section className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur md:p-7">
+            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
               <div className="mb-6">
-                <h2 className="text-2xl font-black tracking-[-0.03em] text-slate-950">
-                  {copy.orderDetails}
+                <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                  {copy.requirements}
                 </h2>
                 <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
                   {copy.requirementsPlaceholder}
@@ -1330,7 +1181,7 @@ export default function CreatorRequestClient() {
                       }))
                     }
                     placeholder={copy.requirementsPlaceholder}
-                    rows={7}
+                    rows={6}
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
                   />
                 </label>
@@ -1392,7 +1243,7 @@ export default function CreatorRequestClient() {
           </main>
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.09)] backdrop-blur">
+            <div className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.09)]">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
                 {copy.orderSummary}
               </p>
@@ -1440,21 +1291,14 @@ export default function CreatorRequestClient() {
                   <span className="mt-0.5 text-[#7bae6c]">
                     <CheckIcon />
                   </span>
-                  <span>{copy.orderNotice}</span>
-                </div>
-                <div className="flex gap-2">
-                  <span className="mt-0.5 text-[#7bae6c]">
-                    <ShieldIcon />
-                  </span>
                   <span>{copy.paymentProtection}</span>
                 </div>
+
                 <div className="flex gap-2">
                   <span className="mt-0.5 text-[#7bae6c]">
                     <CheckIcon />
                   </span>
-                  <span>
-                    {copy.currentPlan}: {getPlanLabel(gate.companyPlanCode)}
-                  </span>
+                  <span>{copy.paymentCapture}</span>
                 </div>
               </div>
 
