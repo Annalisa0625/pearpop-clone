@@ -964,6 +964,7 @@ ${form.note.trim()}`;
         body: JSON.stringify({
           creator_id: creator.id,
           creator_menu_id: selectedMenu.id,
+          project_type: form.project_type,
           product_name: form.product_name.trim(),
           product_url: form.product_url.trim() || null,
           deadline: form.deadline || null,

@@ -11,9 +11,12 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+type ProjectType = "visit_experience" | "product_delivery" | "provided_assets";
+
 type CheckoutBody = {
   creator_id?: string;
   creator_menu_id?: string;
+  project_type?: string;
   product_name?: string;
   product_url?: string;
   deadline?: string;
@@ -240,6 +243,41 @@ function getBoolean(value: unknown) {
   return value === true;
 }
 
+function normalizeProjectType(value: unknown): ProjectType | null {
+  if (value === "visit_experience") return "visit_experience";
+  if (value === "product_delivery") return "product_delivery";
+  if (value === "provided_assets") return "provided_assets";
+  return null;
+}
+
+function isUgcMenuSnapshot(menu: {
+  menu_type?: string | null;
+  category?: string | null;
+  platform?: string | null;
+  sns?: string | null;
+  title?: string | null;
+  description?: string | null;
+}) {
+  const text = [
+    menu.menu_type,
+    menu.category,
+    menu.platform,
+    menu.sns,
+    menu.title,
+    menu.description,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    text.includes("ugc") ||
+    text.includes("素材") ||
+    text.includes("動画素材") ||
+    text.includes("画像素材")
+  );
+}
+
 function isDateStringOrNull(value: string | null) {
   if (!value) return true;
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -351,12 +389,13 @@ export async function POST(req: NextRequest) {
 
     const creatorId = getString(body.creator_id);
     const creatorMenuId = getString(body.creator_menu_id);
+    const projectType = normalizeProjectType(body.project_type);
     const productName = getString(body.product_name);
     const productUrl = getNullableString(body.product_url);
     const deadline = getNullableString(body.deadline);
     const requirements = getString(body.requirements ?? body.note);
     const hasFreeOffer = getBoolean(body.has_free_offer);
-    const wantsSecondaryUse = getBoolean(body.wants_secondary_use);
+    const requestedSecondaryUse = getBoolean(body.wants_secondary_use);
 
     if (!creatorId) {
       return NextResponse.json(
@@ -368,6 +407,13 @@ export async function POST(req: NextRequest) {
     if (!creatorMenuId) {
       return NextResponse.json(
         { error: "注文するメニューを選択してください" },
+        { status: 400 }
+      );
+    }
+
+    if (!projectType) {
+      return NextResponse.json(
+        { error: "案件タイプを選択してください" },
         { status: 400 }
       );
     }
@@ -475,7 +521,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (wantsSecondaryUse && !menu.allow_secondary_use) {
+    const menuIsUgc = isUgcMenuSnapshot(menu);
+    const wantsSecondaryUse =
+      requestedSecondaryUse && (!!menu.allow_secondary_use || menuIsUgc);
+
+    if (requestedSecondaryUse && !wantsSecondaryUse) {
       return NextResponse.json(
         { error: "このメニューでは二次利用は許可されていません" },
         { status: 400 }
@@ -551,6 +601,7 @@ export async function POST(req: NextRequest) {
       payment_status: "checkout_pending",
       payment_flow: "manual_capture",
 
+      project_type: projectType,
       product_name: productName,
       product_url: productUrl,
       requirements,
@@ -565,7 +616,7 @@ export async function POST(req: NextRequest) {
       menu_category_snapshot: menu.category,
       menu_deliverables_snapshot: menu.deliverables,
       menu_delivery_days_snapshot: menu.delivery_days,
-      menu_allow_secondary_use_snapshot: !!menu.allow_secondary_use,
+      menu_allow_secondary_use_snapshot: !!menu.allow_secondary_use || menuIsUgc,
 
       currency,
       menu_price_amount: fees.menuPriceAmount,
@@ -594,6 +645,7 @@ export async function POST(req: NextRequest) {
         plan_code: planCode,
         plan_public_name: fees.buyerPlanPublicNameSnapshot,
         payment_flow: "manual_capture",
+        project_type: projectType,
         buyer_marketplace_fee_rate_bps: fees.buyerMarketplaceFeeRateBps,
         creator_transaction_fee_rate_bps: fees.creatorTransactionFeeRateBps,
       },
@@ -628,6 +680,7 @@ export async function POST(req: NextRequest) {
         platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
         stripe_amount: stripeAmount,
         payment_flow: "manual_capture",
+        project_type: projectType,
       },
     });
 
@@ -691,6 +744,7 @@ export async function POST(req: NextRequest) {
           creator_user_id: creator.user_id,
           creator_menu_id: menu.id,
           payment_flow: "manual_capture",
+          project_type: projectType,
           menu_price_amount: String(fees.menuPriceAmount),
           buyer_marketplace_fee_amount: String(
             fees.buyerMarketplaceFeeAmount
@@ -713,6 +767,7 @@ export async function POST(req: NextRequest) {
         creator_user_id: creator.user_id,
         creator_menu_id: menu.id,
         payment_flow: "manual_capture",
+        project_type: projectType,
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -744,6 +799,7 @@ export async function POST(req: NextRequest) {
         creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
         creator_payout_amount: fees.creatorPayoutAmount,
         platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
+        project_type: projectType,
       },
     });
 
