@@ -140,9 +140,9 @@ function getPlatformIcon(value: string | null | undefined) {
     );
   }
 
-  if (normalized.includes("ugc")) return "▣";
+  if (normalized.includes("ugc")) return "UGC";
 
-  return "●";
+  return "SNS";
 }
 
 function getCreatorInitial(name: string) {
@@ -268,15 +268,6 @@ function formatPrice(
   return locale === "ja" ? "未設定" : "Not set";
 }
 
-function formatDeliveryDays(
-  value: number | null,
-  locale: "ja" | "en",
-  fallback: string
-) {
-  if (value == null) return fallback;
-  return locale === "ja" ? `${value}日` : `${value} days`;
-}
-
 function menuTypeLabel(
   value: string | null,
   locale: "ja" | "en",
@@ -293,22 +284,6 @@ function menuTypeLabel(
   };
 
   return labels[value || ""]?.[locale] || fallback;
-}
-
-function getPlanLabel(
-  plan: CompanyGateState["companyPlanCode"],
-  locale: "ja" | "en"
-) {
-  switch (plan) {
-    case "free":
-      return "Basic";
-    case "standard":
-      return "Pro";
-    case "global_pro":
-      return "Premium";
-    default:
-      return locale === "ja" ? "未設定" : "Not set";
-  }
 }
 
 function getBuyerFeeRateBps(plan: CompanyGateState["companyPlanCode"]) {
@@ -396,6 +371,15 @@ function PlatformMetricBadge({
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm">
       {content}
+    </span>
+  );
+}
+
+function PlatformPill({ platform }: { platform: string | null | undefined }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm">
+      <span>{getPlatformIcon(platform)}</span>
+      <span>{getPlatformLabel(platform)}</span>
     </span>
   );
 }
@@ -626,24 +610,15 @@ function PackageCard({
   locale,
   copy,
   onSelect,
-  onOrder,
 }: {
   menu: MenuCard;
   selected: boolean;
   locale: "ja" | "en";
   copy: {
-    delivery: string;
-    deliverables: string;
-    secondaryUse: string;
-    allowed: string;
-    notAllowed: string;
-    none: string;
     select: string;
     selected: string;
-    orderButton: string;
   };
   onSelect: () => void;
-  onOrder: () => void;
 }) {
   const platform = menu.platform || menu.sns;
   const price = formatPrice(
@@ -654,111 +629,60 @@ function PackageCard({
   );
 
   return (
-    <article
-      className={`rounded-[28px] border bg-white p-5 shadow-sm transition duration-200 ${
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`group w-full rounded-[26px] border p-5 text-left transition duration-200 ${
         selected
-          ? "border-slate-950 ring-2 ring-slate-950/5"
-          : "border-slate-200 hover:-translate-y-0.5 hover:shadow-md"
+          ? "border-[#ff5f67]/60 bg-rose-50/45 shadow-[0_18px_45px_rgba(255,95,103,0.12)] ring-4 ring-rose-100/70"
+          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
       }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            {platform ? (
-              <Badge tone="black">
-                <span className="mr-1">{getPlatformIcon(platform)}</span>
-                {getPlatformLabel(platform)}
-              </Badge>
-            ) : null}
+            {platform ? <PlatformPill platform={platform} /> : null}
 
             <Badge tone="gray">
               {menuTypeLabel(menu.menu_type, locale, menu.category || "Menu")}
             </Badge>
           </div>
 
-          <h3 className="text-lg font-black leading-snug text-slate-950">
+          <h3 className="text-xl font-black leading-snug tracking-[-0.03em] text-slate-950">
             {menu.title}
           </h3>
 
           {menu.description ? (
-            <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">
+            <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-500">
               {menu.description}
             </p>
           ) : null}
         </div>
 
-        <button
-          type="button"
-          onClick={onSelect}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition ${
-            selected
-              ? "border-slate-950 bg-slate-950 text-white"
-              : "border-slate-300 bg-white text-transparent hover:border-slate-950"
-          }`}
-          aria-label={selected ? copy.selected : copy.select}
-        >
-          <CheckIcon />
-        </button>
-      </div>
+        <div className="flex shrink-0 flex-col items-end gap-3">
+          <p className="text-xl font-black tracking-[-0.03em] text-slate-950">
+            {price}
+          </p>
 
-      <div className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm md:grid-cols-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            Price
-          </p>
-          <p className="mt-1 font-black text-slate-950">{price}</p>
-        </div>
-
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            {copy.delivery}
-          </p>
-          <p className="mt-1 font-black text-slate-950">
-            {formatDeliveryDays(menu.delivery_days, locale, "-")}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            {copy.secondaryUse}
-          </p>
-          <p className="mt-1 font-black text-slate-950">
-            {menu.allow_secondary_use ? copy.allowed : copy.notAllowed}
-          </p>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black transition ${
+              selected
+                ? "bg-[#ff5f67] text-white shadow-lg shadow-rose-500/20"
+                : "bg-slate-100 text-slate-500 group-hover:bg-slate-950 group-hover:text-white"
+            }`}
+          >
+            {selected ? (
+              <>
+                <CheckIcon />
+                {copy.selected}
+              </>
+            ) : (
+              copy.select
+            )}
+          </span>
         </div>
       </div>
-
-      <div className="mt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-          {copy.deliverables}
-        </p>
-        <p className="mt-1 text-sm leading-6 text-slate-600">
-          {menu.deliverables?.trim() || copy.none}
-        </p>
-      </div>
-
-      <div className="mt-5 flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={onSelect}
-          className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
-            selected
-              ? "border-slate-950 bg-slate-950 text-white"
-              : "border-slate-200 bg-white text-slate-700 hover:border-slate-950 hover:text-slate-950"
-          }`}
-        >
-          {selected ? copy.selected : copy.select}
-        </button>
-
-        <button
-          type="button"
-          onClick={onOrder}
-          className="rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:shadow-lg"
-        >
-          {copy.orderButton}
-        </button>
-      </div>
-    </article>
+    </button>
   );
 }
 
@@ -786,16 +710,9 @@ export default function CreatorDetailPage() {
             mainAudience: "Main audience",
             profileFallback:
               "このインフルエンサーの公開プロフィールとメニューを確認し、条件に合うメニューを選んで注文できます。",
-            packages: "Packages",
+            packages: "メニュー",
             all: "All",
             noMenus: "公開中のメニューがありません。",
-            priceNotSet: "価格未設定",
-            delivery: "納期",
-            deliverables: "納品物",
-            secondaryUse: "二次利用",
-            allowed: "許可",
-            notAllowed: "不可",
-            none: "なし",
             selectedPackage: "選択中のメニュー",
             choosePackage: "メニューを選択",
             selected: "選択中",
@@ -812,10 +729,8 @@ export default function CreatorDetailPage() {
             portfolio: "Portfolio",
             portfolioNote:
               "インフルエンサーが登録した投稿実績・サンプル画像です。",
-            plan: "Plan",
             verified: "Payout verified",
             noReviews: "New influencer",
-            analytics: "Analytics",
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
@@ -836,18 +751,11 @@ export default function CreatorDetailPage() {
             mainAudience: "Main audience",
             profileFallback:
               "Review this influencer's public profile and menus, then choose a menu that fits your campaign.",
-            packages: "Packages",
+            packages: "Menus",
             all: "All",
             noMenus: "There are no public menus.",
-            priceNotSet: "Price not set",
-            delivery: "Delivery",
-            deliverables: "Deliverables",
-            secondaryUse: "Secondary use",
-            allowed: "Allowed",
-            notAllowed: "Not allowed",
-            none: "None",
-            selectedPackage: "Selected package",
-            choosePackage: "Choose package",
+            selectedPackage: "Selected menu",
+            choosePackage: "Choose menu",
             selected: "Selected",
             select: "Select",
             orderButton: "Continue to order",
@@ -862,10 +770,8 @@ export default function CreatorDetailPage() {
             portfolio: "Portfolio",
             portfolioNote:
               "Past work and sample images uploaded by the influencer.",
-            plan: "Plan",
             verified: "Payout verified",
             noReviews: "New influencer",
-            analytics: "Analytics",
             marketplaceFee: "Marketplace fee",
             menuPrice: "Menu price",
             total: "Total",
@@ -1370,13 +1276,11 @@ export default function CreatorDetailPage() {
           </div>
 
           <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-end justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-black tracking-tight text-slate-950">
-                  {copy.packages}
-                </h2>
-                <p className="mt-2 text-sm text-slate-500">{copy.howItWorks}</p>
-              </div>
+            <div className="mb-5">
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                {copy.packages}
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">{copy.howItWorks}</p>
             </div>
 
             {packageTabs.length > 1 ? (
@@ -1409,7 +1313,7 @@ export default function CreatorDetailPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {filteredMenus.map((menu) => (
                   <PackageCard
                     key={menu.id}
@@ -1417,21 +1321,10 @@ export default function CreatorDetailPage() {
                     selected={selectedMenu?.id === menu.id}
                     locale={safeLocale}
                     copy={{
-                      delivery: copy.delivery,
-                      deliverables: copy.deliverables,
-                      secondaryUse: copy.secondaryUse,
-                      allowed: copy.allowed,
-                      notAllowed: copy.notAllowed,
-                      none: copy.none,
                       select: copy.select,
                       selected: copy.selected,
-                      orderButton: copy.orderButton,
                     }}
                     onSelect={() => setSelectedMenuId(menu.id)}
-                    onOrder={() => {
-                      setSelectedMenuId(menu.id);
-                      window.setTimeout(goToOrder, 0);
-                    }}
                   />
                 ))}
               </div>
@@ -1542,25 +1435,12 @@ export default function CreatorDetailPage() {
             </div>
 
             {selectedMenu ? (
-              <div className="mt-5 space-y-3 text-sm text-slate-600">
-                <div className="flex items-center gap-2">
-                  <CheckIcon />
-                  <span>
-                    {copy.delivery}:{" "}
-                    {formatDeliveryDays(selectedMenu.delivery_days, safeLocale, "-")}
+              <div className="mt-5 rounded-2xl bg-emerald-50/70 p-4 text-sm font-semibold leading-6 text-slate-700">
+                <div className="flex gap-2">
+                  <span className="mt-0.5 text-emerald-600">
+                    <CheckIcon />
                   </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <CheckIcon />
                   <span>{copy.howItWorks}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <CheckIcon />
-                  <span>
-                    {copy.plan}: {getPlanLabel(gate.companyPlanCode, safeLocale)}
-                  </span>
                 </div>
               </div>
             ) : null}
