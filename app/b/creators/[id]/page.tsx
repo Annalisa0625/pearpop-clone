@@ -149,7 +149,10 @@ function getCreatorInitial(name: string) {
   return (name || "I").trim().slice(0, 1).toUpperCase();
 }
 
-function getCountryLabel(country: string | null | undefined, locale: "ja" | "en") {
+function getCountryLabel(
+  country: string | null | undefined,
+  locale: "ja" | "en"
+) {
   const raw = (country ?? "").trim();
   if (!raw) return locale === "ja" ? "不明" : "Unknown";
 
@@ -728,7 +731,7 @@ export default function CreatorDetailPage() {
               "登録済みSNS情報をもとに、フォロワー帯と主な視聴者地域を表示しています。",
             portfolio: "Portfolio",
             portfolioNote:
-              "インフルエンサーが登録した投稿実績・サンプル画像です。",
+              "インフルエンサーが登録した投稿実績・サンプル画像です。クリックすると拡大できます。",
             verified: "Payout verified",
             noReviews: "New influencer",
             marketplaceFee: "Marketplace fee",
@@ -737,6 +740,7 @@ export default function CreatorDetailPage() {
             signupToOrder: "注文",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
+            openPortfolio: "拡大",
           }
         : {
             loading: "Loading...",
@@ -769,7 +773,7 @@ export default function CreatorDetailPage() {
               "Showing follower range and main audience region based on registered social accounts.",
             portfolio: "Portfolio",
             portfolioNote:
-              "Past work and sample images uploaded by the influencer.",
+              "Past work and sample images uploaded by the influencer. Click an image to enlarge it.",
             verified: "Payout verified",
             noReviews: "New influencer",
             marketplaceFee: "Marketplace fee",
@@ -778,6 +782,7 @@ export default function CreatorDetailPage() {
             signupToOrder: "Order",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
+            openPortfolio: "Open",
           },
     [safeLocale]
   );
@@ -800,6 +805,9 @@ export default function CreatorDetailPage() {
   const [shareCopied, setShareCopied] = useState(false);
   const [signupGateOpen, setSignupGateOpen] = useState(false);
   const [signupGateNextPath, setSignupGateNextPath] = useState("");
+  const [selectedPortfolioIndex, setSelectedPortfolioIndex] = useState<
+    number | null
+  >(null);
 
   const openSignupGate = () => {
     const nextPath =
@@ -1159,6 +1167,33 @@ export default function CreatorDetailPage() {
     router.push(`/b/creators/${creator.id}/request?menuId=${selectedMenu.id}`);
   };
 
+  const selectedPortfolioUrl =
+    selectedPortfolioIndex !== null
+      ? portfolioImageUrls[selectedPortfolioIndex] ?? null
+      : null;
+
+  const openPortfolio = (index: number) => {
+    setSelectedPortfolioIndex(index);
+  };
+
+  const closePortfolio = () => {
+    setSelectedPortfolioIndex(null);
+  };
+
+  const showPrevPortfolio = () => {
+    setSelectedPortfolioIndex((current) => {
+      if (current === null || portfolioImageUrls.length === 0) return current;
+      return current === 0 ? portfolioImageUrls.length - 1 : current - 1;
+    });
+  };
+
+  const showNextPortfolio = () => {
+    setSelectedPortfolioIndex((current) => {
+      if (current === null || portfolioImageUrls.length === 0) return current;
+      return current === portfolioImageUrls.length - 1 ? 0 : current + 1;
+    });
+  };
+
   if (loading) {
     return (
       <div className="space-y-8">
@@ -1332,58 +1367,83 @@ export default function CreatorDetailPage() {
           </section>
 
           <section className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-black text-slate-950">
-                {copy.audience}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {copy.audienceNote}
-              </p>
+            <div className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                    {copy.audience}
+                  </h2>
+                  <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+                    {copy.audienceNote}
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-lg">
+                  👥
+                </div>
+              </div>
 
               <div className="mt-6 grid gap-3">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                <div className="rounded-[22px] border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-5">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                     {copy.followers}
                   </p>
-                  <p className="mt-1 text-lg font-black text-slate-950">
+                  <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
                     {primarySocial?.follower_range || "-"}
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                <div className="rounded-[22px] border border-blue-100 bg-gradient-to-br from-blue-50/70 to-white p-5">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">
                     {copy.mainAudience}
                   </p>
-                  <p className="mt-1 text-lg font-black text-slate-950">
+                  <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
                     {audienceCountryLabels.join(" / ") || "-"}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-black text-slate-950">
-                {copy.portfolio}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {copy.portfolioNote}
-              </p>
+            <div className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                    {copy.portfolio}
+                  </h2>
+                  <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+                    {copy.portfolioNote}
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-lg">
+                  ✨
+                </div>
+              </div>
 
               {portfolioImageUrls.length > 0 ? (
                 <div className="mt-6 grid grid-cols-3 gap-3">
                   {portfolioImageUrls.slice(0, 6).map((url, index) => (
-                    <div
+                    <button
                       key={`${url}-${index}`}
-                      className="aspect-square overflow-hidden rounded-2xl bg-slate-100"
+                      type="button"
+                      onClick={() => openPortfolio(index)}
+                      className="group relative aspect-square overflow-hidden rounded-2xl bg-slate-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
+                      aria-label={`Open portfolio image ${index + 1}`}
                     >
                       <img
                         src={url}
                         alt={`${creator.display_name} portfolio ${index + 1}`}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
                         loading="lazy"
                         decoding="async"
                       />
-                    </div>
+
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/0 opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100">
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-950 shadow-lg">
+                          {copy.openPortfolio}
+                        </span>
+                      </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -1474,6 +1534,63 @@ export default function CreatorDetailPage() {
           </div>
         </aside>
       </section>
+
+      {selectedPortfolioUrl ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 px-4 py-6 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          onClick={closePortfolio}
+        >
+          <button
+            type="button"
+            onClick={closePortfolio}
+            className="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-2xl font-black text-slate-700 shadow-xl transition hover:scale-105 hover:text-slate-950"
+            aria-label="Close portfolio image"
+          >
+            ×
+          </button>
+
+          {portfolioImageUrls.length > 1 ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                showPrevPortfolio();
+              }}
+              className="absolute left-5 top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-2xl font-black text-slate-800 shadow-xl transition hover:scale-105 md:flex"
+              aria-label="Previous portfolio image"
+            >
+              ‹
+            </button>
+          ) : null}
+
+          <div
+            className="relative max-h-[86vh] w-full max-w-5xl overflow-hidden rounded-[28px] bg-white p-2 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <img
+              src={selectedPortfolioUrl}
+              alt={`${creator.display_name} portfolio enlarged`}
+              className="max-h-[82vh] w-full rounded-[22px] object-contain"
+            />
+          </div>
+
+          {portfolioImageUrls.length > 1 ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                showNextPortfolio();
+              }}
+              className="absolute right-5 top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-2xl font-black text-slate-800 shadow-xl transition hover:scale-105 md:flex"
+              aria-label="Next portfolio image"
+            >
+              ›
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <CompanySignupGateModal
         open={signupGateOpen}
