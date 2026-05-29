@@ -110,10 +110,6 @@ export default function LoginClient() {
     ? `/signup/company?next=${encodeURIComponent(safeNextPath)}`
     : "/signup/company";
 
-  const creatorSignupHref = safeNextPath
-    ? `/signup/creator?next=${encodeURIComponent(safeNextPath)}`
-    : "/signup/creator";
-
   const copy = useMemo(
     () =>
       safeLocale === "ja"
@@ -135,7 +131,6 @@ export default function LoginClient() {
             oauthFailed:
               "Googleログインに失敗しました。時間を置いて再度お試しください。",
             signup: "アカウントをお持ちでない方は新規登録",
-            creatorSignup: "インフルエンサー登録",
             copyright: "© 2026 Trendre",
           }
         : {
@@ -156,7 +151,6 @@ export default function LoginClient() {
             oauthFailed:
               "Google login failed. Please wait a moment and try again.",
             signup: "New to Trendre? Create an account",
-            creatorSignup: "Influencer signup",
             copyright: "© 2026 Trendre",
           },
     [safeLocale]
@@ -336,22 +330,13 @@ export default function LoginClient() {
                 {!loading ? <ArrowIcon /> : null}
               </button>
 
-              <div className="space-y-3 pt-1 text-center">
+              <div className="pt-1 text-center">
                 <Link
                   href={companySignupHref}
                   className="inline-flex text-sm font-black text-slate-700 underline-offset-4 transition hover:text-slate-950 hover:underline"
                 >
                   {copy.signup}
                 </Link>
-
-                <div>
-                  <Link
-                    href={creatorSignupHref}
-                    className="text-xs font-bold text-slate-400 underline-offset-4 transition hover:text-slate-700 hover:underline"
-                  >
-                    {copy.creatorSignup}
-                  </Link>
-                </div>
               </div>
             </form>
           </section>
