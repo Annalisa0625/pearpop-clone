@@ -1,13 +1,7 @@
 // File: app/b/creators/[id]/request/CreatorRequestClient.tsx
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -70,7 +64,6 @@ type GateState = {
   companyPlanCode: "free" | "standard" | "global_pro" | null;
   monthlyRequestLimit: number | null;
   monthlyRequestUsed: number;
-  requestUsageResetAt: string | null;
   canSendRequests: boolean;
   needsBilling: boolean;
 };
@@ -93,7 +86,7 @@ function getBuyerFeeRateBps(planCode: GateState["companyPlanCode"]) {
 
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return Array.from(
-    new Set(values.map((v) => (v ?? "").trim()).filter(Boolean))
+    new Set(values.map((value) => (value ?? "").trim()).filter(Boolean))
   );
 }
 
@@ -182,13 +175,17 @@ function formatPlainPrice(
   }
 }
 
-function formatDeliveryDays(
-  value: number | null,
-  locale: "ja" | "en",
-  fallback: string
-) {
-  if (value == null) return fallback;
-  return locale === "ja" ? `${value}日` : `${value} days`;
+function getPlatformLabel(value: string | null | undefined) {
+  const raw = (value ?? "").trim();
+  const normalized = raw.toLowerCase();
+
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("tiktok")) return "TikTok";
+  if (normalized.includes("youtube")) return "YouTube";
+  if (normalized === "x" || normalized.includes("twitter")) return "X";
+  if (normalized.includes("ugc")) return "UGC";
+
+  return raw || "SNS";
 }
 
 function menuTypeLabel(
@@ -201,25 +198,12 @@ function menuTypeLabel(
     short_video: { ja: "ショート動画", en: "Short video" },
     story: { ja: "ストーリー", en: "Story" },
     video: { ja: "動画", en: "Video" },
-    ugc: { ja: "UGC制作", en: "UGC creation" },
-    package: { ja: "セットメニュー", en: "Package" },
+    ugc: { ja: "UGC", en: "UGC" },
+    package: { ja: "セット", en: "Package" },
     other: { ja: "その他", en: "Other" },
   };
 
   return labels[value || ""]?.[locale] || fallback;
-}
-
-function getPlatformLabel(value: string | null | undefined) {
-  const raw = (value ?? "").trim();
-  const normalized = raw.toLowerCase();
-
-  if (normalized.includes("instagram")) return "Instagram";
-  if (normalized.includes("tiktok")) return "TikTok";
-  if (normalized.includes("youtube")) return "YouTube";
-  if (normalized === "x" || normalized.includes("twitter")) return "X";
-  if (normalized.includes("ugc")) return "UGC";
-
-  return raw || "SNS";
 }
 
 function isUgcMenu(menu: CreatorMenu | null) {
@@ -349,10 +333,10 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm font-medium text-slate-500">{label}</span>
+      <span className="text-sm font-semibold text-slate-500">{label}</span>
       <span
         className={`text-right text-sm ${
-          bold ? "font-black text-slate-950" : "font-bold text-slate-800"
+          bold ? "font-black text-slate-950" : "font-black text-slate-800"
         }`}
       >
         {value}
@@ -408,7 +392,7 @@ function TextInput({
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
       />
@@ -423,7 +407,7 @@ export default function CreatorRequestClient() {
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
-  const creatorId = params.id as string;
+  const creatorId = String(params.id ?? "");
   const initialMenuId = searchParams.get("menuId") ?? "";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -452,37 +436,33 @@ export default function CreatorRequestClient() {
             notSet: "未設定",
             pageTitle: "注文内容を入力",
             pageSubtitle:
-              "必要な内容を入力して、支払い確認へ進んでください。インフルエンサーが承認した場合のみ決済が確定します。",
-            creatorInfo: "インフルエンサー",
-            selectedMenu: "選択中",
-            selectMenu: "メニュー",
-            noMenus: "公開メニューがありません。",
-            delivery: "納期",
+              "必要な内容だけ入力してください。インフルエンサーが承認した場合のみ決済が確定します。",
+            influencer: "インフルエンサー",
+            selectedMenu: "選択中のメニュー",
             projectType: "案件タイプ",
-            visitExperience: "来店・体験して投稿",
-            visitExperienceBody:
-              "店舗・施設・サービスを体験して投稿してもらう案件です。",
-            productDelivery: "商品を受け取って投稿",
-            productDeliveryBody:
-              "商品を配送し、使用・撮影・投稿してもらう案件です。",
-            providedAssets: "素材を使って投稿",
-            providedAssetsBody:
-              "写真・動画・商品画像など、企業側の素材を使って投稿してもらう案件です。",
+            visitExperience: "来店・体験",
+            visitExperienceBody: "店舗やサービスを体験して投稿",
+            productDelivery: "商品提供",
+            productDeliveryBody: "商品を受け取って使用・撮影・投稿",
+            providedAssets: "素材提供",
+            providedAssetsBody: "写真・動画など提供素材を使って投稿",
             projectTypeRequired: "案件タイプを選択してください。",
             productDeliveryNotice:
-              "商品配送が必要な案件です。インフルエンサー承認後、チャットで配送先や発送方法を確認してください。自宅住所の共有が不安な場合は、事務所・仕事用住所・受取可能な住所などの利用をおすすめします。",
+              "商品配送が必要な場合は、注文後のチャットで配送先や発送方法を確認してください。",
             postUrlUsageNote:
-              "このメニューの納品物は投稿URLです。投稿内容の広告利用・画像/動画素材としての再利用は含まれません。",
+              "このメニューの納品物は投稿URLです。広告素材としての再利用は含まれません。",
             ugcUsageNote:
-              "このメニューはUGC素材制作です。納品された画像・動画素材は、広告・LP・SNS・ECページ等での利用を前提とします。",
+              "このメニューはUGC素材制作です。納品された画像・動画素材は広告やLPなどで利用できます。",
             productName: "商品名・案件名",
             productNamePlaceholder: "例：新作美容液PR / 新店舗オープン告知",
             productUrl: "商品URL・サービスURL",
             productUrlPlaceholder: "https://...",
-            deadline: "希望納期",
+            deadline: "希望日",
             requirements: "依頼内容",
+            requirementsDescription:
+              "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現などを入力してください。",
             requirementsPlaceholder:
-              "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現、参考イメージなどを入力してください。",
+              "例：商品の特徴、投稿で伝えてほしい内容、撮影イメージ、NG表現、参考URLなど",
             productRequired: "商品名・案件名を入力してください。",
             noteRequired: "依頼内容は10文字以上で入力してください。",
             menuRequired: "注文するメニューを選択してください。",
@@ -492,10 +472,9 @@ export default function CreatorRequestClient() {
             networkError: "通信エラーが発生しました。",
             authError: "ログイン情報を取得できませんでした。",
             checkoutUrlMissing: "Checkout URLを取得できませんでした。",
-            submitting: "Checkout作成中...",
+            submitting: "作成中...",
             limitReachedButton: "上限に達しています",
-            submitButton: "支払い確認へ進む",
-            pieces: "件",
+            submitButton: "支払いへ進む",
             orderSummary: "注文サマリー",
             menuPrice: "メニュー価格",
             marketplaceFee: "Trendre手数料",
@@ -518,47 +497,43 @@ export default function CreatorRequestClient() {
             profileRequiredTitle: "Complete your company profile first",
             profileRequiredBody:
               "Please complete your company profile before placing orders.",
-            profileRequiredCta: "Complete Company Profile",
+            profileRequiredCta: "Complete company profile",
             billingTitle: "Plan confirmation is required",
             billingBody:
               "Your current plan status does not allow ordering. Please check your billing plan.",
-            billingCta: "View Billing Plans",
+            billingCta: "View billing plans",
             backToCreator: "Back to detail",
             mainAudience: "Main audience",
             notSet: "Not set",
             pageTitle: "Enter order details",
             pageSubtitle:
-              "Enter the required details and continue to payment confirmation. Payment is only captured if the influencer accepts.",
-            creatorInfo: "Influencer",
-            selectedMenu: "Selected",
-            selectMenu: "Menu",
-            noMenus: "No public menus are available.",
-            delivery: "Delivery",
+              "Enter only the required details. Payment is captured only if the influencer accepts.",
+            influencer: "Influencer",
+            selectedMenu: "Selected menu",
             projectType: "Project type",
-            visitExperience: "Visit / experience and post",
-            visitExperienceBody:
-              "The influencer visits your store, facility, or service experience and posts about it.",
-            productDelivery: "Receive a product and post",
-            productDeliveryBody:
-              "You ship a product to the influencer for use, content creation, and posting.",
-            providedAssets: "Post using provided assets",
-            providedAssetsBody:
-              "The influencer posts using images, videos, or assets provided by your brand.",
+            visitExperience: "Visit / experience",
+            visitExperienceBody: "Visit a store or service and post",
+            productDelivery: "Product delivery",
+            productDeliveryBody: "Receive, use, shoot, and post a product",
+            providedAssets: "Provided assets",
+            providedAssetsBody: "Post using photos, videos, or brand assets",
             projectTypeRequired: "Please select a project type.",
             productDeliveryNotice:
-              "This project requires product delivery. After the influencer accepts, please confirm the shipping method and delivery address in chat. If the influencer is concerned about sharing a home address, using an office, work address, or other receivable address is recommended.",
+              "If product delivery is required, confirm the shipping address and method in chat after the order is created.",
             postUrlUsageNote:
-              "This menu delivers a post URL. Reusing the post content as advertising material, images, or video assets is not included.",
+              "This menu delivers a post URL. Reuse as advertising material is not included.",
             ugcUsageNote:
-              "This is a UGC content creation menu. Delivered image or video assets are intended for use in ads, landing pages, social media, or ecommerce pages.",
+              "This is a UGC content creation menu. Delivered assets can be used for ads, landing pages, and other brand materials.",
             productName: "Product or campaign name",
             productNamePlaceholder: "Example: New skincare serum PR",
             productUrl: "Product or service URL",
             productUrlPlaceholder: "https://...",
-            deadline: "Preferred deadline",
-            requirements: "Order requirements",
+            deadline: "Preferred date",
+            requirements: "Order details",
+            requirementsDescription:
+              "Add key points, requested content, preferred format, expressions to avoid, and reference ideas.",
             requirementsPlaceholder:
-              "Describe key selling points, requested content, preferred format, expressions to avoid, reference ideas, and important details.",
+              "Example: key product points, requested content, shooting image, NG expressions, reference URLs",
             productRequired: "Please enter a product or campaign name.",
             noteRequired: "Please enter at least 10 characters.",
             menuRequired: "Please select a menu to order.",
@@ -568,11 +543,10 @@ export default function CreatorRequestClient() {
             networkError: "A network error occurred.",
             authError: "Could not retrieve your login session.",
             checkoutUrlMissing: "Checkout URL was not returned.",
-            submitting: "Creating Checkout...",
-            limitReachedButton: "Limit Reached",
+            submitting: "Creating...",
+            limitReachedButton: "Limit reached",
             submitButton: "Continue to payment",
-            pieces: "",
-            orderSummary: "Order Summary",
+            orderSummary: "Order summary",
             menuPrice: "Menu price",
             marketplaceFee: "Trendre fee",
             total: "Total",
@@ -618,6 +592,7 @@ export default function CreatorRequestClient() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const [gate, setGate] = useState<GateState>({
     isLoggedIn: false,
     isCompany: false,
@@ -628,7 +603,6 @@ export default function CreatorRequestClient() {
     companyPlanCode: null,
     monthlyRequestLimit: null,
     monthlyRequestUsed: 0,
-    requestUsageResetAt: null,
     canSendRequests: false,
     needsBilling: false,
   });
@@ -676,8 +650,7 @@ export default function CreatorRequestClient() {
               company_subscription_status,
               company_plan_code,
               monthly_request_limit,
-              monthly_request_used,
-              request_usage_reset_at
+              monthly_request_used
             `
             )
             .eq("user_id", user.id)
@@ -689,7 +662,7 @@ export default function CreatorRequestClient() {
             .eq("is_active", true),
         ]);
 
-      const isCompany = (roles ?? []).some((r) => r.role === "company");
+      const isCompany = (roles ?? []).some((role) => role.role === "company");
       const isSuspended = (activeSuspensions ?? []).length > 0;
       const companyProfileCompleted = !!userState?.company_profile_completed;
       const companyAccessStatus = userState?.company_access_status ?? null;
@@ -707,8 +680,6 @@ export default function CreatorRequestClient() {
           ? userState.monthly_request_used
           : 0;
 
-      const requestUsageResetAt = userState?.request_usage_reset_at ?? null;
-
       const accountReady =
         isCompany &&
         !isSuspended &&
@@ -718,13 +689,10 @@ export default function CreatorRequestClient() {
       const paidPlan = isPaidPlan(companyPlanCode);
 
       const canSendRequests =
-        accountReady &&
-        (!paidPlan || companySubscriptionStatus === "active");
+        accountReady && (!paidPlan || companySubscriptionStatus === "active");
 
       const needsBilling =
-        accountReady &&
-        paidPlan &&
-        companySubscriptionStatus !== "active";
+        accountReady && paidPlan && companySubscriptionStatus !== "active";
 
       const { data: creatorData } = await supabase
         .from("creators")
@@ -751,7 +719,6 @@ export default function CreatorRequestClient() {
           companyPlanCode,
           monthlyRequestLimit,
           monthlyRequestUsed,
-          requestUsageResetAt,
           canSendRequests: false,
           needsBilling,
         });
@@ -809,7 +776,7 @@ export default function CreatorRequestClient() {
         setMenus(nextMenus);
 
         const defaultSelectedId =
-          initialMenuId && nextMenus.some((m) => m.id === initialMenuId)
+          initialMenuId && nextMenus.some((menu) => menu.id === initialMenuId)
             ? initialMenuId
             : nextMenus[0]?.id ?? "";
 
@@ -836,7 +803,6 @@ export default function CreatorRequestClient() {
         companyPlanCode,
         monthlyRequestLimit,
         monthlyRequestUsed,
-        requestUsageResetAt,
         canSendRequests,
         needsBilling,
       });
@@ -856,6 +822,15 @@ export default function CreatorRequestClient() {
 
   const selectedMenuIsUgc = isUgcMenu(selectedMenu);
 
+  useEffect(() => {
+    if (selectedMenuIsUgc && !form.project_type) {
+      setForm((prev) => ({
+        ...prev,
+        project_type: "provided_assets",
+      }));
+    }
+  }, [selectedMenuIsUgc, form.project_type]);
+
   const menuPriceAmount =
     typeof selectedMenu?.price === "number" ? selectedMenu.price : 0;
 
@@ -872,24 +847,23 @@ export default function CreatorRequestClient() {
     gate.monthlyRequestLimit !== null && remainingRequests === 0;
 
   const audienceCountries = uniqueNonEmpty(
-    socialAccounts.map((s) => s.audience_country)
+    socialAccounts.map((account) => account.audience_country)
   );
 
   const audienceCountryLabels = audienceCountries.map((country) =>
     getCountryLabel(country, safeLocale)
   );
 
-  const platforms = uniqueNonEmpty(socialAccounts.map((s) => s.platform));
+  const platforms = uniqueNonEmpty(
+    socialAccounts.map((account) => account.platform)
+  );
+
+  const menuPlatform = selectedMenu?.platform || selectedMenu?.sns || null;
+  const visiblePlatforms =
+    platforms.length > 0 ? platforms : menuPlatform ? [menuPlatform] : [];
 
   const selectedProjectTypeLabel =
     projectTypes.find((item) => item.value === form.project_type)?.title ?? "";
-
-  const handleMenuChange = (menuId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      creator_menu_id: menuId,
-    }));
-  };
 
   const buildFinalRequirements = () => {
     const usageNote = selectedMenuIsUgc
@@ -911,8 +885,8 @@ ${usageNote}${deliveryNote}
 ${form.note.trim()}`;
   };
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: FormEvent) => {
+    event.preventDefault();
 
     if (!creator || !gate.canSendRequests || reachedLimit) {
       return;
@@ -991,8 +965,8 @@ ${form.note.trim()}`;
       }
 
       window.location.href = json.url;
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? copy.networkError);
+    } catch (error: any) {
+      setErrorMsg(error?.message ?? copy.networkError);
       setSubmitting(false);
     }
   };
@@ -1106,7 +1080,7 @@ ${form.note.trim()}`;
     <form onSubmit={onSubmit} className="relative overflow-hidden bg-[#f8fafc]">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/45 blur-3xl" />
-        <div className="absolute right-[-180px] top-[10%] h-[520px] w-[520px] rounded-full bg-emerald-100/45 blur-3xl" />
+        <div className="absolute right-[-180px] top-[8%] h-[520px] w-[520px] rounded-full bg-emerald-100/45 blur-3xl" />
       </div>
 
       <div className="relative mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
@@ -1115,7 +1089,7 @@ ${form.note.trim()}`;
             <h1 className="text-[30px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[40px]">
               {copy.pageTitle}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-600">
+            <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-600">
               {copy.pageSubtitle}
             </p>
           </div>
@@ -1130,223 +1104,164 @@ ${form.note.trim()}`;
         </div>
 
         <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <main className="min-w-0 space-y-5">
-            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                  {copy.creatorInfo}
-                </p>
-                <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
-                  {creator.display_name}
-                </h2>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {platforms.length > 0 ? (
-                    platforms.map((platform) => (
-                      <PlatformBadge key={platform} platform={platform} />
-                    ))
-                  ) : (
-                    <Badge tone="gray">{copy.notSet}</Badge>
-                  )}
-
-                  {audienceCountryLabels.length > 0 ? (
-                    <Badge tone="blue">
-                      {copy.mainAudience}: {audienceCountryLabels.join(" / ")}
-                    </Badge>
-                  ) : null}
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                {copy.projectType}
-              </h2>
-
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {projectTypes.map((item) => {
-                  const selected = form.project_type === item.value;
-
-                  return (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          project_type: item.value,
-                        }))
-                      }
-                      className={`rounded-[24px] border p-4 text-left transition ${
-                        selected
-                          ? "border-[#ff5f67]/60 bg-rose-50/50 shadow-[0_12px_34px_rgba(255,95,103,0.10)] ring-4 ring-rose-100/60"
-                          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300"
-                      }`}
-                    >
-                      <p className="text-sm font-black text-slate-950">
-                        {item.title}
-                      </p>
-                      <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
-                        {item.body}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {form.project_type === "product_delivery" ? (
-                <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-800">
-                  {copy.productDeliveryNotice}
-                </div>
-              ) : null}
-            </section>
-
-            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <div className="mb-4">
-                <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                  {copy.selectMenu}
-                </h2>
-              </div>
-
-              {menus.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center">
-                  <p className="text-sm font-semibold text-slate-500">
-                    {copy.noMenus}
+          <main className="min-w-0">
+            <section className="rounded-[34px] border border-white/80 bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] md:p-7">
+              <div className="flex flex-col gap-5 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                    {copy.influencer}
                   </p>
+                  <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
+                    {creator.display_name}
+                  </h2>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {visiblePlatforms.length > 0 ? (
+                      visiblePlatforms.map((platform) => (
+                        <PlatformBadge key={platform} platform={platform} />
+                      ))
+                    ) : (
+                      <Badge tone="gray">{copy.notSet}</Badge>
+                    )}
+
+                    {audienceCountryLabels.length > 0 ? (
+                      <Badge tone="blue">
+                        {copy.mainAudience}: {audienceCountryLabels.join(" / ")}
+                      </Badge>
+                    ) : null}
+                  </div>
                 </div>
-              ) : (
-                <div className="grid gap-3">
-                  {menus.map((menu) => {
-                    const isSelected = form.creator_menu_id === menu.id;
-                    const platform = menu.platform || menu.sns;
-                    const menuIsUgc = isUgcMenu(menu);
+
+                <div className="rounded-[24px] bg-slate-50 px-5 py-4 md:min-w-[230px]">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                    {copy.selectedMenu}
+                  </p>
+                  <p className="mt-2 text-base font-black text-slate-950">
+                    {selectedMenu?.title || copy.notSet}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedMenu ? (
+                      <>
+                        <Badge tone={selectedMenuIsUgc ? "green" : "gray"}>
+                          {menuTypeLabel(
+                            selectedMenu.menu_type,
+                            safeLocale,
+                            selectedMenu.category || "Menu"
+                          )}
+                        </Badge>
+                        <Badge tone="red">
+                          {formatPrice(
+                            selectedMenu.price,
+                            selectedMenu.currency,
+                            selectedMenu.reference_price_text,
+                            safeLocale
+                          )}
+                        </Badge>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6">
+                <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                  {copy.projectType}
+                </h2>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {projectTypes.map((item) => {
+                    const selected = form.project_type === item.value;
 
                     return (
                       <button
-                        key={menu.id}
+                        key={item.value}
                         type="button"
-                        onClick={() => handleMenuChange(menu.id)}
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            project_type: item.value,
+                          }))
+                        }
                         className={`rounded-[24px] border p-4 text-left transition ${
-                          isSelected
-                            ? "border-[#ff5f67]/60 bg-rose-50/40 shadow-[0_12px_34px_rgba(255,95,103,0.10)] ring-4 ring-rose-100/60"
+                          selected
+                            ? "border-[#ff5f67]/70 bg-rose-50/60 shadow-[0_14px_38px_rgba(255,95,103,0.12)] ring-4 ring-rose-100/70"
                             : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300"
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="mb-2 flex flex-wrap items-center gap-2">
-                              {platform ? (
-                                <PlatformBadge platform={platform} />
-                              ) : null}
-
-                              <Badge tone={menuIsUgc ? "green" : "gray"}>
-                                {menuTypeLabel(
-                                  menu.menu_type,
-                                  safeLocale,
-                                  menu.category || "Menu"
-                                )}
-                              </Badge>
-
-                              {isSelected ? (
-                                <Badge tone="red">{copy.selectedMenu}</Badge>
-                              ) : null}
-                            </div>
-
-                            <h3 className="text-base font-black text-slate-950">
-                              {menu.title}
-                            </h3>
-
-                            {isSelected ? (
-                              <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
-                                {menuIsUgc
-                                  ? copy.ugcUsageNote
-                                  : copy.postUrlUsageNote}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <div className="shrink-0 text-right">
-                            <p className="text-lg font-black text-slate-950">
-                              {formatPrice(
-                                menu.price,
-                                menu.currency,
-                                menu.reference_price_text,
-                                safeLocale
-                              )}
-                            </p>
-                            {menu.delivery_days != null ? (
-                              <p className="mt-1 text-xs font-bold text-slate-400">
-                                {formatDeliveryDays(
-                                  menu.delivery_days,
-                                  safeLocale,
-                                  "-"
-                                )}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
+                        <p className="text-sm font-black text-slate-950">
+                          {item.title}
+                        </p>
+                        <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
+                          {item.body}
+                        </p>
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </section>
 
-            <section className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <div className="mb-6">
-                <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                  {copy.requirements}
-                </h2>
-                <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
-                  {copy.requirementsPlaceholder}
-                </p>
+                {form.project_type === "product_delivery" ? (
+                  <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-800">
+                    {copy.productDeliveryNotice}
+                  </div>
+                ) : null}
               </div>
 
-              <div className="grid gap-5">
-                <TextInput
-                  label={copy.productName}
-                  value={form.product_name}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, product_name: value }))
-                  }
-                  placeholder={copy.productNamePlaceholder}
-                />
-
-                <TextInput
-                  label={copy.productUrl}
-                  value={form.product_url}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, product_url: value }))
-                  }
-                  placeholder={copy.productUrlPlaceholder}
-                />
-
-                <TextInput
-                  type="date"
-                  label={copy.deadline}
-                  value={form.deadline}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, deadline: value }))
-                  }
-                />
-
-                <label className="block">
-                  <span className="text-sm font-black text-slate-800">
+              <div className="mt-8 border-t border-slate-100 pt-6">
+                <div className="mb-6">
+                  <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
                     {copy.requirements}
-                  </span>
-                  <textarea
-                    value={form.note}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        note: e.target.value,
-                      }))
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                    {copy.requirementsDescription}
+                  </p>
+                </div>
+
+                <div className="grid gap-5">
+                  <TextInput
+                    label={copy.productName}
+                    value={form.product_name}
+                    onChange={(value) =>
+                      setForm((prev) => ({ ...prev, product_name: value }))
                     }
-                    placeholder={copy.requirementsPlaceholder}
-                    rows={6}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                    placeholder={copy.productNamePlaceholder}
                   />
-                </label>
+
+                  <TextInput
+                    label={copy.productUrl}
+                    value={form.product_url}
+                    onChange={(value) =>
+                      setForm((prev) => ({ ...prev, product_url: value }))
+                    }
+                    placeholder={copy.productUrlPlaceholder}
+                  />
+
+                  <TextInput
+                    type="date"
+                    label={copy.deadline}
+                    value={form.deadline}
+                    onChange={(value) =>
+                      setForm((prev) => ({ ...prev, deadline: value }))
+                    }
+                  />
+
+                  <label className="block">
+                    <span className="text-sm font-black text-slate-800">
+                      {copy.requirements}
+                    </span>
+                    <textarea
+                      value={form.note}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          note: event.target.value,
+                        }))
+                      }
+                      placeholder={copy.requirementsPlaceholder}
+                      rows={7}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                    />
+                  </label>
+                </div>
               </div>
             </section>
           </main>
@@ -1401,7 +1316,7 @@ ${form.note.trim()}`;
                 />
               </div>
 
-              <div className="mt-5 space-y-3 text-sm font-medium leading-6 text-slate-600">
+              <div className="mt-5 space-y-3 text-sm font-semibold leading-6 text-slate-600">
                 <div className="flex gap-2">
                   <span className="mt-0.5 text-[#7bae6c]">
                     <CheckIcon />
