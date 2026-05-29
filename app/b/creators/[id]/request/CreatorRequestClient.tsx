@@ -1,7 +1,7 @@
 // File: app/b/creators/[id]/request/CreatorRequestClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -9,6 +9,14 @@ import { useAppLocale } from "@/lib/i18n/locale";
 const BILLING_PATH = "/b/billing";
 
 type ProjectType = "visit_experience" | "product_delivery" | "provided_assets";
+
+type OrderStep =
+  | "project_type"
+  | "product_name"
+  | "product_url"
+  | "deadline"
+  | "note"
+  | "confirm";
 
 type Creator = {
   id: string;
@@ -373,7 +381,20 @@ function ArrowIcon() {
   );
 }
 
-function TextInput({
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M5 5l10 10M15 5 5 15"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ModalInput({
   label,
   placeholder,
   value,
@@ -394,7 +415,7 @@ function TextInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+        className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
       />
     </label>
   );
@@ -410,6 +431,15 @@ export default function CreatorRequestClient() {
   const creatorId = String(params.id ?? "");
   const initialMenuId = searchParams.get("menuId") ?? "";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
+  const orderSteps: OrderStep[] = [
+    "project_type",
+    "product_name",
+    "product_url",
+    "deadline",
+    "note",
+    "confirm",
+  ];
 
   const copy = useMemo(
     () =>
@@ -434,6 +464,7 @@ export default function CreatorRequestClient() {
             backToCreator: "詳細へ戻る",
             mainAudience: "主な視聴者",
             notSet: "未設定",
+            skipped: "未入力",
             pageTitle: "注文内容を入力",
             pageSubtitle:
               "必要な内容だけ入力してください。インフルエンサーが承認した場合のみ決済が確定します。",
@@ -454,17 +485,26 @@ export default function CreatorRequestClient() {
             ugcUsageNote:
               "このメニューはUGC素材制作です。納品された画像・動画素材は広告やLPなどで利用できます。",
             productName: "商品名・案件名",
+            productNameStepTitle: "商品名・案件名を入力",
+            productNameStepBody:
+              "あとでチャットでも相談できます。未入力の場合はメニュー名で進みます。",
             productNamePlaceholder: "例：新作美容液PR / 新店舗オープン告知",
             productUrl: "商品URL・サービスURL",
+            productUrlStepTitle: "URLがあれば入力",
+            productUrlStepBody:
+              "商品ページ、店舗ページ、参考URLなどがあれば入れてください。",
             productUrlPlaceholder: "https://...",
             deadline: "希望日",
+            deadlineStepTitle: "希望日を選択",
+            deadlineStepBody:
+              "明確な希望日がなければスキップできます。",
             requirements: "依頼内容",
+            requirementsStepTitle: "伝えたいことを入力",
             requirementsDescription:
               "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現などを入力してください。",
             requirementsPlaceholder:
               "例：商品の特徴、投稿で伝えてほしい内容、撮影イメージ、NG表現、参考URLなど",
-            productRequired: "商品名・案件名を入力してください。",
-            noteRequired: "依頼内容は10文字以上で入力してください。",
+            chatLater: "詳細は注文後のチャットで相談します。",
             menuRequired: "注文するメニューを選択してください。",
             freeLimitReached:
               "Basicでは月5件まで注文できます。上限に達したため、プラン変更をご検討ください。",
@@ -474,6 +514,7 @@ export default function CreatorRequestClient() {
             checkoutUrlMissing: "Checkout URLを取得できませんでした。",
             submitting: "作成中...",
             limitReachedButton: "上限に達しています",
+            startOrderButton: "注文",
             submitButton: "支払いへ進む",
             orderSummary: "注文サマリー",
             menuPrice: "メニュー価格",
@@ -483,6 +524,15 @@ export default function CreatorRequestClient() {
               "支払いはStripeで保護されます。インフルエンサーが辞退した場合、請求は確定しません。",
             paymentCapture:
               "インフルエンサーが72時間以内に承認した場合のみ決済が確定します。",
+            step: "STEP",
+            next: "次へ",
+            skip: "スキップ",
+            back: "戻る",
+            close: "閉じる",
+            confirmTitle: "内容を確認",
+            confirmBody: "問題なければ支払い確認へ進んでください。",
+            edit: "修正",
+            orderFlowTitle: "注文内容",
           }
         : {
             loading: "Loading...",
@@ -505,6 +555,7 @@ export default function CreatorRequestClient() {
             backToCreator: "Back to detail",
             mainAudience: "Main audience",
             notSet: "Not set",
+            skipped: "Skipped",
             pageTitle: "Enter order details",
             pageSubtitle:
               "Enter only the required details. Payment is captured only if the influencer accepts.",
@@ -525,17 +576,26 @@ export default function CreatorRequestClient() {
             ugcUsageNote:
               "This is a UGC content creation menu. Delivered assets can be used for ads, landing pages, and other brand materials.",
             productName: "Product or campaign name",
+            productNameStepTitle: "Enter a product or campaign name",
+            productNameStepBody:
+              "You can also discuss details later in chat. If skipped, the menu title will be used.",
             productNamePlaceholder: "Example: New skincare serum PR",
             productUrl: "Product or service URL",
+            productUrlStepTitle: "Add a URL if available",
+            productUrlStepBody:
+              "Add a product page, store page, or reference URL if available.",
             productUrlPlaceholder: "https://...",
             deadline: "Preferred date",
+            deadlineStepTitle: "Select a preferred date",
+            deadlineStepBody:
+              "You can skip this if you do not have a specific date yet.",
             requirements: "Order details",
+            requirementsStepTitle: "Add notes",
             requirementsDescription:
               "Add key points, requested content, preferred format, expressions to avoid, and reference ideas.",
             requirementsPlaceholder:
               "Example: key product points, requested content, shooting image, NG expressions, reference URLs",
-            productRequired: "Please enter a product or campaign name.",
-            noteRequired: "Please enter at least 10 characters.",
+            chatLater: "Details will be discussed in chat after the order.",
             menuRequired: "Please select a menu to order.",
             freeLimitReached:
               "Basic allows up to 5 orders per month. You have reached the limit, so please consider upgrading.",
@@ -545,6 +605,7 @@ export default function CreatorRequestClient() {
             checkoutUrlMissing: "Checkout URL was not returned.",
             submitting: "Creating...",
             limitReachedButton: "Limit reached",
+            startOrderButton: "Order",
             submitButton: "Continue to payment",
             orderSummary: "Order summary",
             menuPrice: "Menu price",
@@ -554,6 +615,15 @@ export default function CreatorRequestClient() {
               "Payment is protected by Stripe. If the influencer declines, the charge will not be finalized.",
             paymentCapture:
               "Payment is only captured if the influencer accepts within 72 hours.",
+            step: "STEP",
+            next: "Next",
+            skip: "Skip",
+            back: "Back",
+            close: "Close",
+            confirmTitle: "Review details",
+            confirmBody: "Continue to payment if everything looks good.",
+            edit: "Edit",
+            orderFlowTitle: "Order details",
           },
     [safeLocale]
   );
@@ -593,6 +663,9 @@ export default function CreatorRequestClient() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+
   const [gate, setGate] = useState<GateState>({
     isLoggedIn: false,
     isCompany: false,
@@ -615,6 +688,17 @@ export default function CreatorRequestClient() {
     note: "",
     creator_menu_id: "",
   });
+
+  useEffect(() => {
+    if (!orderModalOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [orderModalOpen]);
 
   useEffect(() => {
     let isMounted = true;
@@ -831,6 +915,8 @@ export default function CreatorRequestClient() {
     }
   }, [selectedMenuIsUgc, form.project_type]);
 
+  const currentStep = orderSteps[stepIndex];
+
   const menuPriceAmount =
     typeof selectedMenu?.price === "number" ? selectedMenu.price : 0;
 
@@ -865,6 +951,13 @@ export default function CreatorRequestClient() {
   const selectedProjectTypeLabel =
     projectTypes.find((item) => item.value === form.project_type)?.title ?? "";
 
+  const displayProductName =
+    form.product_name.trim() || selectedMenu?.title || copy.skipped;
+
+  const displayProductUrl = form.product_url.trim() || copy.skipped;
+  const displayDeadline = form.deadline || copy.skipped;
+  const displayNote = form.note.trim() || copy.chatLater;
+
   const buildFinalRequirements = () => {
     const usageNote = selectedMenuIsUgc
       ? copy.ugcUsageNote
@@ -882,12 +975,66 @@ ${selectedProjectTypeLabel}
 ${usageNote}${deliveryNote}
 
 【依頼内容】
-${form.note.trim()}`;
+${displayNote}`;
   };
 
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  const closeOrderModal = () => {
+    if (submitting) return;
+    setOrderModalOpen(false);
+    setErrorMsg(null);
+  };
 
+  const openOrderModal = () => {
+    if (!selectedMenu) {
+      setErrorMsg(copy.menuRequired);
+      return;
+    }
+
+    if (!gate.canSendRequests) {
+      setErrorMsg(copy.unavailableBody);
+      return;
+    }
+
+    if (reachedLimit) {
+      setErrorMsg(copy.freeLimitReached);
+      return;
+    }
+
+    setErrorMsg(null);
+    setStepIndex(0);
+    setOrderModalOpen(true);
+  };
+
+  const goNext = () => {
+    setErrorMsg(null);
+
+    if (currentStep === "project_type" && !form.project_type) {
+      setErrorMsg(copy.projectTypeRequired);
+      return;
+    }
+
+    setStepIndex((prev) => Math.min(prev + 1, orderSteps.length - 1));
+  };
+
+  const goBack = () => {
+    setErrorMsg(null);
+    setStepIndex((prev) => Math.max(prev - 1, 0));
+  };
+
+  const skipStep = () => {
+    setErrorMsg(null);
+    setStepIndex((prev) => Math.min(prev + 1, orderSteps.length - 1));
+  };
+
+  const goToStep = (step: OrderStep) => {
+    const nextIndex = orderSteps.indexOf(step);
+    if (nextIndex >= 0) {
+      setErrorMsg(null);
+      setStepIndex(nextIndex);
+    }
+  };
+
+  const handleCheckout = async () => {
     if (!creator || !gate.canSendRequests || reachedLimit) {
       return;
     }
@@ -899,16 +1046,7 @@ ${form.note.trim()}`;
 
     if (!form.project_type) {
       setErrorMsg(copy.projectTypeRequired);
-      return;
-    }
-
-    if (!form.product_name.trim()) {
-      setErrorMsg(copy.productRequired);
-      return;
-    }
-
-    if (form.note.trim().length < 10) {
-      setErrorMsg(copy.noteRequired);
+      setStepIndex(0);
       return;
     }
 
@@ -939,7 +1077,7 @@ ${form.note.trim()}`;
           creator_id: creator.id,
           creator_menu_id: selectedMenu.id,
           project_type: form.project_type,
-          product_name: form.product_name.trim(),
+          product_name: form.product_name.trim() || selectedMenu.title,
           product_url: form.product_url.trim() || null,
           deadline: form.deadline || null,
           requirements: buildFinalRequirements(),
@@ -1076,8 +1214,275 @@ ${form.note.trim()}`;
     );
   }
 
+  const renderStepContent = () => {
+    if (currentStep === "project_type") {
+      return (
+        <div>
+          <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+            {copy.projectType}
+          </h3>
+
+          <div className="mt-5 grid gap-3">
+            {projectTypes.map((item) => {
+              const selected = form.project_type === item.value;
+
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      project_type: item.value,
+                    }))
+                  }
+                  className={`rounded-[24px] border p-4 text-left transition ${
+                    selected
+                      ? "border-[#ff5f67]/70 bg-rose-50/70 shadow-[0_16px_38px_rgba(255,95,103,0.13)] ring-4 ring-rose-100/70"
+                      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-base font-black text-slate-950">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-sm font-bold leading-6 text-slate-500">
+                        {item.body}
+                      </p>
+                    </div>
+
+                    {selected ? (
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ff5f67] text-white">
+                        <CheckIcon />
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {form.project_type === "product_delivery" ? (
+            <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-800">
+              {copy.productDeliveryNotice}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (currentStep === "product_name") {
+      return (
+        <div>
+          <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+            {copy.productNameStepTitle}
+          </h3>
+          <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+            {copy.productNameStepBody}
+          </p>
+
+          <div className="mt-6">
+            <ModalInput
+              label={copy.productName}
+              value={form.product_name}
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, product_name: value }))
+              }
+              placeholder={copy.productNamePlaceholder}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (currentStep === "product_url") {
+      return (
+        <div>
+          <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+            {copy.productUrlStepTitle}
+          </h3>
+          <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+            {copy.productUrlStepBody}
+          </p>
+
+          <div className="mt-6">
+            <ModalInput
+              label={copy.productUrl}
+              value={form.product_url}
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, product_url: value }))
+              }
+              placeholder={copy.productUrlPlaceholder}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (currentStep === "deadline") {
+      return (
+        <div>
+          <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+            {copy.deadlineStepTitle}
+          </h3>
+          <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+            {copy.deadlineStepBody}
+          </p>
+
+          <div className="mt-6">
+            <ModalInput
+              type="date"
+              label={copy.deadline}
+              value={form.deadline}
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, deadline: value }))
+              }
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (currentStep === "note") {
+      return (
+        <div>
+          <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+            {copy.requirementsStepTitle}
+          </h3>
+          <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+            {copy.requirementsDescription}
+          </p>
+
+          <label className="mt-6 block">
+            <span className="text-sm font-black text-slate-800">
+              {copy.requirements}
+            </span>
+            <textarea
+              value={form.note}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  note: event.target.value,
+                }))
+              }
+              placeholder={copy.requirementsPlaceholder}
+              rows={7}
+              className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+            />
+          </label>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+          {copy.confirmTitle}
+        </h3>
+        <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+          {copy.confirmBody}
+        </p>
+
+        <div className="mt-6 space-y-3">
+          <div className="rounded-[24px] bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                {copy.projectType}
+              </p>
+              <button
+                type="button"
+                onClick={() => goToStep("project_type")}
+                className="text-xs font-black text-[#ff5f67]"
+              >
+                {copy.edit}
+              </button>
+            </div>
+            <p className="mt-2 text-base font-black text-slate-950">
+              {selectedProjectTypeLabel || copy.notSet}
+            </p>
+          </div>
+
+          <div className="rounded-[24px] bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                {copy.productName}
+              </p>
+              <button
+                type="button"
+                onClick={() => goToStep("product_name")}
+                className="text-xs font-black text-[#ff5f67]"
+              >
+                {copy.edit}
+              </button>
+            </div>
+            <p className="mt-2 text-base font-black text-slate-950">
+              {displayProductName}
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-[24px] bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                  {copy.productUrl}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => goToStep("product_url")}
+                  className="text-xs font-black text-[#ff5f67]"
+                >
+                  {copy.edit}
+                </button>
+              </div>
+              <p className="mt-2 break-all text-sm font-black text-slate-950">
+                {displayProductUrl}
+              </p>
+            </div>
+
+            <div className="rounded-[24px] bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                  {copy.deadline}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => goToStep("deadline")}
+                  className="text-xs font-black text-[#ff5f67]"
+                >
+                  {copy.edit}
+                </button>
+              </div>
+              <p className="mt-2 text-sm font-black text-slate-950">
+                {displayDeadline}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                {copy.requirements}
+              </p>
+              <button
+                type="button"
+                onClick={() => goToStep("note")}
+                className="text-xs font-black text-[#ff5f67]"
+              >
+                {copy.edit}
+              </button>
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-sm font-bold leading-7 text-slate-700">
+              {displayNote}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <form onSubmit={onSubmit} className="relative overflow-hidden bg-[#f8fafc]">
+    <div className="relative overflow-hidden bg-[#f8fafc]">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/45 blur-3xl" />
         <div className="absolute right-[-180px] top-[8%] h-[520px] w-[520px] rounded-full bg-emerald-100/45 blur-3xl" />
@@ -1106,7 +1511,7 @@ ${form.note.trim()}`;
         <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
           <main className="min-w-0">
             <section className="rounded-[34px] border border-white/80 bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] md:p-7">
-              <div className="flex flex-col gap-5 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
+              <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_260px] md:items-center">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
                     {copy.influencer}
@@ -1132,7 +1537,7 @@ ${form.note.trim()}`;
                   </div>
                 </div>
 
-                <div className="rounded-[24px] bg-slate-50 px-5 py-4 md:min-w-[230px]">
+                <div className="rounded-[26px] bg-slate-50 px-5 py-4">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                     {copy.selectedMenu}
                   </p>
@@ -1163,105 +1568,36 @@ ${form.note.trim()}`;
                 </div>
               </div>
 
-              <div className="pt-6">
-                <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                  {copy.projectType}
-                </h2>
+              <div className="mt-7 rounded-[28px] border border-slate-100 bg-white p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                      {copy.orderFlowTitle}
+                    </p>
+                    <p className="mt-2 text-lg font-black text-slate-950">
+                      {selectedMenu?.title || copy.selectedMenu}
+                    </p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                      {copy.paymentCapture}
+                    </p>
+                  </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  {projectTypes.map((item) => {
-                    const selected = form.project_type === item.value;
-
-                    return (
-                      <button
-                        key={item.value}
-                        type="button"
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            project_type: item.value,
-                          }))
-                        }
-                        className={`rounded-[24px] border p-4 text-left transition ${
-                          selected
-                            ? "border-[#ff5f67]/70 bg-rose-50/60 shadow-[0_14px_38px_rgba(255,95,103,0.12)] ring-4 ring-rose-100/70"
-                            : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300"
-                        }`}
-                      >
-                        <p className="text-sm font-black text-slate-950">
-                          {item.title}
-                        </p>
-                        <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
-                          {item.body}
-                        </p>
-                      </button>
-                    );
-                  })}
+                  <button
+                    type="button"
+                    onClick={openOrderModal}
+                    disabled={!selectedMenu || !gate.canSendRequests || reachedLimit}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {reachedLimit ? copy.limitReachedButton : copy.startOrderButton}
+                    <ArrowIcon />
+                  </button>
                 </div>
 
-                {form.project_type === "product_delivery" ? (
-                  <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-800">
-                    {copy.productDeliveryNotice}
+                {errorMsg && !orderModalOpen ? (
+                  <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                    {errorMsg}
                   </div>
                 ) : null}
-              </div>
-
-              <div className="mt-8 border-t border-slate-100 pt-6">
-                <div className="mb-6">
-                  <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                    {copy.requirements}
-                  </h2>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                    {copy.requirementsDescription}
-                  </p>
-                </div>
-
-                <div className="grid gap-5">
-                  <TextInput
-                    label={copy.productName}
-                    value={form.product_name}
-                    onChange={(value) =>
-                      setForm((prev) => ({ ...prev, product_name: value }))
-                    }
-                    placeholder={copy.productNamePlaceholder}
-                  />
-
-                  <TextInput
-                    label={copy.productUrl}
-                    value={form.product_url}
-                    onChange={(value) =>
-                      setForm((prev) => ({ ...prev, product_url: value }))
-                    }
-                    placeholder={copy.productUrlPlaceholder}
-                  />
-
-                  <TextInput
-                    type="date"
-                    label={copy.deadline}
-                    value={form.deadline}
-                    onChange={(value) =>
-                      setForm((prev) => ({ ...prev, deadline: value }))
-                    }
-                  />
-
-                  <label className="block">
-                    <span className="text-sm font-black text-slate-800">
-                      {copy.requirements}
-                    </span>
-                    <textarea
-                      value={form.note}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          note: event.target.value,
-                        }))
-                      }
-                      placeholder={copy.requirementsPlaceholder}
-                      rows={7}
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
-                    />
-                  </label>
-                </div>
               </div>
             </section>
           </main>
@@ -1275,12 +1611,6 @@ ${form.note.trim()}`;
               <h2 className="mt-3 text-2xl font-black leading-tight tracking-[-0.03em] text-slate-950">
                 {selectedMenu?.title || copy.selectedMenu}
               </h2>
-
-              {selectedProjectTypeLabel ? (
-                <div className="mt-3">
-                  <Badge tone="red">{selectedProjectTypeLabel}</Badge>
-                </div>
-              ) : null}
 
               <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
                 <Row
@@ -1338,28 +1668,14 @@ ${form.note.trim()}`;
                 </div>
               ) : null}
 
-              {errorMsg ? (
-                <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
-                  {errorMsg}
-                </div>
-              ) : null}
-
               <button
-                type="submit"
-                disabled={
-                  submitting ||
-                  !selectedMenu ||
-                  !gate.canSendRequests ||
-                  reachedLimit
-                }
+                type="button"
+                onClick={openOrderModal}
+                disabled={!selectedMenu || !gate.canSendRequests || reachedLimit}
                 className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-4 text-base font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {submitting
-                  ? copy.submitting
-                  : reachedLimit
-                  ? copy.limitReachedButton
-                  : copy.submitButton}
-                {!submitting && !reachedLimit ? <ArrowIcon /> : null}
+                {reachedLimit ? copy.limitReachedButton : copy.startOrderButton}
+                {!reachedLimit ? <ArrowIcon /> : null}
               </button>
 
               <button
@@ -1373,6 +1689,109 @@ ${form.note.trim()}`;
           </aside>
         </div>
       </div>
-    </form>
+
+      {orderModalOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden px-4 py-5">
+          <div
+            className="absolute inset-0 bg-slate-950/20 backdrop-blur-md"
+            onClick={closeOrderModal}
+          />
+
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-[-140px] top-[-120px] h-[440px] w-[440px] rounded-full bg-rose-100/80 blur-3xl" />
+            <div className="absolute right-[-140px] top-[10%] h-[520px] w-[520px] rounded-full bg-emerald-100/85 blur-3xl" />
+            <div className="absolute bottom-[-180px] left-1/2 h-[360px] w-[560px] -translate-x-1/2 rounded-full bg-white/80 blur-3xl" />
+          </div>
+
+          <section className="relative max-h-[calc(100vh-40px)] w-full max-w-[660px] overflow-y-auto rounded-[34px] border border-white/80 bg-white/92 p-5 shadow-[0_34px_120px_rgba(15,23,42,0.24)] backdrop-blur-xl md:p-7">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ff5f67]">
+                  {copy.step} {stepIndex + 1} / {orderSteps.length}
+                </p>
+                <p className="mt-1 text-sm font-black text-slate-500">
+                  {selectedMenu?.title || copy.selectedMenu}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeOrderModal}
+                disabled={submitting}
+                aria-label={copy.close}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="mb-6 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-[#ff5f67] transition-all duration-300"
+                style={{
+                  width: `${((stepIndex + 1) / orderSteps.length) * 100}%`,
+                }}
+              />
+            </div>
+
+            <div className="min-h-[330px]">{renderStepContent()}</div>
+
+            {errorMsg ? (
+              <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                {errorMsg}
+              </div>
+            ) : null}
+
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-3">
+                {stepIndex > 0 ? (
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    disabled={submitting}
+                    className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {copy.back}
+                  </button>
+                ) : null}
+
+                {currentStep !== "project_type" && currentStep !== "confirm" ? (
+                  <button
+                    type="button"
+                    onClick={skipStep}
+                    disabled={submitting}
+                    className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-400 transition hover:border-slate-300 hover:text-slate-700 disabled:opacity-50"
+                  >
+                    {copy.skip}
+                  </button>
+                ) : null}
+              </div>
+
+              {currentStep === "confirm" ? (
+                <button
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? copy.submitting : copy.submitButton}
+                  {!submitting ? <ArrowIcon /> : null}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {copy.next}
+                  <ArrowIcon />
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </div>
   );
 }
