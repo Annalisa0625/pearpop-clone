@@ -430,6 +430,7 @@ export default function CreatorRequestClient() {
 
   const creatorId = String(params.id ?? "");
   const initialMenuId = searchParams.get("menuId") ?? "";
+  const startParam = searchParams.get("start") ?? "";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const orderSteps: OrderStep[] = [
@@ -471,6 +472,7 @@ export default function CreatorRequestClient() {
             influencer: "インフルエンサー",
             selectedMenu: "選択中のメニュー",
             projectType: "案件タイプ",
+            tapToContinue: "選択すると次へ進みます",
             visitExperience: "来店・体験",
             visitExperienceBody: "店舗やサービスを体験して投稿",
             productDelivery: "商品提供",
@@ -496,8 +498,7 @@ export default function CreatorRequestClient() {
             productUrlPlaceholder: "https://...",
             deadline: "希望日",
             deadlineStepTitle: "希望日を選択",
-            deadlineStepBody:
-              "明確な希望日がなければスキップできます。",
+            deadlineStepBody: "明確な希望日がなければスキップできます。",
             requirements: "依頼内容",
             requirementsStepTitle: "伝えたいことを入力",
             requirementsDescription:
@@ -562,6 +563,7 @@ export default function CreatorRequestClient() {
             influencer: "Influencer",
             selectedMenu: "Selected menu",
             projectType: "Project type",
+            tapToContinue: "Select one to continue",
             visitExperience: "Visit / experience",
             visitExperienceBody: "Visit a store or service and post",
             productDelivery: "Product delivery",
@@ -665,6 +667,7 @@ export default function CreatorRequestClient() {
 
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [autoOpened, setAutoOpened] = useState(false);
 
   const [gate, setGate] = useState<GateState>({
     isLoggedIn: false,
@@ -915,6 +918,31 @@ export default function CreatorRequestClient() {
     }
   }, [selectedMenuIsUgc, form.project_type]);
 
+  useEffect(() => {
+    if (loading || autoOpened || orderModalOpen) return;
+    if (!creator || !selectedMenu) return;
+    if (!gate.canSendRequests || gate.needsBilling || reachedLimit) return;
+
+    const shouldAutoOpen = startParam === "1" || !!initialMenuId;
+
+    if (!shouldAutoOpen) return;
+
+    setStepIndex(0);
+    setErrorMsg(null);
+    setOrderModalOpen(true);
+    setAutoOpened(true);
+  }, [
+    loading,
+    autoOpened,
+    orderModalOpen,
+    creator,
+    selectedMenu,
+    gate.canSendRequests,
+    gate.needsBilling,
+    startParam,
+    initialMenuId,
+  ]);
+
   const currentStep = orderSteps[stepIndex];
 
   const menuPriceAmount =
@@ -1003,6 +1031,15 @@ ${displayNote}`;
     setErrorMsg(null);
     setStepIndex(0);
     setOrderModalOpen(true);
+  };
+
+  const selectProjectTypeAndContinue = (value: ProjectType) => {
+    setForm((prev) => ({
+      ...prev,
+      project_type: value,
+    }));
+    setErrorMsg(null);
+    setStepIndex(1);
   };
 
   const goNext = () => {
@@ -1218,9 +1255,16 @@ ${displayNote}`;
     if (currentStep === "project_type") {
       return (
         <div>
-          <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
-            {copy.projectType}
-          </h3>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+                {copy.projectType}
+              </h3>
+              <p className="mt-2 text-sm font-bold text-slate-500">
+                {copy.tapToContinue}
+              </p>
+            </div>
+          </div>
 
           <div className="mt-5 grid gap-3">
             {projectTypes.map((item) => {
@@ -1230,12 +1274,7 @@ ${displayNote}`;
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      project_type: item.value,
-                    }))
-                  }
+                  onClick={() => selectProjectTypeAndContinue(item.value)}
                   className={`rounded-[24px] border p-4 text-left transition ${
                     selected
                       ? "border-[#ff5f67]/70 bg-rose-50/70 shadow-[0_16px_38px_rgba(255,95,103,0.13)] ring-4 ring-rose-100/70"
@@ -1585,10 +1624,14 @@ ${displayNote}`;
                   <button
                     type="button"
                     onClick={openOrderModal}
-                    disabled={!selectedMenu || !gate.canSendRequests || reachedLimit}
+                    disabled={
+                      !selectedMenu || !gate.canSendRequests || reachedLimit
+                    }
                     className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {reachedLimit ? copy.limitReachedButton : copy.startOrderButton}
+                    {reachedLimit
+                      ? copy.limitReachedButton
+                      : copy.startOrderButton}
                     <ArrowIcon />
                   </button>
                 </div>
@@ -1777,7 +1820,7 @@ ${displayNote}`;
                   {submitting ? copy.submitting : copy.submitButton}
                   {!submitting ? <ArrowIcon /> : null}
                 </button>
-              ) : (
+              ) : currentStep === "project_type" ? null : (
                 <button
                   type="button"
                   onClick={goNext}
