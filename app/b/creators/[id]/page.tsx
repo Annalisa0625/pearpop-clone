@@ -695,7 +695,6 @@ export default function CreatorDetailPage() {
     () =>
       safeLocale === "ja"
         ? {
-            loading: "読み込み中...",
             notFound:
               "インフルエンサーが見つかりません。現在注文受付できない状態の可能性があります。",
             backToCreators: "インフルエンサー一覧へ戻る",
@@ -703,10 +702,8 @@ export default function CreatorDetailPage() {
             save: "Save",
             saved: "Saved",
             copied: "URL copied",
-            followers: "Followers",
-            mainAudience: "Main audience",
-            profileFallback:
-              "このインフルエンサーの公開プロフィールとメニューを確認し、条件に合うメニューを選んで注文できます。",
+            followers: "フォロワー",
+            mainAudience: "主な視聴者",
             packages: "メニュー",
             all: "All",
             noMenus: "公開中のメニューがありません。",
@@ -721,23 +718,15 @@ export default function CreatorDetailPage() {
               "このプランの注文機能を使うには、有料プランの有効化が必要です。",
             checkBilling: "料金プランを見る",
             audience: "Audience",
-            audienceNote:
-              "フォロワー帯と主な視聴者地域を確認できます。",
             portfolio: "Portfolio",
-            portfolioNote:
-              "投稿実績・サンプル画像を確認できます。クリックすると拡大できます。",
-            verified: "Payout verified",
-            noReviews: "New influencer",
             marketplaceFee: "Trendre手数料",
             menuPrice: "メニュー価格",
             total: "お支払い合計",
             signupToOrder: "注文",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
-            openPortfolio: "拡大",
           }
         : {
-            loading: "Loading...",
             notFound:
               "Influencer not found. This influencer may not currently be ready to receive orders.",
             backToCreators: "Back to influencers",
@@ -747,8 +736,6 @@ export default function CreatorDetailPage() {
             copied: "URL copied",
             followers: "Followers",
             mainAudience: "Main audience",
-            profileFallback:
-              "Review this influencer's public profile and menus, then choose a menu that fits your campaign.",
             packages: "Menus",
             all: "All",
             noMenus: "There are no public menus.",
@@ -763,20 +750,13 @@ export default function CreatorDetailPage() {
               "Your paid plan must be active before using this order flow.",
             checkBilling: "View billing plans",
             audience: "Audience",
-            audienceNote:
-              "Check follower range and main audience region.",
             portfolio: "Portfolio",
-            portfolioNote:
-              "Past work and sample images. Click an image to enlarge it.",
-            verified: "Payout verified",
-            noReviews: "New influencer",
             marketplaceFee: "Trendre fee",
             menuPrice: "Menu price",
             total: "Total",
             signupToOrder: "Order",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
-            openPortfolio: "Open",
           },
     [safeLocale]
   );
@@ -1220,11 +1200,7 @@ export default function CreatorDetailPage() {
 
   return (
     <div className="space-y-10 pb-12">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <h1 className="text-2xl font-black text-slate-950">
-          {creator.category || creator.display_name}
-        </h1>
-
+      <div className="flex justify-end">
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
@@ -1259,17 +1235,11 @@ export default function CreatorDetailPage() {
             <div className="-mt-14 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
               <div className="flex items-end gap-4">
                 <Avatar name={creator.display_name} src={creator.avatar_url} />
+
                 <div className="pb-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="green">{copy.verified}</Badge>
-                    <Badge tone="gray">{copy.noReviews}</Badge>
-                  </div>
-                  <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+                  <h1 className="text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
                     {creator.display_name}
                   </h1>
-                  <p className="mt-2 text-sm font-medium text-slate-500">
-                    {creator.category || copy.profileFallback}
-                  </p>
                 </div>
               </div>
             </div>
@@ -1297,9 +1267,9 @@ export default function CreatorDetailPage() {
               )}
 
               {audienceCountryLabels.length > 0 ? (
-                <Badge tone="blue">
-                  {copy.mainAudience}: {audienceCountryLabels.join(" / ")}
-                </Badge>
+                <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">
+                  {audienceCountryLabels.join(" / ")}
+                </span>
               ) : null}
             </div>
           </div>
@@ -1362,24 +1332,13 @@ export default function CreatorDetailPage() {
 
           <section className="grid gap-6 md:grid-cols-2">
             <div className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                    {copy.audience}
-                  </h2>
-                  <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
-                    {copy.audienceNote}
-                  </p>
-                </div>
-
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-lg">
-                  👥
-                </div>
-              </div>
+              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                {copy.audience}
+              </h2>
 
               <div className="mt-6 grid gap-3">
                 <div className="rounded-[22px] border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                  <p className="text-xs font-black tracking-[0.14em] text-slate-400">
                     {copy.followers}
                   </p>
                   <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
@@ -1388,7 +1347,7 @@ export default function CreatorDetailPage() {
                 </div>
 
                 <div className="rounded-[22px] border border-blue-100 bg-gradient-to-br from-blue-50/70 to-white p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">
+                  <p className="text-xs font-black tracking-[0.14em] text-blue-300">
                     {copy.mainAudience}
                   </p>
                   <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
@@ -1399,20 +1358,9 @@ export default function CreatorDetailPage() {
             </div>
 
             <div className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                    {copy.portfolio}
-                  </h2>
-                  <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
-                    {copy.portfolioNote}
-                  </p>
-                </div>
-
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-lg">
-                  ✨
-                </div>
-              </div>
+              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                {copy.portfolio}
+              </h2>
 
               {portfolioImageUrls.length > 0 ? (
                 <div className="mt-6 grid grid-cols-3 gap-3">
@@ -1432,11 +1380,7 @@ export default function CreatorDetailPage() {
                         decoding="async"
                       />
 
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/0 opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100">
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-950 shadow-lg">
-                          {copy.openPortfolio}
-                        </span>
-                      </div>
+                      <div className="absolute inset-0 bg-slate-950/0 transition group-hover:bg-slate-950/20" />
                     </button>
                   ))}
                 </div>
