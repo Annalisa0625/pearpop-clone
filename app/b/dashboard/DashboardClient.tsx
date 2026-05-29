@@ -1,8 +1,8 @@
-// app/b/dashboard/DashboardClient.tsx
+// File: app/b/dashboard/DashboardClient.tsx
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -67,7 +67,10 @@ function formatDate(value: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
-  return date.toLocaleDateString("ja-JP");
+  return date.toLocaleDateString("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+  });
 }
 
 function getPlanLabel(plan: CompanyPlanCode) {
@@ -84,21 +87,21 @@ function getBuyerFeeLabel(plan: CompanyPlanCode) {
 function getApprovalBadge(status: ApprovalStatus) {
   if (status === "approved") {
     return {
-      label: "承認済み",
-      className: "bg-blue-100 text-blue-700",
+      label: "利用できます",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     };
   }
 
   if (status === "rejected") {
     return {
-      label: "却下",
-      className: "bg-red-100 text-red-700",
+      label: "利用停止中",
+      className: "bg-rose-50 text-rose-700 ring-rose-100",
     };
   }
 
   return {
-    label: "審査中",
-    className: "bg-yellow-100 text-yellow-700",
+    label: "確認中",
+    className: "bg-amber-50 text-amber-700 ring-amber-100",
   };
 }
 
@@ -109,27 +112,27 @@ function getSubscriptionBadge(
   if (rawPlanCode === "free") {
     return {
       label: "Basic",
-      className: "bg-purple-100 text-purple-700",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
     };
   }
 
   if (status === "active") {
     return {
       label: "利用中",
-      className: "bg-green-100 text-green-700",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     };
   }
 
   if (status === "canceled") {
     return {
       label: "終了予定",
-      className: "bg-red-100 text-red-700",
+      className: "bg-rose-50 text-rose-700 ring-rose-100",
     };
   }
 
   return {
     label: "未開始",
-    className: "bg-yellow-100 text-yellow-700",
+    className: "bg-amber-50 text-amber-700 ring-amber-100",
   };
 }
 
@@ -137,115 +140,143 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function StatCard({
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h10.5M10.5 5.5 15 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MiniPill({
   label,
   value,
-  helper,
-  href,
   tone = "default",
 }: {
   label: string;
-  value: number | string;
-  helper?: string;
-  href?: string;
-  tone?: "default" | "dark" | "blue" | "purple" | "green" | "amber";
+  value: ReactNode;
+  tone?: "default" | "rose" | "green";
 }) {
-  const styles = {
-    default: "border-slate-100 bg-white text-slate-950",
-    dark: "border-slate-950 bg-slate-950 text-white",
-    blue: "border-blue-100 bg-blue-50 text-slate-950",
-    purple: "border-purple-100 bg-purple-50 text-slate-950",
-    green: "border-emerald-100 bg-emerald-50 text-slate-950",
-    amber: "border-amber-100 bg-amber-50 text-slate-950",
-  };
+  const toneClass =
+    tone === "rose"
+      ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
+      : tone === "green"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+      : "bg-white/80 text-slate-700 ring-slate-200";
 
-  const card = (
+  return (
     <div
-      className={`rounded-[28px] border p-5 shadow-sm transition ${
-        href ? "hover:-translate-y-0.5 hover:shadow-md" : ""
-      } ${styles[tone]}`}
+      className={`rounded-full px-4 py-2 text-sm font-black shadow-sm ring-1 ${toneClass}`}
     >
-      <p
-        className={`text-xs font-black uppercase tracking-[0.2em] ${
-          tone === "dark" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`mt-4 text-4xl font-black ${
-          tone === "dark" ? "text-white" : "text-slate-950"
-        }`}
-      >
-        {value}
-      </p>
-      {helper ? (
-        <p
-          className={`mt-2 text-xs leading-5 ${
-            tone === "dark" ? "text-white/70" : "text-slate-500"
-          }`}
-        >
-          {helper}
-        </p>
-      ) : null}
+      <span className="mr-2 text-xs font-bold text-slate-400">{label}</span>
+      {value}
     </div>
   );
-
-  if (!href) return card;
-
-  return <Link href={href}>{card}</Link>;
 }
 
-function ActionCard({
+function StatCard({
+  label,
+  value,
   href,
-  icon,
-  title,
-  body,
-  strong,
+  active,
 }: {
+  label: string;
+  value: number;
   href: string;
-  icon: string;
-  title: string;
-  body: string;
-  strong?: boolean;
+  active?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`rounded-[28px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-        strong
-          ? "border-slate-950 bg-slate-950 text-white"
-          : "border-slate-100 bg-white text-slate-950"
+      className={`group rounded-[28px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+        active
+          ? "border-[#ffb3b8] bg-rose-50/70"
+          : "border-slate-100 bg-white"
       }`}
     >
-      <div
-        className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-black ${
-          strong ? "bg-white text-slate-950" : "bg-slate-100 text-slate-950"
-        }`}
-      >
-        {icon}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-black text-slate-500">{label}</p>
+          <p className="mt-4 text-4xl font-black tracking-[-0.04em] text-slate-950">
+            {value}
+          </p>
+        </div>
+
+        <span
+          className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black transition group-hover:translate-x-0.5 ${
+            active
+              ? "bg-[#ff5f67] text-white"
+              : "bg-slate-100 text-slate-500"
+          }`}
+        >
+          →
+        </span>
       </div>
-      <p className="text-base font-black">{title}</p>
-      <p
-        className={`mt-2 text-sm leading-6 ${
-          strong ? "text-white/70" : "text-slate-500"
-        }`}
-      >
-        {body}
-      </p>
     </Link>
   );
 }
 
-function StatusRow({
+function ActionCard({
+  href,
+  title,
+  body,
+  primary,
+}: {
+  href: string;
+  title: string;
+  body: string;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`group rounded-[30px] border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+        primary
+          ? "border-slate-950 bg-slate-950 text-white"
+          : "border-slate-100 bg-white text-slate-950"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xl font-black tracking-[-0.03em]">{title}</p>
+          <p
+            className={`mt-3 text-sm font-semibold leading-7 ${
+              primary ? "text-white/65" : "text-slate-500"
+            }`}
+          >
+            {body}
+          </p>
+        </div>
+
+        <span
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black transition group-hover:translate-x-0.5 ${
+            primary
+              ? "bg-white text-slate-950"
+              : "bg-slate-100 text-slate-500"
+          }`}
+        >
+          →
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function PlanLine({
   label,
   value,
 }: {
   label: string;
-  value: string | React.ReactNode;
+  value: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-4 last:border-b-0">
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
       <span className="text-sm font-bold text-slate-500">{label}</span>
       <span className="text-right text-sm font-black text-slate-950">
         {value}
@@ -595,27 +626,25 @@ export default function CompanyDashboardClient() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <section className="rounded-[32px] border border-slate-100 bg-white p-7 shadow-sm">
-          <p className="text-base font-semibold text-slate-500">
-            読み込み中...
-          </p>
-        </section>
+      <div className="relative overflow-hidden bg-[#f8fafc] px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-6xl rounded-[34px] border border-white/80 bg-white/90 p-7 shadow-sm">
+          <p className="text-sm font-bold text-slate-500">読み込み中...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !dashboard) {
     return (
-      <div className="space-y-6">
-        <section className="rounded-[32px] border border-red-200 bg-red-50 p-7">
-          <h1 className="text-2xl font-black text-slate-900">
+      <div className="relative overflow-hidden bg-[#f8fafc] px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-4xl rounded-[34px] border border-rose-100 bg-white p-7 shadow-sm">
+          <h1 className="text-2xl font-black text-slate-950">
             エラーが発生しました
           </h1>
-          <p className="mt-3 text-base leading-7 text-slate-600">
+          <p className="mt-3 text-sm font-semibold leading-7 text-slate-600">
             {error || "ダッシュボード情報の取得に失敗しました。"}
           </p>
-        </section>
+        </div>
       </div>
     );
   }
@@ -637,237 +666,189 @@ export default function CompanyDashboardClient() {
           0
         );
 
+  const activeOrderCount =
+    dashboard.counts.pending + dashboard.counts.accepted + dashboard.counts.delivered;
+
   return (
-    <div className="space-y-8">
-      <section className="rounded-[32px] bg-slate-950 p-7 text-white shadow-sm">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-              Company Dashboard
-            </p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
-              {dashboard.companyName}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
-              クリエイター検索、注文状況、進行中案件、プラン状態をまとめて確認できます。
-            </p>
-          </div>
+    <div className="relative overflow-hidden bg-[#f8fafc]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-180px] top-[-160px] h-[430px] w-[430px] rounded-full bg-rose-100/45 blur-3xl" />
+        <div className="absolute right-[-190px] top-[12%] h-[520px] w-[520px] rounded-full bg-emerald-100/45 blur-3xl" />
+      </div>
 
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`rounded-full px-4 py-2 text-sm font-black ${approvalBadge.className}`}
-            >
-              {approvalBadge.label}
-            </span>
-            <span
-              className={`rounded-full px-4 py-2 text-sm font-black ${subscriptionBadge.className}`}
-            >
-              {subscriptionBadge.label}
-            </span>
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950">
-              {planLabel}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {!canUseRequests ? (
-        <section className="rounded-[28px] border border-blue-200 bg-blue-50 p-6">
-          <h2 className="text-xl font-black text-slate-950">
-            依頼送信にはプラン開始が必要です
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
-            クリエイターの閲覧は利用できます。依頼送信や案件進行は、プラン開始後に解放されます。
-          </p>
-          <Link
-            href="/b/billing"
-            className="mt-5 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
-          >
-            料金プランを見る
-          </Link>
-        </section>
-      ) : null}
-
-      <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard
-          label="承認待ち"
-          value={dashboard.counts.pending}
-          helper="pending / authorized"
-          href="/b/requests"
-          tone={dashboard.counts.pending > 0 ? "amber" : "default"}
-        />
-        <StatCard
-          label="進行中"
-          value={dashboard.counts.accepted}
-          helper="accepted / captured"
-          href="/b/jobs"
-          tone={dashboard.counts.accepted > 0 ? "blue" : "default"}
-        />
-        <StatCard
-          label="納品確認"
-          value={dashboard.counts.delivered}
-          helper="delivered"
-          href="/b/jobs"
-          tone={dashboard.counts.delivered > 0 ? "purple" : "default"}
-        />
-        <StatCard
-          label="完了"
-          value={dashboard.counts.completed}
-          helper="completed"
-          href="/b/jobs"
-          tone={dashboard.counts.completed > 0 ? "green" : "default"}
-        />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <main className="space-y-6">
-          <section>
-            <div className="mb-4">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                Quick Actions
+      <div className="relative mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
+        <section className="rounded-[38px] border border-white/80 bg-white/92 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.07)] backdrop-blur-xl md:p-8">
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-black text-[#ff5f67]">
+                {dashboard.companyName}
               </p>
-              <h2 className="mt-2 text-2xl font-black text-slate-950">
-                まずやること
-              </h2>
+
+              <h1 className="mt-3 text-[34px] font-black leading-tight tracking-[-0.05em] text-slate-950 md:text-[46px]">
+                クリエイターを探して、
+                <br className="hidden sm:block" />
+                そのまま注文できます。
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                気になるクリエイターを保存し、メニューを選んで注文できます。
+              </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <ActionCard
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <Link
                 href="/b/creators"
-                icon="◎"
-                title="クリエイターを探す"
-                body="公開中のクリエイターとメニューを検索・比較します。"
-                strong
-              />
-              <ActionCard
-                href="/b/saved-creators"
-                icon="♥"
-                title="保存済みを見る"
-                body="気になるクリエイターをまとめて確認します。"
-              />
-              <ActionCard
-                href="/b/requests"
-                icon="◌"
-                title="承認待ちを見る"
-                body="送信した注文・依頼の承認状況を確認します。"
-              />
-              <ActionCard
-                href="/b/jobs"
-                icon="▣"
-                title="進行中案件を見る"
-                body="決済確定・納品済み・完了済みの案件を確認します。"
-              />
-            </div>
-          </section>
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+              >
+                クリエイターを探す
+                <ArrowIcon />
+              </Link>
 
-          <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-black text-slate-950">
-              プランの使い方
+              <Link
+                href="/b/jobs"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-300"
+              >
+                注文を見る
+                <ArrowIcon />
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-2">
+            <MiniPill label="プラン" value={planLabel} />
+            <MiniPill
+              label="残り"
+              value={remaining === null ? "無制限" : `${remaining}件`}
+              tone="rose"
+            />
+            <MiniPill label="手数料" value={buyerFee} />
+            <MiniPill
+              label="状態"
+              value={approvalBadge.label}
+              tone={dashboard.approvalStatus === "approved" ? "green" : "default"}
+            />
+          </div>
+        </section>
+
+        {!canUseRequests ? (
+          <section className="mt-6 rounded-[30px] border border-blue-100 bg-white/90 p-6 shadow-sm">
+            <h2 className="text-xl font-black text-slate-950">
+              注文を始めるにはプランの確認が必要です
             </h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                  現在プラン
-                </p>
-                <p className="mt-2 text-xl font-black text-slate-950">
-                  {planLabel}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                  B側手数料
-                </p>
-                <p className="mt-2 text-xl font-black text-slate-950">
-                  {buyerFee}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                  今月残り
-                </p>
-                <p className="mt-2 text-xl font-black text-slate-950">
-                  {remaining === null ? "無制限" : `${remaining}件`}
-                </p>
-              </div>
+            <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
+              クリエイターの閲覧はできます。注文はプラン開始後に利用できます。
+            </p>
+            <Link
+              href="/b/billing"
+              className="mt-5 inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white"
+            >
+              料金プランを見る
+            </Link>
+          </section>
+        ) : null}
+
+        <section className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="返答待ち"
+            value={dashboard.counts.pending}
+            href="/b/requests"
+            active={dashboard.counts.pending > 0}
+          />
+          <StatCard
+            label="進行中"
+            value={dashboard.counts.accepted}
+            href="/b/jobs"
+            active={dashboard.counts.accepted > 0}
+          />
+          <StatCard
+            label="確認する"
+            value={dashboard.counts.delivered}
+            href="/b/jobs"
+            active={dashboard.counts.delivered > 0}
+          />
+          <StatCard
+            label="完了"
+            value={dashboard.counts.completed}
+            href="/b/jobs"
+            active={false}
+          />
+        </section>
+
+        <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <main className="grid gap-4 md:grid-cols-2">
+            <ActionCard
+              href="/b/creators"
+              title="探す"
+              body="条件に合うクリエイターとメニューを見つけます。"
+              primary
+            />
+
+            <ActionCard
+              href="/b/saved-creators"
+              title="保存済み"
+              body="気になったクリエイターをあとで確認できます。"
+            />
+
+            <ActionCard
+              href="/b/jobs"
+              title="注文を見る"
+              body={
+                activeOrderCount > 0
+                  ? `${activeOrderCount}件の注文があります。`
+                  : "注文中の内容を確認できます。"
+              }
+            />
+
+            <ActionCard
+              href="/b/billing"
+              title="プラン"
+              body={`現在は${planLabel}です。必要に応じて変更できます。`}
+            />
+          </main>
+
+          <aside className="rounded-[30px] border border-white/80 bg-white/92 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.07)] backdrop-blur-xl lg:self-start">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                アカウント
+              </h2>
+
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${subscriptionBadge.className}`}
+              >
+                {subscriptionBadge.label}
+              </span>
+            </div>
+
+            <div className="mt-5">
+              <PlanLine label="プラン" value={planLabel} />
+              <PlanLine
+                label="今月残り"
+                value={remaining === null ? "無制限" : `${remaining}件`}
+              />
+              <PlanLine
+                label="リセット"
+                value={formatDate(dashboard.requestUsageResetAt)}
+              />
+              {dashboard.stripeCurrentPeriodEnd ? (
+                <PlanLine
+                  label="次回更新"
+                  value={formatDate(dashboard.stripeCurrentPeriodEnd)}
+                />
+              ) : null}
+              {dashboard.stripeCancelAtPeriodEnd ? (
+                <PlanLine label="更新" value="終了予定" />
+              ) : null}
             </div>
 
             <Link
               href="/b/billing"
-              className="mt-5 inline-flex rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3.5 text-sm font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
             >
-              料金プランを確認する
+              料金プランを確認
             </Link>
-          </section>
-        </main>
-
-        <aside className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm xl:sticky xl:top-24 xl:self-start">
-          <h2 className="text-2xl font-black text-slate-950">
-            現在の利用状況
-          </h2>
-
-          <div className="mt-5">
-            <StatusRow
-              label="審査状態"
-              value={
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-black ${approvalBadge.className}`}
-                >
-                  {approvalBadge.label}
-                </span>
-              }
-            />
-
-            <StatusRow
-              label="プラン"
-              value={
-                <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-black text-purple-700">
-                  {planLabel}
-                </span>
-              }
-            />
-
-            <StatusRow
-              label="利用状態"
-              value={
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-black ${subscriptionBadge.className}`}
-                >
-                  {subscriptionBadge.label}
-                </span>
-              }
-            />
-
-            <StatusRow
-              label="月間上限"
-              value={
-                dashboard.monthlyRequestLimit === null
-                  ? "無制限"
-                  : `${dashboard.monthlyRequestLimit}件`
-              }
-            />
-
-            <StatusRow
-              label="今月の送信数"
-              value={`${dashboard.monthlyRequestUsed ?? 0}件`}
-            />
-
-            <StatusRow
-              label="使用量リセット日"
-              value={formatDate(dashboard.requestUsageResetAt)}
-            />
-
-            <StatusRow
-              label="次回更新日"
-              value={formatDate(dashboard.stripeCurrentPeriodEnd)}
-            />
-
-            <StatusRow
-              label="期間終了時解約"
-              value={dashboard.stripeCancelAtPeriodEnd ? "あり" : "なし"}
-            />
-          </div>
-        </aside>
-      </section>
+          </aside>
+        </section>
+      </div>
     </div>
   );
 }
