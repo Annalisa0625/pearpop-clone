@@ -635,15 +635,15 @@ function PackageCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`group w-full rounded-[26px] border p-5 text-left transition duration-200 ${
+      className={`group w-full rounded-[26px] border p-5 text-left transition duration-200 md:p-6 ${
         selected
           ? "border-[#ff5f67]/60 bg-rose-50/45 shadow-[0_18px_45px_rgba(255,95,103,0.12)] ring-4 ring-rose-100/70"
           : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex min-h-[88px] flex-col justify-between gap-5 sm:flex-row sm:items-center">
         <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             {platform ? <PlatformPill platform={platform} /> : null}
 
             <Badge tone="gray">
@@ -651,24 +651,18 @@ function PackageCard({
             </Badge>
           </div>
 
-          <h3 className="text-xl font-black leading-snug tracking-[-0.03em] text-slate-950">
+          <h3 className="line-clamp-2 text-xl font-black leading-snug tracking-[-0.03em] text-slate-950">
             {menu.title}
           </h3>
-
-          {menu.description ? (
-            <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-500">
-              {menu.description}
-            </p>
-          ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-3">
-          <p className="text-xl font-black tracking-[-0.03em] text-slate-950">
+        <div className="flex shrink-0 items-center justify-between gap-4 sm:min-w-[172px] sm:flex-col sm:items-end sm:self-stretch">
+          <p className="whitespace-nowrap text-xl font-black tracking-[-0.03em] text-slate-950">
             {price}
           </p>
 
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black transition ${
+            className={`inline-flex h-9 min-w-[86px] items-center justify-center gap-1 rounded-full px-3 text-xs font-black transition ${
               selected
                 ? "bg-[#ff5f67] text-white shadow-lg shadow-rose-500/20"
                 : "bg-slate-100 text-slate-500 group-hover:bg-slate-950 group-hover:text-white"
@@ -720,7 +714,7 @@ export default function CreatorDetailPage() {
             choosePackage: "メニューを選択",
             selected: "選択中",
             select: "選択する",
-            orderButton: "注文へ進む",
+            orderButton: "注文",
             howItWorks:
               "支払いはStripeで保護され、インフルエンサーが72時間以内に承認した場合のみ決済が確定します。",
             billingRequired:
@@ -728,15 +722,15 @@ export default function CreatorDetailPage() {
             checkBilling: "料金プランを見る",
             audience: "Audience",
             audienceNote:
-              "登録済みSNS情報をもとに、フォロワー帯と主な視聴者地域を表示しています。",
+              "フォロワー帯と主な視聴者地域を確認できます。",
             portfolio: "Portfolio",
             portfolioNote:
-              "インフルエンサーが登録した投稿実績・サンプル画像です。クリックすると拡大できます。",
+              "投稿実績・サンプル画像を確認できます。クリックすると拡大できます。",
             verified: "Payout verified",
             noReviews: "New influencer",
-            marketplaceFee: "Marketplace fee",
-            menuPrice: "Menu price",
-            total: "Total",
+            marketplaceFee: "Trendre手数料",
+            menuPrice: "メニュー価格",
+            total: "お支払い合計",
             signupToOrder: "注文",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
@@ -762,7 +756,7 @@ export default function CreatorDetailPage() {
             choosePackage: "Choose menu",
             selected: "Selected",
             select: "Select",
-            orderButton: "Continue to order",
+            orderButton: "Order",
             howItWorks:
               "Payments are protected by Stripe. The payment is captured only if the influencer accepts within 72 hours.",
             billingRequired:
@@ -770,13 +764,13 @@ export default function CreatorDetailPage() {
             checkBilling: "View billing plans",
             audience: "Audience",
             audienceNote:
-              "Showing follower range and main audience region based on registered social accounts.",
+              "Check follower range and main audience region.",
             portfolio: "Portfolio",
             portfolioNote:
-              "Past work and sample images uploaded by the influencer. Click an image to enlarge it.",
+              "Past work and sample images. Click an image to enlarge it.",
             verified: "Payout verified",
             noReviews: "New influencer",
-            marketplaceFee: "Marketplace fee",
+            marketplaceFee: "Trendre fee",
             menuPrice: "Menu price",
             total: "Total",
             signupToOrder: "Order",
