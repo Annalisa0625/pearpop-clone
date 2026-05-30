@@ -14,7 +14,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import PublicHeader from "@/components/PublicHeader";
 
-type NavBadgeKey = "requests" | "jobs";
+type NavBadgeKey = "requests" | "jobs" | "orders";
 
 type TopNavItem = {
   href: string;
@@ -68,16 +68,23 @@ function isActivePath(pathname: string, href: string) {
     );
   }
 
-  if (href === "/b/requests") {
+  if (href === "/b/orders") {
     return (
+      pathname === "/b/orders" ||
+      pathname.startsWith("/b/orders/") ||
       pathname === "/b/requests" ||
       pathname.startsWith("/b/requests/") ||
-      pathname.startsWith("/b/orders/success")
+      pathname === "/b/jobs" ||
+      pathname.startsWith("/b/jobs/")
     );
   }
 
+  if (href === "/b/requests") {
+    return pathname === "/b/requests" || pathname.startsWith("/b/requests/");
+  }
+
   if (href === "/b/jobs") {
-    return pathname === "/b/jobs" || pathname.startsWith("/b/orders/");
+    return pathname === "/b/jobs" || pathname.startsWith("/b/jobs/");
   }
 
   if (href === "/b/billing") {
@@ -237,7 +244,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             profile: "Account Settings",
             requests: "Waiting",
             jobs: "Orders",
-            search: "Creator Search",
+            search: "Influencer Search",
             saved: "Saved",
             company: "BRAND",
             consoleTitle: "Brand Account",
@@ -257,9 +264,9 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         label: copy.saved,
       },
       {
-        href: "/b/jobs",
+        href: "/b/orders",
         label: copy.jobs,
-        badgeKey: "jobs",
+        badgeKey: "orders",
       },
     ],
     [copy.jobs, copy.saved, copy.search]
@@ -280,14 +287,9 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         shortLabel: locale === "ja" ? "保存" : "Saved",
       },
       {
-        href: "/b/requests",
-        shortLabel: locale === "ja" ? "返答待ち" : "Waiting",
-        badgeKey: "requests",
-      },
-      {
-        href: "/b/jobs",
+        href: "/b/orders",
         shortLabel: locale === "ja" ? "注文" : "Orders",
-        badgeKey: "jobs",
+        badgeKey: "orders",
       },
     ],
     [locale]
@@ -690,11 +692,13 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             {topNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
               const showUnread =
-                item.badgeKey === "requests"
-                  ? unread.requests
-                  : item.badgeKey === "jobs"
-                    ? unread.jobs
-                    : false;
+                item.badgeKey === "orders"
+                  ? unread.requests || unread.jobs
+                  : item.badgeKey === "requests"
+                    ? unread.requests
+                    : item.badgeKey === "jobs"
+                      ? unread.jobs
+                      : false;
 
               return (
                 <Link
@@ -766,18 +770,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                       />
 
                       <MenuLink
-                        href="/b/requests"
-                        label={copy.requests}
-                        active={isActivePath(pathname, "/b/requests")}
-                        unread={unread.requests}
-                        onClick={closeProfileMenu}
-                      />
-
-                      <MenuLink
-                        href="/b/jobs"
+                        href="/b/orders"
                         label={copy.jobs}
-                        active={isActivePath(pathname, "/b/jobs")}
-                        unread={unread.jobs}
+                        active={isActivePath(pathname, "/b/orders")}
+                        unread={unread.requests || unread.jobs}
                         onClick={closeProfileMenu}
                       />
 
@@ -822,10 +818,15 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
       {!isOnboarding ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 backdrop-blur-xl md:hidden">
-          <div className="grid grid-cols-5">
+          <div className="grid grid-cols-4">
             {mobileNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
-              const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
+              const showUnread =
+                item.badgeKey === "orders"
+                  ? unread.requests || unread.jobs
+                  : item.badgeKey
+                    ? unread[item.badgeKey]
+                    : false;
 
               return (
                 <Link
