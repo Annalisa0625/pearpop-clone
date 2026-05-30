@@ -33,17 +33,56 @@ const markClasses = {
   },
 };
 
-function LocaleToggle() {
+function LocaleDropdown() {
   const { locale, setLocale } = useAppLocale();
+  const [open, setOpen] = useState(false);
+
+  const currentLabel = locale === "ja" ? "日本語" : "English";
+
+  const options = [
+    { value: "en" as const, label: "English" },
+    { value: "ja" as const, label: "日本語" },
+  ];
 
   return (
-    <button
-      type="button"
-      onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
-      className="hidden rounded-full bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-200 md:inline-flex"
-    >
-      {locale === "ja" ? "EN" : "日本語"}
-    </button>
+    <div className="relative hidden md:block">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-2 text-sm font-bold text-slate-800 transition hover:text-slate-950"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {currentLabel}
+        <span className="text-[10px] text-slate-700">▼</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-3 w-36 overflow-hidden rounded-xl border border-slate-100 bg-white py-2 shadow-xl shadow-slate-950/10">
+          {options.map((item) => {
+            const active = locale === item.value;
+
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => {
+                  setLocale(item.value);
+                  setOpen(false);
+                }}
+                className={`block w-full px-5 py-3 text-left text-sm font-black transition ${
+                  active
+                    ? "bg-rose-50 text-[#ff5f67]"
+                    : "bg-white text-slate-900 hover:bg-slate-50"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -105,7 +144,7 @@ function CreatorPublicHeader() {
             {copy.signup}
           </Link>
 
-          <LocaleToggle />
+          <LocaleDropdown />
         </div>
       </div>
     </header>
