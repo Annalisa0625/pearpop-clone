@@ -1,4 +1,4 @@
-// app/b/billing/BillingClient.tsx
+// File: app/b/billing/BillingClient.tsx
 "use client";
 
 import Link from "next/link";
@@ -25,7 +25,6 @@ type Plan = {
   highlight?: boolean;
   badgeJa?: string;
   badgeEn?: string;
-  tone: "gray" | "blue" | "purple";
 };
 
 const PLANS: Plan[] = [
@@ -36,29 +35,25 @@ const PLANS: Plan[] = [
     monthlyLabelJa: "/月",
     monthlyLabelEn: "/month",
     marketplaceFeeLabel: "10%",
-    descriptionJa:
-      "まずはクリエイターを探し、少数のメニュー購入から始めたい企業向け。",
+    descriptionJa: "まずはインフルエンサーを探して、少数の注文から試したい企業向け。",
     descriptionEn:
-      "For companies that want to explore creators and start with a small number of menu purchases.",
+      "For companies that want to explore influencers and start with a small number of orders.",
     featuresJa: [
-      "クリエイター一覧・詳細の閲覧",
-      "公開メニューの確認・購入",
-      "月5件まで注文・依頼可能",
-      "案件ページ内の基本チャット",
-      "取引ごとの marketplace fee 10%",
-      "詳細インサイト・高度フィルターは制限",
+      "インフルエンサー検索・詳細閲覧",
+      "公開メニューの確認・注文",
+      "月5件まで注文可能",
+      "注文内チャット",
+      "取引手数料 10%",
     ],
     featuresEn: [
-      "Browse creator lists and profiles",
-      "Review and purchase public menus",
-      "Up to 5 orders / requests per month",
-      "Basic in-project chat",
-      "10% marketplace fee per transaction",
-      "Detailed insights and advanced filters are limited",
+      "Browse influencer profiles",
+      "Review and order public menus",
+      "Up to 5 orders per month",
+      "In-order chat",
+      "10% transaction fee",
     ],
     ctaLabelJa: "Basicではじめる",
     ctaLabelEn: "Start with Basic",
-    tone: "gray",
   },
   {
     code: "standard",
@@ -67,34 +62,26 @@ const PLANS: Plan[] = [
     monthlyLabelJa: "/月",
     monthlyLabelEn: "/month",
     marketplaceFeeLabel: "10%",
-    descriptionJa:
-      "継続的にクリエイター施策を行い、検索・事前確認・レポートを強化したい企業向け。",
+    descriptionJa: "継続的にPR・UGC施策を行いたい企業向け。",
     descriptionEn:
-      "For companies running ongoing creator campaigns with stronger discovery, pre-check, and reporting tools.",
+      "For companies running ongoing PR and UGC campaigns.",
     featuresJa: [
       "Basicの全機能",
-      "注文・依頼数無制限",
-      "キャンペーン投稿 1件/月",
-      "高度フィルター",
-      "購入前チャット・交渉",
-      "クリエイター簡易レポート 20件/月",
-      "取引ごとの marketplace fee 10%",
+      "注文数 無制限",
+      "継続施策向けの利用枠",
+      "取引手数料 10%",
     ],
     featuresEn: [
       "Everything in Basic",
-      "Unlimited orders / requests",
-      "1 campaign post per month",
-      "Advanced filters",
-      "Pre-purchase chat and negotiation",
-      "20 creator reports per month",
-      "10% marketplace fee per transaction",
+      "Unlimited orders",
+      "Designed for ongoing campaigns",
+      "10% transaction fee",
     ],
     ctaLabelJa: "Proを選ぶ",
     ctaLabelEn: "Choose Pro",
     highlight: true,
     badgeJa: "おすすめ",
     badgeEn: "Recommended",
-    tone: "blue",
   },
   {
     code: "global_pro",
@@ -103,114 +90,126 @@ const PLANS: Plan[] = [
     monthlyLabelJa: "/月",
     monthlyLabelEn: "/month",
     marketplaceFeeLabel: "5%",
-    descriptionJa:
-      "取引量が多く、手数料を下げながら分析・レポート・優先サポートを使いたい企業向け。",
+    descriptionJa: "注文数が多く、手数料を抑えて運用したい企業向け。",
     descriptionEn:
-      "For higher-volume teams that want lower marketplace fees, deeper reporting, and priority support.",
+      "For higher-volume teams that want a lower transaction fee.",
     featuresJa: [
       "Proの全機能",
-      "キャンペーン投稿 無制限",
-      "ライブ分析 15投稿まで",
-      "クリエイター詳細レポート 50件/月",
+      "注文数 無制限",
+      "取引手数料 5%",
       "優先サポート",
-      "取引ごとの marketplace fee 5%",
-      "チーム管理・請求管理の拡張に対応予定",
     ],
     featuresEn: [
       "Everything in Pro",
-      "Unlimited campaign posts",
-      "Live analytics for up to 15 posts",
-      "50 detailed creator reports per month",
+      "Unlimited orders",
+      "5% transaction fee",
       "Priority support",
-      "5% marketplace fee per transaction",
-      "Prepared for team and billing controls",
     ],
     ctaLabelJa: "Premiumを選ぶ",
     ctaLabelEn: "Choose Premium",
     badgeJa: "手数料優遇",
     badgeEn: "Lower fee",
-    tone: "purple",
   },
 ];
 
 function getPlanCardClass(plan: Plan) {
   if (plan.highlight) {
-    return "border-slate-950 bg-white ring-2 ring-slate-950/5 shadow-[rgba(0,0,0,0.12)_0_24px_60px_-30px]";
+    return "bg-white shadow-[0_24px_80px_rgba(255,95,103,0.14)] ring-2 ring-[#ff5f67]/35";
   }
 
-  if (plan.tone === "purple") {
-    return "border-purple-100 bg-purple-50/60";
-  }
-
-  return "border-slate-100 bg-white";
+  return "bg-white shadow-[0_22px_70px_rgba(15,23,42,0.055)]";
 }
 
 function getButtonClass(plan: Plan) {
   if (plan.highlight) {
-    return "bg-slate-950 text-white hover:-translate-y-0.5 hover:shadow-xl";
+    return "bg-[#ff5f67] text-white hover:bg-[#ff4b55] shadow-[0_16px_32px_rgba(255,95,103,0.22)]";
   }
 
-  if (plan.tone === "purple") {
-    return "bg-purple-700 text-white hover:-translate-y-0.5 hover:shadow-xl";
-  }
-
-  return "bg-slate-950 text-white hover:-translate-y-0.5 hover:shadow-xl";
-}
-
-function getBadgeClass(plan: Plan) {
-  if (plan.tone === "blue") {
-    return "bg-blue-100 text-blue-700";
-  }
-
-  if (plan.tone === "purple") {
-    return "bg-purple-100 text-purple-700";
-  }
-
-  return "bg-slate-100 text-slate-700";
+  return "bg-slate-950 text-white hover:bg-slate-800";
 }
 
 function FeatureItem({ children }: { children: ReactNode }) {
   return (
-    <li className="flex gap-2 text-sm leading-6 text-slate-700">
+    <li className="flex gap-2 text-sm font-semibold leading-6 text-slate-600">
       <span className="mt-[2px] font-black text-emerald-600">✓</span>
       <span>{children}</span>
     </li>
   );
 }
 
-function CompareCell({ children }: { children: ReactNode }) {
-  return <td className="border-b px-4 py-4 text-sm">{children}</td>;
-}
-
-function CompareHeader({ children }: { children: ReactNode }) {
-  return (
-    <th className="border-b px-4 py-4 text-left text-sm font-black text-slate-700">
-      {children}
-    </th>
-  );
-}
-
-function InfoCard({
-  title,
-  body,
-  tone = "white",
+function PlanCard({
+  plan,
+  safeLocale,
+  submittingPlan,
+  portalLoading,
+  onClick,
 }: {
-  title: string;
-  body: string;
-  tone?: "white" | "blue" | "purple";
+  plan: Plan;
+  safeLocale: "ja" | "en";
+  submittingPlan: PlanCode | null;
+  portalLoading: boolean;
+  onClick: (plan: Plan) => void;
 }) {
-  const className =
-    tone === "blue"
-      ? "border-blue-100 bg-blue-50"
-      : tone === "purple"
-      ? "border-purple-100 bg-purple-50"
-      : "border-slate-100 bg-white";
+  const features = safeLocale === "ja" ? plan.featuresJa : plan.featuresEn;
 
   return (
-    <div className={`rounded-[28px] border p-6 shadow-sm ${className}`}>
-      <h3 className="text-xl font-black text-slate-950">{title}</h3>
-      <p className="mt-3 text-sm leading-7 text-slate-600">{body}</p>
-    </div>
+    <article
+      className={`relative rounded-[30px] p-6 transition hover:-translate-y-0.5 md:p-7 ${getPlanCardClass(
+        plan
+      )}`}
+    >
+      {plan.badgeJa || plan.badgeEn ? (
+        <div className="absolute right-5 top-5">
+          <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100">
+            {safeLocale === "ja" ? plan.badgeJa : plan.badgeEn}
+          </span>
+        </div>
+      ) : null}
+
+      <div className="pr-20">
+        <h2 className="text-3xl font-black tracking-[-0.05em] text-slate-950">
+          {plan.publicName}
+        </h2>
+        <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
+          {safeLocale === "ja" ? plan.descriptionJa : plan.descriptionEn}
+        </p>
+      </div>
+
+      <div className="mt-7 flex items-end gap-2">
+        <span className="text-5xl font-black tracking-[-0.06em] text-slate-950">
+          {plan.priceLabel}
+        </span>
+        <span className="pb-2 text-sm font-black text-slate-400">
+          {safeLocale === "ja" ? plan.monthlyLabelJa : plan.monthlyLabelEn}
+        </span>
+      </div>
+
+      <div className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700">
+        B側手数料 {plan.marketplaceFeeLabel}
+      </div>
+
+      <ul className="mt-7 space-y-3">
+        {features.map((feature) => (
+          <FeatureItem key={feature}>{feature}</FeatureItem>
+        ))}
+      </ul>
+
+      <button
+        onClick={() => onClick(plan)}
+        disabled={submittingPlan !== null || portalLoading}
+        className={`mt-8 w-full rounded-full px-5 py-4 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClass(
+          plan
+        )}`}
+      >
+        {submittingPlan === plan.code
+          ? safeLocale === "ja"
+            ? "変更中..."
+            : "Updating..."
+          : safeLocale === "ja"
+          ? plan.ctaLabelJa
+          : plan.ctaLabelEn}
+      </button>
+    </article>
   );
 }
 
@@ -224,146 +223,48 @@ export default function BillingClient() {
     () =>
       safeLocale === "ja"
         ? {
-            heroLabel: "Company Pricing",
-            heroTitle: "料金プラン",
-            heroBody:
-              "Trendreの企業向けプランは、注文件数・キャンペーン機能・分析レポート・取引手数料率で分かれます。初期MVPでは日本B × 日本CのJPY取引を中心に運用します。",
+            title: "料金プラン",
+            body:
+              "注文数と手数料に合わせてプランを選べます。まずはBasicからでも利用できます。",
             authRequired: "ログイン状態を確認できませんでした。",
             changeFailed: "プラン変更に失敗しました。",
             checkoutFailed: "Stripe Checkout の開始に失敗しました。",
             portalFailed: "Billing Portal の起動に失敗しました。",
-            changing: "変更中...",
             opening: "起動中...",
-            compareTitle: "プラン比較",
-            compareItem: "項目",
-            compareMonthlyPrice: "月額料金",
-            compareMarketplaceFee: "B側 marketplace fee",
-            compareRequestLimit: "注文・依頼数",
-            compareCampaignPosts: "キャンペーン投稿",
-            comparePreChat: "購入前チャット・交渉",
-            compareAdvancedFilters: "高度フィルター",
-            compareCreatorReports: "クリエイターレポート",
-            compareLiveAnalytics: "ライブ分析",
-            comparePrioritySupport: "優先サポート",
-            comparePortal: "Billing Portal",
-            freeLabel: "無料",
-            fivePerMonth: "5件 / 月",
-            unlimited: "無制限",
-            onePerMonth: "1件 / 月",
-            reports20: "20件 / 月",
-            reports50: "50件 / 月",
-            upTo15Posts: "15投稿まで",
-            availableAfterPaid: "課金開始後",
-            locked: "制限あり",
-            notAvailable: "—",
-            yes: "○",
-            partial: "△",
-            devNote:
-              "※ 内部コードは既存互換のため free / standard / global_pro のまま使い、表示名だけ Basic / Pro / Premium に統一しています。",
-            whichPlanTitle: "どのプランを選ぶべき？",
-            basicFitTitle: "Basic が向いている企業",
-            basicFitBody:
-              "まずはクリエイターを探し、少数のメニュー購入で反応を見たい企業向けです。",
-            proFitTitle: "Pro が向いている企業",
-            proFitBody:
-              "継続的にクリエイター施策を行い、事前チャット・高度フィルター・レポートを使いたい企業向けです。",
-            premiumFitTitle: "Premium が向いている企業",
-            premiumFitBody:
-              "取引量が多く、手数料率を下げながら詳細レポートや優先サポートを使いたい企業向けです。",
-            supportTitle: "このページでできること",
-            supportItems: [
-              "Basic / Pro / Premium の違いを確認",
-              "月額プランによる機能差を確認",
-              "プラン別 marketplace fee を確認",
-              "Stripe Checkout による課金開始",
-              "Billing Portal からの支払い方法変更・請求確認・解約",
-            ],
-            back: "前の画面に戻る",
-            toDashboard: "ダッシュボードへ戻る",
-            terms: "利用規約",
-            businessInfo: "事業者情報",
-            billingNote: "プラン申込み前にご確認ください。",
-            portalTitle: "支払い方法・請求管理",
-            portalBody:
-              "課金開始後は Stripe の Billing Portal から、支払い方法変更・請求確認・解約ができます。",
-            openPortal: "Billing Portal を開く",
+            openPortal: "支払い・請求を管理",
             cancelledMessage:
               "Checkout はキャンセルされました。再度プランを選び直せます。",
             successMessage:
-              "Checkout が完了しました。プラン状態は自動同期されます。反映まで数秒かかる場合があります。",
-            planCardEyebrow: "Monthly plan",
-            feeLabel: "Buyer fee",
+              "Checkout が完了しました。反映まで数秒かかる場合があります。",
+            billingNote: "プラン申込み前にご確認ください。",
+            terms: "利用規約",
+            businessInfo: "事業者情報",
+            portalTitle: "支払い方法・請求",
+            portalBody:
+              "課金開始後は、支払い方法の変更・請求確認・解約をStripe上で行えます。",
+            backToDashboard: "ダッシュボードへ戻る",
           }
         : {
-            heroLabel: "Company Pricing",
-            heroTitle: "Billing Plans",
-            heroBody:
-              "Trendre company plans are based on order volume, campaign tools, analytics, reports, and marketplace fee rates. The initial MVP focuses on JPY transactions between Japanese companies and Japanese creators.",
+            title: "Billing Plans",
+            body:
+              "Choose a plan based on order volume and transaction fees. You can start with Basic.",
             authRequired: "We could not confirm your login session.",
             changeFailed: "Failed to change the plan.",
             checkoutFailed: "Failed to start Stripe Checkout.",
             portalFailed: "Failed to open the Billing Portal.",
-            changing: "Updating...",
             opening: "Opening...",
-            compareTitle: "Plan Comparison",
-            compareItem: "Item",
-            compareMonthlyPrice: "Monthly Price",
-            compareMarketplaceFee: "Buyer marketplace fee",
-            compareRequestLimit: "Orders / Requests",
-            compareCampaignPosts: "Campaign Posts",
-            comparePreChat: "Pre-purchase Chat",
-            compareAdvancedFilters: "Advanced Filters",
-            compareCreatorReports: "Creator Reports",
-            compareLiveAnalytics: "Live Analytics",
-            comparePrioritySupport: "Priority Support",
-            comparePortal: "Billing Portal",
-            freeLabel: "Free",
-            fivePerMonth: "5 / month",
-            unlimited: "Unlimited",
-            onePerMonth: "1 / month",
-            reports20: "20 / month",
-            reports50: "50 / month",
-            upTo15Posts: "Up to 15 posts",
-            availableAfterPaid: "After paid subscription starts",
-            locked: "Limited",
-            notAvailable: "—",
-            yes: "Yes",
-            partial: "Partial",
-            devNote:
-              "Internal plan codes remain free / standard / global_pro for compatibility, while the customer-facing names are Basic / Pro / Premium.",
-            whichPlanTitle: "Which plan should you choose?",
-            basicFitTitle: "Who should choose Basic?",
-            basicFitBody:
-              "Best for companies that want to explore creators and test a small number of menu purchases first.",
-            proFitTitle: "Who should choose Pro?",
-            proFitBody:
-              "Best for companies running ongoing creator campaigns and needing pre-purchase chat, advanced filters, and reports.",
-            premiumFitTitle: "Who should choose Premium?",
-            premiumFitBody:
-              "Best for higher-volume teams that want a lower marketplace fee, deeper reports, and priority support.",
-            supportTitle: "What this page helps you manage",
-            supportItems: [
-              "Differences between Basic, Pro, and Premium",
-              "Feature differences by monthly plan",
-              "Marketplace fee rates by plan",
-              "Starting paid plans with Stripe Checkout",
-              "Updating payment methods, reviewing invoices, and canceling from Billing Portal",
-            ],
-            back: "Back",
-            toDashboard: "Back to Dashboard",
-            terms: "Terms of Service",
-            businessInfo: "Business Information",
-            billingNote: "Please review these before applying for a plan.",
-            portalTitle: "Payment Method & Billing Management",
-            portalBody:
-              "After subscription starts, you can use Stripe Billing Portal to update payment methods, review invoices, and cancel your subscription.",
-            openPortal: "Open Billing Portal",
+            openPortal: "Manage billing",
             cancelledMessage:
               "Checkout was cancelled. You can choose a plan again.",
             successMessage:
-              "Checkout completed. Your plan status will sync automatically. It may take a few seconds to reflect inside the app.",
-            planCardEyebrow: "Monthly plan",
-            feeLabel: "Buyer fee",
+              "Checkout completed. It may take a few seconds to reflect inside the app.",
+            billingNote: "Please review these before applying for a plan.",
+            terms: "Terms of Service",
+            businessInfo: "Business Information",
+            portalTitle: "Payment & invoices",
+            portalBody:
+              "After subscription starts, you can update payment methods, review invoices, and cancel via Stripe.",
+            backToDashboard: "Back to dashboard",
           },
     [safeLocale]
   );
@@ -493,296 +394,106 @@ export default function BillingClient() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-4 pb-10 md:p-6">
-      <section className="rounded-[32px] bg-slate-950 p-7 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          {copy.heroLabel}
-        </p>
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
+      <div className="pointer-events-none absolute right-[-260px] top-[120px] h-[560px] w-[560px] rounded-full bg-emerald-100/20 blur-[150px]" />
 
-        <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-              {copy.heroTitle}
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-white/65">
-              {copy.heroBody}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleOpenPortal}
-            disabled={portalLoading || submittingPlan !== null}
-            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {portalLoading ? copy.opening : copy.openPortal}
-          </button>
-        </div>
-      </section>
-
-      {checkoutState === "cancelled" ? (
-        <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-          {copy.cancelledMessage}
-        </section>
-      ) : null}
-
-      {checkoutState === "success" ? (
-        <section className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-          {copy.successMessage}
-        </section>
-      ) : null}
-
-      {errorMsg ? (
-        <section className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
-          {errorMsg}
-        </section>
-      ) : null}
-
-      <section className="grid gap-6 xl:grid-cols-3">
-        {PLANS.map((plan) => (
-          <div
-            key={plan.code}
-            className={`relative rounded-[32px] border p-6 shadow-sm transition ${getPlanCardClass(
-              plan
-            )}`}
-          >
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                {copy.planCardEyebrow}
+      <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
+        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 className="text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+                {copy.title}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                {copy.body}
               </p>
-
-              {plan.badgeJa || plan.badgeEn ? (
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${getBadgeClass(
-                    plan
-                  )}`}
-                >
-                  {safeLocale === "ja" ? plan.badgeJa : plan.badgeEn}
-                </span>
-              ) : null}
             </div>
 
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-3xl font-black text-slate-950">
-                  {plan.publicName}
-                </h2>
-                <p className="mt-3 text-sm leading-7 text-slate-600">
-                  {safeLocale === "ja" ? plan.descriptionJa : plan.descriptionEn}
-                </p>
-              </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleOpenPortal}
+                disabled={portalLoading || submittingPlan !== null}
+                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {portalLoading ? copy.opening : copy.openPortal}
+              </button>
 
-              <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
-                {copy.feeLabel} {plan.marketplaceFeeLabel}
-              </span>
+              <button
+                type="button"
+                onClick={() => router.push(from || "/b/dashboard")}
+                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-slate-50"
+              >
+                {copy.backToDashboard}
+              </button>
             </div>
+          </div>
+        </section>
 
-            <div className="mt-7 flex items-end gap-2">
-              <span className="text-5xl font-black tracking-tight text-slate-950">
-                {plan.priceLabel}
-              </span>
-              <span className="pb-2 text-base font-semibold text-slate-500">
-                {safeLocale === "ja" ? plan.monthlyLabelJa : plan.monthlyLabelEn}
-              </span>
+        {checkoutState === "cancelled" ? (
+          <section className="mt-4 rounded-[24px] bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">
+            {copy.cancelledMessage}
+          </section>
+        ) : null}
+
+        {checkoutState === "success" ? (
+          <section className="mt-4 rounded-[24px] bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100">
+            {copy.successMessage}
+          </section>
+        ) : null}
+
+        {errorMsg ? (
+          <section className="mt-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
+            {errorMsg}
+          </section>
+        ) : null}
+
+        <section className="mt-6 grid gap-5 lg:grid-cols-3">
+          {PLANS.map((plan) => (
+            <PlanCard
+              key={plan.code}
+              plan={plan}
+              safeLocale={safeLocale}
+              submittingPlan={submittingPlan}
+              portalLoading={portalLoading}
+              onClick={handlePlanClick}
+            />
+          ))}
+        </section>
+
+        <section className="mt-6 rounded-[26px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+                {copy.portalTitle}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                {copy.portalBody}
+              </p>
             </div>
-
-            <ul className="mt-7 space-y-3">
-              {(safeLocale === "ja" ? plan.featuresJa : plan.featuresEn).map(
-                (feature) => (
-                  <FeatureItem key={feature}>{feature}</FeatureItem>
-                )
-              )}
-            </ul>
 
             <button
-              onClick={() => void handlePlanClick(plan)}
-              disabled={submittingPlan !== null || portalLoading}
-              className={`mt-8 w-full rounded-2xl px-5 py-4 text-sm font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClass(
-                plan
-              )}`}
+              onClick={handleOpenPortal}
+              disabled={portalLoading || submittingPlan !== null}
+              className="inline-flex shrink-0 items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submittingPlan === plan.code
-                ? copy.changing
-                : safeLocale === "ja"
-                ? plan.ctaLabelJa
-                : plan.ctaLabelEn}
+              {portalLoading ? copy.opening : copy.openPortal}
             </button>
           </div>
-        ))}
-      </section>
 
-      <section className="grid gap-6 lg:grid-cols-3">
-        <InfoCard
-          title={copy.basicFitTitle}
-          body={copy.basicFitBody}
-          tone="white"
-        />
-        <InfoCard title={copy.proFitTitle} body={copy.proFitBody} tone="blue" />
-        <InfoCard
-          title={copy.premiumFitTitle}
-          body={copy.premiumFitBody}
-          tone="purple"
-        />
-      </section>
-
-      <section className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-black text-slate-950">
-          {copy.compareTitle}
-        </h2>
-
-        <div className="mt-6 overflow-x-auto">
-          <table className="min-w-full overflow-hidden rounded-2xl border border-separate border-spacing-0">
-            <thead>
-              <tr className="bg-slate-50">
-                <CompareHeader>{copy.compareItem}</CompareHeader>
-                <CompareHeader>Basic</CompareHeader>
-                <CompareHeader>Pro</CompareHeader>
-                <CompareHeader>Premium</CompareHeader>
-              </tr>
-            </thead>
-
-            <tbody className="bg-white text-slate-700">
-              <tr>
-                <CompareCell>{copy.compareMonthlyPrice}</CompareCell>
-                <CompareCell>{copy.freeLabel}</CompareCell>
-                <CompareCell>¥30,000</CompareCell>
-                <CompareCell>¥50,000</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.compareMarketplaceFee}</CompareCell>
-                <CompareCell>10%</CompareCell>
-                <CompareCell>10%</CompareCell>
-                <CompareCell>5%</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.compareRequestLimit}</CompareCell>
-                <CompareCell>{copy.fivePerMonth}</CompareCell>
-                <CompareCell>{copy.unlimited}</CompareCell>
-                <CompareCell>{copy.unlimited}</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.compareCampaignPosts}</CompareCell>
-                <CompareCell>{copy.notAvailable}</CompareCell>
-                <CompareCell>{copy.onePerMonth}</CompareCell>
-                <CompareCell>{copy.unlimited}</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.comparePreChat}</CompareCell>
-                <CompareCell>{copy.partial}</CompareCell>
-                <CompareCell>{copy.yes}</CompareCell>
-                <CompareCell>{copy.yes}</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.compareAdvancedFilters}</CompareCell>
-                <CompareCell>{copy.locked}</CompareCell>
-                <CompareCell>{copy.yes}</CompareCell>
-                <CompareCell>{copy.yes}</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.compareCreatorReports}</CompareCell>
-                <CompareCell>{copy.notAvailable}</CompareCell>
-                <CompareCell>{copy.reports20}</CompareCell>
-                <CompareCell>{copy.reports50}</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.compareLiveAnalytics}</CompareCell>
-                <CompareCell>{copy.notAvailable}</CompareCell>
-                <CompareCell>{copy.partial}</CompareCell>
-                <CompareCell>{copy.upTo15Posts}</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.comparePrioritySupport}</CompareCell>
-                <CompareCell>{copy.notAvailable}</CompareCell>
-                <CompareCell>{copy.notAvailable}</CompareCell>
-                <CompareCell>{copy.yes}</CompareCell>
-              </tr>
-
-              <tr>
-                <CompareCell>{copy.comparePortal}</CompareCell>
-                <CompareCell>{copy.notAvailable}</CompareCell>
-                <CompareCell>{copy.availableAfterPaid}</CompareCell>
-                <CompareCell>{copy.availableAfterPaid}</CompareCell>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p className="mt-4 text-xs leading-6 text-slate-500">{copy.devNote}</p>
-
-        <p className="mt-3 text-xs text-slate-500">
-          {copy.billingNote}{" "}
-          <Link
-            href="/terms"
-            target="_blank"
-            className="underline underline-offset-4"
-          >
-            {copy.terms}
-          </Link>{" "}
-          /{" "}
-          <Link
-            href="/legal"
-            target="_blank"
-            className="underline underline-offset-4"
-          >
-            {copy.businessInfo}
-          </Link>
-        </p>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
-          <h3 className="text-2xl font-black text-slate-950">
-            {copy.supportTitle}
-          </h3>
-
-          <ul className="mt-5 space-y-3 text-sm leading-7 text-slate-700">
-            {copy.supportItems.map((item) => (
-              <li key={item}>・{item}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
-          <h3 className="text-2xl font-black text-slate-950">
-            {copy.portalTitle}
-          </h3>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
-            {copy.portalBody}
+          <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
+            {copy.billingNote}{" "}
+            <Link href="/terms" target="_blank" className="underline underline-offset-4">
+              {copy.terms}
+            </Link>{" "}
+            /{" "}
+            <Link href="/legal" target="_blank" className="underline underline-offset-4">
+              {copy.businessInfo}
+            </Link>
           </p>
-
-          <button
-            onClick={handleOpenPortal}
-            disabled={portalLoading || submittingPlan !== null}
-            className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {portalLoading ? copy.opening : copy.openPortal}
-          </button>
-
-          <div className="mt-4 grid gap-3">
-            <button
-              onClick={() => router.push(from)}
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
-            >
-              {copy.back}
-            </button>
-
-            <button
-              onClick={() => router.push("/b/dashboard")}
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
-            >
-              {copy.toDashboard}
-            </button>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
