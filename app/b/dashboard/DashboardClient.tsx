@@ -2,7 +2,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -168,7 +175,7 @@ function MiniPill({
       ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
       : tone === "green"
       ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-      : "bg-white/80 text-slate-700 ring-slate-200";
+      : "bg-white text-slate-700 ring-slate-200";
 
   return (
     <div
@@ -196,7 +203,7 @@ function StatCard({
       href={href}
       className={`group rounded-[28px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
         active
-          ? "border-[#ffb3b8] bg-rose-50/70"
+          ? "border-[#ffb3b8] bg-white shadow-[0_18px_45px_rgba(255,95,103,0.1)]"
           : "border-slate-100 bg-white"
       }`}
     >
@@ -268,13 +275,7 @@ function ActionCard({
   );
 }
 
-function PlanLine({
-  label,
-  value,
-}: {
-  label: string;
-  value: ReactNode;
-}) {
+function PlanLine({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
       <span className="text-sm font-bold text-slate-500">{label}</span>
@@ -626,8 +627,8 @@ export default function CompanyDashboardClient() {
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden bg-[#f8fafc] px-4 py-8 md:px-6">
-        <div className="mx-auto max-w-6xl rounded-[34px] border border-white/80 bg-white/90 p-7 shadow-sm">
+      <div className="relative overflow-hidden bg-white px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-6xl rounded-[34px] border border-slate-100 bg-white p-7 shadow-sm">
           <p className="text-sm font-bold text-slate-500">読み込み中...</p>
         </div>
       </div>
@@ -636,7 +637,7 @@ export default function CompanyDashboardClient() {
 
   if (error || !dashboard) {
     return (
-      <div className="relative overflow-hidden bg-[#f8fafc] px-4 py-8 md:px-6">
+      <div className="relative overflow-hidden bg-white px-4 py-8 md:px-6">
         <div className="mx-auto max-w-4xl rounded-[34px] border border-rose-100 bg-white p-7 shadow-sm">
           <h1 className="text-2xl font-black text-slate-950">
             エラーが発生しました
@@ -667,18 +668,26 @@ export default function CompanyDashboardClient() {
         );
 
   const activeOrderCount =
-    dashboard.counts.pending + dashboard.counts.accepted + dashboard.counts.delivered;
+    dashboard.counts.pending +
+    dashboard.counts.accepted +
+    dashboard.counts.delivered;
 
   return (
-    <div className="relative overflow-hidden bg-[#f8fafc]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-180px] top-[-160px] h-[430px] w-[430px] rounded-full bg-rose-100/45 blur-3xl" />
-        <div className="absolute right-[-190px] top-[12%] h-[520px] w-[520px] rounded-full bg-emerald-100/45 blur-3xl" />
+    <div className="relative overflow-hidden bg-white">
+      <div className="pointer-events-none absolute inset-0 -z-0">
+        <div className="absolute left-[-260px] top-[40px] h-[620px] w-[620px] rounded-full bg-rose-100/42 blur-[110px]" />
+        <div className="absolute right-[-260px] top-[60px] h-[700px] w-[700px] rounded-full bg-emerald-100/44 blur-[120px]" />
+        <div className="absolute left-1/2 top-[360px] h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-slate-100/40 blur-[120px]" />
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
-        <section className="rounded-[38px] border border-white/80 bg-white/92 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.07)] backdrop-blur-xl md:p-8">
-          <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
+        <section className="relative overflow-hidden rounded-[38px] border border-slate-100 bg-white/90 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.07)] backdrop-blur-xl md:p-8">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-[-180px] top-[-180px] h-[380px] w-[380px] rounded-full bg-rose-100/45 blur-[90px]" />
+            <div className="absolute right-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-emerald-100/50 blur-[100px]" />
+          </div>
+
+          <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-black text-[#ff5f67]">
                 {dashboard.companyName}
@@ -714,7 +723,7 @@ export default function CompanyDashboardClient() {
             </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-2">
+          <div className="relative mt-8 flex flex-wrap gap-2">
             <MiniPill label="プラン" value={planLabel} />
             <MiniPill
               label="残り"
@@ -731,7 +740,7 @@ export default function CompanyDashboardClient() {
         </section>
 
         {!canUseRequests ? (
-          <section className="mt-6 rounded-[30px] border border-blue-100 bg-white/90 p-6 shadow-sm">
+          <section className="mt-6 rounded-[30px] border border-blue-100 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-black text-slate-950">
               注文を始めるにはプランの確認が必要です
             </h2>
@@ -806,7 +815,7 @@ export default function CompanyDashboardClient() {
             />
           </main>
 
-          <aside className="rounded-[30px] border border-white/80 bg-white/92 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.07)] backdrop-blur-xl lg:self-start">
+          <aside className="rounded-[30px] border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.07)] lg:self-start">
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
                 アカウント
