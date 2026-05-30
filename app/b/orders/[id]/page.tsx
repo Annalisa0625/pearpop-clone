@@ -1,7 +1,7 @@
 // File: app/b/orders/[id]/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -20,27 +20,27 @@ type OrderDetail = {
   created_at: string;
   updated_at: string | null;
 
-  product_name: string;
+  product_name: string | null;
   product_url: string | null;
-  requirements: string;
+  requirements: string | null;
   deadline: string | null;
-  has_free_offer: boolean;
-  wants_secondary_use: boolean;
+  has_free_offer: boolean | null;
+  wants_secondary_use: boolean | null;
 
-  menu_title_snapshot: string;
+  menu_title_snapshot: string | null;
   menu_description_snapshot: string | null;
   menu_platform_snapshot: string | null;
   menu_type_snapshot: string | null;
   menu_category_snapshot: string | null;
   menu_deliverables_snapshot: string | null;
   menu_delivery_days_snapshot: number | null;
-  menu_allow_secondary_use_snapshot: boolean;
+  menu_allow_secondary_use_snapshot: boolean | null;
 
-  currency: string;
-  menu_price_amount: number;
-  stripe_amount: number;
-  platform_fee_amount: number;
-  creator_payout_amount: number;
+  currency: string | null;
+  menu_price_amount: number | null;
+  stripe_amount: number | null;
+  platform_fee_amount: number | null;
+  creator_payout_amount: number | null;
 
   buyer_plan_code_snapshot: string | null;
   buyer_plan_public_name_snapshot: string | null;
@@ -66,13 +66,13 @@ type OrderDetail = {
 
   revision_requested_at: string | null;
   revision_note: string | null;
-  revision_count: number;
-  max_revision_count: number;
+  revision_count: number | null;
+  max_revision_count: number | null;
   auto_complete_at: string | null;
   completed_reason: string | null;
 };
 
-type CreatorLite = {
+type InfluencerLite = {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
@@ -124,15 +124,6 @@ function formatPrice(
   }
 }
 
-function formatBpsPercent(value: number | null | undefined) {
-  if (value == null || !Number.isFinite(Number(value))) return "-";
-
-  const percent = Number(value) / 100;
-  return `${percent.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })}%`;
-}
-
 function formatPlanName(value: string | null | undefined) {
   if (!value) return "-";
 
@@ -146,7 +137,7 @@ function formatPlanName(value: string | null | undefined) {
 }
 
 function formatDeliveryDays(
-  value: number | null,
+  value: number | null | undefined,
   locale: "ja" | "en",
   fallback: string
 ) {
@@ -155,7 +146,7 @@ function formatDeliveryDays(
 }
 
 function menuTypeLabel(
-  value: string | null,
+  value: string | null | undefined,
   locale: "ja" | "en",
   fallback: string
 ) {
@@ -175,238 +166,174 @@ function menuTypeLabel(
 function getPlatformIcon(value: string | null | undefined) {
   const normalized = (value ?? "").trim().toLowerCase();
 
-  if (normalized.includes("instagram")) return "◎";
-  if (normalized.includes("tiktok")) return "♪";
-  if (normalized.includes("youtube")) return "▶";
-  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
-  if (normalized.includes("ugc")) return "▣";
-
-  return "●";
-}
-
-function statusLabel(status: string, locale: "ja" | "en") {
-  const ja: Record<string, string> = {
-    checkout_pending: "Checkout未完了",
-    authorized_pending_creator: "クリエイター承認待ち",
-    accepted_captured: "進行中",
-    declined_canceled: "辞退済み",
-    expired_canceled: "期限切れ",
-    capture_failed: "決済確定失敗",
-    cancel_failed: "取消失敗",
-    in_progress: "進行中",
-    delivered: "納品済み",
-    revision_requested: "修正依頼中",
-    completed: "完了",
-    disputed: "確認中",
-  };
-
-  const en: Record<string, string> = {
-    checkout_pending: "Checkout pending",
-    authorized_pending_creator: "Waiting for creator approval",
-    accepted_captured: "In progress",
-    declined_canceled: "Declined",
-    expired_canceled: "Expired",
-    capture_failed: "Capture failed",
-    cancel_failed: "Cancel failed",
-    in_progress: "In progress",
-    delivered: "Delivered",
-    revision_requested: "Revision requested",
-    completed: "Completed",
-    disputed: "Disputed",
-  };
-
-  return locale === "ja" ? ja[status] ?? status : en[status] ?? status;
-}
-
-function completedReasonLabel(value: string | null, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const ja: Record<string, string> = {
-    buyer_approved: "企業承認",
-    auto_after_72h: "72時間経過による自動完了",
-  };
-
-  const en: Record<string, string> = {
-    buyer_approved: "Buyer approved",
-    auto_after_72h: "Auto-completed after 72 hours",
-  };
-
-  return locale === "ja" ? ja[value] ?? value : en[value] ?? value;
-}
-
-function statusClass(status: string) {
-  if (status === "authorized_pending_creator") {
-    return "bg-amber-100 text-amber-800 ring-amber-200";
-  }
-
-  if (status === "accepted_captured" || status === "in_progress") {
-    return "bg-blue-100 text-blue-700 ring-blue-200";
-  }
-
-  if (status === "delivered") {
-    return "bg-purple-100 text-purple-700 ring-purple-200";
-  }
-
-  if (status === "revision_requested") {
-    return "bg-amber-100 text-amber-800 ring-amber-200";
-  }
-
-  if (status === "completed") {
-    return "bg-emerald-100 text-emerald-700 ring-emerald-200";
-  }
-
-  if (
-    status === "declined_canceled" ||
-    status === "expired_canceled" ||
-    status === "capture_failed" ||
-    status === "cancel_failed" ||
-    status === "disputed"
-  ) {
-    return "bg-rose-100 text-rose-700 ring-rose-200";
-  }
-
-  return "bg-slate-100 text-slate-700 ring-slate-200";
-}
-
-function paymentStatusClass(paymentStatus: string) {
-  if (paymentStatus === "authorized") {
-    return "bg-amber-100 text-amber-800 ring-amber-200";
-  }
-
-  if (paymentStatus === "captured") {
-    return "bg-emerald-100 text-emerald-700 ring-emerald-200";
-  }
-
-  if (paymentStatus === "canceled") {
-    return "bg-slate-100 text-slate-700 ring-slate-200";
-  }
-
-  if (paymentStatus === "failed") {
-    return "bg-rose-100 text-rose-700 ring-rose-200";
-  }
-
-  return "bg-slate-100 text-slate-700 ring-slate-200";
-}
-
-function getNotice(status: string, locale: "ja" | "en") {
-  if (locale === "ja") {
-    if (status === "authorized_pending_creator") {
-      return {
-        tone: "amber" as const,
-        title: "クリエイターの承認待ちです",
-        body: "支払い方法は確認済みです。クリエイターが承認すると決済が確定し、案件が開始されます。",
-      };
-    }
-
-    if (status === "delivered") {
-      return {
-        tone: "purple" as const,
-        title: "納品URLが提出されています",
-        body: "内容を確認し、問題なければ完了してください。元の注文要件に沿う範囲でのみ修正依頼できます。",
-      };
-    }
-
-    if (status === "revision_requested") {
-      return {
-        tone: "amber" as const,
-        title: "修正依頼を送信済みです",
-        body: "クリエイターが修正版を再納品するまでお待ちください。必要な確認はチャットで行えます。",
-      };
-    }
-
-    if (status === "completed") {
-      return {
-        tone: "green" as const,
-        title: "この注文は完了しています",
-        body: "完了後は原則として修正依頼・返金はできません。追加依頼は新規注文として相談してください。",
-      };
-    }
-
-    if (status === "accepted_captured" || status === "in_progress") {
-      return {
-        tone: "blue" as const,
-        title: "案件は進行中です",
-        body: "クリエイターが制作・投稿を進めています。投稿前確認が必要な場合はチャットでやり取りしてください。",
-      };
-    }
-
-    if (status === "declined_canceled" || status === "expired_canceled") {
-      return {
-        tone: "gray" as const,
-        title: "この注文は終了しています",
-        body: "クリエイター辞退または期限切れにより、請求は確定していません。",
-      };
-    }
-
-    return {
-      tone: "gray" as const,
-      title: "注文状態を確認してください",
-      body: "注文内容、決済状態、チャットを確認できます。",
-    };
-  }
-
-  if (status === "authorized_pending_creator") {
-    return {
-      tone: "amber" as const,
-      title: "Waiting for creator approval",
-      body: "The payment method has been authorized. The payment will be captured if the creator accepts.",
-    };
-  }
-
-  if (status === "delivered") {
-    return {
-      tone: "purple" as const,
-      title: "Delivery URL has been submitted",
-      body: "Review the delivery and complete the order if everything is okay. Revisions are only allowed within the original order requirements.",
-    };
-  }
-
-  if (status === "revision_requested") {
-    return {
-      tone: "amber" as const,
-      title: "Revision request sent",
-      body: "Please wait for the creator to submit a revised delivery.",
-    };
-  }
-
-  if (status === "completed") {
-    return {
-      tone: "green" as const,
-      title: "This order is completed",
-      body: "Revisions and refunds are generally unavailable after completion.",
-    };
-  }
-
-  if (status === "accepted_captured" || status === "in_progress") {
-    return {
-      tone: "blue" as const,
-      title: "This job is in progress",
-      body: "The creator is working on the delivery. Use chat for optional pre-posting review.",
-    };
-  }
-
-  return {
-    tone: "gray" as const,
-    title: "Check order status",
-    body: "Review the order, payment status, and chat.",
-  };
-}
-
-function CreatorAvatar({ creator }: { creator: CreatorLite | null }) {
-  if (creator?.avatar_url) {
+  if (normalized.includes("instagram")) {
     return (
       <img
-        src={creator.avatar_url}
-        alt={creator.display_name ?? "creator"}
+        src="/brand/social/instagram.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (normalized.includes("tiktok")) {
+    return (
+      <img
+        src="/brand/social/tiktok.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return null;
+}
+
+function statusMeta(status: string, locale: "ja" | "en") {
+  const ja: Record<string, { label: string; className: string; noticeTitle: string; noticeBody: string }> = {
+    checkout_pending: {
+      label: "支払い確認中",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+      noticeTitle: "支払い確認中です",
+      noticeBody: "支払い確認が完了すると、インフルエンサーへの返答待ちに進みます。",
+    },
+    authorized_pending_creator: {
+      label: "返答待ち",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      noticeTitle: "インフルエンサーの返答待ちです",
+      noticeBody: "インフルエンサーが承認すると注文が開始されます。辞退または期限切れの場合、請求は確定しません。",
+    },
+    accepted_captured: {
+      label: "進行中",
+      className: "bg-slate-950 text-white ring-slate-950",
+      noticeTitle: "注文は進行中です",
+      noticeBody: "インフルエンサーが制作・投稿を進めています。必要な確認はチャットで行えます。",
+    },
+    in_progress: {
+      label: "進行中",
+      className: "bg-slate-950 text-white ring-slate-950",
+      noticeTitle: "注文は進行中です",
+      noticeBody: "インフルエンサーが制作・投稿を進めています。必要な確認はチャットで行えます。",
+    },
+    delivered: {
+      label: "確認する",
+      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
+      noticeTitle: "納品内容を確認してください",
+      noticeBody: "問題なければ注文を完了できます。修正依頼は元の注文内容に沿う範囲でのみ行えます。",
+    },
+    revision_requested: {
+      label: "修正依頼中",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      noticeTitle: "修正依頼を送信済みです",
+      noticeBody: "インフルエンサーから再納品されるまでお待ちください。必要な確認はチャットで行えます。",
+    },
+    completed: {
+      label: "完了",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      noticeTitle: "この注文は完了しています",
+      noticeBody: "完了後は原則として修正依頼・返金はできません。追加依頼は新しい注文として相談してください。",
+    },
+    declined_canceled: {
+      label: "終了",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      noticeTitle: "この注文は終了しています",
+      noticeBody: "インフルエンサーの辞退により、請求は確定していません。",
+    },
+    expired_canceled: {
+      label: "期限切れ",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      noticeTitle: "この注文は期限切れです",
+      noticeBody: "返答期限を過ぎたため、請求は確定していません。",
+    },
+  };
+
+  const en: Record<string, { label: string; className: string; noticeTitle: string; noticeBody: string }> = {
+    checkout_pending: {
+      label: "Payment pending",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+      noticeTitle: "Payment is being confirmed",
+      noticeBody: "Once payment is confirmed, the order will wait for influencer approval.",
+    },
+    authorized_pending_creator: {
+      label: "Waiting",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      noticeTitle: "Waiting for influencer reply",
+      noticeBody: "The order begins once the influencer accepts. If declined or expired, the charge is not captured.",
+    },
+    accepted_captured: {
+      label: "In progress",
+      className: "bg-slate-950 text-white ring-slate-950",
+      noticeTitle: "Order is in progress",
+      noticeBody: "The influencer is working on the order. Use chat for any necessary confirmation.",
+    },
+    in_progress: {
+      label: "In progress",
+      className: "bg-slate-950 text-white ring-slate-950",
+      noticeTitle: "Order is in progress",
+      noticeBody: "The influencer is working on the order. Use chat for any necessary confirmation.",
+    },
+    delivered: {
+      label: "Review",
+      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
+      noticeTitle: "Review the delivery",
+      noticeBody: "Complete the order if everything is okay. Revisions should stay within the original requirements.",
+    },
+    revision_requested: {
+      label: "Revision",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      noticeTitle: "Revision request sent",
+      noticeBody: "Please wait for the influencer to submit an updated delivery.",
+    },
+    completed: {
+      label: "Completed",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      noticeTitle: "This order is completed",
+      noticeBody: "Revisions and refunds are generally unavailable after completion.",
+    },
+    declined_canceled: {
+      label: "Ended",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      noticeTitle: "This order has ended",
+      noticeBody: "The influencer declined, so the charge was not captured.",
+    },
+    expired_canceled: {
+      label: "Expired",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      noticeTitle: "This order expired",
+      noticeBody: "The reply deadline passed, so the charge was not captured.",
+    },
+  };
+
+  return (
+    (locale === "ja" ? ja[status] : en[status]) ?? {
+      label: status,
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+      noticeTitle: locale === "ja" ? "注文状態を確認してください" : "Check order status",
+      noticeBody:
+        locale === "ja"
+          ? "注文内容とチャットを確認できます。"
+          : "You can review the order and chat here.",
+    }
+  );
+}
+
+function InfluencerAvatar({ influencer }: { influencer: InfluencerLite | null }) {
+  if (influencer?.avatar_url) {
+    return (
+      <img
+        src={influencer.avatar_url}
+        alt={influencer.display_name ?? "influencer"}
         className="h-14 w-14 rounded-2xl object-cover"
       />
     );
   }
 
-  const initial = (creator?.display_name?.trim()?.[0] ?? "C").toUpperCase();
+  const initial = (influencer?.display_name?.trim()?.[0] ?? "I").toUpperCase();
 
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-700">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-100 text-lg font-black text-slate-900">
       {initial}
     </div>
   );
@@ -416,12 +343,12 @@ function Pill({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className: string;
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
     >
       {children}
     </span>
@@ -432,25 +359,17 @@ function DetailRow({
   label,
   value,
   strong,
-  danger,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
   strong?: boolean;
-  danger?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
-      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
+      <span className="text-sm font-bold text-slate-400">{label}</span>
       <span
-        className={`max-w-[62%] text-right text-sm ${
-          strong
-            ? "font-black text-slate-950"
-            : danger
-            ? "font-black text-rose-600"
-            : "font-bold text-slate-800"
+        className={`max-w-[65%] text-right text-sm ${
+          strong ? "font-black text-slate-950" : "font-bold text-slate-800"
         }`}
       >
         {value}
@@ -466,12 +385,18 @@ function SectionCard({
 }: {
   title: string;
   body?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-black text-slate-950">{title}</h2>
-      {body ? <p className="mt-2 text-sm leading-6 text-slate-500">{body}</p> : null}
+    <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:p-6">
+      <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+        {title}
+      </h2>
+      {body ? (
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+          {body}
+        </p>
+      ) : null}
       <div className="mt-5">{children}</div>
     </section>
   );
@@ -488,45 +413,17 @@ function TextBlock({
 }) {
   return (
     <div className="rounded-[22px] bg-slate-50 p-4">
-      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-      <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">
+      <p className="text-xs font-black text-slate-400">{label}</p>
+      <p className="mt-2 whitespace-pre-line text-sm font-semibold leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
       </p>
     </div>
   );
 }
 
-function NoticeCard({
-  tone,
-  title,
-  body,
-}: {
-  tone: "amber" | "blue" | "purple" | "green" | "gray" | "rose";
-  title: string;
-  body: string;
-}) {
-  const styles = {
-    amber: "border-amber-200 bg-amber-50 text-amber-900",
-    blue: "border-blue-200 bg-blue-50 text-blue-900",
-    purple: "border-purple-200 bg-purple-50 text-purple-900",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    gray: "border-slate-200 bg-slate-50 text-slate-800",
-    rose: "border-rose-200 bg-rose-50 text-rose-900",
-  };
-
-  return (
-    <div className={`rounded-[28px] border p-5 ${styles[tone]}`}>
-      <p className="text-lg font-black">{title}</p>
-      <p className="mt-2 text-sm leading-7">{body}</p>
-    </div>
-  );
-}
-
 export default function CompanyOrderDetailPage() {
   const params = useParams();
-  const orderId = params.id as string;
+  const orderId = String(params.id ?? "");
 
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
@@ -540,93 +437,62 @@ export default function CompanyOrderDetailPage() {
             notFound: "注文が見つかりませんでした。",
             authFailed: "ログイン情報を取得できませんでした。",
             title: "注文詳細",
-            subtitle:
-              "注文内容、クリエイターの承認状況、決済状態を確認できます。",
-            backJobs: "進行中案件へ戻る",
-            backPending: "承認待ち一覧へ戻る",
-            creatorProfile: "クリエイター詳細を見る",
-            orderStatus: "注文ステータス",
-            paymentStatus: "支払い状態",
-            stripeStatus: "Stripe状態",
-            productInfo: "商品・案件情報",
+            subtitle: "注文内容、納品、チャットを確認できます。",
+            backOrders: "注文へ戻る",
+            backWaiting: "返答待ちへ戻る",
+            influencerProfile: "インフルエンサー詳細を見る",
+            productInfo: "注文内容",
             productName: "商品名・案件名",
             productUrl: "商品URL",
-            deadline: "希望納期",
+            deadline: "希望日",
             freeOffer: "商品の無償提供",
             secondaryUse: "二次利用希望",
             yes: "あり",
             no: "なし",
-            requirements: "注文内容・要件",
+            requirements: "依頼内容",
             menuInfo: "注文したメニュー",
             menuTitle: "メニュー名",
             platform: "SNS",
-            menuType: "種別",
-            category: "カテゴリー",
+            menuType: "形式",
             price: "価格",
-            deliveryDays: "想定納期",
+            deliveryDays: "目安",
             deliverables: "納品物",
-            menuDescription: "メニュー説明",
-            secondaryUseAllowed: "メニュー上の二次利用",
-            allowed: "許可",
+            menuDescription: "説明",
+            secondaryUseAllowed: "二次利用",
+            allowed: "可",
             notAllowed: "不可",
-            creatorInfo: "クリエイター情報",
-            creatorName: "クリエイター名",
-            creatorCategory: "カテゴリー",
-            lifecycle: "注文・決済情報",
-            createdAt: "作成日時",
-            updatedAt: "更新日時",
-            authorizedAt: "与信確保日時",
-            creatorDeadline: "クリエイター承認期限",
-            acceptedAt: "承認日時",
-            declinedAt: "辞退日時",
-            expiredAt: "期限切れ日時",
-            capturedAt: "決済確定日時",
-            canceledAt: "取消日時",
-            deliveredAt: "納品日時",
-            completedAt: "完了日時",
-            disputedAt: "確認開始日時",
-            revisionRequestedAt: "修正依頼日時",
-            revisionCount: "修正依頼回数",
-            maxRevisionCount: "修正依頼上限",
-            autoCompleteAt: "自動完了予定日時",
-            completedReason: "完了理由",
-            money: "支払い金額内訳",
-            buyerPlan: "購入時プラン",
+            influencerInfo: "インフルエンサー",
+            amount: "支払い金額",
+            plan: "プラン",
             menuPrice: "メニュー価格",
-            buyerMarketplaceFee: "Trendre marketplace fee",
-            buyerFeeRate: "B側手数料率",
-            buyerTotal: "お支払い合計",
-            stripeAmount: "Stripe決済額",
-            amountNote:
-              "Stripe Checkoutでは、メニュー価格にTrendre marketplace feeを加えた合計額を仮押さえしています。クリエイターが承認すると決済が確定します。",
+            serviceFee: "サービス手数料",
+            total: "合計",
             deliveredPostUrl: "納品URL",
             openDeliveredUrl: "納品URLを開く",
-            completeTitle: "納品確認・完了",
+            completeTitle: "納品確認",
             completeBody:
-              "納品内容を確認し、問題なければ案件を完了してください。完了後は原則として修正依頼・返金はできません。",
-            complete: "この案件を完了する",
+              "内容を確認し、問題なければ完了してください。完了後は原則として修正依頼・返金はできません。",
+            complete: "完了する",
             completing: "完了処理中...",
             confirmComplete:
-              "この案件を完了しますか？納品内容を確認済みの場合のみ実行してください。完了後は原則として修正依頼・返金はできません。",
+              "この注文を完了しますか？納品内容を確認済みの場合のみ実行してください。",
             completeFailed: "完了処理に失敗しました。",
             revisionTitle: "修正依頼",
             revisionBody:
-              "元の注文要件に沿う範囲でのみ修正依頼できます。好みの変更、追加カット、別パターン作成、追加投稿は原則として新規注文で依頼してください。",
+              "元の注文内容に沿う範囲でのみ修正依頼できます。追加依頼は新しい注文として相談してください。",
             revisionPlaceholder:
-              "例：注文時に依頼した〇〇の表記が入っていないため、投稿文に追記してください。",
-            requestRevision: "修正依頼を送信する",
-            requestingRevision: "修正依頼を送信中...",
+              "例：注文時に依頼した内容のうち、〇〇が反映されていないため修正してください。",
+            requestRevision: "修正依頼を送信",
+            requestingRevision: "送信中...",
             confirmRevision:
-              "修正依頼を送信しますか？元の注文要件に沿う内容の場合のみ送信してください。",
+              "修正依頼を送信しますか？元の注文内容に沿う範囲の場合のみ送信してください。",
             revisionFailed: "修正依頼の送信に失敗しました。",
             revisionNoteRequired:
               "修正依頼内容は10文字以上で入力してください。",
             revisionLimitReached:
-              "修正依頼の上限回数に達しています。追加修正が必要な場合はチャットで相談するか、新規注文として依頼してください。",
+              "修正依頼の上限回数に達しています。追加修正が必要な場合はチャットで相談するか、新しい注文として依頼してください。",
             revisionNoteLabel: "修正依頼内容",
-            currentRevisionNote: "現在の修正依頼内容",
-            ruleNotice:
-              "投稿前確認はB/C間の任意チャットで行い、正式な納品は投稿後URL提出で扱います。Bが承認した後、または提出後72時間経過後は原則として修正依頼・返金はできません。",
+            currentRevisionNote: "現在の修正依頼",
             chatTitle: "注文チャット",
             notSet: "未設定",
           }
@@ -634,102 +500,71 @@ export default function CompanyOrderDetailPage() {
             loading: "Loading...",
             notFound: "Order was not found.",
             authFailed: "Could not retrieve your login session.",
-            title: "Order Details",
-            subtitle:
-              "Review the order, creator approval status, and payment status.",
-            backJobs: "Back to Active Jobs",
-            backPending: "Back to Pending List",
-            creatorProfile: "View Creator Profile",
-            orderStatus: "Order Status",
-            paymentStatus: "Payment Status",
-            stripeStatus: "Stripe Status",
-            productInfo: "Product / Campaign",
-            productName: "Product / Campaign Name",
+            title: "Order details",
+            subtitle: "Review the order, delivery, and chat.",
+            backOrders: "Back to orders",
+            backWaiting: "Back to waiting",
+            influencerProfile: "View influencer profile",
+            productInfo: "Order details",
+            productName: "Product / Campaign",
             productUrl: "Product URL",
-            deadline: "Preferred Deadline",
-            freeOffer: "Free Product Offer",
-            secondaryUse: "Secondary Use Requested",
+            deadline: "Preferred date",
+            freeOffer: "Free product offer",
+            secondaryUse: "Secondary use",
             yes: "Yes",
             no: "No",
-            requirements: "Order Requirements",
-            menuInfo: "Ordered Menu",
-            menuTitle: "Menu Title",
+            requirements: "Requirements",
+            menuInfo: "Ordered menu",
+            menuTitle: "Menu title",
             platform: "Platform",
-            menuType: "Type",
-            category: "Category",
+            menuType: "Format",
             price: "Price",
-            deliveryDays: "Delivery Days",
+            deliveryDays: "Timeline",
             deliverables: "Deliverables",
-            menuDescription: "Menu Description",
-            secondaryUseAllowed: "Secondary Use on Menu",
+            menuDescription: "Description",
+            secondaryUseAllowed: "Secondary use",
             allowed: "Allowed",
             notAllowed: "Not allowed",
-            creatorInfo: "Creator Information",
-            creatorName: "Creator Name",
-            creatorCategory: "Category",
-            lifecycle: "Order / Payment Information",
-            createdAt: "Created At",
-            updatedAt: "Updated At",
-            authorizedAt: "Authorized At",
-            creatorDeadline: "Creator Approval Deadline",
-            acceptedAt: "Accepted At",
-            declinedAt: "Declined At",
-            expiredAt: "Expired At",
-            capturedAt: "Captured At",
-            canceledAt: "Canceled At",
-            deliveredAt: "Delivered At",
-            completedAt: "Completed At",
-            disputedAt: "Disputed At",
-            revisionRequestedAt: "Revision Requested At",
-            revisionCount: "Revision Count",
-            maxRevisionCount: "Revision Limit",
-            autoCompleteAt: "Auto Complete At",
-            completedReason: "Completed Reason",
-            money: "Payment Breakdown",
-            buyerPlan: "Plan at Purchase",
-            menuPrice: "Menu Price",
-            buyerMarketplaceFee: "Trendre marketplace fee",
-            buyerFeeRate: "Buyer Fee Rate",
-            buyerTotal: "Payment Total",
-            stripeAmount: "Stripe Amount",
-            amountNote:
-              "Stripe Checkout authorizes the total of the creator menu price plus Trendre marketplace fee. The payment is captured only after the creator accepts.",
-            deliveredPostUrl: "Delivered URL",
-            openDeliveredUrl: "Open Delivered URL",
-            completeTitle: "Review Delivery / Complete",
+            influencerInfo: "Influencer",
+            amount: "Payment",
+            plan: "Plan",
+            menuPrice: "Menu price",
+            serviceFee: "Service fee",
+            total: "Total",
+            deliveredPostUrl: "Delivery URL",
+            openDeliveredUrl: "Open delivery URL",
+            completeTitle: "Review delivery",
             completeBody:
-              "Review the delivery and complete the order if everything is okay. Revisions and refunds are generally unavailable after completion.",
-            complete: "Complete This Order",
+              "Complete the order if everything is okay. Revisions and refunds are generally unavailable after completion.",
+            complete: "Complete",
             completing: "Completing...",
             confirmComplete:
               "Complete this order? Please do this only after reviewing the delivery.",
             completeFailed: "Failed to complete this order.",
-            revisionTitle: "Request Revision",
+            revisionTitle: "Request revision",
             revisionBody:
-              "You may request revisions only when the request is within the original order requirements. Additional work should be handled as a new order.",
+              "Revisions should stay within the original order requirements. Additional work should be handled as a new order.",
             revisionPlaceholder:
-              "Example: Please add the product mention that was included in the original requirements.",
-            requestRevision: "Send Revision Request",
+              "Example: Please revise the missing point from the original requirements.",
+            requestRevision: "Send revision request",
             requestingRevision: "Sending...",
             confirmRevision:
-              "Send this revision request? Please make sure it is within the original order requirements.",
+              "Send this revision request? Please make sure it is within the original requirements.",
             revisionFailed: "Failed to send revision request.",
             revisionNoteRequired:
               "Please enter at least 10 characters for the revision request.",
             revisionLimitReached:
               "The revision request limit has been reached. Please use chat or place a new order for additional work.",
-            revisionNoteLabel: "Revision Request",
-            currentRevisionNote: "Current Revision Request",
-            ruleNotice:
-              "Pre-posting review is handled optionally through chat. Formal delivery is the submitted post/delivery URL. After buyer approval or 72 hours after submission, revisions and refunds are generally unavailable.",
-            chatTitle: "Order Chat",
+            revisionNoteLabel: "Revision request",
+            currentRevisionNote: "Current revision request",
+            chatTitle: "Order chat",
             notSet: "Not set",
           },
     [safeLocale]
   );
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [creator, setCreator] = useState<CreatorLite | null>(null);
+  const [influencer, setInfluencer] = useState<InfluencerLite | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<"complete" | "revision" | null>(
     null
@@ -749,7 +584,7 @@ export default function CompanyOrderDetailPage() {
     if (userError || !user) {
       setError(copy.authFailed);
       setOrder(null);
-      setCreator(null);
+      setInfluencer(null);
       setLoading(false);
       return;
     }
@@ -821,7 +656,7 @@ export default function CompanyOrderDetailPage() {
       console.error("company order detail load error:", orderError);
       setError(copy.notFound);
       setOrder(null);
-      setCreator(null);
+      setInfluencer(null);
       setLoading(false);
       return;
     }
@@ -830,22 +665,22 @@ export default function CompanyOrderDetailPage() {
     setOrder(nextOrder);
 
     if (!nextOrder) {
-      setCreator(null);
+      setInfluencer(null);
       setLoading(false);
       return;
     }
 
-    const { data: creatorData, error: creatorError } = await supabase
+    const { data: influencerData, error: influencerError } = await supabase
       .from("creators")
       .select("id, display_name, avatar_url, category")
       .eq("id", nextOrder.creator_id)
       .maybeSingle();
 
-    if (creatorError) {
-      console.error("company order creator load error:", creatorError);
-      setCreator(null);
+    if (influencerError) {
+      console.error("company order influencer load error:", influencerError);
+      setInfluencer(null);
     } else {
-      setCreator((creatorData as CreatorLite | null) ?? null);
+      setInfluencer((influencerData as InfluencerLite | null) ?? null);
     }
 
     setLoading(false);
@@ -957,11 +792,13 @@ export default function CompanyOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
-        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="h-96 animate-pulse rounded-[30px] bg-slate-100" />
-          <div className="h-96 animate-pulse rounded-[30px] bg-slate-100" />
+      <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-7xl space-y-5">
+          <div className="h-32 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="h-96 animate-pulse rounded-[28px] bg-white shadow-sm" />
+            <div className="h-96 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          </div>
         </div>
       </div>
     );
@@ -969,8 +806,8 @@ export default function CompanyOrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="mx-auto max-w-4xl p-4 md:p-6">
-        <div className="rounded-[30px] border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-4xl rounded-[28px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.045)]">
           <p className="text-sm font-semibold text-slate-600">
             {error ?? copy.notFound}
           </p>
@@ -978,16 +815,16 @@ export default function CompanyOrderDetailPage() {
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
               href="/b/jobs"
-              className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+              className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
             >
-              {copy.backJobs}
+              {copy.backOrders}
             </Link>
 
             <Link
               href="/b/requests"
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
+              className="rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition active:scale-[0.98]"
             >
-              {copy.backPending}
+              {copy.backWaiting}
             </Link>
           </div>
         </div>
@@ -997,408 +834,324 @@ export default function CompanyOrderDetailPage() {
 
   const isWaiting = order.status === "authorized_pending_creator";
   const isDelivered = order.status === "delivered";
-  const isCompleted = order.status === "completed";
   const canReviewDelivery = isDelivered && order.payment_status === "captured";
   const revisionLimitReached =
     (order.revision_count ?? 0) >= (order.max_revision_count ?? 1);
   const canRequestRevision = canReviewDelivery && !revisionLimitReached;
 
-  const notice = getNotice(order.status, safeLocale);
+  const meta = statusMeta(order.status, safeLocale);
 
   const buyerTotal =
     order.buyer_total_amount ?? order.stripe_amount ?? order.menu_price_amount;
 
   const buyerFee =
     order.buyer_marketplace_fee_amount ??
-    Math.max(0, buyerTotal - order.menu_price_amount);
+    Math.max(0, (buyerTotal ?? 0) - (order.menu_price_amount ?? 0));
 
   const planName =
     order.buyer_plan_public_name_snapshot ||
     formatPlanName(order.buyer_plan_code_snapshot);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 pb-10 md:p-6">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          Company Order
-        </p>
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
+      <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
 
-        <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-              {order.product_name || copy.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
-              {copy.subtitle}
-            </p>
+      <div className="relative mx-auto max-w-7xl px-4 py-6 pb-10 md:px-6 md:py-8">
+        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex flex-wrap gap-2">
+                <Pill className={meta.className}>{meta.label}</Pill>
+                {order.delivered_post_url ? (
+                  <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
+                    {copy.deliveredPostUrl}
+                  </Pill>
+                ) : null}
+              </div>
+
+              <h1 className="mt-4 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+                {order.product_name || copy.title}
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                {copy.subtitle}
+              </p>
+            </div>
+
+            <Link
+              href={isWaiting ? "/b/requests" : "/b/jobs"}
+              className="inline-flex w-fit items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
+            >
+              {isWaiting ? copy.backWaiting : copy.backOrders}
+            </Link>
           </div>
+        </section>
 
-          <Link
-            href={isWaiting ? "/b/requests" : "/b/jobs"}
-            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-          >
-            {isWaiting ? copy.backPending : copy.backJobs}
-          </Link>
-        </div>
+        {error ? (
+          <div className="mt-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
+            {error}
+          </div>
+        ) : null}
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Pill className={statusClass(order.status)}>
-            {copy.orderStatus}: {statusLabel(order.status, safeLocale)}
-          </Pill>
-          <Pill className={paymentStatusClass(order.payment_status)}>
-            {copy.paymentStatus}: {order.payment_status}
-          </Pill>
-          {order.stripe_payment_status ? (
-            <Pill className="bg-white/10 text-white ring-white/10">
-              {copy.stripeStatus}: {order.stripe_payment_status}
-            </Pill>
-          ) : null}
-        </div>
-      </section>
+        <section className="mt-4 rounded-[26px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:p-6">
+          <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+            {meta.noticeTitle}
+          </h2>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            {meta.noticeBody}
+          </p>
+        </section>
 
-      {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
-          {error}
-        </div>
-      ) : null}
+        <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <main className="space-y-5">
+            <SectionCard title={copy.productInfo}>
+              <div className="grid gap-3">
+                <DetailRow
+                  label={copy.productName}
+                  value={order.product_name || copy.notSet}
+                  strong
+                />
+                <DetailRow
+                  label={copy.productUrl}
+                  value={
+                    order.product_url ? (
+                      <a
+                        href={order.product_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 underline underline-offset-4"
+                      >
+                        {order.product_url}
+                      </a>
+                    ) : (
+                      copy.notSet
+                    )
+                  }
+                />
+                <DetailRow
+                  label={copy.deadline}
+                  value={formatDate(order.deadline, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.freeOffer}
+                  value={order.has_free_offer ? copy.yes : copy.no}
+                />
+                <DetailRow
+                  label={copy.secondaryUse}
+                  value={order.wants_secondary_use ? copy.yes : copy.no}
+                />
+              </div>
 
-      <NoticeCard tone={notice.tone} title={notice.title} body={notice.body} />
+              <div className="mt-4">
+                <TextBlock
+                  label={copy.requirements}
+                  value={order.requirements}
+                  emptyLabel={copy.notSet}
+                />
+              </div>
+            </SectionCard>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <main className="space-y-6">
-          <SectionCard title={copy.productInfo}>
-            <div className="grid gap-3">
-              <DetailRow
-                label={copy.productName}
-                value={order.product_name || copy.notSet}
-                strong
-              />
-              <DetailRow
-                label={copy.productUrl}
-                value={
-                  order.product_url ? (
-                    <a
-                      href={order.product_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 underline underline-offset-4"
-                    >
-                      {order.product_url}
-                    </a>
-                  ) : (
-                    copy.notSet
-                  )
-                }
-              />
-              <DetailRow
-                label={copy.deadline}
-                value={formatDate(order.deadline, safeLocale)}
-              />
-              <DetailRow
-                label={copy.freeOffer}
-                value={order.has_free_offer ? copy.yes : copy.no}
-              />
-              <DetailRow
-                label={copy.secondaryUse}
-                value={order.wants_secondary_use ? copy.yes : copy.no}
-              />
-            </div>
-
-            <div className="mt-4">
-              <TextBlock
-                label={copy.requirements}
-                value={order.requirements}
-                emptyLabel={copy.notSet}
-              />
-            </div>
-          </SectionCard>
-
-          <SectionCard title={copy.menuInfo}>
-            <div className="mb-4 flex flex-wrap gap-2">
-              {order.menu_platform_snapshot ? (
-                <Pill className="bg-slate-950 text-white ring-slate-950">
-                  <span className="mr-1">
+            <SectionCard title={copy.menuInfo}>
+              <div className="mb-4 flex flex-wrap gap-2">
+                {order.menu_platform_snapshot ? (
+                  <Pill className="bg-slate-950 text-white ring-slate-950">
                     {getPlatformIcon(order.menu_platform_snapshot)}
-                  </span>
-                  {order.menu_platform_snapshot}
+                    {order.menu_platform_snapshot}
+                  </Pill>
+                ) : null}
+
+                <Pill className="bg-slate-100 text-slate-700 ring-slate-200">
+                  {menuTypeLabel(
+                    order.menu_type_snapshot,
+                    safeLocale,
+                    order.menu_category_snapshot || copy.notSet
+                  )}
                 </Pill>
-              ) : null}
 
-              <Pill className="bg-slate-100 text-slate-700 ring-slate-200">
-                {menuTypeLabel(
-                  order.menu_type_snapshot,
-                  safeLocale,
-                  order.menu_category_snapshot || copy.notSet
-                )}
-              </Pill>
+                {order.menu_category_snapshot ? (
+                  <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
+                    {order.menu_category_snapshot}
+                  </Pill>
+                ) : null}
+              </div>
 
-              {order.menu_category_snapshot ? (
-                <Pill className="bg-purple-100 text-purple-700 ring-purple-200">
-                  {order.menu_category_snapshot}
-                </Pill>
-              ) : null}
-            </div>
-
-            <div className="rounded-[22px] bg-slate-50 p-4">
-              <DetailRow
-                label={copy.menuTitle}
-                value={order.menu_title_snapshot || copy.notSet}
-                strong
-              />
-              <DetailRow
-                label={copy.price}
-                value={formatPrice(
-                  order.menu_price_amount,
-                  order.currency,
-                  safeLocale
-                )}
-              />
-              <DetailRow
-                label={copy.deliveryDays}
-                value={formatDeliveryDays(
-                  order.menu_delivery_days_snapshot,
-                  safeLocale,
-                  copy.notSet
-                )}
-              />
-              <DetailRow
-                label={copy.secondaryUseAllowed}
-                value={
-                  order.menu_allow_secondary_use_snapshot
-                    ? copy.allowed
-                    : copy.notAllowed
-                }
-              />
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <TextBlock
-                label={copy.menuDescription}
-                value={order.menu_description_snapshot}
-                emptyLabel={copy.notSet}
-              />
-              <TextBlock
-                label={copy.deliverables}
-                value={order.menu_deliverables_snapshot}
-                emptyLabel={copy.notSet}
-              />
-            </div>
-          </SectionCard>
-
-          <SectionCard title={copy.lifecycle}>
-            <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-[22px] bg-slate-50 p-4">
                 <DetailRow
-                  label={copy.createdAt}
-                  value={formatDateTime(order.created_at, safeLocale)}
+                  label={copy.menuTitle}
+                  value={order.menu_title_snapshot || copy.notSet}
+                  strong
                 />
                 <DetailRow
-                  label={copy.updatedAt}
-                  value={formatDateTime(order.updated_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.authorizedAt}
-                  value={formatDateTime(order.authorized_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.creatorDeadline}
-                  value={formatDateTime(
-                    order.creator_accept_deadline,
+                  label={copy.price}
+                  value={formatPrice(
+                    order.menu_price_amount,
+                    order.currency,
                     safeLocale
                   )}
                 />
                 <DetailRow
-                  label={copy.acceptedAt}
-                  value={formatDateTime(order.accepted_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.capturedAt}
-                  value={formatDateTime(order.captured_at, safeLocale)}
-                />
-              </div>
-
-              <div className="rounded-[22px] bg-slate-50 p-4">
-                <DetailRow
-                  label={copy.declinedAt}
-                  value={formatDateTime(order.declined_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.expiredAt}
-                  value={formatDateTime(order.expired_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.canceledAt}
-                  value={formatDateTime(order.canceled_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.deliveredAt}
-                  value={formatDateTime(order.delivered_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.autoCompleteAt}
-                  value={formatDateTime(order.auto_complete_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.completedAt}
-                  value={formatDateTime(order.completed_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.completedReason}
-                  value={completedReasonLabel(order.completed_reason, safeLocale)}
-                />
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard title={copy.chatTitle}>
-            <ChatEmbed orderId={order.id} title={copy.chatTitle} />
-          </SectionCard>
-        </main>
-
-        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-          <SectionCard title={copy.creatorInfo}>
-            <div className="flex items-center gap-4">
-              <CreatorAvatar creator={creator} />
-              <div className="min-w-0">
-                <p className="truncate text-lg font-black text-slate-950">
-                  {creator?.display_name || copy.notSet}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  {creator?.category || copy.notSet}
-                </p>
-              </div>
-            </div>
-
-            {creator?.id ? (
-              <Link
-                href={`/b/creators/${creator.id}`}
-                className="mt-5 flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-              >
-                {copy.creatorProfile}
-              </Link>
-            ) : null}
-          </SectionCard>
-
-          <SectionCard title={copy.money} body={copy.amountNote}>
-            <div className="rounded-[22px] bg-slate-50 p-4">
-              <DetailRow label={copy.buyerPlan} value={planName} />
-              <DetailRow
-                label={copy.menuPrice}
-                value={formatPrice(
-                  order.menu_price_amount,
-                  order.currency,
-                  safeLocale
-                )}
-              />
-              <DetailRow
-                label={copy.buyerFeeRate}
-                value={formatBpsPercent(order.buyer_marketplace_fee_rate_bps)}
-              />
-              <DetailRow
-                label={copy.buyerMarketplaceFee}
-                value={formatPrice(buyerFee, order.currency, safeLocale)}
-              />
-              <DetailRow
-                label={copy.buyerTotal}
-                value={formatPrice(buyerTotal, order.currency, safeLocale)}
-                strong
-              />
-              <DetailRow
-                label={copy.stripeAmount}
-                value={formatPrice(order.stripe_amount, order.currency, safeLocale)}
-              />
-            </div>
-          </SectionCard>
-
-          {order.delivered_post_url ? (
-            <SectionCard title={copy.completeTitle} body={copy.completeBody}>
-              <a
-                href={order.delivered_post_url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex w-full items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-black text-blue-700 underline-offset-4 hover:underline"
-              >
-                {copy.openDeliveredUrl}
-              </a>
-
-              {canReviewDelivery ? (
-                <div className="mt-4 grid gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void runComplete()}
-                    disabled={actionLoading !== null}
-                    className="rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {actionLoading === "complete"
-                      ? copy.completing
-                      : copy.complete}
-                  </button>
-
-                  {canRequestRevision ? (
-                    <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
-                      <p className="text-sm font-black text-slate-950">
-                        {copy.revisionTitle}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {copy.revisionBody}
-                      </p>
-
-                      <textarea
-                        value={revisionNote}
-                        onChange={(event) =>
-                          setRevisionNote(event.target.value)
-                        }
-                        placeholder={copy.revisionPlaceholder}
-                        rows={5}
-                        className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => void runRequestRevision()}
-                        disabled={actionLoading !== null}
-                        className="mt-3 w-full rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-black text-amber-800 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {actionLoading === "revision"
-                          ? copy.requestingRevision
-                          : copy.requestRevision}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
-                      {revisionLimitReached
-                        ? copy.revisionLimitReached
-                        : copy.ruleNotice}
-                    </div>
+                  label={copy.deliveryDays}
+                  value={formatDeliveryDays(
+                    order.menu_delivery_days_snapshot,
+                    safeLocale,
+                    copy.notSet
                   )}
+                />
+                <DetailRow
+                  label={copy.secondaryUseAllowed}
+                  value={
+                    order.menu_allow_secondary_use_snapshot
+                      ? copy.allowed
+                      : copy.notAllowed
+                  }
+                />
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <TextBlock
+                  label={copy.menuDescription}
+                  value={order.menu_description_snapshot}
+                  emptyLabel={copy.notSet}
+                />
+                <TextBlock
+                  label={copy.deliverables}
+                  value={order.menu_deliverables_snapshot}
+                  emptyLabel={copy.notSet}
+                />
+              </div>
+            </SectionCard>
+
+            <SectionCard title={copy.chatTitle}>
+              <ChatEmbed orderId={order.id} title={copy.chatTitle} />
+            </SectionCard>
+          </main>
+
+          <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
+            <SectionCard title={copy.influencerInfo}>
+              <div className="flex items-center gap-4">
+                <InfluencerAvatar influencer={influencer} />
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-black text-slate-950">
+                    {influencer?.display_name || copy.notSet}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                    {influencer?.category || copy.notSet}
+                  </p>
                 </div>
+              </div>
+
+              {influencer?.id ? (
+                <Link
+                  href={`/b/creators/${influencer.id}`}
+                  className="mt-5 flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+                >
+                  {copy.influencerProfile}
+                </Link>
               ) : null}
             </SectionCard>
-          ) : null}
 
-          {order.revision_note ? (
-            <SectionCard title={copy.currentRevisionNote}>
-              <TextBlock
-                label={copy.revisionNoteLabel}
-                value={order.revision_note}
-                emptyLabel={copy.notSet}
-              />
-              <div className="mt-4 rounded-[22px] bg-slate-50 p-4">
+            <SectionCard title={copy.amount}>
+              <div className="rounded-[22px] bg-slate-50 p-4">
+                <DetailRow label={copy.plan} value={planName} />
                 <DetailRow
-                  label={copy.revisionRequestedAt}
-                  value={formatDateTime(order.revision_requested_at, safeLocale)}
+                  label={copy.menuPrice}
+                  value={formatPrice(
+                    order.menu_price_amount,
+                    order.currency,
+                    safeLocale
+                  )}
                 />
                 <DetailRow
-                  label={copy.revisionCount}
-                  value={`${order.revision_count ?? 0}/${
-                    order.max_revision_count ?? 1
-                  }`}
+                  label={copy.serviceFee}
+                  value={formatPrice(buyerFee, order.currency, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.total}
+                  value={formatPrice(buyerTotal, order.currency, safeLocale)}
+                  strong
                 />
               </div>
             </SectionCard>
-          ) : null}
-        </aside>
-      </section>
+
+            {order.delivered_post_url ? (
+              <SectionCard title={copy.completeTitle} body={copy.completeBody}>
+                <a
+                  href={order.delivered_post_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex w-full items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 underline-offset-4 transition hover:bg-slate-200 hover:underline"
+                >
+                  {copy.openDeliveredUrl}
+                </a>
+
+                {canReviewDelivery ? (
+                  <div className="mt-4 grid gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void runComplete()}
+                      disabled={actionLoading !== null}
+                      className="rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {actionLoading === "complete"
+                        ? copy.completing
+                        : copy.complete}
+                    </button>
+
+                    {canRequestRevision ? (
+                      <div className="rounded-[22px] bg-slate-50 p-4">
+                        <p className="text-sm font-black text-slate-950">
+                          {copy.revisionTitle}
+                        </p>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                          {copy.revisionBody}
+                        </p>
+
+                        <textarea
+                          value={revisionNote}
+                          onChange={(event) =>
+                            setRevisionNote(event.target.value)
+                          }
+                          placeholder={copy.revisionPlaceholder}
+                          rows={5}
+                          className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => void runRequestRevision()}
+                          disabled={actionLoading !== null}
+                          className="mt-3 w-full rounded-full bg-white px-5 py-3 text-sm font-black text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {actionLoading === "revision"
+                            ? copy.requestingRevision
+                            : copy.requestRevision}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-[22px] bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800 ring-1 ring-amber-100">
+                        {revisionLimitReached
+                          ? copy.revisionLimitReached
+                          : copy.revisionBody}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </SectionCard>
+            ) : null}
+
+            {order.revision_note ? (
+              <SectionCard title={copy.currentRevisionNote}>
+                <TextBlock
+                  label={copy.revisionNoteLabel}
+                  value={order.revision_note}
+                  emptyLabel={copy.notSet}
+                />
+              </SectionCard>
+            ) : null}
+          </aside>
+        </section>
+      </div>
     </div>
   );
 }
