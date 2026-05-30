@@ -45,7 +45,7 @@ type PayoutOrderRow = {
 };
 
 type NoticeTone = "info" | "success" | "warning" | "error";
-type BadgeTone = "gray" | "green" | "blue" | "yellow" | "red" | "purple" | "black";
+type BadgeTone = "gray" | "green" | "blue" | "yellow" | "red";
 
 function Notice({
   tone,
@@ -57,37 +57,17 @@ function Notice({
   body: string;
 }) {
   const styles: Record<NoticeTone, string> = {
-    info: "border-blue-100 bg-blue-50 text-blue-900",
+    info: "border-slate-200 bg-white text-slate-800",
     success: "border-emerald-100 bg-emerald-50 text-emerald-900",
     warning: "border-amber-100 bg-amber-50 text-amber-900",
     error: "border-rose-100 bg-rose-50 text-rose-900",
   };
 
   return (
-    <div className={`rounded-[24px] border p-4 text-sm ${styles[tone]}`}>
+    <div className={`rounded-[26px] border p-5 text-sm ${styles[tone]}`}>
       <p className="font-black">{title}</p>
-      <p className="mt-2 leading-6">{body}</p>
+      <p className="mt-2 font-semibold leading-7 opacity-80">{body}</p>
     </div>
-  );
-}
-
-function StatusPill({
-  active,
-  activeLabel,
-  inactiveLabel,
-}: {
-  active: boolean;
-  activeLabel: string;
-  inactiveLabel: string;
-}) {
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${
-        active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
-      }`}
-    >
-      {active ? activeLabel : inactiveLabel}
-    </span>
   );
 }
 
@@ -104,8 +84,6 @@ function Badge({
     blue: "bg-blue-100 text-blue-700",
     yellow: "bg-amber-100 text-amber-800",
     red: "bg-rose-100 text-rose-700",
-    purple: "bg-purple-100 text-purple-700",
-    black: "bg-slate-950 text-white",
   };
 
   return (
@@ -125,83 +103,35 @@ function FieldRow({
   value: string | React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1 border-b border-slate-100 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm font-bold text-slate-500">{label}</p>
-      <div className="text-sm font-black text-slate-900">{value}</div>
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <p className="text-sm font-bold text-slate-400">{label}</p>
+      <div className="text-right text-sm font-black text-slate-900">{value}</div>
     </div>
   );
 }
 
-function MoneyCard({
+function StatCard({
   label,
   value,
   helper,
-  tone = "default",
 }: {
   label: string;
   value: string;
   helper?: string;
-  tone?: "default" | "green" | "dark" | "warning";
 }) {
-  const styles = {
-    default: "border-slate-100 bg-white text-slate-950",
-    green: "border-emerald-100 bg-emerald-50 text-slate-950",
-    dark: "border-slate-950 bg-slate-950 text-white",
-    warning: "border-amber-100 bg-amber-50 text-slate-950",
-  };
-
   return (
-    <div className={`rounded-[28px] border p-5 shadow-sm ${styles[tone]}`}>
-      <p
-        className={`text-xs font-black uppercase tracking-[0.2em] ${
-          tone === "dark" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
+    <div className="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
         {label}
       </p>
-      <p
-        className={`mt-4 text-3xl font-black ${
-          tone === "dark" ? "text-white" : "text-slate-950"
-        }`}
-      >
+      <p className="mt-4 text-3xl font-black tracking-[-0.04em] text-slate-950">
         {value}
       </p>
       {helper ? (
-        <p
-          className={`mt-2 text-xs leading-5 ${
-            tone === "dark" ? "text-white/70" : "text-slate-500"
-          }`}
-        >
+        <p className="mt-2 text-xs font-bold leading-5 text-slate-400">
           {helper}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function ActionRow({
-  icon,
-  title,
-  body,
-  children,
-}: {
-  icon: string;
-  title: string;
-  body: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-black text-slate-950">{title}</p>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{body}</p>
-          {children ? <div className="mt-4">{children}</div> : null}
-        </div>
-      </div>
     </div>
   );
 }
@@ -250,6 +180,20 @@ function shortId(value: string | null | undefined) {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
+function isSameMonth(value: string | null | undefined) {
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const now = new Date();
+
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
+  );
+}
+
 function getTransferBadgeMeta(
   transferStatus: string | null | undefined,
   locale: "ja" | "en"
@@ -262,15 +206,15 @@ function getTransferBadgeMeta(
     }
 
     if (normalized === "pending") {
-      return { label: "送金処理中", tone: "blue" };
+      return { label: "処理中", tone: "blue" };
     }
 
     if (normalized === "failed") {
-      return { label: "送金失敗", tone: "red" };
+      return { label: "失敗", tone: "red" };
     }
 
     if (normalized === "skipped") {
-      return { label: "送金保留", tone: "yellow" };
+      return { label: "保留", tone: "yellow" };
     }
 
     return { label: "未送金", tone: "gray" };
@@ -292,20 +236,48 @@ function getTransferBadgeMeta(
     return { label: "On hold", tone: "yellow" };
   }
 
-  return { label: "Not started", tone: "gray" };
+  return { label: "Not sent", tone: "gray" };
 }
 
-function isSameMonth(value: string | null | undefined) {
-  if (!value) return false;
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-
-  const now = new Date();
-
+function LoadingView() {
   return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth()
+    <div className="space-y-5 pb-10">
+      <div className="h-48 animate-pulse rounded-[34px] bg-white shadow-sm ring-1 ring-slate-100" />
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-28 animate-pulse rounded-[28px] bg-white shadow-sm ring-1 ring-slate-100"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SetupStep({
+  number,
+  title,
+  body,
+}: {
+  number: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-[#ff5f67] shadow-sm ring-1 ring-slate-100">
+          {number}
+        </div>
+        <div>
+          <p className="text-sm font-black text-slate-950">{title}</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            {body}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -333,161 +305,160 @@ export default function CreatorPayoutsPage() {
         ? {
             loading: "読み込み中...",
             loginRequired: "ログインしてください",
-            creatorNotFound: "クリエイター情報が見つかりませんでした。",
+            creatorNotFound: "インフルエンサー情報が見つかりませんでした。",
             loadFailed: "報酬受け取り情報の取得に失敗しました。",
             payoutLoadFailed: "報酬履歴の取得に失敗しました。",
-            statusFailed: "Stripe Connectの状態確認に失敗しました。",
-            onboardingFailed:
-              "Stripe Connectのオンボーディング開始に失敗しました。",
-            eyebrow: "Creator Wallet",
+            statusFailed: "Stripeの状態確認に失敗しました。",
+            onboardingFailed: "Stripeの登録開始に失敗しました。",
+
             title: "報酬",
-            signupTitle: "最後のステップ：報酬受け取り設定",
             subtitle:
-              "今月の収益、送金状況、Stripe Expressの受け取り設定を確認できます。",
+              "完了した注文の受取予定額と送金状況を確認できます。",
+            signupTitle: "最後に、報酬の受け取り設定をします",
             signupSubtitle:
-              "案件完了後に安全に報酬を受け取るため、Stripe Expressで本人確認と振込先登録を完了してください。",
-            backDashboard: "ホームへ戻る",
-            connectTitle: "銀行口座・本人確認",
-            connectBody:
-              "報酬の受け取りはStripe Expressで管理されます。本人確認と振込先登録が完了すると、案件完了後に送金を受け取れます。",
+              "注文が完了したあとに報酬を受け取るため、Stripeで本人確認と振込先を登録してください。",
+            requiredTitle: "報酬の受け取り設定が必要です",
+            requiredSubtitle:
+              "この設定が完了すると、注文の受け付けと報酬受け取りを安全に進められます。",
+
+            setupLabel: "登録の最終ステップ",
+            readyLabel: "設定完了",
+            notReadyLabel: "設定が必要",
+            backDashboard: "ホームへ",
+            goDashboard: "ホームへ進む",
+
+            start: "Stripeで受け取り設定をする",
+            continue: "Stripe登録を続ける",
+            refresh: "設定状況を確認する",
+            refreshing: "確認中...",
+            starting: "Stripeへ移動中...",
+
+            step1Title: "本人確認",
+            step1Body: "本人確認に必要な情報をStripe側で入力します。",
+            step2Title: "振込先登録",
+            step2Body: "報酬を受け取る銀行口座をStripe側で登録します。",
+            step3Title: "受け取り開始",
+            step3Body: "設定完了後、注文完了時に報酬を受け取れます。",
+
             statusReadyTitle: "受け取り設定は完了しています",
             statusReadyBody:
-              "案件完了後に報酬を受け取る準備ができています。",
-            statusNotReadyTitle: "受け取り設定が未完了です",
+              "注文完了後に報酬を受け取る準備ができています。",
+            statusNotReadyTitle: "受け取り設定がまだ完了していません",
             statusNotReadyBody:
-              "本人確認や振込先情報が不足している可能性があります。Stripeの画面で登録を完了してください。",
-            noAccountTitle: "Stripeアカウントは未作成です",
-            noAccountBody:
-              "下のボタンからStripe Expressアカウントを作成し、報酬受け取り設定を開始してください。",
+              "Stripeの画面で本人確認と振込先登録を完了してください。",
             returnedTitle: "Stripeから戻りました",
             returnedBody:
-              "最新の状態を確認しました。未完了の場合は、もう一度オンボーディングを続けてください。",
+              "最新の状態を確認しました。まだ未完了の場合は、もう一度登録を続けてください。",
             refreshTitle: "Stripe登録が中断されました",
             refreshBody:
-              "登録を再開できます。下のボタンからStripeの登録画面へ戻ってください。",
-            accountId: "Stripeアカウント",
-            onboarding: "オンボーディング",
-            detailsSubmitted: "本人確認情報",
-            chargesEnabled: "決済受け入れ",
-            payoutsEnabled: "振込",
-            requirements: "追加対応が必要な項目",
-            disabledReason: "制限理由",
-            completed: "完了",
-            incomplete: "未完了",
-            enabled: "有効",
-            disabled: "無効",
-            none: "なし",
-            start: "報酬受け取り設定を開始する",
-            continue: "Stripe登録を続ける",
-            refresh: "状態を更新する",
-            refreshing: "更新中...",
-            starting: "Stripeへ移動中...",
-            noteTitle: "送金について",
-            noteBody:
-              "完了済み注文の受取予定額は、運営側の自動処理によりStripe Connect経由で送金されます。",
-            monthRevenue: "今月の収益",
+              "登録を再開できます。下のボタンからStripeの画面へ戻ってください。",
+            accountManagedByStripe:
+              "銀行口座情報はStripe側で安全に管理されます。Trendreには口座番号の詳細は保存されません。",
+
+            monthRevenue: "今月",
             totalEarned: "受取予定",
             totalTransferred: "送金済み",
             pendingAmount: "未送金",
             completedOrders: "完了件数",
-            transferHistory: "振込履歴",
-            historyTitle: "報酬・送金履歴",
+            historyTitle: "報酬履歴",
             historyBody:
-              "完了済み注文の受取予定額、送金状態、送金日時を確認できます。",
-            historyEmptyTitle: "まだ報酬履歴がありません",
+              "完了した注文の受取予定額と送金状況を確認できます。",
+            historyEmptyTitle: "まだ報酬履歴はありません",
             historyEmptyBody:
-              "案件が完了し、受取予定額が確定するとここに表示されます。",
+              "注文が完了し、受取予定額が確定するとここに表示されます。",
             order: "注文",
-            orderDetail: "案件詳細",
+            orderDetail: "注文を見る",
             payoutAmount: "受取予定額",
-            transferStatus: "送金状態",
             completedAt: "完了日時",
             transferredAt: "送金日時",
-            transferId: "Transfer ID",
+            transferId: "送金ID",
             failedReason: "失敗理由",
-            createdAt: "作成日時",
-            setupCompleteDashboard: "登録を完了してホームへ進む",
-            accountManagedByStripe:
-              "銀行口座情報はStripe側で安全に管理されます。Trendreには口座番号の詳細は保存されません。",
+            settingTitle: "受け取り設定",
+            settingBody:
+              "未完了の場合は、報酬を受け取れないため早めに設定してください。",
+            connected: "完了済み",
+            incomplete: "未完了",
+            none: "なし",
+            errorTitle: "エラー",
           }
         : {
             loading: "Loading...",
             loginRequired: "Please log in",
-            creatorNotFound: "Creator information was not found.",
+            creatorNotFound: "Influencer information was not found.",
             loadFailed: "Failed to load payout settings.",
             payoutLoadFailed: "Failed to load payout history.",
-            statusFailed: "Failed to refresh Stripe Connect status.",
-            onboardingFailed: "Failed to start Stripe Connect onboarding.",
-            eyebrow: "Creator Wallet",
+            statusFailed: "Failed to refresh Stripe status.",
+            onboardingFailed: "Failed to start Stripe onboarding.",
+
             title: "Payouts",
-            signupTitle: "Last step: Set up payouts",
             subtitle:
-              "Check monthly earnings, transfer status, and Stripe Express payout setup.",
+              "Review payout amounts and transfer status for completed orders.",
+            signupTitle: "Last step: Set up payouts",
             signupSubtitle:
-              "Complete Stripe Express onboarding so you can safely receive payouts after completed orders.",
-            backDashboard: "Back to home",
-            connectTitle: "Bank account & identity",
-            connectBody:
-              "Creator payouts are managed through Stripe Express. Complete identity verification and payout details to receive transfers after completed jobs.",
+              "Complete identity verification and payout details in Stripe so you can receive earnings after completed orders.",
+            requiredTitle: "Payout setup is required",
+            requiredSubtitle:
+              "Complete this setup to safely accept orders and receive payouts.",
+
+            setupLabel: "Final setup step",
+            readyLabel: "Ready",
+            notReadyLabel: "Setup required",
+            backDashboard: "Home",
+            goDashboard: "Go to home",
+
+            start: "Set up payouts with Stripe",
+            continue: "Continue Stripe setup",
+            refresh: "Check setup status",
+            refreshing: "Checking...",
+            starting: "Opening Stripe...",
+
+            step1Title: "Identity verification",
+            step1Body: "Enter required identity details securely in Stripe.",
+            step2Title: "Bank account",
+            step2Body: "Add the bank account where you want to receive payouts.",
+            step3Title: "Start receiving",
+            step3Body: "After setup, you can receive payouts from completed orders.",
+
             statusReadyTitle: "Payout setup is complete",
             statusReadyBody:
               "Your account is ready to receive payouts after completed orders.",
             statusNotReadyTitle: "Payout setup is not complete",
             statusNotReadyBody:
-              "Some identity or payout details may still be missing. Please complete the setup in Stripe.",
-            noAccountTitle: "Stripe account has not been created",
-            noAccountBody:
-              "Start Stripe Express onboarding from the button below to set up payouts.",
+              "Complete identity verification and payout details in Stripe.",
             returnedTitle: "Returned from Stripe",
             returnedBody:
-              "We refreshed your latest status. If it is still incomplete, continue onboarding again.",
+              "We refreshed your status. If it is still incomplete, continue setup again.",
             refreshTitle: "Stripe setup was interrupted",
             refreshBody:
-              "You can resume setup. Use the button below to return to Stripe onboarding.",
-            accountId: "Stripe account",
-            onboarding: "Onboarding",
-            detailsSubmitted: "Details submitted",
-            chargesEnabled: "Charges",
-            payoutsEnabled: "Payouts",
-            requirements: "Requirements currently due",
-            disabledReason: "Disabled reason",
-            completed: "Completed",
-            incomplete: "Incomplete",
-            enabled: "Enabled",
-            disabled: "Disabled",
-            none: "None",
-            start: "Start payout setup",
-            continue: "Continue Stripe setup",
-            refresh: "Refresh status",
-            refreshing: "Refreshing...",
-            starting: "Opening Stripe...",
-            noteTitle: "About payouts",
-            noteBody:
-              "Payout amounts from completed orders are transferred through Stripe Connect by the platform's automated process.",
+              "You can resume setup from the button below.",
+            accountManagedByStripe:
+              "Bank account details are securely managed by Stripe. Trendre does not store full bank account numbers.",
+
             monthRevenue: "This month",
             totalEarned: "Expected",
             totalTransferred: "Transferred",
             pendingAmount: "Pending",
             completedOrders: "Completed orders",
-            transferHistory: "Transfer history",
-            historyTitle: "Payout & Transfer History",
+            historyTitle: "Payout history",
             historyBody:
-              "Review payout amounts, transfer status, and transfer timestamps for completed orders.",
+              "Review payout amounts and transfer status for completed orders.",
             historyEmptyTitle: "No payout history yet",
             historyEmptyBody:
               "Completed orders with confirmed payout amounts will appear here.",
             order: "Order",
             orderDetail: "View order",
             payoutAmount: "Payout amount",
-            transferStatus: "Transfer status",
             completedAt: "Completed at",
             transferredAt: "Transferred at",
             transferId: "Transfer ID",
             failedReason: "Failure reason",
-            createdAt: "Created at",
-            setupCompleteDashboard: "Complete setup and go to home",
-            accountManagedByStripe:
-              "Bank account details are securely managed by Stripe. Trendre does not store full bank account numbers.",
+            settingTitle: "Payout setup",
+            settingBody:
+              "Complete setup early so payouts can be sent after orders are completed.",
+            connected: "Complete",
+            incomplete: "Incomplete",
+            none: "None",
+            errorTitle: "Error",
           },
     [safeLocale]
   );
@@ -711,8 +682,6 @@ export default function CreatorPayoutsPage() {
 
   const isReady = Boolean(status?.stripe_onboarding_completed);
   const hasAccount = Boolean(status?.has_stripe_account || creator?.stripe_account_id);
-  const accountIdLabel =
-    status?.stripe_account_id_masked || creator?.stripe_account_id || copy.none;
 
   const payoutSummary = useMemo(() => {
     const totalEarned = payoutOrders.reduce(
@@ -744,131 +713,149 @@ export default function CreatorPayoutsPage() {
   }, [payoutOrders]);
 
   if (loading) {
+    return <LoadingView />;
+  }
+
+  if (signupMode) {
     return (
-      <div className="space-y-5">
-        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
-        <div className="grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-28 animate-pulse rounded-[28px] bg-slate-100"
-            />
-          ))}
+      <div className="relative overflow-hidden pb-10">
+        <div className="pointer-events-none absolute -left-36 top-10 h-80 w-80 rounded-full bg-rose-100/50 blur-3xl" />
+        <div className="pointer-events-none absolute -right-36 top-32 h-96 w-96 rounded-full bg-emerald-100/40 blur-3xl" />
+
+        <div className="relative mx-auto max-w-3xl px-2">
+          <section className="rounded-[34px] bg-white p-6 shadow-[0_26px_80px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 md:p-8">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={isReady ? "green" : "yellow"}>
+                {isReady ? copy.readyLabel : copy.setupLabel}
+              </Badge>
+            </div>
+
+            <h1 className="mt-5 text-[30px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[42px]">
+              {isReady ? copy.statusReadyTitle : copy.signupTitle}
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-500 md:text-base md:leading-8">
+              {isReady ? copy.statusReadyBody : copy.signupSubtitle}
+            </p>
+
+            {returnNotice === "return" ? (
+              <div className="mt-5">
+                <Notice
+                  tone={isReady ? "success" : "info"}
+                  title={copy.returnedTitle}
+                  body={copy.returnedBody}
+                />
+              </div>
+            ) : null}
+
+            {returnNotice === "refresh" ? (
+              <div className="mt-5">
+                <Notice
+                  tone="warning"
+                  title={copy.refreshTitle}
+                  body={copy.refreshBody}
+                />
+              </div>
+            ) : null}
+
+            {error ? (
+              <div className="mt-5">
+                <Notice tone="error" title={copy.errorTitle} body={error} />
+              </div>
+            ) : null}
+
+            <div className="mt-7 grid gap-3">
+              <SetupStep
+                number="1"
+                title={copy.step1Title}
+                body={copy.step1Body}
+              />
+              <SetupStep
+                number="2"
+                title={copy.step2Title}
+                body={copy.step2Body}
+              />
+              <SetupStep
+                number="3"
+                title={copy.step3Title}
+                body={copy.step3Body}
+              />
+            </div>
+
+            <div className="mt-7 grid gap-3">
+              {isReady ? (
+                <Link
+                  href="/creator/dashboard"
+                  className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-6 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98]"
+                >
+                  {copy.goDashboard}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartOnboarding}
+                  disabled={starting}
+                  className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-6 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {starting
+                    ? copy.starting
+                    : hasAccount
+                    ? copy.continue
+                    : copy.start}
+                </button>
+              )}
+
+              {!isReady ? (
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="flex w-full items-center justify-center rounded-full bg-slate-100 px-6 py-4 text-sm font-black text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {refreshing ? copy.refreshing : copy.refresh}
+                </button>
+              ) : null}
+            </div>
+
+            <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
+              {copy.accountManagedByStripe}
+            </p>
+          </section>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-7 pb-4">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          {copy.eyebrow}
-        </p>
+    <div className="relative overflow-hidden pb-10">
+      <div className="pointer-events-none absolute -left-40 top-10 h-96 w-96 rounded-full bg-rose-100/45 blur-3xl" />
+      <div className="pointer-events-none absolute -right-40 top-32 h-[420px] w-[420px] rounded-full bg-emerald-100/35 blur-3xl" />
 
-        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-              {signupMode ? copy.signupTitle : copy.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
-              {signupMode ? copy.signupSubtitle : copy.subtitle}
-            </p>
-          </div>
+      <div className="relative space-y-6">
+        <section className="rounded-[34px] bg-white p-6 shadow-[0_26px_80px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-8">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={isReady ? "green" : "yellow"}>
+                  {isReady ? copy.connected : copy.notReadyLabel}
+                </Badge>
+              </div>
 
-          <Link
-            href="/creator/dashboard"
-            className="w-fit rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-black text-white transition active:scale-[0.98]"
-          >
-            {copy.backDashboard}
-          </Link>
-        </div>
-      </section>
+              <h1 className="mt-4 text-[32px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[44px]">
+                {copy.title}
+              </h1>
 
-      {returnNotice === "return" ? (
-        <Notice
-          tone="success"
-          title={copy.returnedTitle}
-          body={copy.returnedBody}
-        />
-      ) : null}
-
-      {returnNotice === "refresh" ? (
-        <Notice
-          tone="warning"
-          title={copy.refreshTitle}
-          body={copy.refreshBody}
-        />
-      ) : null}
-
-      {error ? <Notice tone="error" title="Error" body={error} /> : null}
-
-      <section className="grid gap-4 md:grid-cols-4">
-        <MoneyCard
-          label={copy.monthRevenue}
-          value={formatMoney(
-            payoutSummary.thisMonthEarned,
-            payoutSummary.mainCurrency,
-            safeLocale
-          )}
-          helper={copy.completedOrders}
-          tone="dark"
-        />
-        <MoneyCard
-          label={copy.totalEarned}
-          value={formatMoney(
-            payoutSummary.totalEarned,
-            payoutSummary.mainCurrency,
-            safeLocale
-          )}
-          helper={`${payoutSummary.completedCount}${safeLocale === "ja" ? "件" : ""}`}
-        />
-        <MoneyCard
-          label={copy.totalTransferred}
-          value={formatMoney(
-            payoutSummary.totalTransferred,
-            payoutSummary.mainCurrency,
-            safeLocale
-          )}
-          tone="green"
-        />
-        <MoneyCard
-          label={copy.pendingAmount}
-          value={formatMoney(
-            payoutSummary.pendingAmount,
-            payoutSummary.mainCurrency,
-            safeLocale
-          )}
-          tone={payoutSummary.pendingAmount > 0 ? "warning" : "default"}
-        />
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-5">
-          <ActionRow
-            icon="🏦"
-            title={copy.connectTitle}
-            body={copy.connectBody}
-          >
-            <div className="flex flex-wrap gap-2">
-              <StatusPill
-                active={isReady}
-                activeLabel={copy.completed}
-                inactiveLabel={copy.incomplete}
-              />
-              <StatusPill
-                active={Boolean(status?.payouts_enabled)}
-                activeLabel={copy.enabled}
-                inactiveLabel={copy.disabled}
-              />
+              <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500 md:text-base md:leading-8">
+                {copy.subtitle}
+              </p>
             </div>
 
-            <div className="mt-4 grid gap-2">
+            {!isReady ? (
               <button
                 type="button"
                 onClick={handleStartOnboarding}
                 disabled={starting}
-                className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {starting
                   ? copy.starting
@@ -876,49 +863,91 @@ export default function CreatorPayoutsPage() {
                   ? copy.continue
                   : copy.start}
               </button>
+            ) : null}
+          </div>
+        </section>
 
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {refreshing ? copy.refreshing : copy.refresh}
-              </button>
+        {returnNotice === "return" ? (
+          <Notice
+            tone={isReady ? "success" : "info"}
+            title={copy.returnedTitle}
+            body={copy.returnedBody}
+          />
+        ) : null}
+
+        {returnNotice === "refresh" ? (
+          <Notice
+            tone="warning"
+            title={copy.refreshTitle}
+            body={copy.refreshBody}
+          />
+        ) : null}
+
+        {error ? <Notice tone="error" title={copy.errorTitle} body={error} /> : null}
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <StatCard
+            label={copy.monthRevenue}
+            value={formatMoney(
+              payoutSummary.thisMonthEarned,
+              payoutSummary.mainCurrency,
+              safeLocale
+            )}
+            helper={copy.completedOrders}
+          />
+
+          <StatCard
+            label={copy.totalEarned}
+            value={formatMoney(
+              payoutSummary.totalEarned,
+              payoutSummary.mainCurrency,
+              safeLocale
+            )}
+            helper={`${copy.pendingAmount}: ${formatMoney(
+              payoutSummary.pendingAmount,
+              payoutSummary.mainCurrency,
+              safeLocale
+            )}`}
+          />
+
+          <StatCard
+            label={copy.totalTransferred}
+            value={formatMoney(
+              payoutSummary.totalTransferred,
+              payoutSummary.mainCurrency,
+              safeLocale
+            )}
+            helper={`${payoutSummary.completedCount}${safeLocale === "ja" ? "件" : ""}`}
+          />
+        </section>
+
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+                  {copy.historyTitle}
+                </h2>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                  {copy.historyBody}
+                </p>
+              </div>
             </div>
 
-            {isReady && signupMode ? (
-              <Link
-                href="/creator/dashboard"
-                className="mt-3 flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-              >
-                {copy.setupCompleteDashboard}
-              </Link>
-            ) : null}
-          </ActionRow>
-
-          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">
-              {copy.historyTitle}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              {copy.historyBody}
-            </p>
-
             {payoutOrders.length === 0 ? (
-              <div className="mt-5 rounded-[24px] bg-slate-50 p-6 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-2xl shadow-sm">
+              <div className="mt-6 rounded-[26px] bg-slate-50 p-8 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-xl font-black text-slate-950 shadow-sm ring-1 ring-slate-100">
                   ¥
                 </div>
                 <h3 className="mt-4 text-lg font-black text-slate-950">
                   {copy.historyEmptyTitle}
                 </h3>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-7 text-slate-500">
                   {copy.historyEmptyBody}
                 </p>
               </div>
             ) : (
-              <div className="mt-5 space-y-3">
+              <div className="mt-6 space-y-3">
                 {payoutOrders.map((order) => {
                   const badge = getTransferBadgeMeta(
                     order.transfer_status,
@@ -928,14 +957,14 @@ export default function CreatorPayoutsPage() {
                   return (
                     <div
                       key={order.id}
-                      className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm"
+                      className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-black text-slate-950">
+                          <p className="truncate text-base font-black text-slate-950">
                             {order.product_name || `${copy.order} ${shortId(order.id)}`}
                           </p>
-                          <p className="mt-1 text-xs font-semibold text-slate-400">
+                          <p className="mt-1 text-xs font-bold text-slate-400">
                             {copy.completedAt}:{" "}
                             {formatDateTime(
                               order.completed_at || order.created_at,
@@ -946,7 +975,7 @@ export default function CreatorPayoutsPage() {
                         <Badge tone={badge.tone}>{badge.label}</Badge>
                       </div>
 
-                      <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                      <div className="mt-4 rounded-[22px] bg-white px-4 py-2 ring-1 ring-slate-100">
                         <FieldRow
                           label={copy.payoutAmount}
                           value={formatMoney(
@@ -959,10 +988,12 @@ export default function CreatorPayoutsPage() {
                           label={copy.transferredAt}
                           value={formatDateTime(order.transferred_at, safeLocale)}
                         />
-                        <FieldRow
-                          label={copy.transferId}
-                          value={shortId(order.stripe_transfer_id)}
-                        />
+                        {order.stripe_transfer_id ? (
+                          <FieldRow
+                            label={copy.transferId}
+                            value={shortId(order.stripe_transfer_id)}
+                          />
+                        ) : null}
                         {order.transfer_failed_reason ? (
                           <FieldRow
                             label={copy.failedReason}
@@ -973,7 +1004,7 @@ export default function CreatorPayoutsPage() {
 
                       <Link
                         href={`/creator/orders/${order.id}`}
-                        className="mt-4 flex w-full items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+                        className="mt-4 flex w-full items-center justify-center rounded-full bg-slate-950 px-4 py-3 text-sm font-black text-white transition active:scale-[0.98]"
                       >
                         {copy.orderDetail}
                       </Link>
@@ -983,88 +1014,71 @@ export default function CreatorPayoutsPage() {
               </div>
             )}
           </div>
-        </div>
 
-        <aside className="space-y-5">
-          {isReady ? (
-            <Notice
-              tone="success"
-              title={copy.statusReadyTitle}
-              body={copy.statusReadyBody}
-            />
-          ) : hasAccount ? (
-            <Notice
-              tone="warning"
-              title={copy.statusNotReadyTitle}
-              body={copy.statusNotReadyBody}
-            />
-          ) : (
-            <Notice
-              tone="info"
-              title={copy.noAccountTitle}
-              body={copy.noAccountBody}
-            />
-          )}
+          <aside className="space-y-4">
+            <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+                    {copy.settingTitle}
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                    {isReady ? copy.statusReadyBody : copy.settingBody}
+                  </p>
+                </div>
 
-          <Notice tone="info" title={copy.noteTitle} body={copy.noteBody} />
+                <Badge tone={isReady ? "green" : "yellow"}>
+                  {isReady ? copy.connected : copy.incomplete}
+                </Badge>
+              </div>
 
-          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">
-              {copy.connectTitle}
-            </h2>
+              <div className="mt-5 grid gap-3">
+                {!isReady ? (
+                  <button
+                    type="button"
+                    onClick={handleStartOnboarding}
+                    disabled={starting}
+                    className="w-full rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_30px_rgba(255,95,103,0.2)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {starting
+                      ? copy.starting
+                      : hasAccount
+                      ? copy.continue
+                      : copy.start}
+                  </button>
+                ) : null}
 
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-              <FieldRow label={copy.accountId} value={accountIdLabel} />
-              <FieldRow
-                label={copy.onboarding}
-                value={
-                  <StatusPill
-                    active={isReady}
-                    activeLabel={copy.completed}
-                    inactiveLabel={copy.incomplete}
-                  />
-                }
-              />
-              <FieldRow
-                label={copy.detailsSubmitted}
-                value={
-                  <StatusPill
-                    active={Boolean(status?.details_submitted)}
-                    activeLabel={copy.completed}
-                    inactiveLabel={copy.incomplete}
-                  />
-                }
-              />
-              <FieldRow
-                label={copy.payoutsEnabled}
-                value={
-                  <StatusPill
-                    active={Boolean(status?.payouts_enabled)}
-                    activeLabel={copy.enabled}
-                    inactiveLabel={copy.disabled}
-                  />
-                }
-              />
-              <FieldRow
-                label={copy.requirements}
-                value={
-                  status?.requirements_currently_due?.length
-                    ? status.requirements_currently_due.join(", ")
-                    : copy.none
-                }
-              />
-              <FieldRow
-                label={copy.disabledReason}
-                value={status?.disabled_reason || copy.none}
-              />
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="w-full rounded-full bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {refreshing ? copy.refreshing : copy.refresh}
+                </button>
+              </div>
+
+              <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
+                {copy.accountManagedByStripe}
+              </p>
             </div>
 
-            <p className="mt-4 text-xs leading-6 text-slate-500">
-              {copy.accountManagedByStripe}
-            </p>
-          </div>
-        </aside>
-      </section>
+            {!isReady ? (
+              <Notice
+                tone="warning"
+                title={copy.statusNotReadyTitle}
+                body={copy.statusNotReadyBody}
+              />
+            ) : (
+              <Notice
+                tone="success"
+                title={copy.statusReadyTitle}
+                body={copy.statusReadyBody}
+              />
+            )}
+          </aside>
+        </section>
+      </div>
     </div>
   );
 }
