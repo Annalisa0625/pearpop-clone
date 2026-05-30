@@ -1,4 +1,4 @@
-// app/signup/creator/SignupCreatorClient.tsx
+// File: app/signup/creator/SignupCreatorClient.tsx
 "use client";
 
 import Link from "next/link";
@@ -40,12 +40,12 @@ type DraftState = {
   agreedToPrivacy: boolean;
 };
 
-const STORAGE_KEY = "trendre_creator_signup_draft_v3";
+const STORAGE_KEY = "trendre_creator_signup_draft_v4";
 
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 const CATEGORY_OPTIONS = [
   "美容",
@@ -154,7 +154,7 @@ const MENU_OPTIONS = [
     value: "Instagram投稿",
     labelJa: "Instagram投稿",
     labelEn: "Instagram Feed Post",
-    helpJa: "Instagramのフィード投稿として企業の商品・サービスを紹介します。",
+    helpJa: "Instagramのフィード投稿として商品やサービスを紹介します。",
     helpEn: "A feed post published on Instagram.",
   },
   {
@@ -196,16 +196,14 @@ const MENU_OPTIONS = [
     value: "投稿なし・動画素材のみ納品",
     labelJa: "投稿なし・動画素材のみ納品",
     labelEn: "Video asset only, no posting",
-    helpJa:
-      "企業が広告やSNSで使う動画素材だけを納品します。あなたのSNSには投稿しません。",
+    helpJa: "広告やSNSで使える動画素材だけを納品します。",
     helpEn: "Deliver video assets only. You do not post on your own account.",
   },
   {
     value: "投稿なし・写真素材のみ納品",
     labelJa: "投稿なし・写真素材のみ納品",
     labelEn: "Photo asset only, no posting",
-    helpJa:
-      "企業が広告やSNSで使う写真素材だけを納品します。あなたのSNSには投稿しません。",
+    helpJa: "広告やSNSで使える写真素材だけを納品します。",
     helpEn: "Deliver photo assets only. You do not post on your own account.",
   },
   {
@@ -219,8 +217,8 @@ const MENU_OPTIONS = [
     value: "その他",
     labelJa: "その他",
     labelEn: "Other",
-    helpJa: "上記以外の依頼メニューです。説明欄に内容を書いてください。",
-    helpEn: "Use this for custom requests. Add details in the description.",
+    helpJa: "上記以外のメニューです。説明欄に内容を書いてください。",
+    helpEn: "Use this for custom services. Add details in the description.",
   },
 ];
 
@@ -256,9 +254,7 @@ function safeStringArray(value: unknown): string[] {
 }
 
 function safeSocialAccounts(value: unknown): SocialAccountForm[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    return [createEmptySocial()];
-  }
+  if (!Array.isArray(value) || value.length === 0) return [createEmptySocial()];
 
   const sanitized = value.map((item) => {
     const row = item as Record<string, unknown>;
@@ -275,9 +271,7 @@ function safeSocialAccounts(value: unknown): SocialAccountForm[] {
 }
 
 function safeMenus(value: unknown): MenuForm[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    return [createEmptyMenu()];
-  }
+  if (!Array.isArray(value) || value.length === 0) return [createEmptyMenu()];
 
   const sanitized = value.map((item) => {
     const row = item as Record<string, unknown>;
@@ -312,8 +306,8 @@ function getSocialConfig(platform: string, locale: Locale) {
       placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
       guide:
         locale === "ja"
-          ? "Instagramアプリ → プロフィールを編集 → ユーザーネームをコピーして貼り付けてください。@は不要です。"
-          : "Open Instagram → Edit profile → Copy your username. You do not need @.",
+          ? "@は不要です。ユーザーネームだけ入力してください。"
+          : "You do not need @. Enter your username only.",
     };
   }
 
@@ -323,8 +317,8 @@ function getSocialConfig(platform: string, locale: Locale) {
       placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
       guide:
         locale === "ja"
-          ? "TikTokアプリ → プロフィール → @から始まるユーザー名をコピーして貼り付けてください。@は不要です。"
-          : "Open TikTok → Profile → Copy the username after @. You do not need @.",
+          ? "@は不要です。ユーザーネームだけ入力してください。"
+          : "You do not need @. Enter your username only.",
     };
   }
 
@@ -334,8 +328,8 @@ function getSocialConfig(platform: string, locale: Locale) {
       placeholder: locale === "ja" ? "例：yourchannel" : "e.g. yourchannel",
       guide:
         locale === "ja"
-          ? "YouTubeのハンドル名を入力してください。@は不要です。"
-          : "Enter your YouTube handle. You do not need @.",
+          ? "YouTubeのハンドル名を入力してください。"
+          : "Enter your YouTube handle.",
     };
   }
 
@@ -345,16 +339,15 @@ function getSocialConfig(platform: string, locale: Locale) {
       placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
       guide:
         locale === "ja"
-          ? "Xのユーザー名を入力してください。@は不要です。"
-          : "Enter your X username. You do not need @.",
+          ? "Xのユーザー名を入力してください。"
+          : "Enter your X username.",
     };
   }
 
   if (platform === "Website") {
     return {
       prefix: "",
-      placeholder:
-        locale === "ja" ? "https://example.com" : "https://example.com",
+      placeholder: "https://example.com",
       guide:
         locale === "ja"
           ? "WebサイトやポートフォリオURLを入力してください。"
@@ -364,28 +357,22 @@ function getSocialConfig(platform: string, locale: Locale) {
 
   return {
     prefix: "",
-    placeholder:
-      locale === "ja" ? "ユーザーネームを入力" : "Enter username",
+    placeholder: locale === "ja" ? "ユーザーネームを入力" : "Enter username",
     guide:
       locale === "ja"
-        ? "媒体を選ぶと入力方法のガイドが表示されます。"
+        ? "媒体を選ぶと入力方法が表示されます。"
         : "Select a platform to see input guidance.",
   };
 }
 
 function buildSocialPreview(platform: string, handle: string) {
   const normalized = normalizeHandle(handle);
-
   if (!platform || !normalized) return "";
-
   if (/^https?:\/\//i.test(normalized)) return normalized;
-
   if (platform === "Instagram") return `https://www.instagram.com/${normalized}`;
   if (platform === "TikTok") return `https://www.tiktok.com/@${normalized}`;
   if (platform === "YouTube") return `https://www.youtube.com/@${normalized}`;
   if (platform === "X") return `https://x.com/${normalized}`;
-  if (platform === "Website") return normalized;
-
   return normalized;
 }
 
@@ -414,7 +401,42 @@ function fileExtension(file: File) {
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
-function LocaleTabs({
+function BackdropHero() {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-white">
+      <div className="absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
+      <div className="absolute right-[-260px] top-[120px] h-[560px] w-[560px] rounded-full bg-emerald-100/25 blur-[150px]" />
+      <div className="absolute left-[-260px] bottom-[-160px] h-[520px] w-[520px] rounded-full bg-rose-100/25 blur-[150px]" />
+
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 pt-24 opacity-70 md:grid-cols-[minmax(0,1fr)_520px] md:px-6">
+        <div className="pt-12">
+          <p className="max-w-xl text-[34px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[54px]">
+            PRやUGC制作の注文を、オンラインで受けられる。
+          </p>
+          <p className="mt-5 max-w-lg text-sm font-semibold leading-8 text-slate-500">
+            プロフィール、SNS、ポートフォリオ、メニューを登録すると、
+            企業があなたを見つけて注文できます。
+          </p>
+        </div>
+
+        {imageFailed ? (
+          <div className="hidden h-[460px] rounded-[36px] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)] md:block" />
+        ) : (
+          <img
+            src="/brand/trendre-home-hero.png"
+            alt=""
+            onError={() => setImageFailed(true)}
+            className="hidden w-full object-contain md:block"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LocaleButton({
   locale,
   setLocale,
 }: {
@@ -422,45 +444,93 @@ function LocaleTabs({
   setLocale: (locale: Locale) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setLocale("ja")}
-        className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
-          locale === "ja"
-            ? "border-gray-950 bg-gray-950 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        JA
-      </button>
-      <button
-        type="button"
-        onClick={() => setLocale("en")}
-        className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
-          locale === "en"
-            ? "border-gray-950 bg-gray-950 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        EN
-      </button>
+    <button
+      type="button"
+      onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
+      className="rounded-full bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-700 transition hover:bg-slate-200"
+    >
+      {locale === "ja" ? "EN" : "日本語"}
+    </button>
+  );
+}
+
+function ProgressBar({ current }: { current: number }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+      <div
+        className="h-full rounded-full bg-[#ff5f67] transition-all duration-300"
+        style={{ width: `${((current + 1) / TOTAL_STEPS) * 100}%` }}
+      />
     </div>
   );
 }
 
-function StepDots({ total, current }: { total: number; current: number }) {
+function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-5 flex items-center gap-2">
-      {Array.from({ length: total }).map((_, index) => (
-        <div
-          key={index}
-          className={`h-2 flex-1 rounded-full transition ${
-            index <= current ? "bg-gray-950" : "bg-gray-200"
-          }`}
-        />
-      ))}
-    </div>
+    <label className="text-sm font-black text-slate-900">{children}</label>
+  );
+}
+
+function TextInput({
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-slate-950 ${className}`}
+    />
+  );
+}
+
+function TextArea({
+  className = "",
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-semibold leading-7 text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-slate-950 ${className}`}
+    />
+  );
+}
+
+function SelectInput({
+  className = "",
+  children,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-semibold text-slate-950 outline-none transition focus:border-slate-950 ${className}`}
+    >
+      {children}
+    </select>
+  );
+}
+
+function ChoiceButton({
+  selected,
+  children,
+  onClick,
+}: {
+  selected: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-4 py-2 text-sm font-black transition ${
+        selected
+          ? "bg-slate-950 text-white"
+          : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -477,7 +547,7 @@ function FilePickerButton({
 }) {
   return (
     <label
-      className={`inline-flex cursor-pointer items-center justify-center rounded-2xl bg-gray-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-black ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-black ${className}`}
     >
       {children}
       <input
@@ -495,92 +565,126 @@ function FilePickerButton({
   );
 }
 
+function StepShell({
+  title,
+  body,
+  children,
+}: {
+  title: string;
+  body?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <h1 className="text-[26px] font-black leading-tight tracking-[-0.045em] text-slate-950 md:text-[32px]">
+        {title}
+      </h1>
+
+      {body ? (
+        <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
+          {body}
+        </p>
+      ) : null}
+
+      <div className="mt-6">{children}</div>
+    </div>
+  );
+}
+
 export default function SignupCreatorClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
-  const appLocale = locale as Locale;
+  const appLocale = (locale === "en" ? "en" : "ja") as Locale;
 
   const copy = useMemo(
     () =>
       appLocale === "ja"
         ? {
-            welcomeTitle: "Trendreで登録をはじめましょう",
-            welcomeBody:
-              "プロフィール、SNS、ポートフォリオ画像、メニューを登録しブランドがあなたに依頼しやすくなります。",
-            identityTitle: "表示名と公開URLを設定してください",
-            identityBody:
-              "表示名は企業に見える名前です。公開URL用IDはプロフィールURLに使われます。",
-            displayName: "表示名（SNSでの表示名と揃えてください）",
-            displayNameHelp:
-              "例：関西グルメ /りょうFitness  / Yuna Beauty",
-            username: "公開URL用ID",
-            usernameHelp:
-              "URLに使うため、英小文字・数字・_・- のみ使えます。SNSの英数字IDに近いものがおすすめです。",
-            accountTitle: "ログイン方法を設定してください",
+            step: "STEP",
+            displayTitle: "プロフィールの基本情報",
+            displayBody:
+              "企業に表示される名前と、プロフィールURLに使うIDを設定します。",
+            displayName: "表示名",
+            displayNamePlaceholder: "例：Yuna Beauty",
+            username: "プロフィールURL用ID",
+            usernamePlaceholder: "例：yuna_beauty",
+            usernamePreview: "URLプレビュー",
+
+            accountTitle: "ログイン方法",
             accountBody: "Google、またはメールアドレスで登録できます。",
-            oauthConnected: "連携済みアカウント",
+            oauthConnected: "Google連携済み",
             email: "メールアドレス",
             password: "パスワード（8文字以上）",
-            signUpWithGoogle: "Googleで登録",
+            signUpWithGoogle: "Googleで続ける",
             orText: "または",
-            profileTitle: "発信内容を教えてください",
+
+            profileTitle: "発信ジャンル",
             profileBody:
-              "カテゴリは企業があなたを見つけるために使われます。地域は任意です。",
-            country: "国",
-            prefecture: "都道府県",
+              "メインカテゴリを選んでください。地域や自己紹介はあとから編集できます。",
+            country: "国（任意）",
+            prefecture: "都道府県（任意）",
             mainCategory: "メインカテゴリ",
-            subCategories: "サブカテゴリ",
-            shortBio: "短い自己紹介（発信内容など）",
+            subCategories: "サブカテゴリ（任意）",
+            shortBio: "短い自己紹介（任意）",
             adultConfirm: "18歳以上です",
-            socialTitle: "SNSアカウントを追加してください",
+
+            socialTitle: "SNSアカウント",
             socialBody:
-              "媒体を選び、ユーザーネームをコピペしてください",
+              "1つ以上のSNSを登録してください。企業が確認するために使います。",
             platform: "媒体",
             socialHandle: "ユーザーネーム",
             followerRange: "フォロワー数",
             audienceCountry: "主なフォロワー層",
-            urlPreview: "プロフィールURLプレビュー",
+            urlPreview: "URL",
             addSocial: "SNSを追加",
             remove: "削除",
-            imagesTitle: "写真を追加してください",
+
+            imagesTitle: "写真",
             imagesBody:
-              "プロフィール画像は丸アイコン、ポートフォリオ画像は一覧・詳細ページに表示されます。",
+              "プロフィール画像1枚と、ポートフォリオ画像3枚以上を追加してください。",
             avatar: "プロフィール画像",
-            avatarHelp: "B側に小さな丸アイコンとして表示されます。",
+            avatarHelp: "丸いアイコンとして表示されます。",
             avatarChoose: "プロフィール画像を選択",
             portfolio: "ポートフォリオ画像",
             portfolioHelp:
-              "3枚以上必須です。1枚目は一覧カード、2枚目以降は詳細ページのギャラリーに使われます。",
-            portfolioChoose: "ポートフォリオ画像を追加",
-            imageSafetyNote:
-              "画像は登録完了時にアップロードされます。ページを閉じると画像は再選択が必要です。",
-            menuTitle: "メニューを作成してください",
+              "3枚以上必須です。あなたの雰囲気が伝わる写真を選んでください。",
+            portfolioChoose: "画像を追加",
+
+            menuTitle: "メニュー",
             menuBody:
-              "企業が依頼しやすいように、料金メニューを1つ以上登録してください。後から追加・編集できます。",
-            menuFeeNote: "Trendreの手数料は売上から差し引かれます。",
+              "企業が注文できるメニューを1つ以上作成してください。あとから変更できます。",
             menuType: "メニュー内容",
             price: "金額（円）",
-            menuDescription: "メニューについての説明（任意）",
+            menuDescription: "説明（任意）",
             addMenu: "メニューを追加",
-            phoneTitle: "電話番号を確認してください",
+
+            phoneTitle: "確認",
             phoneBody:
-              "安全な取引のため、電話番号確認を行います。現在は開発用コードで確認します。",
+              "電話番号を確認し、利用規約とプライバシーポリシーに同意してください。",
             phoneNumber: "電話番号（例：09012345678）",
             sendCode: "認証コードを送信",
             verificationCode: "6桁認証コード",
             verifyCode: "確認する",
             verified: "確認済み",
+            termsLabel: "利用規約に同意する",
+            privacyLabel: "プライバシーポリシーに同意する",
+            termsLink: "利用規約",
+            privacyLink: "プライバシーポリシー",
+
             continue: "続ける",
             back: "戻る",
             finish: "登録を完了する",
             loading: "処理中...",
             selectPlease: "選択してください",
+            login: "ログイン",
+            reset: "最初からやり直す",
+
             displayNameRequired: "表示名を入力してください",
-            usernameRequired: "公開URL用IDを入力してください",
+            usernameRequired: "プロフィールURL用IDを入力してください",
             usernameInvalid:
-              "公開URL用IDは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
+              "プロフィールURL用IDは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
             emailRequired: "メールアドレスを入力してください",
             emailInvalid: "メールアドレスの形式が正しくありません",
             passwordRequired: "パスワードは8文字以上必要です",
@@ -597,89 +701,94 @@ export default function SignupCreatorClient() {
             codeInvalid: "認証コードが正しくありません",
             signupFailed: "登録に失敗しました",
             imageUploadFailed: "画像のアップロードに失敗しました",
-            termsLabel: "利用規約に同意する",
-            privacyLabel: "プライバシーポリシーに同意する",
-            termsLink: "利用規約",
-            privacyLink: "プライバシーポリシー",
-            duplicateUsername: "この公開URL用IDは既に使われています",
+            duplicateUsername: "このプロフィールURL用IDは既に使われています",
             sessionMissing:
               "アカウント作成後のログイン状態を確認できませんでした。Supabase Authでメール確認が必須になっている可能性があります。",
           }
         : {
-            welcomeTitle: "Start your Trendre registration",
-            welcomeBody:
-              "Add your profile, social accounts, portfolio images, and menus so brands can request you.",
-            identityTitle: "Set your display name and public URL",
-            identityBody:
-              "Your display name is shown to brands. Your public URL ID is used in your profile URL.",
+            step: "STEP",
+            displayTitle: "Basic profile",
+            displayBody:
+              "Set the name shown to brands and the ID used in your profile URL.",
             displayName: "Display name",
-            displayNameHelp: "Example: Yuna Beauty / Kyoto Creator",
-            username: "Public URL ID",
-            usernameHelp:
-              "Used in your profile URL. Lowercase letters, numbers, _, and - only.",
-            accountTitle: "Set up your login",
-            accountBody: "You can sign up with Google or email and password.",
-            oauthConnected: "Connected account",
+            displayNamePlaceholder: "Example: Yuna Beauty",
+            username: "Profile URL ID",
+            usernamePlaceholder: "Example: yuna_beauty",
+            usernamePreview: "URL preview",
+
+            accountTitle: "Login method",
+            accountBody: "Continue with Google or sign up with email.",
+            oauthConnected: "Google connected",
             email: "Email",
             password: "Password",
-            signUpWithGoogle: "Sign up with Google",
+            signUpWithGoogle: "Continue with Google",
             orText: "or",
-            profileTitle: "Tell brands what you create",
+
+            profileTitle: "Content category",
             profileBody:
-              "Categories help brands discover you. Location is optional.",
+              "Choose your main category. Location and bio can be edited later.",
             country: "Country (optional)",
             prefecture: "State / Prefecture (optional)",
             mainCategory: "Main category",
             subCategories: "Sub-categories (optional)",
             shortBio: "Short bio (optional)",
             adultConfirm: "I am 18 years old or older",
-            socialTitle: "Add your social accounts",
+
+            socialTitle: "Social accounts",
             socialBody:
-              "Select a platform and paste your username. We will build your profile URL automatically.",
+              "Add at least one social account so brands can review it.",
             platform: "Platform",
             socialHandle: "Username",
             followerRange: "Follower range",
             audienceCountry: "Main audience country",
-            urlPreview: "Profile URL preview",
+            urlPreview: "URL",
             addSocial: "Add social account",
             remove: "Remove",
-            imagesTitle: "Add your images",
+
+            imagesTitle: "Images",
             imagesBody:
-              "Profile image is used as your round icon. Portfolio images are shown to brands.",
+              "Add one profile image and at least three portfolio images.",
             avatar: "Profile image",
-            avatarHelp: "Displayed as your small round icon.",
+            avatarHelp: "Displayed as your round icon.",
             avatarChoose: "Choose profile image",
             portfolio: "Portfolio images",
             portfolioHelp:
-              "At least 3 are required. The first image is used on creator cards.",
-            portfolioChoose: "Add portfolio images",
-            imageSafetyNote:
-              "Images are uploaded when you complete registration. If you close the page, you will need to select them again.",
-            menuTitle: "Create your menus",
+              "At least 3 are required. Choose images that show your style.",
+            portfolioChoose: "Add images",
+
+            menuTitle: "Menus",
             menuBody:
-              "Add at least one menu so brands can request you. You can edit them later.",
-            menuFeeNote: "Trendre fee will be deducted from your payout.",
+              "Create at least one menu that brands can order. You can edit it later.",
             menuType: "Menu content",
             price: "Price (JPY)",
-            menuDescription: "Notes (optional)",
+            menuDescription: "Description (optional)",
             addMenu: "Add menu",
-            phoneTitle: "Verify your phone number",
+
+            phoneTitle: "Confirmation",
             phoneBody:
-              "Phone verification helps keep transactions safe. Development code is currently used.",
+              "Verify your phone number and agree to the Terms and Privacy Policy.",
             phoneNumber: "Phone number",
-            sendCode: "Send verification code",
+            sendCode: "Send code",
             verificationCode: "6-digit code",
             verifyCode: "Verify",
             verified: "Verified",
+            termsLabel: "I agree to the Terms of Service",
+            privacyLabel: "I agree to the Privacy Policy",
+            termsLink: "Terms",
+            privacyLink: "Privacy Policy",
+
             continue: "Continue",
             back: "Back",
             finish: "Complete registration",
             loading: "Processing...",
             selectPlease: "Please select",
+            login: "Login",
+            reset: "Start over",
+
             displayNameRequired: "Please enter your display name",
-            usernameRequired: "Please enter your public URL ID",
+            usernameRequired: "Please enter your profile URL ID",
             usernameInvalid:
-              "Public URL ID must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
+              "Profile URL ID must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
             emailRequired: "Please enter your email address",
             emailInvalid: "Please enter a valid email address",
             passwordRequired: "Password must be at least 8 characters",
@@ -696,14 +805,18 @@ export default function SignupCreatorClient() {
             codeInvalid: "The verification code is incorrect",
             signupFailed: "Sign up failed",
             imageUploadFailed: "Failed to upload images",
-            termsLabel: "I agree to the Terms of Service",
-            privacyLabel: "I agree to the Privacy Policy",
-            termsLink: "Terms of Service",
-            privacyLink: "Privacy Policy",
-            duplicateUsername: "This public URL ID is already taken",
+            duplicateUsername: "This profile URL ID is already taken",
             sessionMissing:
               "Could not confirm your signed-in session after account creation. Email confirmation may be required in Supabase Auth settings.",
           },
+    [appLocale]
+  );
+
+  const stepTitles = useMemo(
+    () =>
+      appLocale === "ja"
+        ? ["基本情報", "ログイン", "ジャンル", "SNS", "写真", "メニュー", "確認"]
+        : ["Profile", "Login", "Category", "Socials", "Images", "Menus", "Confirm"],
     [appLocale]
   );
 
@@ -748,7 +861,6 @@ export default function SignupCreatorClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const currentProgress = Math.min(step, TOTAL_STEPS - 1);
   const hasOAuthReturn = searchParams.get("oauth") === "1";
   const shouldResetDraft = searchParams.get("reset") === "1";
 
@@ -830,10 +942,7 @@ export default function SignupCreatorClient() {
 
   useEffect(() => {
     return () => {
-      if (avatarPreview) {
-        URL.revokeObjectURL(avatarPreview);
-      }
-
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
       portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [avatarPreview, portfolioPreviews]);
@@ -847,6 +956,7 @@ export default function SignupCreatorClient() {
       if (!session?.user) return;
 
       const meta = session.user.user_metadata ?? {};
+
       const oauthName =
         typeof meta.display_name === "string" && meta.display_name.trim()
           ? meta.display_name.trim()
@@ -947,9 +1057,7 @@ export default function SignupCreatorClient() {
   const handleAvatarSelect = (files: File[]) => {
     const file = files[0] ?? null;
 
-    if (avatarPreview) {
-      URL.revokeObjectURL(avatarPreview);
-    }
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
 
     setAvatarFile(file);
     setAvatarPreview(file ? URL.createObjectURL(file) : null);
@@ -957,7 +1065,6 @@ export default function SignupCreatorClient() {
 
   const handlePortfolioSelect = (files: File[]) => {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-
     if (imageFiles.length === 0) return;
 
     setPortfolioFiles((prev) => [...prev, ...imageFiles]);
@@ -971,11 +1078,7 @@ export default function SignupCreatorClient() {
     setPortfolioFiles((prev) => prev.filter((_, i) => i !== index));
     setPortfolioPreviews((prev) => {
       const target = prev[index];
-
-      if (target) {
-        URL.revokeObjectURL(target);
-      }
-
+      if (target) URL.revokeObjectURL(target);
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -983,7 +1086,7 @@ export default function SignupCreatorClient() {
   const validateStep = async () => {
     setError(null);
 
-    if (step === 1) {
+    if (step === 0) {
       const normalized = username.trim().toLowerCase();
       const valid = /^[a-z0-9][a-z0-9_-]{2,29}$/.test(normalized);
 
@@ -1021,7 +1124,7 @@ export default function SignupCreatorClient() {
       setUsername(normalized);
     }
 
-    if (step === 2) {
+    if (step === 1) {
       const hasOAuth = !!oauthSessionEmail;
 
       if (!hasOAuth) {
@@ -1042,14 +1145,14 @@ export default function SignupCreatorClient() {
       }
     }
 
-    if (step === 3) {
+    if (step === 2) {
       if (!mainCategory.trim() || !isAdultConfirmed) {
         setError(copy.categoryRequired);
         return false;
       }
     }
 
-    if (step === 4) {
+    if (step === 3) {
       const cleaned = socialAccounts.filter(
         (item) =>
           item.platform.trim() ||
@@ -1077,7 +1180,7 @@ export default function SignupCreatorClient() {
       }
     }
 
-    if (step === 5) {
+    if (step === 4) {
       if (!avatarFile) {
         setError(copy.avatarRequired);
         return false;
@@ -1089,7 +1192,7 @@ export default function SignupCreatorClient() {
       }
     }
 
-    if (step === 6) {
+    if (step === 5) {
       const filledMenus = menus.filter(
         (menu) => menu.menu_type.trim() || menu.price.trim()
       );
@@ -1115,7 +1218,7 @@ export default function SignupCreatorClient() {
       }
     }
 
-    if (step === 7) {
+    if (step === 6) {
       if (!phoneNumber.trim()) {
         setError(copy.phoneRequired);
         return false;
@@ -1137,9 +1240,7 @@ export default function SignupCreatorClient() {
 
   const goNext = async () => {
     const valid = await validateStep();
-
     if (!valid) return;
-
     setStep((prev) => Math.min(prev + 1, TOTAL_STEPS - 1));
   };
 
@@ -1223,9 +1324,7 @@ export default function SignupCreatorClient() {
       return currentSession;
     }
 
-    if (!email.trim()) {
-      throw new Error(copy.emailRequired);
-    }
+    if (!email.trim()) throw new Error(copy.emailRequired);
 
     if (!password.trim() || password.trim().length < 8) {
       throw new Error(copy.passwordRequired);
@@ -1270,20 +1369,14 @@ export default function SignupCreatorClient() {
 
   const handleFinish = async () => {
     const valid = await validateStep();
-
     if (!valid) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      if (!avatarFile) {
-        throw new Error(copy.avatarRequired);
-      }
-
-      if (portfolioFiles.length < 3) {
-        throw new Error(copy.portfolioRequired);
-      }
+      if (!avatarFile) throw new Error(copy.avatarRequired);
+      if (portfolioFiles.length < 3) throw new Error(copy.portfolioRequired);
 
       const validMenus = menus
         .map((menu) => ({
@@ -1293,9 +1386,7 @@ export default function SignupCreatorClient() {
         }))
         .filter((menu) => menu.menu_type && menu.price > 0);
 
-      if (validMenus.length === 0) {
-        throw new Error(copy.menuRequired);
-      }
+      if (validMenus.length === 0) throw new Error(copy.menuRequired);
 
       const session = await ensureAuthenticatedSession();
       const ownerKey = session.user.id || username.trim().toLowerCase();
@@ -1385,7 +1476,6 @@ export default function SignupCreatorClient() {
       }
 
       localStorage.removeItem(STORAGE_KEY);
-
       router.replace("/creator/payouts?from=signup");
     } catch (e) {
       console.error(e);
@@ -1398,195 +1488,140 @@ export default function SignupCreatorClient() {
   const renderStep = () => {
     if (step === 0) {
       return (
-        <div className="rounded-[2rem] bg-white p-7 shadow-sm ring-1 ring-gray-100">
-          <h1 className="text-3xl font-black tracking-tight text-gray-950">
-            {copy.welcomeTitle}
-          </h1>
-          <p className="mt-4 text-[15px] leading-8 text-gray-600">
-            {copy.welcomeBody}
-          </p>
-        </div>
+        <StepShell title={copy.displayTitle} body={copy.displayBody}>
+          <div className="grid gap-5">
+            <div>
+              <FieldLabel>{copy.displayName}</FieldLabel>
+              <TextInput
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={copy.displayNamePlaceholder}
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <FieldLabel>{copy.username}</FieldLabel>
+              <TextInput
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                placeholder={copy.usernamePlaceholder}
+                className="mt-2"
+              />
+              <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-black text-slate-600">
+                <span className="text-slate-400">{copy.usernamePreview}: </span>
+                {buildUsernamePreview(username)}
+              </div>
+            </div>
+          </div>
+        </StepShell>
       );
     }
 
     if (step === 1) {
       return (
-        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <h1 className="text-2xl font-black text-gray-950">
-            {copy.identityTitle}
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
-            {copy.identityBody}
-          </p>
+        <StepShell title={copy.accountTitle} body={copy.accountBody}>
+          <button
+            type="button"
+            onClick={handleGoogleSignup}
+            className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-900 transition hover:bg-slate-50"
+          >
+            {copy.signUpWithGoogle}
+          </button>
 
-          <div className="mt-6 space-y-5">
-            <div>
-              <label className="text-sm font-bold text-gray-900">
-                {copy.displayName}
-              </label>
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
-                placeholder="例：SNSアカウント名"
-              />
-              <p className="mt-2 text-xs leading-5 text-gray-500">
-                {copy.displayNameHelp}
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-gray-900">
-                {copy.username}
-              </label>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
-                placeholder="例：kyoto_beauty"
-              />
-              <p className="mt-2 text-xs leading-5 text-gray-500">
-                {copy.usernameHelp}
-              </p>
-              <p className="mt-3 rounded-2xl bg-gray-50 px-4 py-3 text-sm font-bold text-gray-600">
-                {buildUsernamePreview(username)}
-              </p>
-            </div>
+          <div className="my-6 flex items-center gap-4 text-xs font-black text-slate-300">
+            <div className="h-px flex-1 bg-slate-200" />
+            {copy.orText}
+            <div className="h-px flex-1 bg-slate-200" />
           </div>
-        </div>
+
+          {oauthSessionEmail ? (
+            <div className="mb-5 rounded-2xl bg-emerald-50 p-4 text-sm font-black text-emerald-700 ring-1 ring-emerald-100">
+              {copy.oauthConnected}: {oauthSessionEmail}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4">
+            <TextInput
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={copy.email}
+              disabled={!!oauthSessionEmail}
+            />
+
+            {!oauthSessionEmail ? (
+              <TextInput
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={copy.password}
+              />
+            ) : null}
+          </div>
+        </StepShell>
       );
     }
 
     if (step === 2) {
       return (
-        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <h1 className="text-2xl font-black text-gray-950">
-            {copy.accountTitle}
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
-            {copy.accountBody}
-          </p>
-
-          <button
-            type="button"
-            onClick={handleGoogleSignup}
-            className="mt-6 flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm font-black text-gray-900 transition hover:bg-gray-50"
-          >
-            {copy.signUpWithGoogle}
-          </button>
-
-          <div className="my-6 flex items-center gap-4 text-xs font-bold text-gray-400">
-            <div className="h-px flex-1 bg-gray-200" />
-            {copy.orText}
-            <div className="h-px flex-1 bg-gray-200" />
-          </div>
-
-          {oauthSessionEmail ? (
-            <div className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">
-              {copy.oauthConnected}: {oauthSessionEmail}
-            </div>
-          ) : null}
-
-          <div className="mt-5 grid gap-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
-              placeholder={copy.email}
-              disabled={!!oauthSessionEmail}
-            />
-            {!oauthSessionEmail ? (
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
-                placeholder={copy.password}
-              />
-            ) : null}
-          </div>
-        </div>
-      );
-    }
-
-    if (step === 3) {
-      return (
-        <div className="space-y-5">
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-            <h1 className="text-2xl font-black text-gray-950">
-              {copy.profileTitle}
-            </h1>
-            <p className="mt-3 text-sm leading-7 text-gray-600">
-              {copy.profileBody}
-            </p>
-
-            <div className="mt-6 grid gap-4">
-              <input
+        <StepShell title={copy.profileTitle} body={copy.profileBody}>
+          <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
                 placeholder={copy.country}
               />
-              <input
+              <TextInput
                 value={prefecture}
                 onChange={(e) => setPrefecture(e.target.value)}
-                className="rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
                 placeholder={copy.prefecture}
               />
             </div>
-          </div>
 
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-            <p className="text-sm font-black text-gray-950">
-              {copy.mainCategory}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {CATEGORY_OPTIONS.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setMainCategory(item)}
-                  className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
-                    mainCategory === item
-                      ? "border-gray-950 bg-gray-950 text-white"
-                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
-                </button>
-              ))}
+            <div>
+              <p className="text-sm font-black text-slate-950">
+                {copy.mainCategory}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {CATEGORY_OPTIONS.map((item) => (
+                  <ChoiceButton
+                    key={item}
+                    selected={mainCategory === item}
+                    onClick={() => setMainCategory(item)}
+                  >
+                    {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
+                  </ChoiceButton>
+                ))}
+              </div>
             </div>
 
-            <p className="mt-7 text-sm font-black text-gray-950">
-              {copy.subCategories}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {CATEGORY_OPTIONS.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => toggleSubCategory(item)}
-                  className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
-                    subCategories.includes(item)
-                      ? "border-gray-950 bg-gray-950 text-white"
-                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
-                </button>
-              ))}
+            <div>
+              <p className="text-sm font-black text-slate-950">
+                {copy.subCategories}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {CATEGORY_OPTIONS.map((item) => (
+                  <ChoiceButton
+                    key={item}
+                    selected={subCategories.includes(item)}
+                    onClick={() => toggleSubCategory(item)}
+                  >
+                    {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
+                  </ChoiceButton>
+                ))}
+              </div>
             </div>
 
-            <textarea
+            <TextArea
               value={shortBio}
               onChange={(e) => setShortBio(e.target.value)}
-              rows={4}
-              className="mt-6 w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
+              rows={3}
               placeholder={copy.shortBio}
             />
 
-            <label className="mt-5 flex items-center gap-3 text-sm font-bold text-gray-900">
+            <label className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4 text-sm font-black text-slate-900">
               <input
                 type="checkbox"
                 checked={isAdultConfirmed}
@@ -1596,21 +1631,14 @@ export default function SignupCreatorClient() {
               {copy.adultConfirm}
             </label>
           </div>
-        </div>
+        </StepShell>
       );
     }
 
-    if (step === 4) {
+    if (step === 3) {
       return (
-        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <h1 className="text-2xl font-black text-gray-950">
-            {copy.socialTitle}
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
-            {copy.socialBody}
-          </p>
-
-          <div className="mt-6 space-y-4">
+        <StepShell title={copy.socialTitle} body={copy.socialBody}>
+          <div className="space-y-4">
             {socialAccounts.map((social, index) => {
               const config = getSocialConfig(social.platform, appLocale);
               const previewUrl = buildSocialPreview(
@@ -1621,26 +1649,25 @@ export default function SignupCreatorClient() {
               return (
                 <div
                   key={index}
-                  className="rounded-[1.5rem] border border-gray-200 bg-gray-50 p-4"
+                  className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
                 >
                   <div className="mb-4 flex items-center justify-between">
-                    <p className="font-black text-gray-950">SNS {index + 1}</p>
+                    <p className="font-black text-slate-950">SNS {index + 1}</p>
                     <button
                       type="button"
                       onClick={() => removeSocial(index)}
-                      className="text-sm font-bold text-red-600"
+                      className="text-sm font-black text-[#ff5f67]"
                     >
                       {copy.remove}
                     </button>
                   </div>
 
                   <div className="grid gap-3">
-                    <select
+                    <SelectInput
                       value={social.platform}
                       onChange={(e) =>
                         updateSocial(index, "platform", e.target.value)
                       }
-                      className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
                     >
                       <option value="">{copy.platform}</option>
                       {PLATFORM_OPTIONS.map((item) => (
@@ -1648,15 +1675,16 @@ export default function SignupCreatorClient() {
                           {item}
                         </option>
                       ))}
-                    </select>
+                    </SelectInput>
 
                     <div>
-                      <div className="flex overflow-hidden rounded-2xl border border-gray-200 bg-white focus-within:border-gray-950">
+                      <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-slate-950">
                         {config.prefix ? (
-                          <div className="flex max-w-[48%] items-center bg-gray-50 px-3 text-xs font-bold text-gray-500">
+                          <div className="flex max-w-[45%] items-center bg-slate-50 px-3 text-xs font-black text-slate-400">
                             <span className="truncate">{config.prefix}</span>
                           </div>
                         ) : null}
+
                         <input
                           value={social.username_or_url}
                           onChange={(e) =>
@@ -1666,28 +1694,27 @@ export default function SignupCreatorClient() {
                               e.target.value
                             )
                           }
-                          className="min-w-0 flex-1 px-4 py-3 text-base outline-none"
+                          className="min-w-0 flex-1 px-4 py-3.5 text-base font-semibold outline-none"
                           placeholder={config.placeholder}
                         />
                       </div>
 
-                      <p className="mt-2 text-xs leading-5 text-gray-500">
+                      <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
                         {config.guide}
                       </p>
 
                       {previewUrl ? (
-                        <p className="mt-2 rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-600 ring-1 ring-gray-100">
+                        <p className="mt-2 break-all rounded-2xl bg-white px-4 py-3 text-xs font-bold text-slate-500 ring-1 ring-slate-100">
                           {copy.urlPreview}: {previewUrl}
                         </p>
                       ) : null}
                     </div>
 
-                    <select
+                    <SelectInput
                       value={social.follower_range}
                       onChange={(e) =>
                         updateSocial(index, "follower_range", e.target.value)
                       }
-                      className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
                     >
                       <option value="">{copy.followerRange}</option>
                       {FOLLOWER_RANGE_OPTIONS.map((item) => (
@@ -1699,14 +1726,13 @@ export default function SignupCreatorClient() {
                           )}
                         </option>
                       ))}
-                    </select>
+                    </SelectInput>
 
-                    <select
+                    <SelectInput
                       value={social.audience_country}
                       onChange={(e) =>
                         updateSocial(index, "audience_country", e.target.value)
                       }
-                      className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
                     >
                       <option value="">{copy.audienceCountry}</option>
                       {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
@@ -1718,7 +1744,7 @@ export default function SignupCreatorClient() {
                           )}
                         </option>
                       ))}
-                    </select>
+                    </SelectInput>
                   </div>
                 </div>
               );
@@ -1728,81 +1754,72 @@ export default function SignupCreatorClient() {
           <button
             type="button"
             onClick={addSocial}
-            className="mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-black text-gray-900 transition hover:bg-gray-50"
+            className="mt-5 w-full rounded-full bg-white px-4 py-4 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
           >
             + {copy.addSocial}
           </button>
-        </div>
+        </StepShell>
       );
     }
 
-    if (step === 5) {
+    if (step === 4) {
       return (
-        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <h1 className="text-2xl font-black text-gray-950">
-            {copy.imagesTitle}
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
-            {copy.imagesBody}
-          </p>
+        <StepShell title={copy.imagesTitle} body={copy.imagesBody}>
+          <div className="space-y-5">
+            <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
+              <div className="flex items-center gap-5">
+                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white ring-1 ring-slate-200">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt={copy.avatar}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs font-black text-slate-300">
+                      Icon
+                    </div>
+                  )}
+                </div>
 
-          <div className="mt-5 rounded-2xl bg-blue-50 p-4 text-xs font-bold leading-6 text-blue-800">
-            {copy.imageSafetyNote}
-          </div>
-
-          <div className="mt-6 rounded-[1.5rem] border border-gray-200 bg-gray-50 p-5">
-            <div className="flex items-center gap-5">
-              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white ring-1 ring-gray-200">
-                {avatarPreview ? (
-                  <img
-                    src={avatarPreview}
-                    alt={copy.avatar}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs font-bold text-gray-400">
-                    Icon
+                <div className="min-w-0 flex-1">
+                  <p className="font-black text-slate-950">{copy.avatar}</p>
+                  <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
+                    {copy.avatarHelp}
+                  </p>
+                  <div className="mt-3">
+                    <FilePickerButton onChange={handleAvatarSelect}>
+                      {copy.avatarChoose}
+                    </FilePickerButton>
                   </div>
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="font-black text-gray-950">{copy.avatar}</p>
-                <p className="mt-2 text-xs leading-5 text-gray-500">
-                  {copy.avatarHelp}
-                </p>
-                <div className="mt-3">
-                  <FilePickerButton onChange={handleAvatarSelect}>
-                    {copy.avatarChoose}
-                  </FilePickerButton>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-5 rounded-[1.5rem] border border-gray-200 bg-gray-50 p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-black text-gray-950">{copy.portfolio}</p>
-                <p className="mt-2 text-xs leading-5 text-gray-500">
-                  {copy.portfolioHelp}
-                </p>
+            <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-black text-slate-950">{copy.portfolio}</p>
+                  <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
+                    {copy.portfolioHelp}
+                  </p>
+                </div>
+                <div className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
+                  {portfolioPreviews.length}/3
+                </div>
               </div>
-              <div className="rounded-full bg-white px-3 py-1 text-xs font-black text-gray-700 ring-1 ring-gray-200">
-                {portfolioPreviews.length}/3
-              </div>
-            </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              {Array.from({ length: Math.max(3, portfolioPreviews.length) }).map(
-                (_, index) => {
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                {Array.from({
+                  length: Math.max(3, portfolioPreviews.length),
+                }).map((_, index) => {
                   const preview = portfolioPreviews[index];
 
                   if (preview) {
                     return (
                       <div
                         key={preview}
-                        className="group relative aspect-square overflow-hidden rounded-2xl bg-white ring-1 ring-gray-200"
+                        className="group relative aspect-square overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200"
                       >
                         <img
                           src={preview}
@@ -1816,11 +1833,6 @@ export default function SignupCreatorClient() {
                         >
                           ×
                         </button>
-                        {index === 0 ? (
-                          <div className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-gray-800">
-                            Main
-                          </div>
-                        ) : null}
                       </div>
                     );
                   }
@@ -1828,64 +1840,51 @@ export default function SignupCreatorClient() {
                   return (
                     <div
                       key={`empty-${index}`}
-                      className="flex aspect-square items-center justify-center rounded-2xl bg-white text-xs font-black text-gray-300 ring-1 ring-dashed ring-gray-200"
+                      className="flex aspect-square items-center justify-center rounded-2xl bg-white text-xs font-black text-slate-300 ring-1 ring-dashed ring-slate-200"
                     >
                       {index + 1}
                     </div>
                   );
-                }
-              )}
-            </div>
+                })}
+              </div>
 
-            <div className="mt-5">
-              <FilePickerButton multiple onChange={handlePortfolioSelect}>
-                {copy.portfolioChoose}
-              </FilePickerButton>
+              <div className="mt-5">
+                <FilePickerButton multiple onChange={handlePortfolioSelect}>
+                  {copy.portfolioChoose}
+                </FilePickerButton>
+              </div>
             </div>
           </div>
-        </div>
+        </StepShell>
       );
     }
 
-    if (step === 6) {
+    if (step === 5) {
       return (
-        <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <h1 className="text-2xl font-black text-gray-950">
-            {copy.menuTitle}
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-600">
-            {copy.menuBody}
-          </p>
-          <p className="mt-4 rounded-2xl bg-blue-50 p-4 text-xs font-bold leading-6 text-blue-800">
-            {copy.menuFeeNote}
-          </p>
-
-          <div className="mt-6 space-y-4">
+        <StepShell title={copy.menuTitle} body={copy.menuBody}>
+          <div className="space-y-4">
             {menus.map((menu, index) => (
               <div
                 key={index}
-                className="rounded-[1.5rem] border border-gray-200 bg-gray-50 p-4"
+                className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
               >
                 <div className="mb-4 flex items-center justify-between">
-                  <p className="font-black text-gray-950">
-                    Menu {index + 1}
-                  </p>
+                  <p className="font-black text-slate-950">Menu {index + 1}</p>
                   <button
                     type="button"
                     onClick={() => removeMenu(index)}
-                    className="text-sm font-bold text-red-600"
+                    className="text-sm font-black text-[#ff5f67]"
                   >
                     {copy.remove}
                   </button>
                 </div>
 
                 <div className="grid gap-3">
-                  <select
+                  <SelectInput
                     value={menu.menu_type}
                     onChange={(e) =>
                       updateMenu(index, "menu_type", e.target.value)
                     }
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
                   >
                     <option value="">{copy.selectPlease}</option>
                     {MENU_OPTIONS.map((item) => (
@@ -1893,31 +1892,31 @@ export default function SignupCreatorClient() {
                         {appLocale === "ja" ? item.labelJa : item.labelEn}
                       </option>
                     ))}
-                  </select>
+                  </SelectInput>
 
                   {menu.menu_type ? (
-                    <p className="rounded-2xl bg-white px-4 py-3 text-xs font-bold leading-6 text-gray-600 ring-1 ring-gray-100">
+                    <p className="rounded-2xl bg-white px-4 py-3 text-xs font-bold leading-6 text-slate-500 ring-1 ring-slate-100">
                       {getMenuLabel(menu.menu_type, appLocale)}：{" "}
                       {getMenuHelp(menu.menu_type, appLocale)}
                     </p>
                   ) : null}
 
-                  <input
+                  <TextInput
                     type="number"
                     min={1}
                     value={menu.price}
-                    onChange={(e) => updateMenu(index, "price", e.target.value)}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
+                    onChange={(e) =>
+                      updateMenu(index, "price", e.target.value)
+                    }
                     placeholder={copy.price}
                   />
 
-                  <textarea
+                  <TextArea
                     value={menu.description}
                     onChange={(e) =>
                       updateMenu(index, "description", e.target.value)
                     }
                     rows={3}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base outline-none transition focus:border-gray-950"
                     placeholder={copy.menuDescription}
                   />
                 </div>
@@ -1928,23 +1927,18 @@ export default function SignupCreatorClient() {
           <button
             type="button"
             onClick={addMenu}
-            className="mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-black text-gray-900 transition hover:bg-gray-50"
+            className="mt-5 w-full rounded-full bg-white px-4 py-4 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
           >
             + {copy.addMenu}
           </button>
-        </div>
+        </StepShell>
       );
     }
 
     return (
-      <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-gray-100">
-        <h1 className="text-2xl font-black text-gray-950">
-          {copy.phoneTitle}
-        </h1>
-        <p className="mt-3 text-sm leading-7 text-gray-600">{copy.phoneBody}</p>
-
-        <div className="mt-6">
-          <input
+      <StepShell title={copy.phoneTitle} body={copy.phoneBody}>
+        <div className="grid gap-4">
+          <TextInput
             value={phoneNumber}
             onChange={(e) => {
               setPhoneNumber(e.target.value);
@@ -1952,122 +1946,166 @@ export default function SignupCreatorClient() {
               setSentCode("");
               setVerificationCode("");
             }}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
             placeholder={copy.phoneNumber}
             inputMode="tel"
           />
-        </div>
 
-        <button
-          type="button"
-          onClick={sendDevCode}
-          className="mt-4 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-gray-900 transition hover:bg-gray-50"
-        >
-          {copy.sendCode}
-        </button>
-
-        <div className="mt-4 flex gap-3">
-          <input
-            value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value)}
-            className="min-w-0 flex-1 rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none transition focus:border-gray-950"
-            placeholder={copy.verificationCode}
-            inputMode="numeric"
-          />
           <button
             type="button"
-            onClick={verifyDevCode}
-            className="rounded-2xl bg-gray-950 px-5 py-3 text-sm font-black text-white"
+            onClick={sendDevCode}
+            className="w-fit rounded-full bg-white px-5 py-3 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
           >
-            {phoneVerified ? copy.verified : copy.verifyCode}
+            {copy.sendCode}
           </button>
-        </div>
 
-        <div className="mt-6 space-y-3">
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={agreedToTerms}
-              onChange={(e) => setAgreedToTerms(e.target.checked)}
-              className="h-4 w-4"
+          <div className="flex gap-3">
+            <TextInput
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder={copy.verificationCode}
+              inputMode="numeric"
+              className="min-w-0 flex-1"
             />
-            <span>
-              {copy.termsLabel}{" "}
-              <Link href="/terms" className="underline">
-                {copy.termsLink}
-              </Link>
-            </span>
-          </label>
+            <button
+              type="button"
+              onClick={verifyDevCode}
+              className="shrink-0 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
+            >
+              {phoneVerified ? copy.verified : copy.verifyCode}
+            </button>
+          </div>
 
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={agreedToPrivacy}
-              onChange={(e) => setAgreedToPrivacy(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <span>
-              {copy.privacyLabel}{" "}
-              <Link href="/privacy" className="underline">
-                {copy.privacyLink}
-              </Link>
-            </span>
-          </label>
+          <div className="mt-2 space-y-3 rounded-[24px] bg-slate-50 p-4">
+            <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span>
+                {copy.termsLabel}{" "}
+                <Link href="/terms" className="font-black underline">
+                  {copy.termsLink}
+                </Link>
+              </span>
+            </label>
+
+            <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                checked={agreedToPrivacy}
+                onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span>
+                {copy.privacyLabel}{" "}
+                <Link href="/privacy" className="font-black underline">
+                  {copy.privacyLink}
+                </Link>
+              </span>
+            </label>
+          </div>
         </div>
-      </div>
+      </StepShell>
     );
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-xl">
-        <div className="mb-6 flex items-center justify-between">
-          <Link href="/home" className="text-xl font-black text-gray-950">
-            Trendre
-          </Link>
-          <LocaleTabs locale={appLocale} setLocale={setLocale} />
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-white">
+      <BackdropHero />
 
-        <StepDots total={TOTAL_STEPS} current={currentProgress} />
+      <header className="relative z-20 flex items-center justify-between px-4 py-4 md:px-8">
+        <Link href="/home" className="flex items-center" aria-label="Trendre">
+          <img
+            src="/brand/trendre-logo-full.png"
+            alt="Trendre"
+            className="h-8 w-auto object-contain"
+          />
+        </Link>
 
-        <div className="mt-6">{renderStep()}</div>
-
-        {error ? (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-6 text-red-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="mt-6 flex flex-col-reverse gap-3">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={step === 0 || loading}
-            className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm font-black text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/login"
+            className="hidden rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50 sm:inline-flex"
           >
-            {copy.back}
-          </button>
-
-          {step < TOTAL_STEPS - 1 ? (
-            <button
-              type="button"
-              onClick={() => void goNext()}
-              disabled={loading}
-              className="w-full rounded-2xl bg-gray-950 px-6 py-4 text-sm font-black text-white transition hover:bg-black disabled:opacity-50"
-            >
-              {copy.continue}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void handleFinish()}
-              disabled={loading}
-              className="w-full rounded-2xl bg-gray-950 px-6 py-4 text-sm font-black text-white transition hover:bg-black disabled:opacity-50"
-            >
-              {loading ? copy.loading : copy.finish}
-            </button>
-          )}
+            {copy.login}
+          </Link>
+          <LocaleButton locale={appLocale} setLocale={setLocale} />
         </div>
+      </header>
+
+      <div className="fixed inset-0 z-10 bg-slate-950/10 backdrop-blur-[6px]" />
+
+      <div className="fixed inset-0 z-30 flex items-center justify-center overflow-hidden px-4 py-5">
+        <section className="relative flex max-h-[calc(100vh-40px)] w-full max-w-[680px] flex-col overflow-hidden rounded-[34px] border border-white/80 bg-white/95 shadow-[0_34px_120px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+          <div className="border-b border-slate-100 px-5 py-5 md:px-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ff5f67]">
+                  {copy.step} {step + 1} / {TOTAL_STEPS}
+                </p>
+                <p className="mt-1 text-sm font-black text-slate-500">
+                  {stepTitles[step]}
+                </p>
+              </div>
+
+              <Link
+                href="/signup/creator?reset=1"
+                className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-800"
+              >
+                {copy.reset}
+              </Link>
+            </div>
+
+            <div className="mt-5">
+              <ProgressBar current={step} />
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-7">
+            {renderStep()}
+
+            {error ? (
+              <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700 ring-1 ring-rose-100">
+                {error}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t border-slate-100 bg-white px-5 py-4 md:px-7">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={step === 0 || loading}
+                className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {copy.back}
+              </button>
+
+              {step < TOTAL_STEPS - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => void goNext()}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {copy.continue}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleFinish()}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? copy.loading : copy.finish}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
