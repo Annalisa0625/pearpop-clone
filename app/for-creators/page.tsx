@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppLocale } from "@/lib/i18n/locale";
 import PublicFooter from "@/components/PublicFooter";
 
@@ -62,7 +62,7 @@ function CreatorPublicHeader() {
           forBrands: "For brands",
           search: "Influencer search",
           login: "Login",
-          signup: "Join as an Influencer",
+          signup: "Join",
         };
 
   return (
@@ -76,7 +76,7 @@ function CreatorPublicHeader() {
           <img
             src="/brand/trendre-logo-full.png"
             alt="Trendre"
-            className="h-8 w-auto object-contain md:h-9"
+            className="h-7 w-auto object-contain md:h-9"
           />
         </Link>
 
@@ -93,14 +93,14 @@ function CreatorPublicHeader() {
         <div className="flex items-center justify-end gap-2 md:gap-4">
           <Link
             href="/login"
-            className="hidden text-sm font-black text-slate-700 transition hover:text-slate-950 md:inline-flex"
+            className="text-xs font-black text-slate-700 transition hover:text-slate-950 md:text-sm"
           >
             {copy.login}
           </Link>
 
           <Link
             href="/signup/creator"
-            className="rounded-full bg-[#ff5f67] px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55] md:px-5 md:py-3 md:text-sm"
+            className="rounded-full bg-[#ff5f67] px-3.5 py-2.5 text-[11px] font-black text-white shadow-lg shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55] md:px-5 md:py-3 md:text-sm"
           >
             {copy.signup}
           </Link>
@@ -221,11 +221,25 @@ function HeroVisual() {
 
 export default function ForCreatorsPage() {
   const { locale } = useAppLocale();
+  const [showStickyCta, setShowStickyCta] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setShowStickyCta(window.scrollY > 520);
+    };
+
+    onScroll();
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   const copy =
     locale === "ja"
       ? {
-          eyebrow: "インフルエンサー向け",
           titleLine1: "PRやUGC制作の注文を",
           titleLine2: "オンラインで受けられる。",
           titleAccent: "価格を決めて、",
@@ -233,12 +247,10 @@ export default function ForCreatorsPage() {
           body:
             "Trendreは、Instagram・TikTokなどでPR投稿やUGC制作を受けたいインフルエンサー向けのマーケットプレイスです。プロフィール、SNS、ポートフォリオ、メニューを登録すると、企業があなたを見つけて注文できます。",
           primaryCta: "無料で登録する",
-          secondaryCta: "ログイン",
           mini1: "メニュー価格を設定",
           mini2: "注文は承認制",
           mini3: "納品・報酬を管理",
 
-          productPill: "できること",
           productTitle1: "PRの受注を",
           productTitle2: "もっと分かりやすく。",
           productBody:
@@ -254,14 +266,11 @@ export default function ForCreatorsPage() {
           card3Body:
             "投稿URLや納品URLを提出し、完了した注文の報酬履歴を確認できます。",
 
-          finalTitle: "まずは、インフルエンサー登録から。",
+          finalTitle: "プロフィールとメニューを整えるだけで、注文を受けられる状態に。",
           finalBody:
-            "プロフィールとメニューを整えることで、企業から注文を受けられる状態になります。",
-          finalPrimary: "無料で登録する",
-          finalSecondary: "ログイン",
+            "まずは登録して、SNS・ポートフォリオ・メニューを追加してください。",
         }
       : {
-          eyebrow: "For influencers",
           titleLine1: "Receive PR and UGC orders",
           titleLine2: "from brands online.",
           titleAccent: "Set your price.",
@@ -269,12 +278,10 @@ export default function ForCreatorsPage() {
           body:
             "Trendre is a marketplace for influencers who want to receive PR post and UGC creation orders on Instagram, TikTok, and other platforms. Add your profile, social accounts, portfolio, and menus so brands can discover and order from you.",
           primaryCta: "Join for free",
-          secondaryCta: "Login",
           mini1: "Set menu pricing",
           mini2: "Accept orders manually",
           mini3: "Manage delivery and earnings",
 
-          productPill: "What you can do",
           productTitle1: "Manage PR orders",
           productTitle2: "more clearly.",
           productBody:
@@ -290,11 +297,9 @@ export default function ForCreatorsPage() {
           card3Body:
             "Submit post or delivery URLs and review completed order earnings in your account.",
 
-          finalTitle: "Start with your influencer profile.",
+          finalTitle: "Set up your profile and menus, then start receiving orders.",
           finalBody:
-            "Once your profile and menus are ready, brands can discover and order from you.",
-          finalPrimary: "Join for free",
-          finalSecondary: "Login",
+            "Create your account first, then add social accounts, portfolio images, and menus.",
         };
 
   const featureCards: FeatureCardProps[] = [
@@ -323,11 +328,7 @@ export default function ForCreatorsPage() {
         <section className="bg-white">
           <div className="mx-auto grid max-w-7xl gap-7 px-4 pb-8 pt-8 md:px-6 md:pb-12 md:pt-12 lg:grid-cols-[minmax(0,1fr)_510px] lg:items-center lg:pb-16 lg:pt-16">
             <div className="relative z-10">
-              <span className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-black text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
-                {copy.eyebrow}
-              </span>
-
-              <h1 className="mt-5 max-w-3xl text-[38px] font-black leading-[1.08] tracking-[-0.065em] text-slate-950 md:text-[48px] lg:text-[54px]">
+              <h1 className="max-w-3xl text-[38px] font-black leading-[1.08] tracking-[-0.065em] text-slate-950 md:text-[48px] lg:text-[54px]">
                 {copy.titleLine1}
                 <br />
                 {copy.titleLine2}
@@ -340,22 +341,6 @@ export default function ForCreatorsPage() {
               <p className="mt-5 max-w-2xl text-[14px] font-semibold leading-7 text-slate-600 md:text-[15px] md:leading-8">
                 {copy.body}
               </p>
-
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/signup/creator"
-                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_38px_rgba(255,95,103,0.24)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-                >
-                  {copy.primaryCta}
-                </Link>
-
-                <Link
-                  href="/login"
-                  className="inline-flex items-center justify-center rounded-full bg-white px-7 py-4 text-sm font-black text-slate-800 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-slate-50"
-                >
-                  {copy.secondaryCta}
-                </Link>
-              </div>
 
               <div className="mt-6 flex flex-wrap gap-2">
                 {[copy.mini1, copy.mini2, copy.mini3].map((item) => (
@@ -381,11 +366,7 @@ export default function ForCreatorsPage() {
           className="mx-auto max-w-7xl px-4 py-10 md:px-6 md:py-14"
         >
           <div className="max-w-2xl md:max-w-3xl">
-            <span className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-black text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
-              {copy.productPill}
-            </span>
-
-            <h2 className="mt-5 text-[32px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[44px]">
+            <h2 className="text-[32px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[44px]">
               {copy.productTitle1}
               <br />
               {copy.productTitle2}
@@ -413,38 +394,26 @@ export default function ForCreatorsPage() {
             <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-rose-100/40 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-24 left-1/2 h-72 w-72 rounded-full bg-emerald-100/25 blur-3xl" />
 
-            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="max-w-3xl text-[30px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[42px]">
-                  {copy.finalTitle}
-                </h2>
+            <div className="relative">
+              <h2 className="max-w-3xl text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[40px]">
+                {copy.finalTitle}
+              </h2>
 
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500 md:text-[15px] md:leading-8">
-                  {copy.finalBody}
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
-                <Link
-                  href="/signup/creator"
-                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_38px_rgba(255,95,103,0.24)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-                >
-                  {copy.finalPrimary}
-                </Link>
-
-                <Link
-                  href="/login"
-                  className="inline-flex items-center justify-center rounded-full bg-slate-100 px-7 py-4 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
-                >
-                  {copy.finalSecondary}
-                </Link>
-              </div>
+              <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500 md:text-[15px] md:leading-8">
+                {copy.finalBody}
+              </p>
             </div>
           </div>
         </section>
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-4 py-3 shadow-[0_-18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl md:hidden">
+      <div
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-4 py-3 shadow-[0_-18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl transition md:hidden ${
+          showStickyCta
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-full opacity-0"
+        }`}
+      >
         <Link
           href="/signup/creator"
           className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(255,95,103,0.22)]"
