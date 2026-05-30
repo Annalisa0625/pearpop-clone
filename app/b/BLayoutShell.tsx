@@ -113,7 +113,69 @@ function hasUnreadChats(chats: ChatRow[], userId: string) {
 
 function TopNavUnreadDot() {
   return (
-    <span className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-blue-600 ring-2 ring-white" />
+    <span className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff5f67] ring-2 ring-white" />
+  );
+}
+
+function MenuUnreadDot() {
+  return (
+    <span className="ml-auto h-2 w-2 rounded-full bg-[#ff5f67]" />
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M4 6h12M4 10h12M4 14h12"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h10.5M10.5 5.5 15 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MenuLink({
+  href,
+  label,
+  active,
+  unread,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+  unread?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center gap-3 px-4 py-3 text-sm font-black transition ${
+        active
+          ? "bg-rose-50 text-[#ff5f67]"
+          : "text-slate-800 hover:bg-slate-50"
+      }`}
+    >
+      <span>{label}</span>
+      {unread ? <MenuUnreadDot /> : null}
+    </Link>
   );
 }
 
@@ -126,6 +188,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [limitReason, setLimitReason] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isCompanyViewer, setIsCompanyViewer] = useState<boolean | null>(null);
   const [unread, setUnread] = useState<UnreadState>({
     requests: false,
     jobs: false,
@@ -133,50 +196,51 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
-  // ここだけ公開ページ扱い。
-  // /b/creators は未ログインでも見せるため、B専用ヘッダーではなくPublicHeaderを使う。
-  const isPublicInfluencerSearchPage =
-  pathname === "/b/creators" || pathname.startsWith("/b/creators/");
+  // /b/creators は未ログインにも公開する。
+  // ただし、Bとしてログイン済みなら PublicHeader ではなく B用ヘッダー/Menu を出す。
+  const isInfluencerSearchPage =
+    pathname === "/b/creators" || pathname.startsWith("/b/creators/");
+
+  const shouldUsePublicHeader =
+    isInfluencerSearchPage && isCompanyViewer !== true;
 
   const copy = useMemo(
     () =>
       locale === "ja"
         ? {
-            dashboard: "ダッシュボード",
-            billing: "料金プラン",
+            dashboard: "トップ",
+            billing: "プラン",
             loggingOut: "ログアウト中...",
             logout: "ログアウト",
-            limitTitle: "⚠ 現在このアカウントは取引制限中です。",
-            limitReasonLabel: "制限理由",
+            limitTitle: "現在このアカウントは取引制限中です。",
+            limitReasonLabel: "理由",
             limitBody:
-              "※ ログイン・既存案件の操作は可能ですが、新規取引は行えません。",
-            profile: "プロフィール",
-            requests: "承認待ち",
-            jobs: "進行中案件",
+              "ログインと既存注文の確認はできますが、新しい注文はできません。",
+            profile: "アカウント設定",
+            requests: "返答待ち",
+            jobs: "注文",
             search: "インフルエンサー検索",
             saved: "保存済み",
-            home: "Home",
-            company: "Company",
-            consoleTitle: "Company",
+            company: "BRAND",
+            consoleTitle: "企業アカウント",
             menu: "Menu",
           }
         : {
-            dashboard: "Dashboard",
-            billing: "Billing",
+            dashboard: "Top",
+            billing: "Plan",
             loggingOut: "Logging out...",
             logout: "Logout",
-            limitTitle: "⚠ This account is currently under trading restriction.",
+            limitTitle: "This account is currently restricted.",
             limitReasonLabel: "Reason",
             limitBody:
-              "You can log in and manage existing jobs, but you cannot start new transactions.",
-            profile: "Profile",
-            requests: "Pending",
-            jobs: "Active Jobs",
-            search: "Influencer Search",
+              "You can log in and view existing orders, but you cannot place new orders.",
+            profile: "Account Settings",
+            requests: "Waiting",
+            jobs: "Orders",
+            search: "Creator Search",
             saved: "Saved",
-            home: "Home",
-            company: "Company",
-            consoleTitle: "Company",
+            company: "BRAND",
+            consoleTitle: "Brand Account",
             menu: "Menu",
           },
     [locale]
@@ -185,10 +249,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   const topNavItems: TopNavItem[] = useMemo(
     () => [
       {
-        href: "/home",
-        label: copy.home,
-      },
-      {
         href: "/b/creators",
         label: copy.search,
       },
@@ -196,40 +256,90 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         href: "/b/saved-creators",
         label: copy.saved,
       },
+      {
+        href: "/b/jobs",
+        label: copy.jobs,
+        badgeKey: "jobs",
+      },
     ],
-    [copy.home, copy.saved, copy.search]
+    [copy.jobs, copy.saved, copy.search]
   );
 
   const mobileNavItems: MobileNavItem[] = useMemo(
     () => [
       {
         href: "/b/dashboard",
-        shortLabel: locale === "ja" ? "管理" : "Dashboard",
+        shortLabel: locale === "ja" ? "トップ" : "Top",
       },
       {
         href: "/b/creators",
         shortLabel: locale === "ja" ? "検索" : "Search",
       },
       {
+        href: "/b/saved-creators",
+        shortLabel: locale === "ja" ? "保存" : "Saved",
+      },
+      {
         href: "/b/requests",
-        shortLabel: locale === "ja" ? "承認待ち" : "Pending",
+        shortLabel: locale === "ja" ? "返答待ち" : "Waiting",
         badgeKey: "requests",
       },
       {
         href: "/b/jobs",
-        shortLabel: locale === "ja" ? "案件" : "Jobs",
+        shortLabel: locale === "ja" ? "注文" : "Orders",
         badgeKey: "jobs",
-      },
-      {
-        href: "/b/billing",
-        shortLabel: locale === "ja" ? "料金" : "Pricing",
       },
     ],
     [locale]
   );
 
+  useEffect(() => {
+    let active = true;
+
+    const checkCompanyViewer = async () => {
+      if (!isInfluencerSearchPage) {
+        if (active) setIsCompanyViewer(true);
+        return;
+      }
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (userError || !user) {
+        setIsCompanyViewer(false);
+        return;
+      }
+
+      const { data: roleRow, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "company")
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (roleError || !roleRow) {
+        setIsCompanyViewer(false);
+        return;
+      }
+
+      setIsCompanyViewer(true);
+    };
+
+    void checkCompanyViewer();
+
+    return () => {
+      active = false;
+    };
+  }, [isInfluencerSearchPage, supabase]);
+
   const loadUnreadBadges = useCallback(async () => {
-    if (isPublicInfluencerSearchPage) {
+    if (shouldUsePublicHeader) {
       setUnread({ requests: false, jobs: false });
       return;
     }
@@ -412,10 +522,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
         hasUnreadChats(activeOrderChats, user.id) ||
         hasUnreadChats(activeRequestChats, user.id),
     });
-  }, [supabase, isPublicInfluencerSearchPage]);
+  }, [supabase, shouldUsePublicHeader]);
 
   useEffect(() => {
-    if (isPublicInfluencerSearchPage) {
+    if (shouldUsePublicHeader) {
       setLimitReason(null);
       return;
     }
@@ -450,10 +560,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     };
 
     void loadLimit();
-  }, [supabase, isPublicInfluencerSearchPage]);
+  }, [supabase, shouldUsePublicHeader]);
 
   useEffect(() => {
-    if (isPublicInfluencerSearchPage) {
+    if (shouldUsePublicHeader) {
       setUnread({ requests: false, jobs: false });
       return;
     }
@@ -511,7 +621,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("trendre:chat-read-changed", onFocus);
     };
-  }, [loadUnreadBadges, supabase, isPublicInfluencerSearchPage]);
+  }, [loadUnreadBadges, supabase, shouldUsePublicHeader]);
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -535,7 +645,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     setMenuOpen(true);
   };
 
-  if (isPublicInfluencerSearchPage) {
+  if (shouldUsePublicHeader) {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-950">
         <PublicHeader />
@@ -547,31 +657,36 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-950">
       {limitReason ? (
-        <div className="border-b border-yellow-400 bg-yellow-100 p-4 text-sm text-yellow-900">
-          <b>{copy.limitTitle}</b>
-          <div className="mt-1">
-            {copy.limitReasonLabel}:
-            <span className="ml-1 font-semibold">{limitReason}</span>
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          <div className="mx-auto max-w-7xl">
+            <span className="font-black">{copy.limitTitle}</span>
+            {limitReason ? (
+              <span className="ml-2 text-amber-700">
+                {copy.limitReasonLabel}: {limitReason}
+              </span>
+            ) : null}
+            <p className="mt-1 text-xs text-amber-700">{copy.limitBody}</p>
           </div>
-          <div className="mt-1 text-xs text-yellow-700">{copy.limitBody}</div>
         </div>
       ) : null}
 
-      <header className="sticky top-0 z-[100] border-b bg-white/95 backdrop-blur">
-        <div className="flex w-full items-center justify-between px-6 py-3 md:px-10 lg:px-14">
-          <div className="flex items-center">
-            <Link href="/home" className="flex items-center">
-              <img
-                src="/brand/trendre-logo-full.png"
-                alt="Trendre"
-                className="h-9 w-auto object-contain"
-              />
-            </Link>
-          </div>
+      <header className="sticky top-0 z-[100] border-b border-slate-100 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center px-4 py-4 md:px-6 lg:py-5">
+          <Link
+            href="/b/dashboard"
+            className="flex items-center"
+            aria-label="Trendre"
+          >
+            <img
+              src="/brand/trendre-logo-full.png"
+              alt="Trendre"
+              className="h-8 w-auto object-contain md:h-9"
+            />
+          </Link>
 
-          <nav className="hidden items-center gap-8 md:flex">
+          <nav className="hidden items-center justify-center gap-9 text-sm font-black text-slate-700 md:flex">
             {topNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
               const showUnread =
@@ -585,10 +700,10 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative text-sm font-semibold transition ${
+                  className={`relative transition ${
                     active
-                      ? "border-b-2 border-black pb-1 text-black"
-                      : "text-gray-700 hover:text-black"
+                      ? "text-slate-950 after:absolute after:-bottom-2 after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-slate-950"
+                      : "text-slate-700 hover:text-slate-950"
                   }`}
                 >
                   {item.label}
@@ -598,7 +713,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="flex items-center">
+          <div className="flex items-center justify-end">
             <div
               className="relative"
               onMouseEnter={openProfileMenu}
@@ -608,82 +723,90 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
                 onFocus={openProfileMenu}
-                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
               >
-                <span className="text-lg leading-none">☰</span>
+                <MenuIcon />
                 <span>{copy.menu}</span>
               </button>
 
               {menuOpen ? (
-                <div className="absolute right-0 top-full z-[120] w-56 pt-1">
-                  <div className="overflow-hidden rounded-2xl border bg-white shadow-2xl">
-                    <div className="border-b px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                <div className="absolute right-0 top-full z-[120] w-64 pt-2">
+                  <div className="overflow-hidden rounded-[24px] border border-slate-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.16)]">
+                    <div className="border-b border-slate-100 px-4 py-4">
+                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
                         {copy.company}
                       </p>
-                      <p className="mt-1 text-sm font-bold text-gray-900">
+                      <p className="mt-1 text-sm font-black text-slate-950">
                         {copy.consoleTitle}
                       </p>
                     </div>
 
-                    <Link
-                      href="/b/dashboard"
-                      onClick={closeProfileMenu}
-                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                    >
-                      {copy.dashboard}
-                    </Link>
+                    <div className="py-2">
+                      <MenuLink
+                        href="/b/dashboard"
+                        label={copy.dashboard}
+                        active={isActivePath(pathname, "/b/dashboard")}
+                        onClick={closeProfileMenu}
+                      />
 
-                    <Link
-                      href="/b/profile"
-                      onClick={closeProfileMenu}
-                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                    >
-                      {copy.profile}
-                    </Link>
+                      <MenuLink
+                        href="/b/creators"
+                        label={copy.search}
+                        active={isActivePath(pathname, "/b/creators")}
+                        onClick={closeProfileMenu}
+                      />
 
-                    <Link
-                      href="/b/saved-creators"
-                      onClick={closeProfileMenu}
-                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                    >
-                      {copy.saved}
-                    </Link>
+                      <MenuLink
+                        href="/b/saved-creators"
+                        label={copy.saved}
+                        active={isActivePath(pathname, "/b/saved-creators")}
+                        onClick={closeProfileMenu}
+                      />
 
-                    <Link
-                      href="/b/requests"
-                      onClick={closeProfileMenu}
-                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                    >
-                      {copy.requests}
-                    </Link>
+                      <MenuLink
+                        href="/b/requests"
+                        label={copy.requests}
+                        active={isActivePath(pathname, "/b/requests")}
+                        unread={unread.requests}
+                        onClick={closeProfileMenu}
+                      />
 
-                    <Link
-                      href="/b/jobs"
-                      onClick={closeProfileMenu}
-                      className="block px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                    >
-                      {copy.jobs}
-                    </Link>
+                      <MenuLink
+                        href="/b/jobs"
+                        label={copy.jobs}
+                        active={isActivePath(pathname, "/b/jobs")}
+                        unread={unread.jobs}
+                        onClick={closeProfileMenu}
+                      />
 
-                    <Link
-                      href="/b/billing"
-                      onClick={closeProfileMenu}
-                      className="block border-t px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                    >
-                      {copy.billing}
-                    </Link>
+                      <MenuLink
+                        href="/b/billing"
+                        label={copy.billing}
+                        active={isActivePath(pathname, "/b/billing")}
+                        onClick={closeProfileMenu}
+                      />
 
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      disabled={loggingOut}
-                      className="block w-full px-4 py-3 text-left text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      {loggingOut ? copy.loggingOut : copy.logout}
-                    </button>
+                      <MenuLink
+                        href="/b/profile"
+                        label={copy.profile}
+                        active={isActivePath(pathname, "/b/profile")}
+                        onClick={closeProfileMenu}
+                      />
+                    </div>
+
+                    <div className="border-t border-slate-100 p-2">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={loggingOut}
+                        className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        <span>{loggingOut ? copy.loggingOut : copy.logout}</span>
+                        <ArrowIcon />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -698,7 +821,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       </main>
 
       {!isOnboarding ? (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 backdrop-blur md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 backdrop-blur-xl md:hidden">
           <div className="grid grid-cols-5">
             {mobileNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
@@ -708,13 +831,13 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative flex flex-col items-center justify-center px-2 py-3 text-[11px] font-medium ${
-                    active ? "text-blue-600" : "text-gray-500"
+                  className={`relative flex flex-col items-center justify-center px-2 py-3 text-[11px] font-black ${
+                    active ? "text-[#ff5f67]" : "text-slate-500"
                   }`}
                 >
                   <span>{item.shortLabel}</span>
                   {showUnread ? (
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-600" />
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#ff5f67]" />
                   ) : (
                     <span className="mt-1 h-1.5 w-1.5" />
                   )}
