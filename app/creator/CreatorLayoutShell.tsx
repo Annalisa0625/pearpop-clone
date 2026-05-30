@@ -13,7 +13,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { getCommonText } from "@/lib/i18n/common";
 import { useAppLocale } from "@/lib/i18n/locale";
-import type { AppLocale } from "@/lib/i18n/types";
 
 type NavBadgeKey = "requests" | "jobs";
 
@@ -134,7 +133,7 @@ function isActivePath(
 
 function uniqueStrings(values: Array<string | null | undefined>) {
   return Array.from(
-    new Set(values.filter((value): value is string => !!value))
+    new Set(values.filter((value): value is string => Boolean(value)))
   );
 }
 
@@ -162,68 +161,41 @@ function hasUnreadChats(chats: ChatRow[], userId: string) {
   return chats.some((chat) => isUnreadChat(chat, userId));
 }
 
-function UnreadBadge({ active }: { active: boolean }) {
+function isGuardExcludedPath(pathname: string) {
   return (
-    <span
-      className={`ml-2 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${
-        active ? "bg-white ring-2 ring-blue-200" : "bg-blue-600"
-      }`}
-      aria-label="unread"
-    />
+    pathname.startsWith("/creator/profile") ||
+    pathname.startsWith("/creator/payouts") ||
+    pathname.startsWith("/creator/onboarding")
   );
 }
 
 function MobileUnreadDot() {
   return (
-    <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-blue-600 ring-2 ring-white" />
+    <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#ff5f67] ring-2 ring-white" />
   );
 }
 
-function LocaleSwitcher({
+function HeaderUnreadDot() {
+  return (
+    <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#ff5f67] ring-2 ring-white" />
+  );
+}
+
+function LocaleCompactButton({
   locale,
   setLocale,
 }: {
-  locale: AppLocale;
-  setLocale: (locale: AppLocale) => void;
+  locale: "ja" | "en";
+  setLocale: (locale: "ja" | "en") => void;
 }) {
-  const baseClass =
-    "rounded-full border px-3 py-2 text-xs font-bold transition";
-  const activeClass = "border-gray-950 bg-gray-950 text-white";
-  const inactiveClass =
-    "border-gray-200 bg-white text-gray-700 hover:bg-gray-50";
-
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setLocale("ja")}
-        className={`${baseClass} ${
-          locale === "ja" ? activeClass : inactiveClass
-        }`}
-        aria-pressed={locale === "ja"}
-      >
-        JA
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setLocale("en")}
-        className={`${baseClass} ${
-          locale === "en" ? activeClass : inactiveClass
-        }`}
-        aria-pressed={locale === "en"}
-      >
-        EN
-      </button>
-    </div>
-  );
-}
-
-function isPortfolioGuardExcludedPath(pathname: string) {
-  return (
-    pathname.startsWith("/creator/profile") ||
-    pathname.startsWith("/creator/payouts") ||
-    pathname.startsWith("/creator/onboarding")
+    <button
+      type="button"
+      onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
+      className="rounded-full bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-100 transition active:scale-[0.98]"
+    >
+      {locale === "ja" ? "EN" : "日本語"}
+    </button>
   );
 }
 
@@ -242,38 +214,28 @@ export default function CreatorLayoutShell({
     () =>
       locale === "ja"
         ? {
-            appTitle: "Trendre",
-            consoleTitle: "Creator",
-            creatorNavigation: "Creator Menu",
-            menuManagement: "メニュー管理",
-            addMenu: "メニュー追加",
+            menuManagement: "メニュー",
+            addMenu: "追加",
             payouts: "報酬",
             loggingOut: "ログアウト中...",
             logout: "ログアウト",
-            memoTitle: "クリエイター向けメモ",
-            memoBody:
-              "依頼確認、進行中案件、報酬確認、プロフィール更新をここから行えます。",
-            limitTitle: "⚠ 現在、取引制限中です。",
-            limitReasonLabel: "制限理由",
+            limitTitle: "現在、取引が一部制限されています",
+            limitReasonLabel: "理由",
             limitBody:
-              "既存案件の対応は可能ですが、新規案件の受注や提案はできません。",
+              "既存の注文対応はできますが、新しい注文の受け付けは制限されています。",
+            notifications: "通知",
           }
         : {
-            appTitle: "Trendre",
-            consoleTitle: "Creator",
-            creatorNavigation: "Creator Menu",
             menuManagement: "Menus",
-            addMenu: "Add Menu",
+            addMenu: "Add",
             payouts: "Payouts",
             loggingOut: "Logging out...",
             logout: "Logout",
-            memoTitle: "Creator Notes",
-            memoBody:
-              "Review requests, manage active jobs, check payouts, and update your profile here.",
-            limitTitle: "⚠ Your account is currently under trading restriction.",
+            limitTitle: "Some account actions are restricted",
             limitReasonLabel: "Reason",
             limitBody:
-              "You can continue handling existing jobs, but you cannot accept or propose new ones.",
+              "You can continue handling existing orders, but new orders are restricted.",
+            notifications: "Notifications",
           },
     [locale]
   );
@@ -290,14 +252,14 @@ export default function CreatorLayoutShell({
         href: "/creator/requests",
         label: t.nav.requests,
         shortLabel: locale === "ja" ? "依頼" : "Requests",
-        icon: "◎",
+        icon: "○",
         badgeKey: "requests",
       },
       {
         href: "/creator/jobs",
         label: t.nav.jobs,
-        shortLabel: locale === "ja" ? "案件" : "Jobs",
-        icon: "▣",
+        shortLabel: locale === "ja" ? "進行中" : "Jobs",
+        icon: "□",
         badgeKey: "jobs",
       },
       {
@@ -309,7 +271,7 @@ export default function CreatorLayoutShell({
       {
         href: "/creator/profile",
         label: t.nav.profile,
-        shortLabel: locale === "ja" ? "プロフィール" : "Profile",
+        shortLabel: locale === "ja" ? "設定" : "Profile",
         icon: "◯",
       },
     ],
@@ -324,6 +286,8 @@ export default function CreatorLayoutShell({
     requests: false,
     jobs: false,
   });
+
+  const hasAnyUnread = unread.requests || unread.jobs;
 
   const loadUnreadBadges = useCallback(async () => {
     const {
@@ -520,8 +484,8 @@ export default function CreatorLayoutShell({
   }, [supabase]);
 
   useEffect(() => {
-    const checkPortfolioRequirement = async () => {
-      if (isPortfolioGuardExcludedPath(pathname)) {
+    const checkRequiredSetup = async () => {
+      if (isGuardExcludedPath(pathname)) {
         return;
       }
 
@@ -540,6 +504,7 @@ export default function CreatorLayoutShell({
       if (creatorError || !creator) return;
 
       if (!creator.stripe_onboarding_completed) {
+        router.replace("/creator/payouts?required=connect");
         return;
       }
 
@@ -560,7 +525,7 @@ export default function CreatorLayoutShell({
       }
     };
 
-    void checkPortfolioRequirement();
+    void checkRequiredSetup();
   }, [pathname, router, supabase]);
 
   useEffect(() => {
@@ -757,150 +722,106 @@ export default function CreatorLayoutShell({
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-gray-900">
+    <div className="min-h-screen overflow-x-hidden bg-[#f8f9fb] text-slate-950">
       {limitReason ? (
-        <div className="border-b border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-          <div className="mx-auto max-w-7xl">
-            <p className="font-semibold">{copy.limitTitle}</p>
-            <p className="mt-1">
-              {copy.limitReasonLabel}:
-              <span className="ml-1 font-semibold">{limitReason}</span>
+        <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mx-auto max-w-5xl">
+            <p className="font-black">{copy.limitTitle}</p>
+            <p className="mt-1 text-xs font-semibold leading-5">
+              {copy.limitReasonLabel}: {limitReason}
             </p>
-            <p className="mt-1 text-xs text-yellow-700">{copy.limitBody}</p>
+            <p className="mt-1 text-xs font-semibold leading-5 opacity-80">
+              {copy.limitBody}
+            </p>
           </div>
         </div>
       ) : null}
 
-      <header className="sticky top-0 z-[100] border-b border-gray-100 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
+      <header className="sticky top-0 z-[100] border-b border-slate-100 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3.5 md:px-6">
           <Link
             href="/creator/dashboard"
-            className="flex min-w-0 items-center gap-3"
+            className="flex min-w-0 items-center"
+            aria-label="Trendre"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-950 shadow-sm ring-1 ring-black/5">
-              <img
-                src="/brand/trendre-mark.png"
-                alt="Trendre"
-                className="h-8 w-8 object-contain"
-              />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-base font-black tracking-tight text-gray-950">
-                {copy.appTitle}
-              </span>
-              <span className="block truncate text-xs font-semibold text-gray-400">
-                {copy.consoleTitle}
-              </span>
-            </span>
+            <img
+              src="/brand/trendre-logo-full.png"
+              alt="Trendre"
+              className="h-8 w-auto object-contain"
+            />
           </Link>
 
           <div className="flex items-center gap-2">
-            <div className="hidden sm:block">
-              <LocaleSwitcher locale={locale} setLocale={setLocale} />
-            </div>
-
             <Link
-              href="/creator/menus"
-              className="hidden rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 transition hover:border-gray-900 hover:text-gray-950 md:inline-flex"
+              href="/creator/requests"
+              aria-label={copy.notifications}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition active:scale-[0.98]"
             >
-              {copy.menuManagement}
+              ♡
+              {hasAnyUnread ? <HeaderUnreadDot /> : null}
             </Link>
 
-            <Link
-              href="/creator/menus/new"
-              className="hidden rounded-full bg-gray-950 px-4 py-2 text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-lg md:inline-flex"
-            >
-              + {copy.addMenu}
-            </Link>
+            <LocaleCompactButton locale={locale} setLocale={setLocale} />
 
             <button
               type="button"
               onClick={handleLogout}
               disabled={loggingOut}
-              className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-gray-900 hover:text-gray-950 disabled:opacity-50"
+              className="hidden rounded-full bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-600 transition hover:bg-slate-200 disabled:opacity-50 sm:inline-flex"
             >
               {loggingOut ? copy.loggingOut : copy.logout}
             </button>
           </div>
         </div>
 
-        <div className="border-t border-gray-100 bg-white px-4 py-2 sm:hidden">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
-            <LocaleSwitcher locale={locale} setLocale={setLocale} />
+        <div className="hidden border-t border-slate-100 bg-white/95 px-4 py-2 md:block lg:hidden">
+          <div className="mx-auto flex max-w-5xl items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {navItems.map((item) => {
+              const active = isActivePath(
+                pathname,
+                item.href,
+                detailNavContext
+              );
+              const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
 
-            <div className="flex items-center gap-2">
-              <Link
-                href="/creator/menus"
-                className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700"
-              >
-                {copy.menuManagement}
-              </Link>
-              <Link
-                href="/creator/menus/new"
-                className="rounded-full bg-gray-950 px-3 py-2 text-xs font-black text-white"
-              >
-                +
-              </Link>
-            </div>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
+                    active
+                      ? "bg-[#ff5f67] text-white shadow-[0_12px_25px_rgba(255,95,103,0.2)]"
+                      : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {item.label}
+                  {showUnread ? (
+                    <span
+                      className={`ml-2 inline-flex h-2 w-2 rounded-full ${
+                        active ? "bg-white" : "bg-[#ff5f67]"
+                      }`}
+                    />
+                  ) : null}
+                </Link>
+              );
+            })}
+
+            <Link
+              href="/creator/menus"
+              className="shrink-0 rounded-full bg-slate-50 px-4 py-2 text-sm font-black text-slate-500 hover:bg-slate-100"
+            >
+              {copy.menuManagement}
+            </Link>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-5 md:px-6 md:py-6">
-        <aside className="hidden w-64 shrink-0 lg:block">
-          <div className="sticky top-24 rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm">
-            <p className="mb-3 px-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400">
-              {copy.creatorNavigation}
-            </p>
+      <main className="mx-auto w-full max-w-5xl overflow-x-hidden px-4 py-5 pb-28 md:px-6 md:py-7 lg:pb-10">
+        {children}
+      </main>
 
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const active = isActivePath(
-                  pathname,
-                  item.href,
-                  detailNavContext
-                );
-                const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-bold transition ${
-                      active
-                        ? "bg-gray-950 text-white shadow-sm"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-sm">
-                        {item.icon}
-                      </span>
-                      <span>{item.label}</span>
-                    </span>
-                    {showUnread ? <UnreadBadge active={active} /> : null}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="mt-5 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-sm font-black">{copy.memoTitle}</p>
-              <p className="mt-2 text-xs leading-6 text-gray-500">
-                {copy.memoBody}
-              </p>
-            </div>
-          </div>
-        </aside>
-
-        <main className="min-w-0 flex-1">
-          {children}
-          <div className="h-28 lg:h-0" />
-        </main>
-      </div>
-
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 rounded-[28px] bg-white">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailNavContext);
             const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
@@ -909,13 +830,15 @@ export default function CreatorLayoutShell({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative flex min-h-[62px] flex-col items-center justify-center rounded-2xl px-1 py-2 text-[11px] font-bold transition ${
-                  active ? "text-gray-950" : "text-gray-400"
+                className={`relative flex min-h-[62px] flex-col items-center justify-center rounded-[22px] px-1 py-2 text-[11px] font-black transition active:scale-[0.98] ${
+                  active
+                    ? "bg-rose-50 text-[#ff5f67]"
+                    : "bg-white text-slate-400"
                 }`}
               >
                 <span
-                  className={`mb-1 flex h-7 w-7 items-center justify-center rounded-xl text-sm ${
-                    active ? "bg-gray-950 text-white" : "bg-transparent"
+                  className={`mb-1 flex h-7 w-7 items-center justify-center rounded-2xl text-sm ${
+                    active ? "bg-white shadow-sm" : "bg-transparent"
                   }`}
                 >
                   {item.icon}
