@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -15,6 +15,7 @@ type SavedCreatorRow = {
 type SocialAccountRow = {
   platform?: string | null;
   url?: string | null;
+  handle?: string | null;
   follower_range?: string | null;
   audience_country?: string | null;
 };
@@ -27,6 +28,8 @@ type CreatorRow = {
   approval_status?: string | null;
   is_public?: boolean | null;
   stripe_onboarding_completed?: boolean | null;
+  rating?: number | null;
+  total_orders?: number | null;
   creator_social_accounts?: SocialAccountRow[] | null;
 };
 
@@ -52,18 +55,31 @@ type PortfolioAssetRow = {
 type SavedInfluencerCard = {
   id: string;
   displayName: string;
+  primaryAccountName: string | null;
   avatarUrl: string | null;
   cardImageUrl: string | null;
   category: string | null;
-  primaryPlatform: string | null;
+  socialLinks: {
+    platform: string;
+    url: string | null;
+  }[];
   primaryAudienceCountry: string | null;
   followerRange: string | null;
   menuCount: number;
   startingPrice: number | null;
   startingCurrency: string | null;
   topMenuTitle: string | null;
-  savedAt: string | null;
+  rating: number | null;
+  reviewCount: number;
 };
+
+function normalizeText(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function normalizePlatform(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
 
 function cleanCountryInput(value: string | null | undefined) {
   const raw = (value ?? "").trim();
@@ -126,6 +142,60 @@ function cleanCountryInput(value: string | null | undefined) {
   }
 
   if (
+    normalized === "タイ" ||
+    normalized === "thailand" ||
+    normalized === "th" ||
+    compact.includes("タイ")
+  ) {
+    return "thailand";
+  }
+
+  if (
+    normalized === "ベトナム" ||
+    normalized === "vietnam" ||
+    normalized === "vn" ||
+    compact.includes("ベトナム")
+  ) {
+    return "vietnam";
+  }
+
+  if (
+    normalized === "インドネシア" ||
+    normalized === "indonesia" ||
+    normalized === "id" ||
+    compact.includes("インドネシア")
+  ) {
+    return "indonesia";
+  }
+
+  if (
+    normalized === "フィリピン" ||
+    normalized === "philippines" ||
+    normalized === "ph" ||
+    compact.includes("フィリピン")
+  ) {
+    return "philippines";
+  }
+
+  if (
+    normalized === "マレーシア" ||
+    normalized === "malaysia" ||
+    normalized === "my" ||
+    compact.includes("マレーシア")
+  ) {
+    return "malaysia";
+  }
+
+  if (
+    normalized === "シンガポール" ||
+    normalized === "singapore" ||
+    normalized === "sg" ||
+    compact.includes("シンガポール")
+  ) {
+    return "singapore";
+  }
+
+  if (
     normalized === "アメリカ" ||
     normalized === "united states" ||
     normalized === "usa" ||
@@ -135,14 +205,21 @@ function cleanCountryInput(value: string | null | undefined) {
     return "united_states";
   }
 
-  if (normalized === "その他" || normalized === "other" || compact.includes("その他")) {
+  if (
+    normalized === "その他" ||
+    normalized === "other" ||
+    compact.includes("その他")
+  ) {
     return "other";
   }
 
   return raw;
 }
 
-function getCountryLabel(country: string | null | undefined, locale: "ja" | "en") {
+function getCountryLabel(
+  country: string | null | undefined,
+  locale: "ja" | "en"
+) {
   const cleaned = cleanCountryInput(country);
 
   const jaMap: Record<string, string> = {
@@ -151,6 +228,12 @@ function getCountryLabel(country: string | null | undefined, locale: "ja" | "en"
     taiwan: "台湾",
     hong_kong: "香港",
     china: "中国",
+    thailand: "タイ",
+    vietnam: "ベトナム",
+    indonesia: "インドネシア",
+    philippines: "フィリピン",
+    malaysia: "マレーシア",
+    singapore: "シンガポール",
     united_states: "アメリカ",
     other: "その他",
   };
@@ -161,52 +244,28 @@ function getCountryLabel(country: string | null | undefined, locale: "ja" | "en"
     taiwan: "Taiwan",
     hong_kong: "Hong Kong",
     china: "China",
+    thailand: "Thailand",
+    vietnam: "Vietnam",
+    indonesia: "Indonesia",
+    philippines: "Philippines",
+    malaysia: "Malaysia",
+    singapore: "Singapore",
     united_states: "United States",
     other: "Other",
   };
 
   return locale === "ja"
-    ? jaMap[cleaned] ?? ((country ?? "").trim() || "未設定")
-    : enMap[cleaned] ?? ((country ?? "").trim() || "Not set");
+    ? jaMap[cleaned] ?? ((country ?? "").trim() || "不明")
+    : enMap[cleaned] ?? ((country ?? "").trim() || "Unknown");
 }
 
-function normalizePlatform(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase();
-}
-
-function getPlatformLabel(value: string | null | undefined) {
-  const normalized = normalizePlatform(value);
-
-  if (!normalized) return "SNS";
-  if (normalized.includes("instagram")) return "Instagram";
-  if (normalized.includes("tiktok")) return "TikTok";
-  if (normalized.includes("youtube")) return "YouTube";
-  if (normalized === "x" || normalized.includes("twitter")) return "X";
-  if (normalized.includes("ugc")) return "UGC";
-
-  return value?.trim() || "SNS";
-}
-
-function getPlatformIconSrc(value: string | null | undefined) {
-  const normalized = normalizePlatform(value);
-
-  if (normalized.includes("instagram")) return "/brand/social/instagram.png";
-  if (normalized.includes("tiktok")) return "/brand/social/tiktok.png";
-
-  return null;
-}
-
-function getInfluencerInitial(name: string) {
-  return (name || "I").trim().slice(0, 1).toUpperCase();
-}
-
-function formatPrice(value: number | null, currency: string | null | undefined, locale: "ja" | "en") {
-  if (value == null) return "-";
+function formatPrice(value: number | null, currency: string | null | undefined) {
+  if (value == null) return "価格未設定";
 
   const safeCurrency = currency || "JPY";
 
   try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    return new Intl.NumberFormat("ja-JP", {
       style: "currency",
       currency: safeCurrency,
       maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
@@ -219,18 +278,126 @@ function formatPrice(value: number | null, currency: string | null | undefined, 
 
 function formatStartingPrice(
   value: number | null,
-  currency: string | null | undefined,
-  locale: "ja" | "en"
+  currency: string | null | undefined
 ) {
   if (value == null) return "-";
-  return `${formatPrice(value, currency, locale)}〜`;
+  return `${formatPrice(value, currency)}〜`;
 }
 
-function formatFollowerLabel(platform: string | null | undefined, followerRange: string | null | undefined) {
+function getPlatformLabel(value: string | null | undefined) {
+  const normalized = normalizePlatform(value);
+
+  if (!normalized || normalized === "all") return "Any";
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("tiktok")) return "TikTok";
+  if (normalized.includes("youtube")) return "YouTube";
+  if (normalized === "x" || normalized.includes("twitter")) return "X";
+  if (normalized.includes("ugc")) return "UGC";
+
+  return value?.trim() || "SNS";
+}
+
+function getPlatformIcon(value: string | null | undefined) {
+  const normalized = normalizePlatform(value);
+
+  if (normalized.includes("instagram")) {
+    return (
+      <img
+        src="/brand/social/instagram.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (normalized.includes("tiktok")) {
+    return (
+      <img
+        src="/brand/social/tiktok.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (normalized.includes("youtube")) {
+    return (
+      <img
+        src="/brand/social/youtube.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (normalized === "x" || normalized.includes("twitter")) {
+    return (
+      <img
+        src="/brand/social/x.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return "●";
+}
+
+function formatFollowerLabel(followerRange: string | null | undefined) {
   const range = followerRange?.trim();
   if (!range) return null;
+  return range;
+}
 
-  return `${getPlatformLabel(platform)}・${range}`;
+function getInfluencerInitial(name: string) {
+  return (name || "I").trim().slice(0, 1).toUpperCase();
+}
+
+function getSocialAccountName(social: SocialAccountRow | null | undefined) {
+  if (!social) return null;
+
+  const handle = social.handle?.trim();
+  if (handle) return handle.replace(/^@/, "");
+
+  const url = social.url?.trim();
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const last = parts[0] ?? parts.at(-1) ?? "";
+    return last.replace(/^@/, "") || null;
+  } catch {
+    return url.replace(/^@/, "") || null;
+  }
+}
+
+function getRatingValue(value: number | null | undefined) {
+  if (typeof value !== "number") return null;
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+function HeartIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill={filled ? "currentColor" : "none"}
+      aria-hidden="true"
+    >
+      <path
+        d="M20.8 5.7c-1.9-2.2-5.1-2-6.9.1L12 8l-1.9-2.2c-1.8-2.1-5-2.3-6.9-.1-2.1 2.4-1.7 6 .7 8.1l6.8 6a2 2 0 0 0 2.6 0l6.8-6c2.4-2.1 2.8-5.7.7-8.1Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function InfluencerImage({
@@ -241,10 +408,10 @@ function InfluencerImage({
   index: number;
 }) {
   const gradients = [
-    "from-rose-200 via-orange-100 to-amber-100",
+    "from-rose-200 via-rose-100 to-white",
+    "from-emerald-200 via-emerald-100 to-white",
     "from-slate-200 via-slate-100 to-white",
-    "from-emerald-100 via-white to-rose-100",
-    "from-orange-100 via-white to-rose-100",
+    "from-orange-200 via-rose-100 to-white",
   ];
 
   const src = influencer.cardImageUrl || influencer.avatarUrl;
@@ -267,144 +434,152 @@ function InfluencerImage({
         gradients[index % gradients.length]
       }`}
     >
-      <span className="text-5xl font-black text-slate-950/70">
-        {getInfluencerInitial(influencer.displayName)}
-      </span>
+      <div className="text-center">
+        <span className="block text-6xl font-black text-slate-950/70">
+          {getInfluencerInitial(influencer.displayName)}
+        </span>
+      </div>
     </div>
-  );
-}
-
-function HeartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-      <path d="M20.8 5.7c-1.9-2.2-5.1-2-6.9.1L12 8l-1.9-2.2c-1.8-2.1-5-2.3-6.9-.1-2.1 2.4-1.7 6 .7 8.1l6.8 6a2 2 0 0 0 2.6 0l6.8-6c2.4-2.1 2.8-5.7.7-8.1Z" />
-    </svg>
   );
 }
 
 function SavedInfluencerCardItem({
   influencer,
   index,
+  isRemoving,
   safeLocale,
   copy,
-  removingId,
   onRemove,
 }: {
   influencer: SavedInfluencerCard;
   index: number;
+  isRemoving: boolean;
   safeLocale: "ja" | "en";
   copy: {
-    saved: string;
     menu: string;
     menus: string;
     noLocation: string;
     remove: string;
-    removing: string;
   };
-  removingId: string | null;
   onRemove: (influencerId: string) => void;
 }) {
-  const followerLabel = formatFollowerLabel(
-    influencer.primaryPlatform,
-    influencer.followerRange
-  );
-
-  const iconSrc = getPlatformIconSrc(influencer.primaryPlatform);
-  const isRemoving = removingId === influencer.id;
+  const followerLabel = formatFollowerLabel(influencer.followerRange);
+  const accountName = influencer.primaryAccountName;
+  const rating = getRatingValue(influencer.rating);
+  const shouldShowRating = rating !== null && influencer.reviewCount > 0;
 
   return (
     <article className="group">
-      <div className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)] transition duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
+      <div className="relative overflow-hidden rounded-[22px] bg-slate-100 shadow-sm transition duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-[rgba(0,0,0,0.16)_0_18px_40px_-22px]">
         <Link href={`/b/creators/${influencer.id}`} className="block">
-          <div className="relative aspect-[1.08/1] overflow-hidden bg-slate-100">
+          <div className="relative aspect-[1.08/1] overflow-hidden">
             <InfluencerImage influencer={influencer} index={index} />
 
-            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-            <div className="absolute left-3 top-3 flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-xs font-black text-slate-950 shadow-sm backdrop-blur">
-                {copy.saved}
-              </span>
-            </div>
-
-            <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-2">
-              {influencer.primaryPlatform ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-black text-slate-950 shadow-sm">
-                  {iconSrc ? (
-                    <img src={iconSrc} alt="" className="h-4 w-4 object-contain" />
-                  ) : null}
-                  {getPlatformLabel(influencer.primaryPlatform)}
-                </span>
-              ) : null}
-
-              {followerLabel ? (
-                <span className="inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-slate-950 shadow-sm">
-                  {followerLabel}
-                </span>
-              ) : null}
-            </div>
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
           </div>
         </Link>
 
+        <div className="absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-2">
+          {influencer.socialLinks.slice(0, 5).map((social, socialIndex) => {
+            const key = `${social.platform}-${social.url ?? "no-url"}-${socialIndex}`;
+
+            if (social.url) {
+              return (
+                <a
+                  key={key}
+                  href={social.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={getPlatformLabel(social.platform)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-xs font-black text-slate-900 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+                >
+                  {getPlatformIcon(social.platform)}
+                </a>
+              );
+            }
+
+            return (
+              <span
+                key={key}
+                title={getPlatformLabel(social.platform)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-xs font-black text-slate-900 shadow-sm backdrop-blur"
+              >
+                {getPlatformIcon(social.platform)}
+              </span>
+            );
+          })}
+
+          {followerLabel ? (
+            <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm">
+              {followerLabel}
+            </span>
+          ) : null}
+        </div>
+
         <button
           type="button"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             onRemove(influencer.id);
           }}
           disabled={isRemoving}
-          className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#ff5f67] shadow-sm transition hover:scale-105 disabled:opacity-60"
+          className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-pink-500 text-white transition duration-150 hover:scale-105 disabled:opacity-60"
           aria-label={copy.remove}
         >
-          <HeartIcon />
+          <HeartIcon filled />
         </button>
       </div>
 
-      <div className="mt-4">
-        <Link href={`/b/creators/${influencer.id}`} className="block">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-400">
-                {influencer.category || influencer.topMenuTitle || "PR / UGC"}
-              </p>
+      <Link href={`/b/creators/${influencer.id}`} className="mt-3 block">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-black leading-tight text-slate-950">
+              {influencer.displayName}
+            </p>
 
-              <p className="mt-1 truncate text-[17px] font-black tracking-[-0.03em] text-slate-950">
-                {influencer.displayName}
+            {accountName ? (
+              <p className="mt-1 truncate text-sm font-bold text-slate-500">
+                @{accountName}
               </p>
+            ) : null}
 
-              <p className="mt-1 truncate text-sm font-semibold text-slate-500">
+            <div className="mt-1 flex min-w-0 items-center gap-2">
+              <p className="truncate text-sm text-slate-400">
                 {influencer.primaryAudienceCountry
                   ? getCountryLabel(influencer.primaryAudienceCountry, safeLocale)
                   : copy.noLocation}
               </p>
-            </div>
 
-            <div className="shrink-0 text-right">
-              <p className="text-base font-black text-slate-950">
-                {formatStartingPrice(
-                  influencer.startingPrice,
-                  influencer.startingCurrency,
-                  safeLocale
-                )}
-              </p>
-              <p className="mt-1 text-xs font-bold text-slate-400">
-                {influencer.menuCount}{" "}
-                {influencer.menuCount === 1 ? copy.menu : copy.menus}
-              </p>
+              {shouldShowRating ? (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-slate-800">
+                    <span className="text-yellow-500">★</span>
+                    {rating.toFixed(1)}
+                  </span>
+                </>
+              ) : null}
             </div>
           </div>
-        </Link>
 
-        <button
-          type="button"
-          onClick={() => onRemove(influencer.id)}
-          disabled={isRemoving}
-          className="mt-4 w-full rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isRemoving ? copy.removing : copy.remove}
-        </button>
-      </div>
+          <div className="shrink-0 text-right">
+            <p className="text-base font-black text-slate-950">
+              {formatStartingPrice(
+                influencer.startingPrice,
+                influencer.startingCurrency
+              )}
+            </p>
+            <p className="mt-1 text-xs font-medium text-slate-400">
+              {influencer.menuCount}{" "}
+              {influencer.menuCount === 1 ? copy.menu : copy.menus}
+            </p>
+          </div>
+        </div>
+      </Link>
     </article>
   );
 }
@@ -430,12 +605,10 @@ export default function SavedCreatorsPage() {
             influencerFallback: "Influencer",
             fetchError: "保存済みインフルエンサーの取得に失敗しました。",
             removeFailed: "保存解除に失敗しました。",
-            saved: "保存済み",
             menu: "menu",
             menus: "menus",
-            noLocation: "未設定",
+            noLocation: "Location not set",
             remove: "保存を解除",
-            removing: "解除中...",
             total: "保存数",
           }
         : {
@@ -450,12 +623,10 @@ export default function SavedCreatorsPage() {
             influencerFallback: "Influencer",
             fetchError: "Failed to load saved influencers.",
             removeFailed: "Failed to remove saved influencer.",
-            saved: "Saved",
             menu: "menu",
             menus: "menus",
-            noLocation: "Not set",
+            noLocation: "Location not set",
             remove: "Remove from saved",
-            removing: "Removing...",
             total: "Saved",
           },
     [safeLocale]
@@ -526,9 +697,12 @@ export default function SavedCreatorsPage() {
         approval_status,
         is_public,
         stripe_onboarding_completed,
+        rating,
+        total_orders,
         creator_social_accounts (
           platform,
           url,
+          handle,
           follower_range,
           audience_country
         )
@@ -606,10 +780,6 @@ export default function SavedCreatorsPage() {
       portfolioMap.set(asset.creator_id, list);
     }
 
-    const savedAtMap = new Map(
-      savedRows.map((row) => [row.creator_id, row.created_at])
-    );
-
     const orderIndexMap = new Map(
       savedRows.map((row, index) => [row.creator_id, index])
     );
@@ -622,13 +792,12 @@ export default function SavedCreatorsPage() {
 
         const primary = socials[0] ?? null;
 
-        const platforms = Array.from(
-          new Set(
-            socials
-              .map((social) => social.platform?.trim())
-              .filter((value): value is string => !!value)
-          )
-        );
+        const socialLinks = socials
+          .map((social) => ({
+            platform: social.platform?.trim() || "",
+            url: social.url?.trim() || null,
+          }))
+          .filter((social) => social.platform);
 
         const influencerMenus = menuMap.get(row.id) ?? [];
 
@@ -644,10 +813,11 @@ export default function SavedCreatorsPage() {
         return {
           id: row.id,
           displayName: row.display_name?.trim() || copy.influencerFallback,
+          primaryAccountName: getSocialAccountName(primary),
           avatarUrl: row.avatar_url?.trim() || null,
           cardImageUrl: firstPortfolioImage,
           category: row.category?.trim() || null,
-          primaryPlatform: platforms[0] || primary?.platform?.trim() || null,
+          socialLinks,
           primaryAudienceCountry: primary?.audience_country?.trim() || null,
           followerRange: primary?.follower_range?.trim() || null,
           menuCount: influencerMenus.length,
@@ -657,7 +827,9 @@ export default function SavedCreatorsPage() {
               : null,
           startingCurrency: startingMenu?.currency ?? "JPY",
           topMenuTitle: startingMenu?.title ?? null,
-          savedAt: savedAtMap.get(row.id) ?? null,
+          rating: typeof row.rating === "number" ? row.rating : null,
+          reviewCount:
+            typeof row.total_orders === "number" ? Number(row.total_orders) : 0,
         };
       })
       .sort((a, b) => {
@@ -713,10 +885,10 @@ export default function SavedCreatorsPage() {
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-6xl space-y-5">
           <div className="h-36 animate-pulse rounded-[28px] bg-white shadow-sm" />
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-x-7 gap-y-10 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="space-y-3">
-                <div className="aspect-[1.08/1] animate-pulse rounded-[24px] bg-white shadow-sm" />
+                <div className="aspect-[1.08/1] animate-pulse rounded-[22px] bg-white shadow-sm" />
                 <div className="h-4 w-4/5 animate-pulse rounded bg-white" />
                 <div className="h-4 w-2/3 animate-pulse rounded bg-white" />
               </div>
@@ -765,7 +937,7 @@ export default function SavedCreatorsPage() {
         {influencers.length === 0 && !error ? (
           <div className="mt-5 rounded-[28px] bg-white p-8 text-center shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-12">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-50 text-[#ff5f67]">
-              <HeartIcon />
+              <HeartIcon filled />
             </div>
 
             <h2 className="mt-5 text-xl font-black tracking-[-0.03em] text-slate-950">
@@ -791,15 +963,13 @@ export default function SavedCreatorsPage() {
                 influencer={influencer}
                 index={index}
                 safeLocale={safeLocale}
-                removingId={removingId}
+                isRemoving={removingId === influencer.id}
                 onRemove={removeSavedInfluencer}
                 copy={{
-                  saved: copy.saved,
                   menu: copy.menu,
                   menus: copy.menus,
                   noLocation: copy.noLocation,
                   remove: copy.remove,
-                  removing: copy.removing,
                 }}
               />
             ))}
