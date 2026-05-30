@@ -179,9 +179,11 @@ function MiniPill({
 
   return (
     <div
-      className={`rounded-full px-4 py-2 text-sm font-black shadow-sm ring-1 ${toneClass}`}
+      className={`inline-flex items-center rounded-full px-3.5 py-2 text-sm font-black shadow-[0_10px_30px_rgba(15,23,42,0.04)] ring-1 ${toneClass}`}
     >
-      <span className="mr-2 text-xs font-bold text-slate-400">{label}</span>
+      <span className="mr-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+        {label}
+      </span>
       {value}
     </div>
   );
@@ -192,33 +194,40 @@ function StatCard({
   value,
   href,
   active,
+  helper,
 }: {
   label: string;
   value: number;
   href: string;
   active?: boolean;
+  helper: string;
 }) {
   return (
     <Link
       href={href}
-      className={`group rounded-[28px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-        active
-          ? "border-[#ffb3b8] bg-white shadow-[0_18px_45px_rgba(255,95,103,0.1)]"
-          : "border-slate-100 bg-white"
+      className={`group relative overflow-hidden rounded-[28px] border bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(15,23,42,0.08)] ${
+        active ? "border-rose-100" : "border-slate-100"
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      {active ? (
+        <div className="pointer-events-none absolute -right-12 -top-14 h-28 w-28 rounded-full bg-rose-100/70 blur-3xl" />
+      ) : null}
+
+      <div className="relative flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-black text-slate-500">{label}</p>
-          <p className="mt-4 text-4xl font-black tracking-[-0.04em] text-slate-950">
+          <p className="mt-3 text-[38px] font-black leading-none tracking-[-0.06em] text-slate-950">
             {value}
+          </p>
+          <p className="mt-3 text-xs font-bold leading-5 text-slate-400">
+            {helper}
           </p>
         </div>
 
         <span
-          className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black transition group-hover:translate-x-0.5 ${
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black transition group-hover:translate-x-0.5 ${
             active
-              ? "bg-[#ff5f67] text-white"
+              ? "bg-[#ff5f67] text-white shadow-[0_12px_25px_rgba(255,95,103,0.25)]"
               : "bg-slate-100 text-slate-500"
           }`}
         >
@@ -237,21 +246,25 @@ function ActionCard({
 }: {
   href: string;
   title: string;
-  body: string;
+  body: ReactNode;
   primary?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`group rounded-[30px] border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+      className={`group relative overflow-hidden rounded-[30px] border p-6 transition hover:-translate-y-0.5 ${
         primary
-          ? "border-slate-950 bg-slate-950 text-white"
-          : "border-slate-100 bg-white text-slate-950"
+          ? "border-slate-950 bg-slate-950 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+          : "border-slate-100 bg-white text-slate-950 shadow-[0_18px_55px_rgba(15,23,42,0.05)] hover:shadow-[0_24px_70px_rgba(15,23,42,0.08)]"
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      {primary ? (
+        <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#ff5f67]/30 blur-3xl" />
+      ) : null}
+
+      <div className="relative flex items-start justify-between gap-4">
         <div>
-          <p className="text-xl font-black tracking-[-0.03em]">{title}</p>
+          <p className="text-xl font-black tracking-[-0.04em]">{title}</p>
           <p
             className={`mt-3 text-sm font-semibold leading-7 ${
               primary ? "text-white/65" : "text-slate-500"
@@ -627,8 +640,11 @@ export default function CompanyDashboardClient() {
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden bg-white px-4 py-8 md:px-6">
-        <div className="mx-auto max-w-6xl rounded-[34px] border border-slate-100 bg-white p-7 shadow-sm">
+      <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#fbfaf9] px-4 py-8 md:px-6">
+        <div className="pointer-events-none absolute left-[-220px] top-[-180px] h-[420px] w-[420px] rounded-full bg-rose-100/45 blur-[120px]" />
+        <div className="pointer-events-none absolute right-[-240px] top-[40px] h-[460px] w-[460px] rounded-full bg-emerald-100/40 blur-[130px]" />
+
+        <div className="relative mx-auto max-w-6xl rounded-[34px] border border-white/80 bg-white/85 p-7 shadow-[0_24px_80px_rgba(15,23,42,0.06)] backdrop-blur-xl">
           <p className="text-sm font-bold text-slate-500">読み込み中...</p>
         </div>
       </div>
@@ -637,8 +653,10 @@ export default function CompanyDashboardClient() {
 
   if (error || !dashboard) {
     return (
-      <div className="relative overflow-hidden bg-white px-4 py-8 md:px-6">
-        <div className="mx-auto max-w-4xl rounded-[34px] border border-rose-100 bg-white p-7 shadow-sm">
+      <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#fbfaf9] px-4 py-8 md:px-6">
+        <div className="pointer-events-none absolute left-[-220px] top-[-180px] h-[420px] w-[420px] rounded-full bg-rose-100/45 blur-[120px]" />
+
+        <div className="relative mx-auto max-w-4xl rounded-[34px] border border-rose-100 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
           <h1 className="text-2xl font-black text-slate-950">
             エラーが発生しました
           </h1>
@@ -673,41 +691,42 @@ export default function CompanyDashboardClient() {
     dashboard.counts.delivered;
 
   return (
-    <div className="relative overflow-hidden bg-white">
-      <div className="pointer-events-none absolute inset-0 -z-0">
-        <div className="absolute left-[-260px] top-[40px] h-[620px] w-[620px] rounded-full bg-rose-100/42 blur-[110px]" />
-        <div className="absolute right-[-260px] top-[60px] h-[700px] w-[700px] rounded-full bg-emerald-100/44 blur-[120px]" />
-        <div className="absolute left-1/2 top-[360px] h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-slate-100/40 blur-[120px]" />
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#fbfaf9]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-280px] top-[-210px] h-[560px] w-[560px] rounded-full bg-rose-100/45 blur-[135px]" />
+        <div className="absolute right-[-330px] top-[80px] h-[640px] w-[640px] rounded-full bg-emerald-100/38 blur-[145px]" />
+        <div className="absolute left-[18%] top-[520px] h-[360px] w-[520px] rounded-full bg-white/70 blur-[90px]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
-        <section className="relative overflow-hidden rounded-[38px] border border-slate-100 bg-white/90 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.07)] backdrop-blur-xl md:p-8">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-[-180px] top-[-180px] h-[380px] w-[380px] rounded-full bg-rose-100/45 blur-[90px]" />
-            <div className="absolute right-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-emerald-100/50 blur-[100px]" />
-          </div>
+      <div className="relative mx-auto max-w-6xl px-4 py-7 md:px-6 md:py-9">
+        <section className="relative overflow-hidden rounded-[34px] border border-white/80 bg-white/88 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.07)] backdrop-blur-xl md:p-8">
+          <div className="pointer-events-none absolute right-[-140px] top-[-160px] h-[340px] w-[340px] rounded-full bg-rose-100/35 blur-[95px]" />
+          <div className="pointer-events-none absolute bottom-[-180px] left-[28%] h-[300px] w-[420px] rounded-full bg-emerald-100/24 blur-[100px]" />
 
           <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-black text-[#ff5f67]">
-                {dashboard.companyName}
-              </p>
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white px-3.5 py-2 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-[#ff5f67]" />
+                <span className="text-xs font-black text-slate-600">
+                  {dashboard.companyName}
+                </span>
+              </div>
 
-              <h1 className="mt-3 text-[34px] font-black leading-tight tracking-[-0.05em] text-slate-950 md:text-[46px]">
+              <h1 className="mt-5 text-[34px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[48px]">
                 クリエイターを探して、
                 <br className="hidden sm:block" />
                 そのまま注文できます。
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                気になるクリエイターを保存し、メニューを選んで注文できます。
+              <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-slate-500">
+                気になるクリエイターを保存して、メニューを選び、支払いから納品確認までオンラインで進められます。
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+            <div className="flex flex-col gap-3 sm:flex-row lg:w-[240px] lg:flex-col">
               <Link
                 href="/b/creators"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.24)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
               >
                 クリエイターを探す
                 <ArrowIcon />
@@ -715,7 +734,7 @@ export default function CompanyDashboardClient() {
 
               <Link
                 href="/b/jobs"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-300"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
               >
                 注文を見る
                 <ArrowIcon />
@@ -724,15 +743,15 @@ export default function CompanyDashboardClient() {
           </div>
 
           <div className="relative mt-8 flex flex-wrap gap-2">
-            <MiniPill label="プラン" value={planLabel} />
+            <MiniPill label="Plan" value={planLabel} />
             <MiniPill
-              label="残り"
+              label="Remain"
               value={remaining === null ? "無制限" : `${remaining}件`}
               tone="rose"
             />
-            <MiniPill label="手数料" value={buyerFee} />
+            <MiniPill label="Fee" value={buyerFee} />
             <MiniPill
-              label="状態"
+              label="Status"
               value={approvalBadge.label}
               tone={dashboard.approvalStatus === "approved" ? "green" : "default"}
             />
@@ -740,54 +759,63 @@ export default function CompanyDashboardClient() {
         </section>
 
         {!canUseRequests ? (
-          <section className="mt-6 rounded-[30px] border border-blue-100 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">
-              注文を始めるにはプランの確認が必要です
-            </h2>
-            <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
-              クリエイターの閲覧はできます。注文はプラン開始後に利用できます。
-            </p>
-            <Link
-              href="/b/billing"
-              className="mt-5 inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white"
-            >
-              料金プランを見る
-            </Link>
+          <section className="mt-5 rounded-[28px] border border-amber-100 bg-white/90 p-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+                  注文を始めるにはプランの確認が必要です
+                </h2>
+                <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                  クリエイターの閲覧はできます。注文はプラン開始後に利用できます。
+                </p>
+              </div>
+
+              <Link
+                href="/b/billing"
+                className="inline-flex shrink-0 items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                料金プランを見る
+              </Link>
+            </div>
           </section>
         ) : null}
 
-        <section className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <section className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
             label="返答待ち"
             value={dashboard.counts.pending}
             href="/b/requests"
             active={dashboard.counts.pending > 0}
+            helper="クリエイターの返答待ち"
           />
           <StatCard
             label="進行中"
             value={dashboard.counts.accepted}
             href="/b/jobs"
             active={dashboard.counts.accepted > 0}
+            helper="進行している注文"
           />
           <StatCard
             label="確認する"
             value={dashboard.counts.delivered}
             href="/b/jobs"
             active={dashboard.counts.delivered > 0}
+            helper="納品確認が必要"
           />
           <StatCard
             label="完了"
             value={dashboard.counts.completed}
             href="/b/jobs"
             active={false}
+            helper="完了した注文"
           />
         </section>
 
-        <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <main className="grid gap-4 md:grid-cols-2">
             <ActionCard
               href="/b/creators"
-              title="探す"
+              title="クリエイターを探す"
               body="条件に合うクリエイターとメニューを見つけます。"
               primary
             />
@@ -800,11 +828,11 @@ export default function CompanyDashboardClient() {
 
             <ActionCard
               href="/b/jobs"
-              title="注文を見る"
+              title="注文"
               body={
                 activeOrderCount > 0
                   ? `${activeOrderCount}件の注文があります。`
-                  : "注文中の内容を確認できます。"
+                  : "進行中の注文を確認できます。"
               }
             />
 
@@ -815,11 +843,16 @@ export default function CompanyDashboardClient() {
             />
           </main>
 
-          <aside className="rounded-[30px] border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.07)] lg:self-start">
+          <aside className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] backdrop-blur-xl lg:self-start">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                アカウント
-              </h2>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                  Account
+                </p>
+                <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-slate-950">
+                  アカウント
+                </h2>
+              </div>
 
               <span
                 className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${subscriptionBadge.className}`}
