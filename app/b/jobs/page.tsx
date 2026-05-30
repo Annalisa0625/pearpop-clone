@@ -1,7 +1,7 @@
 // File: app/b/jobs/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -46,10 +46,7 @@ type OrderRow = {
   creator_user_id: string;
   menu_title_snapshot: string | null;
   menu_price_amount: number | null;
-  buyer_marketplace_fee_rate_bps: number | null;
-  buyer_marketplace_fee_amount: number | null;
   buyer_total_amount: number | null;
-  stripe_amount: number | null;
   currency: string | null;
   revision_requested_at: string | null;
   revision_count: number | null;
@@ -67,21 +64,16 @@ type JobItem = {
   kind: "order" | "legacy_request";
   id: string;
   status: string;
-  payment_status?: string | null;
   created_at: string;
   updated_at: string | null;
   product_name: string | null;
   delivered_post_url: string | null;
-  creator_name: string | null;
-  creator_avatar_url: string | null;
+  influencer_name: string | null;
+  influencer_avatar_url: string | null;
   menu_title?: string | null;
   menu_price_amount?: number | null;
-  buyer_marketplace_fee_rate_bps?: number | null;
-  buyer_marketplace_fee_amount?: number | null;
   buyer_total_amount?: number | null;
-  stripe_amount?: number | null;
   currency?: string | null;
-  revision_requested_at?: string | null;
   revision_count?: number | null;
   max_revision_count?: number | null;
   auto_complete_at?: string | null;
@@ -109,15 +101,15 @@ function Avatar({
       <img
         src={avatarUrl}
         alt={name}
-        className="h-14 w-14 rounded-2xl object-cover"
+        className="h-13 w-13 rounded-2xl object-cover md:h-14 md:w-14"
       />
     );
   }
 
-  const initial = (name?.trim()?.[0] ?? "C").toUpperCase();
+  const initial = (name?.trim()?.[0] ?? "I").toUpperCase();
 
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 text-lg font-black text-white">
+    <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-100 text-lg font-black text-slate-900 md:h-14 md:w-14">
       {initial}
     </div>
   );
@@ -136,7 +128,6 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-    year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -166,63 +157,58 @@ function formatPrice(
   }
 }
 
-function formatBps(value: number | null | undefined) {
-  if (value == null) return "";
-  return `${value / 100}%`;
-}
-
 function getStatusMeta(status: string, locale: "ja" | "en") {
   const ja: Record<string, { label: string; className: string }> = {
     accepted: {
       label: "進行中",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
+      className: "bg-slate-950 text-white ring-slate-950",
     },
     accepted_captured: {
       label: "進行中",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
+      className: "bg-slate-950 text-white ring-slate-950",
     },
     in_progress: {
       label: "進行中",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
+      className: "bg-slate-950 text-white ring-slate-950",
     },
     delivered: {
-      label: "納品済み",
-      className: "bg-purple-100 text-purple-700 ring-purple-200",
+      label: "確認する",
+      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
     },
     revision_requested: {
       label: "修正依頼中",
-      className: "bg-amber-100 text-amber-800 ring-amber-200",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
     },
     completed: {
       label: "完了",
-      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     },
   };
 
   const en: Record<string, { label: string; className: string }> = {
     accepted: {
-      label: "Active",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
+      label: "In progress",
+      className: "bg-slate-950 text-white ring-slate-950",
     },
     accepted_captured: {
-      label: "Active",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
+      label: "In progress",
+      className: "bg-slate-950 text-white ring-slate-950",
     },
     in_progress: {
-      label: "In Progress",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
+      label: "In progress",
+      className: "bg-slate-950 text-white ring-slate-950",
     },
     delivered: {
-      label: "Delivered",
-      className: "bg-purple-100 text-purple-700 ring-purple-200",
+      label: "Review",
+      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
     },
     revision_requested: {
-      label: "Revision Requested",
-      className: "bg-amber-100 text-amber-800 ring-amber-200",
+      label: "Revision",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
     },
     completed: {
       label: "Completed",
-      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     },
   };
 
@@ -232,11 +218,6 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       className: "bg-slate-100 text-slate-700 ring-slate-200",
     }
   );
-}
-
-function getKindLabel(kind: JobItem["kind"], locale: "ja" | "en") {
-  if (kind === "order") return locale === "ja" ? "注文" : "Order";
-  return locale === "ja" ? "旧依頼" : "Legacy Request";
 }
 
 function getTimestamp(value: string | null | undefined) {
@@ -255,57 +236,11 @@ function getAutoCompleteSortValue(item: JobItem) {
   return getTimestamp(item.auto_complete_at) ?? 9999999999999;
 }
 
-function isWithinHours(value: string | null | undefined, hours: number) {
-  const time = getTimestamp(value);
-  if (!time) return false;
-
-  const diff = time - Date.now();
-  return diff > 0 && diff <= hours * 60 * 60 * 1000;
-}
-
-function StatCard({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "dark" | "blue" | "purple" | "amber" | "green";
-}) {
-  const styles = {
-    default: "border-slate-100 bg-white text-slate-950",
-    dark: "border-slate-950 bg-slate-950 text-white",
-    blue: "border-blue-100 bg-blue-50 text-slate-950",
-    purple: "border-purple-100 bg-purple-50 text-slate-950",
-    amber: "border-amber-100 bg-amber-50 text-slate-950",
-    green: "border-emerald-100 bg-emerald-50 text-slate-950",
-  };
-
-  return (
-    <div className={`rounded-[26px] border p-5 shadow-sm ${styles[tone]}`}>
-      <p
-        className={`text-xs font-black uppercase tracking-[0.2em] ${
-          tone === "dark" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`mt-3 text-3xl font-black ${
-          tone === "dark" ? "text-white" : "text-slate-950"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
 function Pill({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className: string;
 }) {
   return (
@@ -317,25 +252,39 @@ function Pill({
   );
 }
 
-function DetailRow({
+function SummaryPill({
   label,
   value,
-  strong,
+  active,
 }: {
   label: string;
-  value: React.ReactNode;
-  strong?: boolean;
+  value: number;
+  active?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
-      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
-      <span
-        className={`text-right text-sm ${
-          strong ? "font-black text-slate-950" : "font-bold text-slate-800"
-        }`}
-      >
+    <div
+      className={`rounded-full px-4 py-2 text-sm font-black ${
+        active
+          ? "bg-slate-950 text-white"
+          : "bg-white text-slate-600 ring-1 ring-slate-200"
+      }`}
+    >
+      {label} <span className="ml-1">{value}</span>
+    </div>
+  );
+}
+
+function InfoLine({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs font-bold text-slate-400">{label}</span>
+      <span className="text-right text-sm font-black text-slate-950">
         {value}
       </span>
     </div>
@@ -351,71 +300,57 @@ export default function JobsListPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            title: "進行中案件",
+            title: "注文",
             subtitle:
-              "決済確定済みの注文、修正依頼中の注文、納品済み・完了済み案件を確認できます。",
-            viewRequests: "承認待ちを見る",
-            empty: "進行中の案件はありません。",
+              "進行中の注文、納品確認、完了した注文を確認できます。",
+            viewRequests: "返答待ちを見る",
+            empty: "進行中の注文はありません",
             emptyBody:
-              "クリエイターが承認した注文や納品済み案件がここに表示されます。",
-            unnamedCreator: "unknown",
+              "インフルエンサーが注文を承認すると、ここに表示されます。",
+            unnamedInfluencer: "unknown",
             unnamedProduct: "未入力",
-            productName: "商品名",
             menu: "メニュー",
-            price: "価格",
-            buyerFeeRate: "B側手数料率",
-            marketplaceFee: "Trendre手数料",
-            buyerTotal: "お支払い合計",
-            stripeAmount: "Stripe決済額",
-            deliveredUrl: "納品URLあり",
-            revisionRequested: "修正依頼中",
-            revisionCount: "修正回数",
-            unreadMessages: "新着メッセージあり",
-            lastMessage: "最終メッセージ",
+            amount: "金額",
             updatedAt: "更新",
             detail: "詳細を見る",
-            fetchError: "進行中案件の取得に失敗しました。",
+            deliveredUrl: "納品URLあり",
+            revisionCount: "修正",
+            unreadMessages: "新着メッセージ",
             autoComplete: "自動完了",
             autoCompleteExpired: "自動完了期限超過",
             total: "すべて",
             active: "進行中",
-            delivered: "納品済み",
-            revision: "修正",
+            delivered: "確認する",
             completed: "完了",
+            searchInfluencers: "インフルエンサーを探す",
+            fetchError: "注文の取得に失敗しました。",
           }
         : {
             loading: "Loading...",
-            title: "Active Jobs",
+            title: "Orders",
             subtitle:
-              "Review captured orders, revision requests, delivered jobs, and completed jobs.",
-            viewRequests: "View Pending",
-            empty: "There are no active jobs.",
+              "Review active orders, delivered orders, and completed orders.",
+            viewRequests: "Waiting for replies",
+            empty: "No active orders",
             emptyBody:
-              "Accepted orders and delivered jobs will appear here.",
-            unnamedCreator: "unknown",
+              "Orders accepted by influencers will appear here.",
+            unnamedInfluencer: "unknown",
             unnamedProduct: "Not entered",
-            productName: "Product",
             menu: "Menu",
-            price: "Price",
-            buyerFeeRate: "Buyer fee rate",
-            marketplaceFee: "Trendre fee",
-            buyerTotal: "Payment total",
-            stripeAmount: "Stripe amount",
-            deliveredUrl: "Delivered URL submitted",
-            revisionRequested: "Revision requested",
-            revisionCount: "Revision count",
-            unreadMessages: "New messages",
-            lastMessage: "Last message",
+            amount: "Amount",
             updatedAt: "Updated",
-            detail: "View Details",
-            fetchError: "Failed to load active jobs.",
+            detail: "View details",
+            deliveredUrl: "Delivered URL",
+            revisionCount: "Revision",
+            unreadMessages: "New message",
             autoComplete: "Auto complete",
             autoCompleteExpired: "Auto-complete overdue",
             total: "Total",
-            active: "Active",
-            delivered: "Delivered",
-            revision: "Revision",
+            active: "In progress",
+            delivered: "Review",
             completed: "Completed",
+            searchInfluencers: "Find influencers",
+            fetchError: "Failed to load orders.",
           },
     [safeLocale]
   );
@@ -490,10 +425,7 @@ export default function JobsListPage() {
           creator_user_id,
           menu_title_snapshot,
           menu_price_amount,
-          buyer_marketplace_fee_rate_bps,
-          buyer_marketplace_fee_amount,
           buyer_total_amount,
-          stripe_amount,
           currency,
           revision_requested_at,
           revision_count,
@@ -512,7 +444,7 @@ export default function JobsListPage() {
     ]);
 
     if (legacyError || orderError) {
-      console.error("jobs load error:", { legacyError, orderError });
+      console.error("orders load error:", { legacyError, orderError });
       setError(copy.fetchError);
       setJobs([]);
       setLoading(false);
@@ -521,26 +453,26 @@ export default function JobsListPage() {
 
     const orders = (orderRows ?? []) as OrderRow[];
     const orderIds = orders.map((order) => order.id);
-    const creatorIds = Array.from(
+    const influencerIds = Array.from(
       new Set(orders.map((order) => order.creator_id).filter(Boolean))
     );
 
-    let creatorMap = new Map<string, CreatorLite>();
+    let influencerMap = new Map<string, CreatorLite>();
     let orderChatMap = new Map<string, ChatRow>();
 
-    if (creatorIds.length > 0) {
-      const { data: creatorRows, error: creatorError } = await supabase
+    if (influencerIds.length > 0) {
+      const { data: influencerRows, error: influencerError } = await supabase
         .from("creators")
         .select("id, display_name, avatar_url")
-        .in("id", creatorIds);
+        .in("id", influencerIds);
 
-      if (creatorError) {
-        console.error("order creator load error:", creatorError);
+      if (influencerError) {
+        console.error("order influencer load error:", influencerError);
       } else {
-        creatorMap = new Map(
-          ((creatorRows ?? []) as CreatorLite[]).map((creator) => [
-            creator.id,
-            creator,
+        influencerMap = new Map(
+          ((influencerRows ?? []) as CreatorLite[]).map((influencer) => [
+            influencer.id,
+            influencer,
           ])
         );
       }
@@ -582,34 +514,29 @@ export default function JobsListPage() {
         updated_at: row.updated_at,
         product_name: row.product_name,
         delivered_post_url: row.delivered_post_url,
-        creator_name: row.creators?.display_name ?? null,
-        creator_avatar_url: row.creators?.avatar_url ?? null,
+        influencer_name: row.creators?.display_name ?? null,
+        influencer_avatar_url: row.creators?.avatar_url ?? null,
         chat: normalizeChat(row.chats),
       })
     );
 
     const orderItems: JobItem[] = orders.map((order) => {
-      const creator = creatorMap.get(order.creator_id) ?? null;
+      const influencer = influencerMap.get(order.creator_id) ?? null;
 
       return {
         kind: "order",
         id: order.id,
         status: order.status,
-        payment_status: order.payment_status,
         created_at: order.created_at,
         updated_at: order.updated_at,
         product_name: order.product_name,
         delivered_post_url: order.delivered_post_url,
-        creator_name: creator?.display_name ?? null,
-        creator_avatar_url: creator?.avatar_url ?? null,
+        influencer_name: influencer?.display_name ?? null,
+        influencer_avatar_url: influencer?.avatar_url ?? null,
         menu_title: order.menu_title_snapshot,
         menu_price_amount: order.menu_price_amount,
-        buyer_marketplace_fee_rate_bps: order.buyer_marketplace_fee_rate_bps,
-        buyer_marketplace_fee_amount: order.buyer_marketplace_fee_amount,
         buyer_total_amount: order.buyer_total_amount,
-        stripe_amount: order.stripe_amount,
         currency: order.currency,
-        revision_requested_at: order.revision_requested_at,
         revision_count: order.revision_count,
         max_revision_count: order.max_revision_count,
         auto_complete_at: order.auto_complete_at,
@@ -741,257 +668,189 @@ export default function JobsListPage() {
   }, [jobs, hasUnread]);
 
   const activeCount = sortedJobs.filter((job) =>
-    ["accepted", "accepted_captured", "in_progress"].includes(job.status)
+    ["accepted", "accepted_captured", "in_progress", "revision_requested"].includes(
+      job.status
+    )
   ).length;
   const deliveredCount = sortedJobs.filter((job) => job.status === "delivered").length;
-  const revisionCount = sortedJobs.filter(
-    (job) => job.status === "revision_requested"
-  ).length;
   const completedCount = sortedJobs.filter((job) => job.status === "completed").length;
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
-        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
-        <div className="h-60 animate-pulse rounded-[30px] bg-slate-100" />
-        <div className="h-60 animate-pulse rounded-[30px] bg-slate-100" />
+      <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-6xl space-y-5">
+          <div className="h-32 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          <div className="h-36 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          <div className="h-36 animate-pulse rounded-[28px] bg-white shadow-sm" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 pb-10 md:p-6">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          Company Jobs
-        </p>
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
+      <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
 
-        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-              {copy.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
-              {copy.subtitle}
-            </p>
-          </div>
+      <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
+        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 className="text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+                {copy.title}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                {copy.subtitle}
+              </p>
+            </div>
 
-          <Link
-            href="/b/requests"
-            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-          >
-            {copy.viewRequests}
-          </Link>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        <StatCard label={copy.total} value={sortedJobs.length} tone="dark" />
-        <StatCard label={copy.active} value={activeCount} tone="blue" />
-        <StatCard label={copy.delivered} value={deliveredCount} tone="purple" />
-        <StatCard label={copy.revision} value={revisionCount} tone="amber" />
-        <StatCard label={copy.completed} value={completedCount} tone="green" />
-      </section>
-
-      {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
-          {error}
-        </div>
-      ) : null}
-
-      {sortedJobs.length === 0 ? (
-        <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
-            ▣
-          </div>
-          <h2 className="mt-5 text-xl font-black text-slate-950">
-            {copy.empty}
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
-            {copy.emptyBody}
-          </p>
-        </div>
-      ) : (
-        <section className="space-y-4">
-          {sortedJobs.map((job) => {
-            const meta = getStatusMeta(job.status, safeLocale);
-            const detailHref =
-              job.kind === "order"
-                ? `/b/orders/${job.id}`
-                : `/b/requests/${job.id}`;
-
-            const unread = hasUnread(job);
-            const isDelivered = job.status === "delivered";
-            const isRevision = job.status === "revision_requested";
-
-            return (
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Link
-                key={`${job.kind}-${job.id}`}
-                href={detailHref}
-                className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
-                  isDelivered
-                    ? "border-purple-200 ring-2 ring-purple-100"
-                    : isRevision
-                    ? "border-amber-200 ring-2 ring-amber-100"
-                    : unread
-                    ? "border-blue-200 ring-2 ring-blue-100"
-                    : "border-slate-100"
-                }`}
+                href="/b/requests"
+                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
               >
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-4 flex flex-wrap items-center gap-2">
-                      <Pill
-                        className={
-                          job.kind === "order"
-                            ? "bg-slate-950 text-white ring-slate-950"
-                            : "bg-slate-100 text-slate-700 ring-slate-200"
-                        }
-                      >
-                        {getKindLabel(job.kind, safeLocale)}
-                      </Pill>
+                {copy.viewRequests}
+              </Link>
+              <Link
+                href="/b/creators"
+                className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+              >
+                {copy.searchInfluencers}
+              </Link>
+            </div>
+          </div>
 
-                      <Pill className={meta.className}>{meta.label}</Pill>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <SummaryPill label={copy.total} value={sortedJobs.length} active />
+            <SummaryPill label={copy.active} value={activeCount} />
+            <SummaryPill label={copy.delivered} value={deliveredCount} />
+            <SummaryPill label={copy.completed} value={completedCount} />
+          </div>
+        </section>
 
-                      {job.payment_status ? (
-                        <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                          {job.payment_status}
-                        </Pill>
-                      ) : null}
+        {error ? (
+          <div className="mt-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
+            {error}
+          </div>
+        ) : null}
 
-                      {job.delivered_post_url ? (
-                        <Pill className="bg-purple-50 text-purple-700 ring-purple-200">
-                          {copy.deliveredUrl}
-                        </Pill>
-                      ) : null}
+        {sortedJobs.length === 0 ? (
+          <div className="mt-5 rounded-[28px] bg-white p-8 text-center shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-12">
+            <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+              {copy.empty}
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-sm font-semibold leading-7 text-slate-500">
+              {copy.emptyBody}
+            </p>
+            <Link
+              href="/b/creators"
+              className="mt-6 inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
+            >
+              {copy.searchInfluencers}
+            </Link>
+          </div>
+        ) : (
+          <section className="mt-5 space-y-3">
+            {sortedJobs.map((job) => {
+              const meta = getStatusMeta(job.status, safeLocale);
+              const detailHref =
+                job.kind === "order"
+                  ? `/b/orders/${job.id}`
+                  : `/b/requests/${job.id}`;
 
-                      {isRevision ? (
-                        <Pill className="bg-amber-50 text-amber-800 ring-amber-200">
-                          {copy.revisionRequested}
-                        </Pill>
-                      ) : null}
+              const unread = hasUnread(job);
+              const isDelivered = job.status === "delivered";
+              const isRevision = job.status === "revision_requested";
 
-                      {unread ? (
-                        <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
-                          {copy.unreadMessages}
-                        </Pill>
-                      ) : null}
-                    </div>
+              return (
+                <Link
+                  key={`${job.kind}-${job.id}`}
+                  href={detailHref}
+                  className="block rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-[0_24px_70px_rgba(15,23,42,0.07)]"
+                >
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <Pill className={meta.className}>{meta.label}</Pill>
 
-                    <div className="flex items-start gap-4">
-                      <Avatar
-                        name={job.creator_name ?? copy.unnamedCreator}
-                        avatarUrl={job.creator_avatar_url}
-                      />
+                        {unread ? (
+                          <Pill className="bg-blue-50 text-blue-700 ring-blue-100">
+                            {copy.unreadMessages}
+                          </Pill>
+                        ) : null}
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-500">
-                          @{job.creator_name ?? copy.unnamedCreator}
-                        </p>
-                        <h2 className="mt-1 truncate text-2xl font-black text-slate-950">
-                          {job.product_name ?? copy.unnamedProduct}
-                        </h2>
-                        {job.menu_title ? (
-                          <p className="mt-2 text-sm font-semibold text-slate-500">
-                            {copy.menu}: {job.menu_title}
-                          </p>
+                        {job.delivered_post_url ? (
+                          <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
+                            {copy.deliveredUrl}
+                          </Pill>
+                        ) : null}
+
+                        {isRevision && job.revision_count != null ? (
+                          <Pill className="bg-amber-50 text-amber-800 ring-amber-100">
+                            {copy.revisionCount} {job.revision_count}/
+                            {job.max_revision_count ?? 1}
+                          </Pill>
+                        ) : null}
+
+                        {isDelivered && job.auto_complete_at ? (
+                          <DeadlineBadge
+                            deadline={job.auto_complete_at}
+                            label={copy.autoComplete}
+                            expiredLabel={copy.autoCompleteExpired}
+                            locale={safeLocale}
+                            urgentHours={12}
+                            warningHours={24}
+                          />
                         ) : null}
                       </div>
-                    </div>
-                  </div>
 
-                  <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 lg:flex">
-                    ›
-                  </span>
-                </div>
-
-                {job.kind === "order" ? (
-                  <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <DetailRow
-                        label={copy.price}
-                        value={formatPrice(
-                          job.menu_price_amount,
-                          job.currency,
-                          safeLocale
-                        )}
-                      />
-                      <DetailRow
-                        label={copy.buyerFeeRate}
-                        value={formatBps(job.buyer_marketplace_fee_rate_bps)}
-                      />
-                      <DetailRow
-                        label={copy.marketplaceFee}
-                        value={formatPrice(
-                          job.buyer_marketplace_fee_amount,
-                          job.currency,
-                          safeLocale
-                        )}
-                      />
-                      <DetailRow
-                        label={copy.buyerTotal}
-                        value={formatPrice(
-                          job.buyer_total_amount,
-                          job.currency,
-                          safeLocale
-                        )}
-                        strong
-                      />
-                      {job.stripe_amount != null &&
-                      job.stripe_amount !== job.buyer_total_amount ? (
-                        <DetailRow
-                          label={copy.stripeAmount}
-                          value={formatPrice(
-                            job.stripe_amount,
-                            job.currency,
-                            safeLocale
-                          )}
+                      <div className="flex items-start gap-4">
+                        <Avatar
+                          name={job.influencer_name ?? copy.unnamedInfluencer}
+                          avatarUrl={job.influencer_avatar_url}
                         />
-                      ) : null}
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-slate-500">
+                            {job.influencer_name ?? copy.unnamedInfluencer}
+                          </p>
+                          <h2 className="mt-1 truncate text-[22px] font-black tracking-[-0.04em] text-slate-950">
+                            {job.product_name ?? copy.unnamedProduct}
+                          </h2>
+                          {job.menu_title ? (
+                            <p className="mt-2 truncate text-sm font-semibold text-slate-500">
+                              {copy.menu}: {job.menu_title}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
+
+                    <div className="flex shrink-0 flex-col gap-3 rounded-[22px] bg-slate-50 px-4 py-4 lg:w-[260px]">
+                      <InfoLine
+                        label={copy.amount}
+                        value={formatPrice(
+                          job.buyer_total_amount ?? job.menu_price_amount,
+                          job.currency,
+                          safeLocale
+                        )}
+                      />
+                      <InfoLine
+                        label={copy.updatedAt}
+                        value={formatDateTime(job.updated_at ?? job.created_at, safeLocale)}
+                      />
+                    </div>
+
+                    <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 lg:flex">
+                      ›
+                    </span>
                   </div>
-                ) : null}
-
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {isDelivered && job.auto_complete_at ? (
-                    <DeadlineBadge
-                      deadline={job.auto_complete_at}
-                      label={copy.autoComplete}
-                      expiredLabel={copy.autoCompleteExpired}
-                      locale={safeLocale}
-                      urgentHours={12}
-                      warningHours={24}
-                    />
-                  ) : null}
-
-                  {isRevision && job.revision_count != null ? (
-                    <Pill className="bg-amber-50 text-amber-800 ring-amber-200">
-                      {copy.revisionCount}: {job.revision_count}/
-                      {job.max_revision_count ?? 1}
-                    </Pill>
-                  ) : null}
-
-                  {job.chat?.last_message_at ? (
-                    <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
-                      {copy.lastMessage}:{" "}
-                      {formatDateTime(job.chat.last_message_at, safeLocale)}
-                    </Pill>
-                  ) : null}
-
-                  <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
-                    {copy.updatedAt}:{" "}
-                    {formatDateTime(job.updated_at ?? job.created_at, safeLocale)}
-                  </Pill>
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
-                  {copy.detail}
-                </div>
-              </Link>
-            );
-          })}
-        </section>
-      )}
+                </Link>
+              );
+            })}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

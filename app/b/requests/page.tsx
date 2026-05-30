@@ -1,14 +1,10 @@
 // File: app/b/requests/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
-import {
-  getRequestStatusBadgeClass,
-  getRequestStatusMeta,
-} from "@/lib/i18n/requestStatus";
 import DeadlineBadge from "@/app/components/DeadlineBadge";
 
 type ChatReadRow = {
@@ -46,8 +42,6 @@ type OrderRow = {
   creator_user_id: string;
   menu_title_snapshot: string | null;
   menu_price_amount: number | null;
-  buyer_marketplace_fee_rate_bps: number | null;
-  buyer_marketplace_fee_amount: number | null;
   buyer_total_amount: number | null;
   stripe_amount: number | null;
   currency: string | null;
@@ -66,14 +60,11 @@ type PendingItem =
       id: string;
       created_at: string;
       product_name: string | null;
-      creator_name: string;
-      creator_avatar_url: string | null;
+      influencer_name: string;
+      influencer_avatar_url: string | null;
       status: string;
-      payment_status: string;
       menu_title: string | null;
       amount: number | null;
-      buyer_marketplace_fee_rate_bps: number | null;
-      buyer_marketplace_fee_amount: number | null;
       buyer_total_amount: number | null;
       stripe_amount: number | null;
       currency: string | null;
@@ -85,14 +76,11 @@ type PendingItem =
       id: string;
       created_at: string;
       product_name: string | null;
-      creator_name: string;
-      creator_avatar_url: string | null;
+      influencer_name: string;
+      influencer_avatar_url: string | null;
       status: string;
-      payment_status: null;
       menu_title: null;
       amount: null;
-      buyer_marketplace_fee_rate_bps: null;
-      buyer_marketplace_fee_amount: null;
       buyer_total_amount: null;
       stripe_amount: null;
       currency: "JPY";
@@ -112,15 +100,15 @@ function Avatar({
       <img
         src={avatarUrl}
         alt={name}
-        className="h-14 w-14 rounded-2xl object-cover shadow-sm"
+        className="h-13 w-13 rounded-2xl object-cover shadow-sm md:h-14 md:w-14"
       />
     );
   }
 
-  const initial = (name?.trim()?.[0] ?? "C").toUpperCase();
+  const initial = (name?.trim()?.[0] ?? "I").toUpperCase();
 
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff6b6b] to-[#7bae6c] text-lg font-black text-white shadow-sm">
+    <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-100 text-lg font-black text-slate-900 shadow-sm md:h-14 md:w-14">
       {initial}
     </div>
   );
@@ -136,7 +124,6 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   }
 
   return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-    year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -163,75 +150,6 @@ function formatPrice(
     if (safeCurrency === "USD") return `$${value.toLocaleString()}`;
     return `¥${value.toLocaleString()}`;
   }
-}
-
-function getOrderStatusLabel(
-  status: string,
-  paymentStatus: string,
-  locale: "ja" | "en"
-) {
-  if (status === "authorized_pending_creator") {
-    return locale === "ja"
-      ? "クリエイター承認待ち"
-      : "Waiting for creator approval";
-  }
-
-  if (status === "checkout_pending") {
-    return locale === "ja" ? "Checkout未完了" : "Checkout pending";
-  }
-
-  if (paymentStatus === "authorized") {
-    return locale === "ja" ? "支払い方法確認済み" : "Payment authorized";
-  }
-
-  return status;
-}
-
-function getPaymentStatusLabel(
-  paymentStatus: string | null | undefined,
-  locale: "ja" | "en"
-) {
-  if (paymentStatus === "authorized") {
-    return locale === "ja" ? "支払い方法確認済み" : "Payment authorized";
-  }
-
-  if (paymentStatus === "captured") {
-    return locale === "ja" ? "決済確定済み" : "Captured";
-  }
-
-  if (paymentStatus === "canceled") {
-    return locale === "ja" ? "キャンセル済み" : "Canceled";
-  }
-
-  return paymentStatus || "-";
-}
-
-function getOrderBadgeClass(status: string) {
-  if (status === "authorized_pending_creator") {
-    return "bg-amber-50 text-amber-800 ring-amber-200";
-  }
-
-  if (status === "checkout_pending") {
-    return "bg-slate-100 text-slate-700 ring-slate-200";
-  }
-
-  return "bg-slate-100 text-slate-700 ring-slate-200";
-}
-
-function getPaymentBadgeClass(paymentStatus: string | null | undefined) {
-  if (paymentStatus === "authorized") {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-  }
-
-  if (paymentStatus === "captured") {
-    return "bg-blue-50 text-blue-700 ring-blue-200";
-  }
-
-  if (paymentStatus === "canceled") {
-    return "bg-slate-100 text-slate-500 ring-slate-200";
-  }
-
-  return "bg-slate-100 text-slate-600 ring-slate-200";
 }
 
 function getDeadlineTime(value: string | null | undefined) {
@@ -277,38 +195,11 @@ function isUnreadChat(chat: ChatRow | null, userId: string | null) {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "accent" | "amber" | "blue";
-}) {
-  const styles = {
-    default: "border-slate-100 bg-white text-slate-950",
-    accent:
-      "border-rose-100 bg-gradient-to-br from-white to-rose-50 text-slate-950",
-    amber: "border-amber-100 bg-amber-50 text-slate-950",
-    blue: "border-blue-100 bg-blue-50 text-slate-950",
-  };
-
-  return (
-    <div className={`rounded-[26px] border p-5 shadow-sm ${styles[tone]}`}>
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-        {label}
-      </p>
-      <p className="mt-3 text-3xl font-black text-slate-950">{value}</p>
-    </div>
-  );
-}
-
 function Pill({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className: string;
 }) {
   return (
@@ -320,102 +211,41 @@ function Pill({
   );
 }
 
-function DetailRow({
+function SummaryPill({
   label,
   value,
-  strong,
+  active,
 }: {
   label: string;
-  value: React.ReactNode;
-  strong?: boolean;
+  value: number;
+  active?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
-      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
-      <span
-        className={`text-right text-sm ${
-          strong ? "font-black text-slate-950" : "font-bold text-slate-800"
-        }`}
-      >
-        {value}
-      </span>
+    <div
+      className={`rounded-full px-4 py-2 text-sm font-black ${
+        active
+          ? "bg-slate-950 text-white"
+          : "bg-white text-slate-600 ring-1 ring-slate-200"
+      }`}
+    >
+      {label} <span className="ml-1">{value}</span>
     </div>
   );
 }
 
-function EmptyState({
-  title,
-  body,
+function InfoLine({
+  label,
+  value,
 }: {
-  title: string;
-  body: string;
+  label: string;
+  value: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
-      <div className="grid gap-0 md:grid-cols-[1.15fr_0.85fr]">
-        <div className="p-8 md:p-10">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-rose-50 to-emerald-50 text-3xl">
-            🌱
-          </div>
-
-          <h2 className="text-2xl font-black tracking-tight text-slate-950">
-            {title}
-          </h2>
-
-          <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
-            {body}
-          </p>
-
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link
-              href="/b/creators"
-              className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              クリエイターを探す
-            </Link>
-
-            <Link
-              href="/b/saved-creators"
-              className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-            >
-              保存済みを見る
-            </Link>
-
-            <Link
-              href="/b/jobs"
-              className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-            >
-              進行中案件を見る
-            </Link>
-          </div>
-        </div>
-
-        <div className="border-t border-slate-100 bg-slate-50 p-8 md:border-l md:border-t-0">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-            Next steps
-          </p>
-
-          <div className="mt-5 space-y-4">
-            {[
-              ["1", "クリエイターを探す", "条件に合うCを検索します。"],
-              ["2", "メニューを選んで注文", "支払い方法を確認します。"],
-              ["3", "承認を待つ", "Cが承認すると案件が開始されます。"],
-            ].map(([number, heading, text]) => (
-              <div key={number} className="flex gap-3 rounded-2xl bg-white p-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
-                  {number}
-                </div>
-                <div>
-                  <p className="text-sm font-black text-slate-950">{heading}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs font-bold text-slate-400">{label}</span>
+      <span className="text-right text-sm font-black text-slate-950">
+        {value}
+      </span>
     </div>
   );
 }
@@ -429,63 +259,49 @@ export default function RequestsListPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            title: "承認待ち",
+            title: "返答待ち",
             subtitle:
-              "注文した案件のクリエイター承認状況を確認できます。承認されると決済が確定し、案件が開始されます。",
-            viewJobs: "進行中案件を見る",
-            empty: "まだ承認待ちの注文はありません",
+              "インフルエンサーの返答を待っている注文です。承認されると注文が開始されます。",
+            viewJobs: "注文を見る",
+            empty: "返答待ちの注文はありません",
             emptyBody:
-              "新しい注文が入るとここに表示されます♪ 気になるクリエイターを探して、メニューを選んで注文してみましょう。",
-            unnamedCreator: "unknown",
+              "インフルエンサーに注文すると、返答待ちの注文がここに表示されます。",
+            unnamedInfluencer: "unknown",
             unnamedProduct: "未入力",
-            sentAt: "送信日",
+            sentAt: "送信",
             menu: "メニュー",
-            menuPrice: "メニュー価格",
-            marketplaceFee: "Trendre手数料",
-            buyerTotal: "お支払い合計",
-            creatorDeadline: "承認期限",
-            creatorDeadlineExpired: "承認期限切れ",
+            amount: "金額",
             detail: "詳細を見る",
-            legacyRequest: "旧リクエスト",
-            order: "注文",
-            newMessage: "新着メッセージあり",
-            lastMessage: "最終メッセージ",
-            urgentNotice:
-              "承認期限が近い注文と新着メッセージがある注文を優先表示しています。",
-            total: "すべて",
+            newMessage: "新着メッセージ",
+            creatorDeadline: "返答期限",
+            creatorDeadlineExpired: "返答期限切れ",
+            total: "返答待ち",
             urgent: "期限間近",
             unread: "未読",
-            paymentStatus: "支払い状態",
+            searchInfluencers: "インフルエンサーを探す",
           }
         : {
             loading: "Loading...",
-            title: "Pending",
+            title: "Waiting for replies",
             subtitle:
-              "Review orders waiting for creator approval. Once accepted, the payment is captured and the job begins.",
-            viewJobs: "View Active Jobs",
-            empty: "No pending orders yet",
+              "Orders waiting for influencer approval. Once accepted, the order begins.",
+            viewJobs: "View orders",
+            empty: "No orders waiting for replies",
             emptyBody:
-              "New orders waiting for creator approval will appear here. Find a creator, choose a menu, and place your first order.",
-            unnamedCreator: "unknown",
+              "Orders waiting for influencer approval will appear here.",
+            unnamedInfluencer: "unknown",
             unnamedProduct: "Not entered",
-            sentAt: "Sent At",
+            sentAt: "Sent",
             menu: "Menu",
-            menuPrice: "Menu price",
-            marketplaceFee: "Trendre fee",
-            buyerTotal: "Payment total",
-            creatorDeadline: "Approval deadline",
-            creatorDeadlineExpired: "Approval expired",
-            detail: "View Details",
-            legacyRequest: "Legacy Request",
-            order: "Order",
-            newMessage: "New messages",
-            lastMessage: "Last message",
-            urgentNotice:
-              "Orders close to the creator approval deadline and orders with unread messages are shown first.",
-            total: "Total",
+            amount: "Amount",
+            detail: "View details",
+            newMessage: "New message",
+            creatorDeadline: "Reply deadline",
+            creatorDeadlineExpired: "Reply expired",
+            total: "Waiting",
             urgent: "Urgent",
             unread: "Unread",
-            paymentStatus: "Payment",
+            searchInfluencers: "Find influencers",
           },
     [safeLocale]
   );
@@ -547,8 +363,6 @@ export default function RequestsListPage() {
           creator_user_id,
           menu_title_snapshot,
           menu_price_amount,
-          buyer_marketplace_fee_rate_bps,
-          buyer_marketplace_fee_amount,
           buyer_total_amount,
           stripe_amount,
           currency,
@@ -574,7 +388,7 @@ export default function RequestsListPage() {
     const orderIds = orders.map((order) => order.id);
     const legacyRequestIds = legacyRequests.map((request) => request.id);
 
-    const creatorIds = Array.from(
+    const influencerIds = Array.from(
       new Set(
         orders
           .map((order) => order.creator_id)
@@ -582,23 +396,23 @@ export default function RequestsListPage() {
       )
     );
 
-    let creatorMap = new Map<string, CreatorLite>();
+    let influencerMap = new Map<string, CreatorLite>();
     let orderChatMap = new Map<string, ChatRow>();
     let legacyChatMap = new Map<string, ChatRow>();
 
-    if (creatorIds.length > 0) {
-      const { data: creators, error: creatorsError } = await supabase
+    if (influencerIds.length > 0) {
+      const { data: influencers, error: influencersError } = await supabase
         .from("creators")
         .select("id, display_name, avatar_url")
-        .in("id", creatorIds);
+        .in("id", influencerIds);
 
-      if (creatorsError) {
-        console.error("order creator load error:", creatorsError);
+      if (influencersError) {
+        console.error("order influencer load error:", influencersError);
       } else {
-        creatorMap = new Map(
-          ((creators ?? []) as CreatorLite[]).map((creator) => [
-            creator.id,
-            creator,
+        influencerMap = new Map(
+          ((influencers ?? []) as CreatorLite[]).map((influencer) => [
+            influencer.id,
+            influencer,
           ])
         );
       }
@@ -659,21 +473,18 @@ export default function RequestsListPage() {
     }
 
     const orderItems: PendingItem[] = orders.map((order) => {
-      const creator = creatorMap.get(order.creator_id);
+      const influencer = influencerMap.get(order.creator_id);
 
       return {
         kind: "order",
         id: order.id,
         created_at: order.created_at,
         product_name: order.product_name,
-        creator_name: creator?.display_name ?? copy.unnamedCreator,
-        creator_avatar_url: creator?.avatar_url ?? null,
+        influencer_name: influencer?.display_name ?? copy.unnamedInfluencer,
+        influencer_avatar_url: influencer?.avatar_url ?? null,
         status: order.status,
-        payment_status: order.payment_status,
         menu_title: order.menu_title_snapshot,
         amount: order.menu_price_amount,
-        buyer_marketplace_fee_rate_bps: order.buyer_marketplace_fee_rate_bps,
-        buyer_marketplace_fee_amount: order.buyer_marketplace_fee_amount,
         buyer_total_amount: order.buyer_total_amount,
         stripe_amount: order.stripe_amount,
         currency: order.currency,
@@ -687,15 +498,12 @@ export default function RequestsListPage() {
       id: request.id,
       created_at: request.created_at,
       product_name: request.product_name,
-      creator_name: request.creators?.display_name ?? copy.unnamedCreator,
-      creator_avatar_url: request.creators?.avatar_url ?? null,
+      influencer_name: request.creators?.display_name ?? copy.unnamedInfluencer,
+      influencer_avatar_url: request.creators?.avatar_url ?? null,
       status: request.status,
-      payment_status: null,
       menu_title: null,
       amount: null,
       currency: "JPY",
-      buyer_marketplace_fee_rate_bps: null,
-      buyer_marketplace_fee_amount: null,
       buyer_total_amount: null,
       stripe_amount: null,
       creator_accept_deadline: null,
@@ -729,7 +537,7 @@ export default function RequestsListPage() {
 
     setItems(nextItems);
     setLoading(false);
-  }, [copy.unnamedCreator]);
+  }, [copy.unnamedInfluencer]);
 
   useEffect(() => {
     void load();
@@ -811,241 +619,158 @@ export default function RequestsListPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
-        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
-        <div className="h-60 animate-pulse rounded-[30px] bg-slate-100" />
+      <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-6xl space-y-5">
+          <div className="h-32 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          <div className="h-36 animate-pulse rounded-[28px] bg-white shadow-sm" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-7 p-4 pb-10 md:p-6">
-      <section className="overflow-hidden rounded-[34px] border border-slate-100 bg-white shadow-sm">
-        <div className="relative p-7 md:p-8">
-          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-rose-100/50 blur-3xl" />
-          <div className="absolute bottom-0 right-24 h-36 w-36 rounded-full bg-emerald-100/60 blur-3xl" />
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
+      <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
 
-          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
+        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-400">
-                Company Pending
-              </p>
-
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+              <h1 className="text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
                 {copy.title}
               </h1>
-
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
                 {copy.subtitle}
               </p>
             </div>
 
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link
+                href="/b/jobs"
+                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
+              >
+                {copy.viewJobs}
+              </Link>
+              <Link
+                href="/b/creators"
+                className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+              >
+                {copy.searchInfluencers}
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <SummaryPill label={copy.total} value={items.length} active />
+            <SummaryPill label={copy.urgent} value={urgentCount} />
+            <SummaryPill label={copy.unread} value={unreadCount} />
+          </div>
+        </section>
+
+        {items.length === 0 ? (
+          <div className="mt-5 rounded-[28px] bg-white p-8 text-center shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-12">
+            <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+              {copy.empty}
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-sm font-semibold leading-7 text-slate-500">
+              {copy.emptyBody}
+            </p>
             <Link
-              href="/b/jobs"
-              className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+              href="/b/creators"
+              className="mt-6 inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
             >
-              {copy.viewJobs}
+              {copy.searchInfluencers}
             </Link>
           </div>
-        </div>
-      </section>
+        ) : (
+          <section className="mt-5 space-y-3">
+            {items.map((item) => {
+              const isOrder = item.kind === "order";
+              const unread = isUnreadChat(item.chat, currentUserId);
 
-      <section className="grid grid-cols-3 gap-4">
-        <StatCard label={copy.total} value={items.length} tone="accent" />
-        <StatCard
-          label={copy.urgent}
-          value={urgentCount}
-          tone={urgentCount > 0 ? "amber" : "default"}
-        />
-        <StatCard
-          label={copy.unread}
-          value={unreadCount}
-          tone={unreadCount > 0 ? "blue" : "default"}
-        />
-      </section>
+              const detailHref = isOrder
+                ? `/b/orders/${item.id}`
+                : `/b/requests/${item.id}`;
 
-      {items.length > 0 ? (
-        <div className="rounded-[24px] border border-blue-100 bg-blue-50 p-4 text-sm font-semibold leading-6 text-blue-800">
-          {copy.urgentNotice}
-        </div>
-      ) : null}
-
-      {items.length === 0 ? (
-        <EmptyState title={copy.empty} body={copy.emptyBody} />
-      ) : (
-        <section className="space-y-4">
-          {items.map((item) => {
-            const isOrder = item.kind === "order";
-            const unread = isUnreadChat(item.chat, currentUserId);
-
-            const legacyMeta =
-              item.kind === "legacy_request"
-                ? getRequestStatusMeta(item.status, safeLocale)
-                : null;
-
-            const detailHref = isOrder
-              ? `/b/orders/${item.id}`
-              : `/b/requests/${item.id}`;
-
-            const isUrgent =
-              isOrder &&
-              item.creator_accept_deadline &&
-              isWithinHours(item.creator_accept_deadline, 24);
-
-            return (
-              <Link
-                key={`${item.kind}-${item.id}`}
-                href={detailHref}
-                className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
-                  isUrgent
-                    ? "border-amber-200 ring-2 ring-amber-100"
-                    : unread
-                      ? "border-blue-200 ring-2 ring-blue-100"
-                      : "border-slate-100"
-                }`}
-              >
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-4 flex flex-wrap items-center gap-2">
-                      <Pill
-                        className={
-                          isOrder
-                            ? "bg-slate-950 text-white ring-slate-950"
-                            : "bg-slate-100 text-slate-700 ring-slate-200"
-                        }
-                      >
-                        {isOrder ? copy.order : copy.legacyRequest}
-                      </Pill>
-
-                      {isOrder ? (
-                        <>
-                          <Pill className={getOrderBadgeClass(item.status)}>
-                            {getOrderStatusLabel(
-                              item.status,
-                              item.payment_status ?? "",
-                              safeLocale
-                            )}
-                          </Pill>
-
-                          <Pill
-                            className={getPaymentBadgeClass(item.payment_status)}
-                          >
-                            {getPaymentStatusLabel(
-                              item.payment_status,
-                              safeLocale
-                            )}
-                          </Pill>
-                        </>
-                      ) : legacyMeta ? (
-                        <Pill className={getRequestStatusBadgeClass(legacyMeta.tone)}>
-                          {legacyMeta.shortLabel}
+              return (
+                <Link
+                  key={`${item.kind}-${item.id}`}
+                  href={detailHref}
+                  className="block rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-[0_24px_70px_rgba(15,23,42,0.07)]"
+                >
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <Pill className="bg-slate-950 text-white ring-slate-950">
+                          {copy.title}
                         </Pill>
-                      ) : null}
 
-                      {unread ? (
-                        <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
-                          {copy.newMessage}
-                        </Pill>
-                      ) : null}
+                        {unread ? (
+                          <Pill className="bg-blue-50 text-blue-700 ring-blue-100">
+                            {copy.newMessage}
+                          </Pill>
+                        ) : null}
 
-                      {isOrder ? (
-                        <DeadlineBadge
-                          deadline={item.creator_accept_deadline}
-                          label={copy.creatorDeadline}
-                          expiredLabel={copy.creatorDeadlineExpired}
-                          locale={safeLocale}
-                          urgentHours={12}
-                          warningHours={24}
-                        />
-                      ) : null}
-                    </div>
-
-                    <div className="flex items-start gap-4">
-                      <Avatar
-                        name={item.creator_name}
-                        avatarUrl={item.creator_avatar_url}
-                      />
-
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-500">
-                          {item.creator_name}
-                        </p>
-                        <h2 className="mt-1 truncate text-2xl font-black text-slate-950">
-                          {item.product_name ?? copy.unnamedProduct}
-                        </h2>
-                        {isOrder && item.menu_title ? (
-                          <p className="mt-2 text-sm font-semibold text-slate-500">
-                            {copy.menu}: {item.menu_title}
-                          </p>
+                        {isOrder ? (
+                          <DeadlineBadge
+                            deadline={item.creator_accept_deadline}
+                            label={copy.creatorDeadline}
+                            expiredLabel={copy.creatorDeadlineExpired}
+                            locale={safeLocale}
+                            urgentHours={12}
+                            warningHours={24}
+                          />
                         ) : null}
                       </div>
+
+                      <div className="flex items-start gap-4">
+                        <Avatar
+                          name={item.influencer_name}
+                          avatarUrl={item.influencer_avatar_url}
+                        />
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-slate-500">
+                            {item.influencer_name}
+                          </p>
+                          <h2 className="mt-1 truncate text-[22px] font-black tracking-[-0.04em] text-slate-950">
+                            {item.product_name ?? copy.unnamedProduct}
+                          </h2>
+                          {isOrder && item.menu_title ? (
+                            <p className="mt-2 truncate text-sm font-semibold text-slate-500">
+                              {copy.menu}: {item.menu_title}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 lg:flex">
-                    ›
-                  </span>
-                </div>
-
-                {isOrder ? (
-                  <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <DetailRow
-                        label={copy.menuPrice}
-                        value={formatPrice(item.amount, item.currency, safeLocale)}
-                      />
-
-                      <DetailRow
-                        label={copy.marketplaceFee}
+                    <div className="flex shrink-0 flex-col gap-3 rounded-[22px] bg-slate-50 px-4 py-4 lg:w-[260px]">
+                      <InfoLine
+                        label={copy.amount}
                         value={formatPrice(
-                          item.buyer_marketplace_fee_amount,
+                          item.buyer_total_amount ?? item.stripe_amount ?? item.amount,
                           item.currency,
                           safeLocale
                         )}
                       />
-
-                      <DetailRow
-                        label={copy.buyerTotal}
-                        value={formatPrice(
-                          item.buyer_total_amount ?? item.stripe_amount,
-                          item.currency,
-                          safeLocale
-                        )}
-                        strong
-                      />
-
-                      <DetailRow
+                      <InfoLine
                         label={copy.sentAt}
                         value={formatDateTime(item.created_at, safeLocale)}
                       />
                     </div>
-                  </div>
-                ) : (
-                  <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-                    <DetailRow
-                      label={copy.sentAt}
-                      value={formatDateTime(item.created_at, safeLocale)}
-                    />
-                  </div>
-                )}
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {item.chat?.last_message_at ? (
-                    <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
-                      {copy.lastMessage}:{" "}
-                      {formatDateTime(item.chat.last_message_at, safeLocale)}
-                    </Pill>
-                  ) : null}
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
-                  {copy.detail}
-                </div>
-              </Link>
-            );
-          })}
-        </section>
-      )}
+                    <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 lg:flex">
+                      ›
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </section>
+        )}
+      </div>
     </div>
   );
 }
