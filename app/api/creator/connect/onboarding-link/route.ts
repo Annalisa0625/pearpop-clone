@@ -92,12 +92,15 @@ function splitJapaneseName(name: string) {
   };
 }
 
-function buildBusinessProfile(baseUrl: string): Stripe.AccountCreateParams.BusinessProfile {
+function buildBusinessProfile(
+  baseUrl: string
+): Stripe.AccountCreateParams.BusinessProfile {
   return {
+    name: "Trendre",
     url: baseUrl,
     mcc: "7311",
     product_description:
-      "Creator provides sponsored social media posts, short videos, and UGC content for brands through Trendre.",
+      "Trendre is an influencer and UGC marketplace. Creators provide sponsored social media posts, short videos, and UGC content for brands.",
   };
 }
 
@@ -116,6 +119,7 @@ function buildAccountCreateParams({
   return {
     type: "express",
     country: "JP",
+    default_currency: "jpy",
     email: user.email ?? undefined,
     business_type: "individual",
     business_profile: buildBusinessProfile(baseUrl),
@@ -180,6 +184,66 @@ async function safelyPatchExistingAccount({
   }
 }
 
+function getPayoutReturnMode(req: NextRequest) {
+  const fromQuery = req.nextUrl.searchParams.get("from");
+  const requiredQuery = req.nextUrl.searchParams.get("required");
+
+  if (fromQuery === "signup") {
+    return "from=signup";
+  }
+
+  if (requiredQuery === "connect") {
+    return "required=connect";
+  }
+
+  const referer = req.headers.get("referer");
+
+  if (!referer) {
+    return "";
+  }
+
+  try {
+    const refererUrl = new URL(referer);
+    const fromReferer = refererUrl.searchParams.get("from");
+    const requiredReferer = refererUrl.searchParams.get("required");
+
+    if (fromReferer === "signup") {
+      return "from=signup";
+    }
+
+    if (requiredReferer === "connect") {
+      return "required=connect";
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function buildPayoutsUrl({
+  baseUrl,
+  connect,
+  returnMode,
+}: {
+  baseUrl: string;
+  connect: "return" | "refresh";
+  returnMode: string;
+}) {
+  const params = new URLSearchParams();
+  params.set("connect", connect);
+
+  if (returnMode === "from=signup") {
+    params.set("from", "signup");
+  }
+
+  if (returnMode === "required=connect") {
+    params.set("required", "connect");
+  }
+
+  return `${baseUrl}/creator/payouts?${params.toString()}`;
+}
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
@@ -238,7 +302,7 @@ export async function POST(req: NextRequest) {
 
     if (!creatorRow) {
       return NextResponse.json(
-        { error: "クリエイター情報が見つかりませんでした" },
+        { error: "インフルエンサー情報が見つかりませんでした" },
         { status: 404 }
       );
     }
@@ -301,12 +365,25 @@ export async function POST(req: NextRequest) {
       throw updateError;
     }
 
+    const returnMode = getPayoutReturnMode(req);
+
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       type: "account_onboarding",
-      refresh_url: `${baseUrl}/creator/payouts?connect=refresh`,
-      return_url: `${baseUrl}/creator/payouts?connect=return`,
-    });
+      refresh_url: buildPayoutsUrl({
+        baseUrl,
+        connect: "refresh",
+        returnMode,
+      }),
+      return_url: buildPayoutsUrl({
+        baseUrl,
+        connect: "return",
+        returnMode,
+      }),
+      collection_options: {
+        fields: "currently_due",
+      },
+    } as Stripe.AccountLinkCreateParams);
 
     return NextResponse.json({
       ok: true,
