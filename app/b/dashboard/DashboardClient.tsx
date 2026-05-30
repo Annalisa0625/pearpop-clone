@@ -68,18 +68,6 @@ function normalizeSubscriptionStatus(
   return null;
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "—";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return date.toLocaleDateString("ja-JP", {
-    month: "numeric",
-    day: "numeric",
-  });
-}
-
 function getPlanLabel(plan: CompanyPlanCode) {
   if (plan === "standard") return "Pro";
   if (plan === "global_pro") return "Premium";
@@ -92,22 +80,15 @@ function getBuyerFeeLabel(plan: CompanyPlanCode) {
 }
 
 function getApprovalBadge(status: ApprovalStatus) {
-  if (status === "approved") {
-    return {
-      label: "利用できます",
-      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    };
-  }
-
   if (status === "rejected") {
     return {
-      label: "利用停止中",
+      label: "現在このアカウントは利用できません。",
       className: "bg-rose-50 text-rose-700 ring-rose-100",
     };
   }
 
   return {
-    label: "確認中",
+    label: "アカウント確認中です。注文機能の利用まで少しお待ちください。",
     className: "bg-amber-50 text-amber-700 ring-amber-100",
   };
 }
@@ -161,13 +142,15 @@ function ArrowIcon() {
   );
 }
 
-function StatusPill({
+function OrderStatusRow({
   label,
+  body,
   value,
   href,
   active,
 }: {
   label: string;
+  body: string;
   value: number;
   href: string;
   active?: boolean;
@@ -175,24 +158,24 @@ function StatusPill({
   return (
     <Link
       href={href}
-      className="group flex min-w-0 items-center justify-between gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50"
+      className="group flex items-center justify-between gap-4 rounded-2xl px-2 py-3 transition hover:bg-slate-50 md:px-3"
     >
       <div className="min-w-0">
-        <p className="text-[13px] font-black text-slate-500">{label}</p>
-        <p className="mt-1 text-xs font-bold text-slate-400">
-          {active ? "確認できます" : "現在なし"}
+        <p className="text-sm font-black text-slate-950">{label}</p>
+        <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+          {body}
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-3">
         <span
-          className={`text-2xl font-black tracking-[-0.05em] ${
+          className={`text-2xl font-black tracking-[-0.06em] ${
             active ? "text-[#ff5f67]" : "text-slate-950"
           }`}
         >
           {value}
         </span>
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500 transition group-hover:translate-x-0.5 group-hover:bg-slate-950 group-hover:text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500 transition group-hover:bg-slate-950 group-hover:text-white">
           →
         </span>
       </div>
@@ -202,7 +185,7 @@ function StatusPill({
 
 function PlanLine({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-4 py-3">
       <span className="text-sm font-bold text-slate-500">{label}</span>
       <span className="text-right text-sm font-black text-slate-950">
         {value}
@@ -552,8 +535,8 @@ export default function CompanyDashboardClient() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-80px)] bg-[#fbfaf9] px-4 py-6 md:px-6">
-        <div className="mx-auto max-w-6xl rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-6xl rounded-[26px] bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.05)]">
           <p className="text-sm font-bold text-slate-500">読み込み中...</p>
         </div>
       </div>
@@ -562,8 +545,8 @@ export default function CompanyDashboardClient() {
 
   if (error || !dashboard) {
     return (
-      <div className="min-h-[calc(100vh-80px)] bg-[#fbfaf9] px-4 py-6 md:px-6">
-        <div className="mx-auto max-w-4xl rounded-[28px] border border-rose-100 bg-white p-6 shadow-sm">
+      <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-4xl rounded-[26px] bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.05)]">
           <h1 className="text-2xl font-black text-slate-950">
             エラーが発生しました
           </h1>
@@ -598,51 +581,39 @@ export default function CompanyDashboardClient() {
     dashboard.counts.delivered;
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#fbfaf9]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-260px] top-[-260px] h-[520px] w-[520px] rounded-full bg-rose-100/35 blur-[140px]" />
-        <div className="absolute right-[-320px] top-[120px] h-[620px] w-[620px] rounded-full bg-emerald-100/28 blur-[150px]" />
-      </div>
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
+      <div className="pointer-events-none absolute right-[-260px] top-[110px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
 
       <div className="relative mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-        <section className="rounded-[30px] border border-white/80 bg-white/90 p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] backdrop-blur-xl md:p-6">
+        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600">
-                  {dashboard.companyName}
-                </span>
-                <span
-                  className={`rounded-full px-3 py-1.5 text-xs font-black ring-1 ${approvalBadge.className}`}
-                >
-                  {approvalBadge.label}
-                </span>
-                <span className="rounded-full border border-rose-100 bg-rose-50 px-3 py-1.5 text-xs font-black text-[#ff5f67]">
-                  残り {remaining === null ? "無制限" : `${remaining}件`}
-                </span>
-              </div>
+              <p className="text-sm font-black text-slate-400">
+                {dashboard.companyName}
+              </p>
 
-              <h1 className="mt-4 text-[26px] font-black tracking-[-0.05em] text-slate-950 md:text-[34px]">
-                次のクリエイターを見つける
+              <h1 className="mt-3 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+                インフルエンサーを探す
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                検索から注文、納品確認までここから進められます。
+              <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                気になるインフルエンサーを保存して、メニューから注文できます。
               </p>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link
                 href="/b/creators"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.24)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
               >
-                クリエイターを探す
+                インフルエンサーを探す
                 <ArrowIcon />
               </Link>
 
               <Link
                 href="/b/saved-creators"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
+                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
               >
                 保存済みを見る
               </Link>
@@ -650,15 +621,23 @@ export default function CompanyDashboardClient() {
           </div>
         </section>
 
+        {dashboard.approvalStatus !== "approved" ? (
+          <section
+            className={`mt-4 rounded-[24px] px-5 py-4 text-sm font-bold ring-1 ${approvalBadge.className}`}
+          >
+            {approvalBadge.label}
+          </section>
+        ) : null}
+
         {!canUseRequests ? (
-          <section className="mt-4 rounded-[26px] border border-amber-100 bg-white/90 p-5 shadow-sm backdrop-blur-xl">
+          <section className="mt-4 rounded-[24px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)]">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-lg font-black tracking-[-0.03em] text-slate-950">
                   注文を始めるにはプランの確認が必要です
                 </h2>
                 <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                  クリエイターの閲覧はできます。注文はプラン開始後に利用できます。
+                  インフルエンサーの閲覧はできます。注文はプラン開始後に利用できます。
                 </p>
               </div>
 
@@ -672,82 +651,70 @@ export default function CompanyDashboardClient() {
           </section>
         ) : null}
 
-        <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <main className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] backdrop-blur-xl md:p-6">
-            <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-end md:justify-between">
+        <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <main className="rounded-[28px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-7">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Orders
-                </p>
-                <h2 className="mt-1 text-2xl font-black tracking-[-0.05em] text-slate-950">
-                  注文
+                <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
+                  注文の状況
                 </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-400">
+                  {activeOrderCount > 0
+                    ? `${activeOrderCount}件の注文が進行中です。`
+                    : "現在進行中の注文はありません。"}
+                </p>
               </div>
 
               <Link
                 href="/b/jobs"
-                className="inline-flex items-center gap-2 text-sm font-black text-slate-600 transition hover:text-slate-950"
+                className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-950 hover:text-white"
               >
-                すべて見る
+                注文を見る
                 <ArrowIcon />
               </Link>
             </div>
 
-            <div className="mt-3 grid gap-1 md:grid-cols-4">
-              <StatusPill
+            <div className="mt-3 divide-y divide-slate-100">
+              <OrderStatusRow
                 label="返答待ち"
+                body="インフルエンサーの返答待ち"
                 value={dashboard.counts.pending}
                 href="/b/requests"
                 active={dashboard.counts.pending > 0}
               />
-              <StatusPill
+              <OrderStatusRow
                 label="進行中"
+                body="やり取り・納品待ち"
                 value={dashboard.counts.accepted}
                 href="/b/jobs"
                 active={dashboard.counts.accepted > 0}
               />
-              <StatusPill
+              <OrderStatusRow
                 label="確認する"
+                body="納品確認が必要"
                 value={dashboard.counts.delivered}
                 href="/b/jobs"
                 active={dashboard.counts.delivered > 0}
               />
-              <StatusPill
+              <OrderStatusRow
                 label="完了"
+                body="完了した注文"
                 value={dashboard.counts.completed}
                 href="/b/jobs"
                 active={false}
               />
             </div>
-
-            <div className="mt-5 rounded-[24px] bg-slate-50 px-4 py-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <p className="text-sm font-bold leading-6 text-slate-500">
-                  {activeOrderCount > 0
-                    ? `${activeOrderCount}件の注文が進行中です。`
-                    : "現在進行中の注文はありません。気になるクリエイターを探してみましょう。"}
-                </p>
-
-                <Link
-                  href="/b/creators"
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-black text-slate-900 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-950 hover:text-white"
-                >
-                  探す
-                  <ArrowIcon />
-                </Link>
-              </div>
-            </div>
           </main>
 
-          <aside className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] backdrop-blur-xl md:p-6 lg:self-start">
+          <aside className="rounded-[28px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-7 lg:self-start">
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Account
-                </p>
-                <h2 className="mt-1 text-2xl font-black tracking-[-0.05em] text-slate-950">
+                <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
                   プラン
                 </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-400">
+                  現在の利用内容
+                </p>
               </div>
 
               <span
@@ -757,31 +724,15 @@ export default function CompanyDashboardClient() {
               </span>
             </div>
 
-            <div className="mt-3">
+            <div className="mt-3 divide-y divide-slate-100">
               <PlanLine label="現在" value={planLabel} />
+              <PlanLine label="今月残り" value={remaining === null ? "無制限" : `${remaining}件`} />
               <PlanLine label="手数料" value={buyerFee} />
-              <PlanLine
-                label="今月残り"
-                value={remaining === null ? "無制限" : `${remaining}件`}
-              />
-              <PlanLine
-                label="リセット"
-                value={formatDate(dashboard.requestUsageResetAt)}
-              />
-              {dashboard.stripeCurrentPeriodEnd ? (
-                <PlanLine
-                  label="次回更新"
-                  value={formatDate(dashboard.stripeCurrentPeriodEnd)}
-                />
-              ) : null}
-              {dashboard.stripeCancelAtPeriodEnd ? (
-                <PlanLine label="更新" value="終了予定" />
-              ) : null}
             </div>
 
             <Link
               href="/b/billing"
-              className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
             >
               料金プランを確認
             </Link>
