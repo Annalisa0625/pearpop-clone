@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useAppLocale } from "@/lib/i18n/locale";
 import PublicFooter from "@/components/PublicFooter";
 
-type ProductCardProps = {
+type FeatureCardProps = {
   title: string;
   body: string;
   accent: "rose" | "emerald" | "slate";
@@ -67,7 +67,7 @@ function CreatorPublicHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
-      <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center px-4 py-4 md:px-6 lg:py-5">
+      <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center px-4 py-3.5 md:px-6 lg:py-5">
         <Link
           href="/home"
           className="flex items-center"
@@ -112,12 +112,12 @@ function CreatorPublicHeader() {
   );
 }
 
-function ProductMark({ accent }: { accent: ProductCardProps["accent"] }) {
+function FeatureMark({ accent }: { accent: FeatureCardProps["accent"] }) {
   const classes = markClasses[accent];
 
   return (
     <div
-      className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${classes.bg}`}
+      className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${classes.bg}`}
     >
       <span
         className={`absolute left-3 top-3 h-3 w-3 rounded-full ${classes.main}`}
@@ -132,21 +132,23 @@ function ProductMark({ accent }: { accent: ProductCardProps["accent"] }) {
   );
 }
 
-function ProductCard({ title, body, accent }: ProductCardProps) {
+function FeatureCard({ title, body, accent }: FeatureCardProps) {
   return (
-    <article className="group relative overflow-hidden rounded-[30px] bg-white p-7 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
+    <article className="group relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(15,23,42,0.07)] md:p-6">
       <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-slate-50 transition group-hover:scale-110" />
 
-      <div className="relative">
-        <ProductMark accent={accent} />
+      <div className="relative flex gap-4 md:block">
+        <FeatureMark accent={accent} />
 
-        <h3 className="mt-6 text-2xl font-black leading-tight tracking-[-0.04em] text-slate-950">
-          {title}
-        </h3>
+        <div>
+          <h3 className="text-lg font-black leading-tight tracking-[-0.035em] text-slate-950 md:mt-5 md:text-xl">
+            {title}
+          </h3>
 
-        <p className="mt-4 text-[15px] font-semibold leading-8 text-slate-500">
-          {body}
-        </p>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500 md:mt-3">
+            {body}
+          </p>
+        </div>
       </div>
     </article>
   );
@@ -154,10 +156,10 @@ function ProductCard({ title, body, accent }: ProductCardProps) {
 
 function HeroFallback() {
   return (
-    <div className="mx-auto w-full max-w-[460px] rounded-[34px] bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
-      <div className="rounded-[28px] bg-slate-50 p-5">
+    <div className="mx-auto w-full max-w-[420px] rounded-[30px] bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
+      <div className="rounded-[24px] bg-slate-50 p-5">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ff5f67]/10 text-lg font-black text-[#ff5f67]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ff5f67]/10 text-base font-black text-[#ff5f67]">
             PR
           </div>
 
@@ -171,7 +173,7 @@ function HeroFallback() {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="mt-5 grid grid-cols-3 gap-3">
           <div className="rounded-2xl bg-white p-3 text-center">
             <p className="text-sm font-black text-slate-950">12.8k</p>
             <p className="mt-1 text-[10px] font-bold text-slate-400">
@@ -202,7 +204,7 @@ function HeroVisual() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto flex w-full max-w-[560px] items-center justify-center">
+    <div className="relative mx-auto flex w-full max-w-[430px] items-center justify-center md:max-w-[500px] lg:max-w-[520px]">
       {imageFailed ? (
         <HeroFallback />
       ) : (
@@ -224,10 +226,10 @@ export default function ForCreatorsPage() {
     locale === "ja"
       ? {
           eyebrow: "インフルエンサー向け",
-          titleLine1: "好きな商品やブランドのPRを",
+          titleLine1: "PRやUGC制作の注文を",
           titleLine2: "オンラインで受けられる。",
           titleAccent: "価格を決めて、",
-          titleLine3: "注文を待つだけ。",
+          titleLine3: "自分のペースで受ける。",
           body:
             "Trendreは、Instagram・TikTokなどでPR投稿やUGC制作を受けたいインフルエンサー向けのマーケットプレイスです。プロフィール、SNS、ポートフォリオ、メニューを登録すると、企業があなたを見つけて注文できます。",
           primaryCta: "無料で登録する",
@@ -238,8 +240,7 @@ export default function ForCreatorsPage() {
 
           productPill: "できること",
           productTitle1: "PRの受注を",
-          productTitle2: "もっと分かりやすく",
-          productTitleAccent: "ひとつの画面で",
+          productTitle2: "もっと分かりやすく。",
           productBody:
             "注文内容、チャット、納品URL、報酬履歴をTrendre上で整理できます。受けたい内容と価格をメニューとして公開し、企業からの注文を待つことができます。",
 
@@ -253,9 +254,9 @@ export default function ForCreatorsPage() {
           card3Body:
             "投稿URLや納品URLを提出し、完了した注文の報酬履歴を確認できます。",
 
-          finalTitle: "まずは、インフルエンサー登録から始めましょう。",
+          finalTitle: "まずは、インフルエンサー登録から。",
           finalBody:
-            "登録後にプロフィールとメニューを整えることで、企業から注文を受けられる状態になります。",
+            "プロフィールとメニューを整えることで、企業から注文を受けられる状態になります。",
           finalPrimary: "無料で登録する",
           finalSecondary: "ログイン",
         }
@@ -275,8 +276,7 @@ export default function ForCreatorsPage() {
 
           productPill: "What you can do",
           productTitle1: "Manage PR orders",
-          productTitle2: "more clearly",
-          productTitleAccent: "in one place",
+          productTitle2: "more clearly.",
           productBody:
             "Trendre organizes order details, chat, delivery URLs, and earnings history. Publish the services you want to offer and wait for brand orders.",
 
@@ -290,14 +290,14 @@ export default function ForCreatorsPage() {
           card3Body:
             "Submit post or delivery URLs and review completed order earnings in your account.",
 
-          finalTitle: "Start by creating your influencer profile.",
+          finalTitle: "Start with your influencer profile.",
           finalBody:
             "Once your profile and menus are ready, brands can discover and order from you.",
           finalPrimary: "Join for free",
           finalSecondary: "Login",
         };
 
-  const productCards: ProductCardProps[] = [
+  const featureCards: FeatureCardProps[] = [
     {
       title: copy.card1Title,
       body: copy.card1Body,
@@ -319,15 +319,15 @@ export default function ForCreatorsPage() {
     <div className="min-h-screen bg-[#f8f9fb] text-slate-950">
       <CreatorPublicHeader />
 
-      <main className="overflow-hidden">
+      <main className="overflow-hidden pb-20 md:pb-0">
         <section className="bg-white">
-          <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-10 md:px-6 lg:grid-cols-[minmax(0,1fr)_540px] lg:items-center lg:pb-18 lg:pt-18">
-            <div>
+          <div className="mx-auto grid max-w-7xl gap-7 px-4 pb-8 pt-8 md:px-6 md:pb-12 md:pt-12 lg:grid-cols-[minmax(0,1fr)_510px] lg:items-center lg:pb-16 lg:pt-16">
+            <div className="relative z-10">
               <span className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-black text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
                 {copy.eyebrow}
               </span>
 
-              <h1 className="mt-6 max-w-4xl text-[42px] font-black leading-[1.02] tracking-[-0.07em] text-slate-950 md:text-[64px] lg:text-[74px]">
+              <h1 className="mt-5 max-w-3xl text-[38px] font-black leading-[1.08] tracking-[-0.065em] text-slate-950 md:text-[48px] lg:text-[54px]">
                 {copy.titleLine1}
                 <br />
                 {copy.titleLine2}
@@ -337,11 +337,11 @@ export default function ForCreatorsPage() {
                 {copy.titleLine3}
               </h1>
 
-              <p className="mt-6 max-w-2xl text-[15px] font-semibold leading-8 text-slate-600 md:text-base">
+              <p className="mt-5 max-w-2xl text-[14px] font-semibold leading-7 text-slate-600 md:text-[15px] md:leading-8">
                 {copy.body}
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/signup/creator"
                   className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_38px_rgba(255,95,103,0.24)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
@@ -357,7 +357,7 @@ export default function ForCreatorsPage() {
                 </Link>
               </div>
 
-              <div className="mt-8 flex flex-wrap gap-2">
+              <div className="mt-6 flex flex-wrap gap-2">
                 {[copy.mini1, copy.mini2, copy.mini3].map((item) => (
                   <span
                     key={item}
@@ -369,37 +369,36 @@ export default function ForCreatorsPage() {
               </div>
             </div>
 
-            <HeroVisual />
+            <div className="relative -mt-2 md:mt-0">
+              <div className="pointer-events-none absolute inset-0 rounded-[40px] bg-gradient-to-b from-transparent via-white/40 to-white blur-2xl" />
+              <HeroVisual />
+            </div>
           </div>
         </section>
 
         <section
           id="service-overview"
-          className="relative mx-auto max-w-7xl px-4 py-12 md:px-6 md:py-16"
+          className="mx-auto max-w-7xl px-4 py-10 md:px-6 md:py-14"
         >
-          <div className="mx-auto max-w-4xl text-center">
+          <div className="max-w-2xl md:max-w-3xl">
             <span className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-black text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
               {copy.productPill}
             </span>
 
-            <h2 className="mt-5 text-[34px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[56px]">
+            <h2 className="mt-5 text-[32px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[44px]">
               {copy.productTitle1}
               <br />
               {copy.productTitle2}
-              <br />
-              <span className="text-[#ff5f67]">
-                {copy.productTitleAccent}
-              </span>
             </h2>
 
-            <p className="mx-auto mt-5 max-w-3xl text-[15px] font-semibold leading-8 text-slate-500 md:text-base">
+            <p className="mt-4 max-w-3xl text-[14px] font-semibold leading-7 text-slate-500 md:text-[15px] md:leading-8">
               {copy.productBody}
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {productCards.map((card) => (
-              <ProductCard
+          <div className="mt-7 grid gap-4 md:grid-cols-3">
+            {featureCards.map((card) => (
+              <FeatureCard
                 key={card.title}
                 title={card.title}
                 body={card.body}
@@ -409,18 +408,18 @@ export default function ForCreatorsPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 pb-12 pt-4 md:px-6 md:pb-18 md:pt-8">
-          <div className="relative overflow-hidden rounded-[36px] bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 md:p-10">
+        <section className="mx-auto max-w-7xl px-4 pb-12 pt-0 md:px-6 md:pb-16 md:pt-4">
+          <div className="relative overflow-hidden rounded-[32px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-8">
             <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-rose-100/40 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 left-1/2 h-72 w-72 rounded-full bg-emerald-100/30 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 left-1/2 h-72 w-72 rounded-full bg-emerald-100/25 blur-3xl" />
 
-            <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="max-w-3xl text-[32px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[50px]">
+                <h2 className="max-w-3xl text-[30px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[42px]">
                   {copy.finalTitle}
                 </h2>
 
-                <p className="mt-4 max-w-2xl text-sm font-semibold leading-8 text-slate-500 md:text-base">
+                <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500 md:text-[15px] md:leading-8">
                   {copy.finalBody}
                 </p>
               </div>
@@ -444,6 +443,15 @@ export default function ForCreatorsPage() {
           </div>
         </section>
       </main>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-4 py-3 shadow-[0_-18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl md:hidden">
+        <Link
+          href="/signup/creator"
+          className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(255,95,103,0.22)]"
+        >
+          {copy.primaryCta}
+        </Link>
+      </div>
 
       <PublicFooter />
     </div>
