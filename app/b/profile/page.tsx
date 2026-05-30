@@ -1,7 +1,6 @@
 // File: app/b/profile/page.tsx
 "use client";
 
-import Link from "next/link";
 import {
   useEffect,
   useMemo,
@@ -30,49 +29,6 @@ type FormState = {
   description: string;
   contact_email: string;
 };
-
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
-}
-
-function getApprovalLabel(value: string | null | undefined, locale: "ja" | "en") {
-  const status = (value ?? "").trim().toLowerCase();
-
-  if (locale === "ja") {
-    if (status === "approved") return "利用できます";
-    if (status === "pending") return "確認中";
-    if (status === "rejected") return "確認が必要";
-    return "未設定";
-  }
-
-  if (status === "approved") return "Available";
-  if (status === "pending") return "Reviewing";
-  if (status === "rejected") return "Needs review";
-  return "Not set";
-}
-
-function getApprovalClass(value: string | null | undefined) {
-  const status = (value ?? "").trim().toLowerCase();
-
-  if (status === "approved") {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
-  }
-
-  if (status === "pending") {
-    return "bg-amber-50 text-amber-800 ring-amber-100";
-  }
-
-  if (status === "rejected") {
-    return "bg-rose-50 text-rose-700 ring-rose-100";
-  }
-
-  return "bg-slate-100 text-slate-700 ring-slate-200";
-}
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
@@ -104,80 +60,6 @@ function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   );
 }
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3.5 last:border-b-0">
-      <span className="text-sm font-bold text-slate-400">{label}</span>
-      <span className="max-w-[65%] truncate text-right text-sm font-black text-slate-950">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function QuickLink({
-  href,
-  title,
-  body,
-}: {
-  href: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex items-center justify-between gap-4 rounded-[22px] bg-slate-50 px-4 py-4 transition hover:bg-white hover:shadow-[0_14px_40px_rgba(15,23,42,0.06)]"
-    >
-      <span className="min-w-0">
-        <span className="block text-sm font-black text-slate-950">
-          {title}
-        </span>
-        <span className="mt-1 block text-xs font-semibold leading-5 text-slate-400">
-          {body}
-        </span>
-      </span>
-
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-slate-500 transition group-hover:bg-slate-950 group-hover:text-white">
-        →
-      </span>
-    </Link>
-  );
-}
-
-function SectionCard({
-  title,
-  body,
-  children,
-}: {
-  title: string;
-  body?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:p-6">
-      <div>
-        <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-          {title}
-        </h2>
-        {body ? (
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            {body}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="mt-5">{children}</div>
-    </section>
-  );
-}
-
 export default function BProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -189,15 +71,14 @@ export default function BProfilePage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            title: "アカウント設定",
+            title: "企業情報",
             subtitle:
-              "企業名、連絡先、会社説明を管理できます。注文やインフルエンサーとのやり取りに使われる基本情報です。",
-            statusLabel: "ステータス",
+              "注文時の連絡や確認に使う企業情報です。必要な内容だけ入力してください。",
             companyName: "会社名",
             companyNamePlaceholder: "例）株式会社○○",
             description: "会社説明",
             descriptionPlaceholder:
-              "例）自社サービス、取扱い商材、インフルエンサーに依頼したい内容など",
+              "例）自社サービス、取扱い商材、依頼したい内容など",
             contactEmail: "連絡先メール",
             contactEmailPlaceholder: "example@company.jp",
             save: "保存する",
@@ -209,57 +90,28 @@ export default function BProfilePage() {
             companyNameRequired: "会社名を入力してください。",
             emailRequired: "連絡先メールを入力してください。",
             emailInvalid: "メールアドレスの形式が正しくありません。",
-            formTitle: "基本情報",
-            formBody:
-              "B側の表示や注文時の連絡先として使う情報です。あとからいつでも変更できます。",
-            accountInfo: "現在の情報",
-            approvalStatus: "利用状態",
-            createdAt: "登録日",
-            noCompany: "未登録",
-            quickActions: "関連ページ",
-            ordersTitle: "注文",
-            ordersBody: "返答待ち、進行中、完了した注文を確認します。",
-            billingTitle: "料金プラン",
-            billingBody: "Basic / Pro / Premium と請求を確認します。",
-            searchTitle: "インフルエンサー検索",
-            searchBody: "条件に合うインフルエンサーを探します。",
           }
         : {
             loading: "Loading...",
-            title: "Account settings",
+            title: "Company information",
             subtitle:
-              "Manage your company name, contact email, and company description used for orders and influencer communication.",
-            statusLabel: "Status",
+              "This information is used for order communication and confirmation.",
             companyName: "Company name",
             companyNamePlaceholder: "Example: Example Inc.",
             description: "Company description",
             descriptionPlaceholder:
-              "Describe your services, products, and what kind of influencer work you want to request.",
+              "Describe your services, products, and request details.",
             contactEmail: "Contact email",
             contactEmailPlaceholder: "example@company.com",
             save: "Save",
             saving: "Saving...",
             saved: "Saved.",
             loginRequired: "Please log in.",
-            fetchFailed: "Failed to load company profile.",
-            saveFailed: "Failed to save company profile.",
+            fetchFailed: "Failed to load company information.",
+            saveFailed: "Failed to save company information.",
             companyNameRequired: "Please enter your company name.",
             emailRequired: "Please enter your contact email.",
             emailInvalid: "Please enter a valid email address.",
-            formTitle: "Basic information",
-            formBody:
-              "This information is used for company display and order communication. You can update it anytime.",
-            accountInfo: "Current information",
-            approvalStatus: "Availability",
-            createdAt: "Created at",
-            noCompany: "Not registered",
-            quickActions: "Related pages",
-            ordersTitle: "Orders",
-            ordersBody: "Review waiting, active, and completed orders.",
-            billingTitle: "Billing",
-            billingBody: "Review Basic / Pro / Premium and billing settings.",
-            searchTitle: "Influencer search",
-            searchBody: "Find influencers that match your needs.",
           },
     [safeLocale]
   );
@@ -521,12 +373,9 @@ export default function BProfilePage() {
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
-        <div className="mx-auto max-w-6xl space-y-5">
+        <div className="mx-auto max-w-4xl space-y-5">
           <div className="h-32 animate-pulse rounded-[28px] bg-white shadow-sm" />
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="h-96 animate-pulse rounded-[28px] bg-white shadow-sm" />
-            <div className="h-80 animate-pulse rounded-[28px] bg-white shadow-sm" />
-          </div>
+          <div className="h-96 animate-pulse rounded-[28px] bg-white shadow-sm" />
         </div>
       </div>
     );
@@ -537,36 +386,15 @@ export default function BProfilePage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
       <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
+      <div className="relative mx-auto max-w-4xl px-4 py-6 pb-10 md:px-6 md:py-8">
         <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-black ring-1 ${getApprovalClass(
-                    company?.approval_status
-                  )}`}
-                >
-                  {getApprovalLabel(company?.approval_status, safeLocale)}
-                </span>
-              </div>
+          <h1 className="text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+            {copy.title}
+          </h1>
 
-              <h1 className="mt-4 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
-                {copy.title}
-              </h1>
-
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                {copy.subtitle}
-              </p>
-            </div>
-
-            <Link
-              href="/b/orders"
-              className="inline-flex w-fit items-center justify-center rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-            >
-              {copy.ordersTitle}
-            </Link>
-          </div>
+          <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+            {copy.subtitle}
+          </p>
         </section>
 
         {error ? (
@@ -581,106 +409,50 @@ export default function BProfilePage() {
           </div>
         ) : null}
 
-        <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <main>
-            <SectionCard title={copy.formTitle} body={copy.formBody}>
-              <div className="grid gap-5">
-                <div>
-                  <FieldLabel>{copy.companyName}</FieldLabel>
-                  <TextInput
-                    type="text"
-                    name="company_name"
-                    value={form.company_name}
-                    onChange={handleChange}
-                    placeholder={copy.companyNamePlaceholder}
-                  />
-                </div>
+        <section className="mt-5 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:p-6">
+          <div className="grid gap-5">
+            <div>
+              <FieldLabel>{copy.companyName}</FieldLabel>
+              <TextInput
+                type="text"
+                name="company_name"
+                value={form.company_name}
+                onChange={handleChange}
+                placeholder={copy.companyNamePlaceholder}
+              />
+            </div>
 
-                <div>
-                  <FieldLabel>{copy.contactEmail}</FieldLabel>
-                  <TextInput
-                    type="email"
-                    name="contact_email"
-                    value={form.contact_email}
-                    onChange={handleChange}
-                    placeholder={copy.contactEmailPlaceholder}
-                  />
-                </div>
+            <div>
+              <FieldLabel>{copy.contactEmail}</FieldLabel>
+              <TextInput
+                type="email"
+                name="contact_email"
+                value={form.contact_email}
+                onChange={handleChange}
+                placeholder={copy.contactEmailPlaceholder}
+              />
+            </div>
 
-                <div>
-                  <FieldLabel>{copy.description}</FieldLabel>
-                  <TextArea
-                    name="description"
-                    value={form.description}
-                    onChange={handleChange}
-                    rows={6}
-                    placeholder={copy.descriptionPlaceholder}
-                  />
-                </div>
-              </div>
+            <div>
+              <FieldLabel>{copy.description}</FieldLabel>
+              <TextArea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                rows={6}
+                placeholder={copy.descriptionPlaceholder}
+              />
+            </div>
+          </div>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => void handleSave()}
-                  disabled={saving}
-                  className="inline-flex items-center justify-center rounded-full bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? copy.saving : copy.save}
-                </button>
-
-                <Link
-                  href="/b/billing"
-                  className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-4 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
-                >
-                  {copy.billingTitle}
-                </Link>
-              </div>
-            </SectionCard>
-          </main>
-
-          <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
-            <SectionCard title={copy.accountInfo}>
-              <div className="rounded-[22px] bg-slate-50 p-4">
-                <InfoRow
-                  label={copy.companyName}
-                  value={company?.company_name || copy.noCompany}
-                />
-                <InfoRow
-                  label={copy.contactEmail}
-                  value={company?.contact_email || copy.noCompany}
-                />
-                <InfoRow
-                  label={copy.approvalStatus}
-                  value={getApprovalLabel(company?.approval_status, safeLocale)}
-                />
-                <InfoRow
-                  label={copy.createdAt}
-                  value={formatDate(company?.created_at, safeLocale)}
-                />
-              </div>
-            </SectionCard>
-
-            <SectionCard title={copy.quickActions}>
-              <div className="grid gap-3">
-                <QuickLink
-                  href="/b/orders"
-                  title={copy.ordersTitle}
-                  body={copy.ordersBody}
-                />
-                <QuickLink
-                  href="/b/creators"
-                  title={copy.searchTitle}
-                  body={copy.searchBody}
-                />
-                <QuickLink
-                  href="/b/billing"
-                  title={copy.billingTitle}
-                  body={copy.billingBody}
-                />
-              </div>
-            </SectionCard>
-          </aside>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {saving ? copy.saving : copy.save}
+          </button>
         </section>
       </div>
     </div>
