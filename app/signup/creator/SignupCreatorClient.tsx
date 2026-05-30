@@ -2,7 +2,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -40,12 +48,94 @@ type DraftState = {
   agreedToPrivacy: boolean;
 };
 
-const STORAGE_KEY = "trendre_creator_signup_draft_v4";
+const STORAGE_KEY = "trendre_creator_signup_draft_v5";
 
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
 
 const TOTAL_STEPS = 7;
+
+const COUNTRY_OPTIONS = [
+  "日本",
+  "韓国",
+  "台湾",
+  "香港",
+  "中国",
+  "タイ",
+  "ベトナム",
+  "インドネシア",
+  "フィリピン",
+  "マレーシア",
+  "シンガポール",
+  "インド",
+  "その他アジア",
+];
+
+const COUNTRY_OPTIONS_EN: Record<string, string> = {
+  日本: "Japan",
+  韓国: "Korea",
+  台湾: "Taiwan",
+  香港: "Hong Kong",
+  中国: "China",
+  タイ: "Thailand",
+  ベトナム: "Vietnam",
+  インドネシア: "Indonesia",
+  フィリピン: "Philippines",
+  マレーシア: "Malaysia",
+  シンガポール: "Singapore",
+  インド: "India",
+  その他アジア: "Other Asia",
+};
+
+const PREFECTURE_OPTIONS = [
+  "北海道",
+  "青森県",
+  "岩手県",
+  "宮城県",
+  "秋田県",
+  "山形県",
+  "福島県",
+  "茨城県",
+  "栃木県",
+  "群馬県",
+  "埼玉県",
+  "千葉県",
+  "東京都",
+  "神奈川県",
+  "新潟県",
+  "富山県",
+  "石川県",
+  "福井県",
+  "山梨県",
+  "長野県",
+  "岐阜県",
+  "静岡県",
+  "愛知県",
+  "三重県",
+  "滋賀県",
+  "京都府",
+  "大阪府",
+  "兵庫県",
+  "奈良県",
+  "和歌山県",
+  "鳥取県",
+  "島根県",
+  "岡山県",
+  "広島県",
+  "山口県",
+  "徳島県",
+  "香川県",
+  "愛媛県",
+  "高知県",
+  "福岡県",
+  "佐賀県",
+  "長崎県",
+  "熊本県",
+  "大分県",
+  "宮崎県",
+  "鹿児島県",
+  "沖縄県",
+];
 
 const CATEGORY_OPTIONS = [
   "美容",
@@ -217,8 +307,8 @@ const MENU_OPTIONS = [
     value: "その他",
     labelJa: "その他",
     labelEn: "Other",
-    helpJa: "上記以外のメニューです。説明欄に内容を書いてください。",
-    helpEn: "Use this for custom services. Add details in the description.",
+    helpJa: "上記以外のメニューです。",
+    helpEn: "Use this for custom services.",
   },
 ];
 
@@ -279,7 +369,7 @@ function safeMenus(value: unknown): MenuForm[] {
     return {
       menu_type: safeString(row.menu_type),
       price: safeString(row.price),
-      description: safeString(row.description),
+      description: "",
     };
   });
 
@@ -291,12 +381,37 @@ function getOAuthRedirectUrl() {
   return `${window.location.origin}/signup/creator?oauth=1`;
 }
 
-function buildUsernamePreview(username: string) {
-  return `trendre.jp/@${username || "your-id"}`;
-}
-
 function normalizeHandle(input: string) {
   return input.trim().replace(/^@/, "");
+}
+
+function randomToken(length = 8) {
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(length);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes)
+      .map((byte) => (byte % 36).toString(36))
+      .join("");
+  }
+
+  return Math.random().toString(36).slice(2, 2 + length);
+}
+
+function makeInternalUsername(displayName: string) {
+  const base = displayName
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9\s_-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/_+/g, "_")
+    .replace(/-+/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "")
+    .slice(0, 18);
+
+  const safeBase = base && /^[a-z0-9]/.test(base) ? base : "influencer";
+
+  return `${safeBase}-${randomToken(6)}`;
 }
 
 function getSocialConfig(platform: string, locale: Locale) {
@@ -474,7 +589,7 @@ function FieldLabel({ children }: { children: ReactNode }) {
 function TextInput({
   className = "",
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
@@ -486,7 +601,7 @@ function TextInput({
 function TextArea({
   className = "",
   ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
@@ -499,7 +614,7 @@ function SelectInput({
   className = "",
   children,
   ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
@@ -603,14 +718,11 @@ export default function SignupCreatorClient() {
       appLocale === "ja"
         ? {
             step: "STEP",
-            displayTitle: "プロフィールの基本情報",
+            displayTitle: "プロフィール入力",
             displayBody:
-              "企業に表示される名前と、プロフィールURLに使うIDを設定します。",
-            displayName: "表示名",
+              "ユーザーネームはSNSのアカウント名と同じにするのがおすすめです。企業が見つけやすくなります。",
+            displayName: "ユーザーネーム",
             displayNamePlaceholder: "例：Yuna Beauty",
-            username: "プロフィールURL用ID",
-            usernamePlaceholder: "例：yuna_beauty",
-            usernamePreview: "URLプレビュー",
 
             accountTitle: "ログイン方法",
             accountBody: "Google、またはメールアドレスで登録できます。",
@@ -620,14 +732,16 @@ export default function SignupCreatorClient() {
             signUpWithGoogle: "Googleで続ける",
             orText: "または",
 
-            profileTitle: "発信ジャンル",
+            profileTitle: "活動エリアとジャンル",
             profileBody:
-              "メインカテゴリを選んでください。地域や自己紹介はあとから編集できます。",
-            country: "国（任意）",
-            prefecture: "都道府県（任意）",
+              "国とメインカテゴリを選択してください。日本を選んだ場合は、都道府県も選べます。",
+            country: "国",
+            selectCountry: "国を選択",
+            prefecture: "都道府県",
+            selectPrefecture: "都道府県を選択",
             mainCategory: "メインカテゴリ",
-            subCategories: "サブカテゴリ（任意）",
-            shortBio: "短い自己紹介（任意）",
+            subCategories: "サブカテゴリ",
+            shortBio: "短い自己紹介",
             adultConfirm: "18歳以上です",
 
             socialTitle: "SNSアカウント",
@@ -657,7 +771,6 @@ export default function SignupCreatorClient() {
               "企業が注文できるメニューを1つ以上作成してください。あとから変更できます。",
             menuType: "メニュー内容",
             price: "金額（円）",
-            menuDescription: "説明（任意）",
             addMenu: "メニューを追加",
 
             phoneTitle: "確認",
@@ -681,14 +794,11 @@ export default function SignupCreatorClient() {
             login: "ログイン",
             reset: "最初からやり直す",
 
-            displayNameRequired: "表示名を入力してください",
-            usernameRequired: "プロフィールURL用IDを入力してください",
-            usernameInvalid:
-              "プロフィールURL用IDは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
+            displayNameRequired: "ユーザーネームを入力してください",
             emailRequired: "メールアドレスを入力してください",
             emailInvalid: "メールアドレスの形式が正しくありません",
             passwordRequired: "パスワードは8文字以上必要です",
-            categoryRequired: "メインカテゴリと18歳以上確認が必要です",
+            categoryRequired: "国・メインカテゴリ・18歳以上確認が必要です",
             socialRequired: "SNSを少なくとも1件、正しく入力してください",
             avatarRequired: "プロフィール画像を追加してください",
             portfolioRequired: "ポートフォリオ画像を3枚以上追加してください",
@@ -701,20 +811,16 @@ export default function SignupCreatorClient() {
             codeInvalid: "認証コードが正しくありません",
             signupFailed: "登録に失敗しました",
             imageUploadFailed: "画像のアップロードに失敗しました",
-            duplicateUsername: "このプロフィールURL用IDは既に使われています",
             sessionMissing:
               "アカウント作成後のログイン状態を確認できませんでした。Supabase Authでメール確認が必須になっている可能性があります。",
           }
         : {
             step: "STEP",
-            displayTitle: "Basic profile",
+            displayTitle: "Profile",
             displayBody:
-              "Set the name shown to brands and the ID used in your profile URL.",
-            displayName: "Display name",
+              "We recommend using the same username as your social account so brands can recognize you easily.",
+            displayName: "Username",
             displayNamePlaceholder: "Example: Yuna Beauty",
-            username: "Profile URL ID",
-            usernamePlaceholder: "Example: yuna_beauty",
-            usernamePreview: "URL preview",
 
             accountTitle: "Login method",
             accountBody: "Continue with Google or sign up with email.",
@@ -724,14 +830,16 @@ export default function SignupCreatorClient() {
             signUpWithGoogle: "Continue with Google",
             orText: "or",
 
-            profileTitle: "Content category",
+            profileTitle: "Location and category",
             profileBody:
-              "Choose your main category. Location and bio can be edited later.",
-            country: "Country (optional)",
-            prefecture: "State / Prefecture (optional)",
+              "Select your country and main category. If you choose Japan, you can also select a prefecture.",
+            country: "Country",
+            selectCountry: "Select country",
+            prefecture: "Prefecture",
+            selectPrefecture: "Select prefecture",
             mainCategory: "Main category",
-            subCategories: "Sub-categories (optional)",
-            shortBio: "Short bio (optional)",
+            subCategories: "Sub-categories",
+            shortBio: "Short bio",
             adultConfirm: "I am 18 years old or older",
 
             socialTitle: "Social accounts",
@@ -761,7 +869,6 @@ export default function SignupCreatorClient() {
               "Create at least one menu that brands can order. You can edit it later.",
             menuType: "Menu content",
             price: "Price (JPY)",
-            menuDescription: "Description (optional)",
             addMenu: "Add menu",
 
             phoneTitle: "Confirmation",
@@ -785,15 +892,12 @@ export default function SignupCreatorClient() {
             login: "Login",
             reset: "Start over",
 
-            displayNameRequired: "Please enter your display name",
-            usernameRequired: "Please enter your profile URL ID",
-            usernameInvalid:
-              "Profile URL ID must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
+            displayNameRequired: "Please enter your username",
             emailRequired: "Please enter your email address",
             emailInvalid: "Please enter a valid email address",
             passwordRequired: "Password must be at least 8 characters",
             categoryRequired:
-              "Main category and age confirmation are required",
+              "Country, main category, and age confirmation are required",
             socialRequired: "Please add at least one valid social account",
             avatarRequired: "Please add a profile image",
             portfolioRequired: "Please add at least 3 portfolio images",
@@ -805,7 +909,6 @@ export default function SignupCreatorClient() {
             codeInvalid: "The verification code is incorrect",
             signupFailed: "Sign up failed",
             imageUploadFailed: "Failed to upload images",
-            duplicateUsername: "This profile URL ID is already taken",
             sessionMissing:
               "Could not confirm your signed-in session after account creation. Email confirmation may be required in Supabase Auth settings.",
           },
@@ -815,7 +918,7 @@ export default function SignupCreatorClient() {
   const stepTitles = useMemo(
     () =>
       appLocale === "ja"
-        ? ["基本情報", "ログイン", "ジャンル", "SNS", "写真", "メニュー", "確認"]
+        ? ["プロフィール入力", "ログイン", "ジャンル", "SNS", "写真", "メニュー", "確認"]
         : ["Profile", "Login", "Category", "Socials", "Images", "Menus", "Confirm"],
     [appLocale]
   );
@@ -864,10 +967,62 @@ export default function SignupCreatorClient() {
   const hasOAuthReturn = searchParams.get("oauth") === "1";
   const shouldResetDraft = searchParams.get("reset") === "1";
 
+  const goToStep = (nextStep: number, pushHistory = true) => {
+    const safeStep = Math.max(0, Math.min(nextStep, TOTAL_STEPS - 1));
+    setStep(safeStep);
+
+    if (typeof window !== "undefined" && pushHistory) {
+      window.history.pushState(
+        { ...(window.history.state ?? {}), trendreCreatorSignupStep: safeStep },
+        "",
+        window.location.href
+      );
+    }
+  };
+
+  const resetForm = () => {
+    localStorage.removeItem(STORAGE_KEY);
+
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
+
+    setStep(0);
+    setDisplayName("");
+    setUsername("");
+    setEmail("");
+    setPassword("");
+    setCountry("");
+    setPrefecture("");
+    setMainCategory("");
+    setSubCategories([]);
+    setShortBio("");
+    setIsAdultConfirmed(false);
+    setSocialAccounts([createEmptySocial()]);
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setPortfolioFiles([]);
+    setPortfolioPreviews([]);
+    setMenus([createEmptyMenu()]);
+    setPhoneNumber("");
+    setSentCode("");
+    setVerificationCode("");
+    setPhoneVerified(false);
+    setAgreedToTerms(false);
+    setAgreedToPrivacy(false);
+    setError(null);
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState(
+        { ...(window.history.state ?? {}), trendreCreatorSignupStep: 0 },
+        "",
+        "/signup/creator"
+      );
+    }
+  };
+
   useEffect(() => {
     if (shouldResetDraft) {
-      localStorage.removeItem(STORAGE_KEY);
-      setStep(0);
+      resetForm();
       return;
     }
 
@@ -900,7 +1055,41 @@ export default function SignupCreatorClient() {
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldResetDraft]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const currentStep =
+      typeof window.history.state?.trendreCreatorSignupStep === "number"
+        ? window.history.state.trendreCreatorSignupStep
+        : null;
+
+    if (currentStep === null) {
+      window.history.replaceState(
+        { ...(window.history.state ?? {}), trendreCreatorSignupStep: step },
+        "",
+        window.location.href
+      );
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const nextStep = event.state?.trendreCreatorSignupStep;
+
+      if (typeof nextStep === "number") {
+        setError(null);
+        setStep(Math.max(0, Math.min(nextStep, TOTAL_STEPS - 1)));
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const draft: DraftState = {
@@ -1001,12 +1190,54 @@ export default function SignupCreatorClient() {
       }
 
       if (hasOAuthReturn && step < 2) {
-        setStep(2);
+        goToStep(2);
       }
     };
 
     void hydrateSession();
-  }, [hasOAuthReturn, router, step, supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasOAuthReturn, router, supabase]);
+
+  const ensureAvailableUsername = async () => {
+    const current = username.trim().toLowerCase();
+
+    if (current) {
+      const { data: duplicateProfile, error: duplicateError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", current)
+        .maybeSingle();
+
+      if (duplicateError) {
+        throw new Error(copy.signupFailed);
+      }
+
+      if (!duplicateProfile) {
+        return current;
+      }
+    }
+
+    for (let i = 0; i < 8; i += 1) {
+      const candidate = makeInternalUsername(displayName);
+
+      const { data: duplicateProfile, error: duplicateError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", candidate)
+        .maybeSingle();
+
+      if (duplicateError) {
+        throw new Error(copy.signupFailed);
+      }
+
+      if (!duplicateProfile) {
+        setUsername(candidate);
+        return candidate;
+      }
+    }
+
+    throw new Error(copy.signupFailed);
+  };
 
   const toggleSubCategory = (value: string) => {
     setSubCategories((prev) =>
@@ -1087,41 +1318,17 @@ export default function SignupCreatorClient() {
     setError(null);
 
     if (step === 0) {
-      const normalized = username.trim().toLowerCase();
-      const valid = /^[a-z0-9][a-z0-9_-]{2,29}$/.test(normalized);
-
       if (!displayName.trim()) {
         setError(copy.displayNameRequired);
         return false;
       }
 
-      if (!normalized) {
-        setError(copy.usernameRequired);
+      try {
+        await ensureAvailableUsername();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : copy.signupFailed);
         return false;
       }
-
-      if (!valid) {
-        setError(copy.usernameInvalid);
-        return false;
-      }
-
-      const { data: duplicateProfile, error: duplicateError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", normalized)
-        .maybeSingle();
-
-      if (duplicateError) {
-        setError(copy.signupFailed);
-        return false;
-      }
-
-      if (duplicateProfile) {
-        setError(copy.duplicateUsername);
-        return false;
-      }
-
-      setUsername(normalized);
     }
 
     if (step === 1) {
@@ -1146,7 +1353,7 @@ export default function SignupCreatorClient() {
     }
 
     if (step === 2) {
-      if (!mainCategory.trim() || !isAdultConfirmed) {
+      if (!country.trim() || !mainCategory.trim() || !isAdultConfirmed) {
         setError(copy.categoryRequired);
         return false;
       }
@@ -1241,11 +1448,22 @@ export default function SignupCreatorClient() {
   const goNext = async () => {
     const valid = await validateStep();
     if (!valid) return;
-    setStep((prev) => Math.min(prev + 1, TOTAL_STEPS - 1));
+    goToStep(step + 1);
   };
 
   const goBack = () => {
     setError(null);
+
+    if (step <= 0) return;
+
+    if (typeof window !== "undefined") {
+      const currentState = window.history.state;
+      if (currentState?.trendreCreatorSignupStep === step) {
+        window.history.back();
+        return;
+      }
+    }
+
     setStep((prev) => Math.max(prev - 1, 0));
   };
 
@@ -1330,6 +1548,8 @@ export default function SignupCreatorClient() {
       throw new Error(copy.passwordRequired);
     }
 
+    const internalUsername = username.trim() || (await ensureAvailableUsername());
+
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
@@ -1338,7 +1558,7 @@ export default function SignupCreatorClient() {
         data: {
           full_name: displayName.trim(),
           display_name: displayName.trim(),
-          creator_username: username.trim().toLowerCase(),
+          creator_username: internalUsername,
         },
       },
     });
@@ -1382,14 +1602,17 @@ export default function SignupCreatorClient() {
         .map((menu) => ({
           menu_type: menu.menu_type.trim(),
           price: Number(menu.price),
-          description: menu.description.trim() || null,
+          description: null,
         }))
         .filter((menu) => menu.menu_type && menu.price > 0);
 
       if (validMenus.length === 0) throw new Error(copy.menuRequired);
 
+      const internalUsername =
+        username.trim().toLowerCase() || (await ensureAvailableUsername());
+
       const session = await ensureAuthenticatedSession();
-      const ownerKey = session.user.id || username.trim().toLowerCase();
+      const ownerKey = session.user.id || internalUsername;
 
       const avatarUrl = await uploadImageAndGetUrl(
         avatarFile,
@@ -1424,7 +1647,7 @@ export default function SignupCreatorClient() {
           auth_mode: "oauth",
           access_token: session.access_token,
 
-          username: username.trim().toLowerCase(),
+          username: internalUsername,
           display_name: displayName.trim(),
           full_name: displayName.trim(),
           email: email.trim(),
@@ -1432,8 +1655,8 @@ export default function SignupCreatorClient() {
           avatar_url: avatarUrl,
           portfolio_assets: portfolioAssets,
 
-          country: country.trim() || null,
-          prefecture: prefecture.trim() || null,
+          country: country.trim(),
+          prefecture: country === "日本" ? prefecture.trim() || null : null,
           city: null,
 
           main_category: mainCategory,
@@ -1489,30 +1712,17 @@ export default function SignupCreatorClient() {
     if (step === 0) {
       return (
         <StepShell title={copy.displayTitle} body={copy.displayBody}>
-          <div className="grid gap-5">
-            <div>
-              <FieldLabel>{copy.displayName}</FieldLabel>
-              <TextInput
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={copy.displayNamePlaceholder}
-                className="mt-2"
-              />
-            </div>
-
-            <div>
-              <FieldLabel>{copy.username}</FieldLabel>
-              <TextInput
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                placeholder={copy.usernamePlaceholder}
-                className="mt-2"
-              />
-              <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-black text-slate-600">
-                <span className="text-slate-400">{copy.usernamePreview}: </span>
-                {buildUsernamePreview(username)}
-              </div>
-            </div>
+          <div>
+            <FieldLabel>{copy.displayName}</FieldLabel>
+            <TextInput
+              value={displayName}
+              onChange={(e) => {
+                setDisplayName(e.target.value);
+                setUsername("");
+              }}
+              placeholder={copy.displayNamePlaceholder}
+              className="mt-2"
+            />
           </div>
         </StepShell>
       );
@@ -1567,18 +1777,44 @@ export default function SignupCreatorClient() {
       return (
         <StepShell title={copy.profileTitle} body={copy.profileBody}>
           <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextInput
+            <div>
+              <FieldLabel>{copy.country}</FieldLabel>
+              <SelectInput
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder={copy.country}
-              />
-              <TextInput
-                value={prefecture}
-                onChange={(e) => setPrefecture(e.target.value)}
-                placeholder={copy.prefecture}
-              />
+                onChange={(e) => {
+                  setCountry(e.target.value);
+                  if (e.target.value !== "日本") {
+                    setPrefecture("");
+                  }
+                }}
+                className="mt-2"
+              >
+                <option value="">{copy.selectCountry}</option>
+                {COUNTRY_OPTIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {formatOption(item, appLocale, COUNTRY_OPTIONS_EN)}
+                  </option>
+                ))}
+              </SelectInput>
             </div>
+
+            {country === "日本" ? (
+              <div>
+                <FieldLabel>{copy.prefecture}</FieldLabel>
+                <SelectInput
+                  value={prefecture}
+                  onChange={(e) => setPrefecture(e.target.value)}
+                  className="mt-2"
+                >
+                  <option value="">{copy.selectPrefecture}</option>
+                  {PREFECTURE_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </SelectInput>
+              </div>
+            ) : null}
 
             <div>
               <p className="text-sm font-black text-slate-950">
@@ -1910,15 +2146,6 @@ export default function SignupCreatorClient() {
                     }
                     placeholder={copy.price}
                   />
-
-                  <TextArea
-                    value={menu.description}
-                    onChange={(e) =>
-                      updateMenu(index, "description", e.target.value)
-                    }
-                    rows={3}
-                    placeholder={copy.menuDescription}
-                  />
                 </div>
               </div>
             ))}
@@ -2050,12 +2277,13 @@ export default function SignupCreatorClient() {
                 </p>
               </div>
 
-              <Link
-                href="/signup/creator?reset=1"
+              <button
+                type="button"
+                onClick={resetForm}
                 className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-800"
               >
                 {copy.reset}
-              </Link>
+              </button>
             </div>
 
             <div className="mt-5">
