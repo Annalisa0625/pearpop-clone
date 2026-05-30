@@ -35,22 +35,19 @@ const PLANS: Plan[] = [
     monthlyLabelJa: "/月",
     monthlyLabelEn: "/month",
     marketplaceFeeLabel: "10%",
-    descriptionJa: "まずはインフルエンサーを探して、少数の注文から試したい企業向け。",
-    descriptionEn:
-      "For companies that want to explore influencers and start with a small number of orders.",
+    descriptionJa: "まずは少数の注文から試したい企業向け。",
+    descriptionEn: "For companies starting with a small number of orders.",
     featuresJa: [
-      "インフルエンサー検索・詳細閲覧",
+      "インフルエンサー検索",
       "公開メニューの確認・注文",
       "月5件まで注文可能",
       "注文内チャット",
-      "取引手数料 10%",
     ],
     featuresEn: [
-      "Browse influencer profiles",
-      "Review and order public menus",
+      "Influencer search",
+      "View and order public menus",
       "Up to 5 orders per month",
       "In-order chat",
-      "10% transaction fee",
     ],
     ctaLabelJa: "Basicではじめる",
     ctaLabelEn: "Start with Basic",
@@ -63,18 +60,17 @@ const PLANS: Plan[] = [
     monthlyLabelEn: "/month",
     marketplaceFeeLabel: "10%",
     descriptionJa: "継続的にPR・UGC施策を行いたい企業向け。",
-    descriptionEn:
-      "For companies running ongoing PR and UGC campaigns.",
+    descriptionEn: "For ongoing PR and UGC campaigns.",
     featuresJa: [
       "Basicの全機能",
       "注文数 無制限",
-      "継続施策向けの利用枠",
+      "継続施策向け",
       "取引手数料 10%",
     ],
     featuresEn: [
       "Everything in Basic",
       "Unlimited orders",
-      "Designed for ongoing campaigns",
+      "For ongoing campaigns",
       "10% transaction fee",
     ],
     ctaLabelJa: "Proを選ぶ",
@@ -90,9 +86,8 @@ const PLANS: Plan[] = [
     monthlyLabelJa: "/月",
     monthlyLabelEn: "/month",
     marketplaceFeeLabel: "5%",
-    descriptionJa: "注文数が多く、手数料を抑えて運用したい企業向け。",
-    descriptionEn:
-      "For higher-volume teams that want a lower transaction fee.",
+    descriptionJa: "注文数が多く、手数料を抑えたい企業向け。",
+    descriptionEn: "For higher-volume teams that want a lower fee.",
     featuresJa: [
       "Proの全機能",
       "注文数 無制限",
@@ -114,15 +109,15 @@ const PLANS: Plan[] = [
 
 function getPlanCardClass(plan: Plan) {
   if (plan.highlight) {
-    return "bg-white shadow-[0_24px_80px_rgba(255,95,103,0.14)] ring-2 ring-[#ff5f67]/35";
+    return "bg-white shadow-[0_24px_80px_rgba(255,95,103,0.13)] ring-2 ring-[#ff5f67]/30";
   }
 
-  return "bg-white shadow-[0_22px_70px_rgba(15,23,42,0.055)]";
+  return "bg-white shadow-[0_20px_65px_rgba(15,23,42,0.055)]";
 }
 
 function getButtonClass(plan: Plan) {
   if (plan.highlight) {
-    return "bg-[#ff5f67] text-white hover:bg-[#ff4b55] shadow-[0_16px_32px_rgba(255,95,103,0.22)]";
+    return "bg-[#ff5f67] text-white hover:bg-[#ff4b55] shadow-[0_16px_32px_rgba(255,95,103,0.2)]";
   }
 
   return "bg-slate-950 text-white hover:bg-slate-800";
@@ -131,7 +126,7 @@ function getButtonClass(plan: Plan) {
 function FeatureItem({ children }: { children: ReactNode }) {
   return (
     <li className="flex gap-2 text-sm font-semibold leading-6 text-slate-600">
-      <span className="mt-[2px] font-black text-emerald-600">✓</span>
+      <span className="mt-[1px] font-black text-emerald-600">✓</span>
       <span>{children}</span>
     </li>
   );
@@ -154,61 +149,67 @@ function PlanCard({
 
   return (
     <article
-      className={`relative rounded-[30px] p-6 transition hover:-translate-y-0.5 md:p-7 ${getPlanCardClass(
+      className={`relative flex min-h-[420px] flex-col rounded-[28px] p-5 transition hover:-translate-y-0.5 md:p-6 ${getPlanCardClass(
         plan
       )}`}
     >
-      {plan.badgeJa || plan.badgeEn ? (
-        <div className="absolute right-5 top-5">
-          <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[30px] font-black tracking-[-0.055em] text-slate-950">
+            {plan.publicName}
+          </h2>
+
+          <p className="mt-3 min-h-[48px] text-sm font-semibold leading-6 text-slate-500">
+            {safeLocale === "ja" ? plan.descriptionJa : plan.descriptionEn}
+          </p>
+        </div>
+
+        {plan.badgeJa || plan.badgeEn ? (
+          <span className="shrink-0 rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100">
             {safeLocale === "ja" ? plan.badgeJa : plan.badgeEn}
           </span>
+        ) : null}
+      </div>
+
+      <div className="mt-5">
+        <div className="flex items-end gap-2">
+          <span className="text-[42px] font-black leading-none tracking-[-0.065em] text-slate-950">
+            {plan.priceLabel}
+          </span>
+          <span className="pb-1 text-sm font-black text-slate-400">
+            {safeLocale === "ja" ? plan.monthlyLabelJa : plan.monthlyLabelEn}
+          </span>
         </div>
-      ) : null}
 
-      <div className="pr-20">
-        <h2 className="text-3xl font-black tracking-[-0.05em] text-slate-950">
-          {plan.publicName}
-        </h2>
-        <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
-          {safeLocale === "ja" ? plan.descriptionJa : plan.descriptionEn}
-        </p>
+        <div className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700">
+          {safeLocale === "ja" ? "B側手数料" : "Buyer fee"}{" "}
+          {plan.marketplaceFeeLabel}
+        </div>
       </div>
 
-      <div className="mt-7 flex items-end gap-2">
-        <span className="text-5xl font-black tracking-[-0.06em] text-slate-950">
-          {plan.priceLabel}
-        </span>
-        <span className="pb-2 text-sm font-black text-slate-400">
-          {safeLocale === "ja" ? plan.monthlyLabelJa : plan.monthlyLabelEn}
-        </span>
-      </div>
-
-      <div className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700">
-        B側手数料 {plan.marketplaceFeeLabel}
-      </div>
-
-      <ul className="mt-7 space-y-3">
+      <ul className="mt-5 space-y-2.5">
         {features.map((feature) => (
           <FeatureItem key={feature}>{feature}</FeatureItem>
         ))}
       </ul>
 
-      <button
-        onClick={() => onClick(plan)}
-        disabled={submittingPlan !== null || portalLoading}
-        className={`mt-8 w-full rounded-full px-5 py-4 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClass(
-          plan
-        )}`}
-      >
-        {submittingPlan === plan.code
-          ? safeLocale === "ja"
-            ? "変更中..."
-            : "Updating..."
-          : safeLocale === "ja"
-          ? plan.ctaLabelJa
-          : plan.ctaLabelEn}
-      </button>
+      <div className="mt-auto pt-6">
+        <button
+          onClick={() => onClick(plan)}
+          disabled={submittingPlan !== null || portalLoading}
+          className={`w-full rounded-full px-5 py-3.5 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClass(
+            plan
+          )}`}
+        >
+          {submittingPlan === plan.code
+            ? safeLocale === "ja"
+              ? "変更中..."
+              : "Updating..."
+            : safeLocale === "ja"
+            ? plan.ctaLabelJa
+            : plan.ctaLabelEn}
+        </button>
+      </div>
     </article>
   );
 }
@@ -225,7 +226,7 @@ export default function BillingClient() {
         ? {
             title: "料金プラン",
             body:
-              "注文数と手数料に合わせてプランを選べます。まずはBasicからでも利用できます。",
+              "注文数と手数料に合わせてプランを選べます。まずはBasicから利用できます。",
             authRequired: "ログイン状態を確認できませんでした。",
             changeFailed: "プラン変更に失敗しました。",
             checkoutFailed: "Stripe Checkout の開始に失敗しました。",
@@ -395,14 +396,14 @@ export default function BillingClient() {
 
   return (
     <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
-      <div className="pointer-events-none absolute right-[-260px] top-[120px] h-[560px] w-[560px] rounded-full bg-emerald-100/20 blur-[150px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/30 to-transparent" />
+      <div className="pointer-events-none absolute right-[-260px] top-[120px] h-[540px] w-[540px] rounded-full bg-emerald-100/18 blur-[150px]" />
 
       <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
-        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <section className="rounded-[28px] bg-white px-6 py-5 shadow-[0_20px_65px_rgba(15,23,42,0.055)] md:px-7 md:py-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+              <h1 className="text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[36px]">
                 {copy.title}
               </h1>
               <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
@@ -415,7 +416,7 @@ export default function BillingClient() {
                 type="button"
                 onClick={handleOpenPortal}
                 disabled={portalLoading || submittingPlan !== null}
-                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {portalLoading ? copy.opening : copy.openPortal}
               </button>
@@ -423,7 +424,7 @@ export default function BillingClient() {
               <button
                 type="button"
                 onClick={() => router.push(from || "/b/dashboard")}
-                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-slate-50"
+                className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-slate-50"
               >
                 {copy.backToDashboard}
               </button>
@@ -432,24 +433,24 @@ export default function BillingClient() {
         </section>
 
         {checkoutState === "cancelled" ? (
-          <section className="mt-4 rounded-[24px] bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">
+          <section className="mt-4 rounded-[22px] bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">
             {copy.cancelledMessage}
           </section>
         ) : null}
 
         {checkoutState === "success" ? (
-          <section className="mt-4 rounded-[24px] bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100">
+          <section className="mt-4 rounded-[22px] bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100">
             {copy.successMessage}
           </section>
         ) : null}
 
         {errorMsg ? (
-          <section className="mt-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
+          <section className="mt-4 rounded-[22px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
             {errorMsg}
           </section>
         ) : null}
 
-        <section className="mt-6 grid gap-5 lg:grid-cols-3">
+        <section className="mt-5 grid gap-5 lg:grid-cols-3">
           {PLANS.map((plan) => (
             <PlanCard
               key={plan.code}
@@ -462,8 +463,8 @@ export default function BillingClient() {
           ))}
         </section>
 
-        <section className="mt-6 rounded-[26px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <section className="mt-5 rounded-[26px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
                 {copy.portalTitle}
@@ -476,13 +477,13 @@ export default function BillingClient() {
             <button
               onClick={handleOpenPortal}
               disabled={portalLoading || submittingPlan !== null}
-              className="inline-flex shrink-0 items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex shrink-0 items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {portalLoading ? copy.opening : copy.openPortal}
             </button>
           </div>
 
-          <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
+          <p className="mt-4 text-xs font-semibold leading-6 text-slate-400">
             {copy.billingNote}{" "}
             <Link href="/terms" target="_blank" className="underline underline-offset-4">
               {copy.terms}
