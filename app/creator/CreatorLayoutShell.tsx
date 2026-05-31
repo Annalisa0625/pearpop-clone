@@ -11,7 +11,6 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { getCommonText } from "@/lib/i18n/common";
 import { useAppLocale } from "@/lib/i18n/locale";
 
 type NavBadgeKey = "requests" | "jobs";
@@ -19,8 +18,7 @@ type NavBadgeKey = "requests" | "jobs";
 type NavItem = {
   href: string;
   label: string;
-  shortLabel: string;
-  icon: string;
+  icon: ReactNode;
   badgeKey?: NavBadgeKey;
 };
 
@@ -53,6 +51,252 @@ type UnreadState = {
   requests: boolean;
   jobs: boolean;
 };
+
+type IconProps = {
+  className?: string;
+};
+
+function BellIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M18 8.5a6 6 0 0 0-12 0c0 7-3 7-3 8.7h18c0-1.7-3-1.7-3-8.7Z" />
+      <path d="M9.8 20a2.4 2.4 0 0 0 4.4 0" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21 11.1V12a9 9 0 1 1-5.3-8.2" />
+      <path d="m9.2 11.8 2.2 2.2L21 4.5" />
+    </svg>
+  );
+}
+
+function UserIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M20 21a8 8 0 0 0-16 0" />
+      <circle cx="12" cy="8" r="4" />
+    </svg>
+  );
+}
+
+function HomeIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m3 10.8 9-7.2 9 7.2" />
+      <path d="M5.5 9.5V21h13V9.5" />
+      <path d="M9.5 21v-6h5v6" />
+    </svg>
+  );
+}
+
+function OrdersIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z" />
+      <path d="M8 9h8" />
+      <path d="M8 13h6" />
+    </svg>
+  );
+}
+
+function TodoIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="4" y="4" width="16" height="16" rx="4" />
+      <path d="m8.3 12.2 2.4 2.4 5-5.2" />
+    </svg>
+  );
+}
+
+function YenIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m6 4 6 8 6-8" />
+      <path d="M12 12v8" />
+      <path d="M8 13h8" />
+      <path d="M8 17h8" />
+    </svg>
+  );
+}
+
+function MenuIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="6.5" cy="7" r="1.6" />
+      <circle cx="17.5" cy="7" r="1.6" />
+      <circle cx="6.5" cy="17" r="1.6" />
+      <circle cx="17.5" cy="17" r="1.6" />
+    </svg>
+  );
+}
+
+function ProfileIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M5 19.5a7 7 0 0 1 14 0" />
+      <circle cx="12" cy="8.2" r="4.2" />
+    </svg>
+  );
+}
+
+function EditIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function ShieldIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 22s8-3.8 8-10V5l-8-3-8 3v7c0 6.2 8 10 8 10Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function HelpIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9a2.7 2.7 0 1 1 4.7 1.8c-.9.8-1.5 1.2-1.5 2.7" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
+function LoginIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      <path d="m10 17 5-5-5-5" />
+      <path d="M15 12H3" />
+    </svg>
+  );
+}
 
 function getRequestDetailId(pathname: string) {
   const match = pathname.match(/^\/creator\/requests\/([^/]+)$/);
@@ -128,6 +372,13 @@ function isActivePath(
     return false;
   }
 
+  if (href === "/creator/profile") {
+    return (
+      pathname.startsWith("/creator/profile") ||
+      pathname.startsWith("/creator/menus")
+    );
+  }
+
   return pathname.startsWith(href);
 }
 
@@ -169,33 +420,68 @@ function isGuardExcludedPath(pathname: string) {
   );
 }
 
-function MobileUnreadDot() {
+function RedDot({ className = "" }: { className?: string }) {
   return (
-    <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#ff5f67] ring-2 ring-white" />
+    <span
+      className={`absolute rounded-full bg-[#ff5f67] ring-2 ring-white ${className}`}
+    />
   );
 }
 
-function HeaderUnreadDot() {
-  return (
-    <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#ff5f67] ring-2 ring-white" />
-  );
-}
-
-function LocaleCompactButton({
-  locale,
-  setLocale,
+function HeaderAction({
+  href,
+  label,
+  children,
+  showDot,
 }: {
-  locale: "ja" | "en";
-  setLocale: (locale: "ja" | "en") => void;
+  href: string;
+  label: string;
+  children: ReactNode;
+  showDot?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
-      className="rounded-full bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-100 transition active:scale-[0.98]"
+    <Link
+      href={href}
+      aria-label={label}
+      className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
     >
-      {locale === "ja" ? "EN" : "日本語"}
-    </button>
+      {children}
+      {showDot ? <RedDot className="right-2 top-2 h-2.5 w-2.5" /> : null}
+    </Link>
+  );
+}
+
+function UserMenuLink({
+  href,
+  icon,
+  title,
+  body,
+  onClick,
+}: {
+  href: string;
+  icon: ReactNode;
+  title: string;
+  body?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 active:scale-[0.99]"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-700">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-black text-slate-950">{title}</span>
+        {body ? (
+          <span className="mt-0.5 block truncate text-xs font-semibold text-slate-400">
+            {body}
+          </span>
+        ) : null}
+      </span>
+    </Link>
   );
 }
 
@@ -208,34 +494,73 @@ export default function CreatorLayoutShell({
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
-  const t = useMemo(() => getCommonText(locale), [locale]);
 
   const copy = useMemo(
     () =>
       locale === "ja"
         ? {
-            menuManagement: "メニュー",
-            addMenu: "追加",
+            home: "ホーム",
+            orders: "注文",
+            todo: "ToDo",
             payouts: "報酬",
+            menu: "メニュー",
+
+            notifications: "通知",
+            waitingWork: "実行待ち",
+            myPage: "マイページ",
+
+            profile: "プロフィール設定",
+            profileBody: "表示名・写真・ポートフォリオ",
+            menus: "メニュー編集",
+            menusBody: "価格・投稿内容を編集",
+            payoutSetting: "報酬設定",
+            payoutBody: "受け取り・送金状況",
+            help: "ヘルプ",
+            terms: "利用規約",
+            privacy: "プライバシーポリシー",
+
+            login: "ログイン",
+            signup: "会員登録",
             loggingOut: "ログアウト中...",
             logout: "ログアウト",
+
+            language: "表示言語",
             limitTitle: "現在、取引が一部制限されています",
             limitReasonLabel: "理由",
             limitBody:
               "既存の注文対応はできますが、新しい注文の受け付けは制限されています。",
-            notifications: "通知",
           }
         : {
-            menuManagement: "Menus",
-            addMenu: "Add",
+            home: "Home",
+            orders: "Orders",
+            todo: "ToDo",
             payouts: "Payouts",
+            menu: "Menu",
+
+            notifications: "Notifications",
+            waitingWork: "Waiting work",
+            myPage: "My page",
+
+            profile: "Profile settings",
+            profileBody: "Name, photo, portfolio",
+            menus: "Edit menus",
+            menusBody: "Pricing and services",
+            payoutSetting: "Payout settings",
+            payoutBody: "Payouts and transfers",
+            help: "Help",
+            terms: "Terms",
+            privacy: "Privacy Policy",
+
+            login: "Login",
+            signup: "Sign up",
             loggingOut: "Logging out...",
             logout: "Logout",
+
+            language: "Language",
             limitTitle: "Some account actions are restricted",
             limitReasonLabel: "Reason",
             limitBody:
               "You can continue handling existing orders, but new orders are restricted.",
-            notifications: "Notifications",
           },
     [locale]
   );
@@ -244,38 +569,33 @@ export default function CreatorLayoutShell({
     () => [
       {
         href: "/creator/dashboard",
-        label: t.nav.dashboard,
-        shortLabel: locale === "ja" ? "ホーム" : "Home",
-        icon: "⌂",
+        label: copy.home,
+        icon: <HomeIcon className="h-[25px] w-[25px]" />,
       },
       {
         href: "/creator/requests",
-        label: t.nav.requests,
-        shortLabel: locale === "ja" ? "依頼" : "Requests",
-        icon: "○",
+        label: copy.orders,
+        icon: <OrdersIcon className="h-[25px] w-[25px]" />,
         badgeKey: "requests",
       },
       {
         href: "/creator/jobs",
-        label: t.nav.jobs,
-        shortLabel: locale === "ja" ? "進行中" : "Jobs",
-        icon: "□",
+        label: copy.todo,
+        icon: <TodoIcon className="h-[25px] w-[25px]" />,
         badgeKey: "jobs",
       },
       {
         href: "/creator/payouts",
         label: copy.payouts,
-        shortLabel: locale === "ja" ? "報酬" : "Payouts",
-        icon: "¥",
+        icon: <YenIcon className="h-[25px] w-[25px]" />,
       },
       {
         href: "/creator/profile",
-        label: t.nav.profile,
-        shortLabel: locale === "ja" ? "設定" : "Profile",
-        icon: "◯",
+        label: copy.menu,
+        icon: <MenuIcon className="h-[25px] w-[25px]" />,
       },
     ],
-    [copy.payouts, locale, t]
+    [copy.home, copy.menu, copy.orders, copy.payouts, copy.todo]
   );
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -286,6 +606,8 @@ export default function CreatorLayoutShell({
     requests: false,
     jobs: false,
   });
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const hasAnyUnread = unread.requests || unread.jobs;
 
@@ -482,6 +804,30 @@ export default function CreatorLayoutShell({
         hasUnreadChats(activeRequestChats, user.id),
     });
   }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!cancelled) {
+        setUserEmail(user?.email ?? null);
+      }
+    };
+
+    void loadUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    setUserMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const checkRequiredSetup = async () => {
@@ -723,22 +1069,19 @@ export default function CreatorLayoutShell({
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8f9fb] text-slate-950">
-      {limitReason ? (
-        <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <div className="mx-auto max-w-5xl">
-            <p className="font-black">{copy.limitTitle}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">
-              {copy.limitReasonLabel}: {limitReason}
-            </p>
-            <p className="mt-1 text-xs font-semibold leading-5 opacity-80">
-              {copy.limitBody}
-            </p>
+      <header className="fixed inset-x-0 top-0 z-[100] border-b border-slate-100 bg-white/95 backdrop-blur-xl">
+        {limitReason ? (
+          <div className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-amber-900">
+            <div className="mx-auto max-w-5xl">
+              <p className="text-xs font-black">{copy.limitTitle}</p>
+              <p className="mt-0.5 text-[11px] font-semibold leading-5 opacity-80">
+                {copy.limitReasonLabel}: {limitReason}
+              </p>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <header className="sticky top-0 z-[100] border-b border-slate-100 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3.5 md:px-6">
+        <div className="mx-auto flex h-[64px] max-w-5xl items-center justify-between gap-3 px-4 md:px-6">
           <Link
             href="/creator/dashboard"
             className="flex min-w-0 items-center"
@@ -751,77 +1094,169 @@ export default function CreatorLayoutShell({
             />
           </Link>
 
-          <div className="flex items-center gap-2">
-            <Link
+          <div className="relative flex items-center gap-2">
+            <HeaderAction
               href="/creator/requests"
-              aria-label={copy.notifications}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition active:scale-[0.98]"
+              label={copy.notifications}
+              showDot={hasAnyUnread}
             >
-              ♡
-              {hasAnyUnread ? <HeaderUnreadDot /> : null}
-            </Link>
+              <BellIcon className="h-[21px] w-[21px]" />
+            </HeaderAction>
 
-            <LocaleCompactButton locale={locale} setLocale={setLocale} />
+            <HeaderAction
+              href="/creator/jobs"
+              label={copy.waitingWork}
+              showDot={unread.jobs}
+            >
+              <CheckCircleIcon className="h-[21px] w-[21px]" />
+            </HeaderAction>
 
             <button
               type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="hidden rounded-full bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-600 transition hover:bg-slate-200 disabled:opacity-50 sm:inline-flex"
+              onClick={() => setUserMenuOpen((value) => !value)}
+              aria-label={copy.myPage}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
             >
-              {loggingOut ? copy.loggingOut : copy.logout}
+              <UserIcon className="h-[21px] w-[21px]" />
             </button>
-          </div>
-        </div>
 
-        <div className="hidden border-t border-slate-100 bg-white/95 px-4 py-2 md:block lg:hidden">
-          <div className="mx-auto flex max-w-5xl items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {navItems.map((item) => {
-              const active = isActivePath(
-                pathname,
-                item.href,
-                detailNavContext
-              );
-              const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
+            {userMenuOpen ? (
+              <>
+                <button
+                  type="button"
+                  aria-label="close menu"
+                  onClick={() => setUserMenuOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default bg-transparent"
+                />
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
-                    active
-                      ? "bg-[#ff5f67] text-white shadow-[0_12px_25px_rgba(255,95,103,0.2)]"
-                      : "bg-slate-50 text-slate-500 hover:bg-slate-100"
-                  }`}
-                >
-                  {item.label}
-                  {showUnread ? (
-                    <span
-                      className={`ml-2 inline-flex h-2 w-2 rounded-full ${
-                        active ? "bg-white" : "bg-[#ff5f67]"
-                      }`}
+                <div className="absolute right-0 top-12 z-50 w-[min(340px,calc(100vw-24px))] overflow-hidden rounded-[28px] bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-100">
+                  <div className="px-3 py-3">
+                    <p className="text-base font-black tracking-[-0.03em] text-slate-950">
+                      {copy.myPage}
+                    </p>
+
+                    {userEmail ? (
+                      <p className="mt-1 truncate text-xs font-semibold text-slate-400">
+                        {userEmail}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-1 space-y-1">
+                    <UserMenuLink
+                      href="/creator/profile"
+                      icon={<ProfileIcon className="h-5 w-5" />}
+                      title={copy.profile}
+                      body={copy.profileBody}
+                      onClick={() => setUserMenuOpen(false)}
                     />
-                  ) : null}
-                </Link>
-              );
-            })}
 
-            <Link
-              href="/creator/menus"
-              className="shrink-0 rounded-full bg-slate-50 px-4 py-2 text-sm font-black text-slate-500 hover:bg-slate-100"
-            >
-              {copy.menuManagement}
-            </Link>
+                    <UserMenuLink
+                      href="/creator/menus"
+                      icon={<EditIcon className="h-5 w-5" />}
+                      title={copy.menus}
+                      body={copy.menusBody}
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+
+                    <UserMenuLink
+                      href="/creator/payouts"
+                      icon={<YenIcon className="h-5 w-5" />}
+                      title={copy.payoutSetting}
+                      body={copy.payoutBody}
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+                  </div>
+
+                  <div className="my-2 h-px bg-slate-100" />
+
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
+                      className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-slate-50 active:scale-[0.99]"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-xs font-black text-slate-700">
+                        {locale === "ja" ? "EN" : "JA"}
+                      </span>
+                      <span>
+                        <span className="block text-sm font-black text-slate-950">
+                          {copy.language}
+                        </span>
+                        <span className="mt-0.5 block text-xs font-semibold text-slate-400">
+                          {locale === "ja" ? "English" : "日本語"}
+                        </span>
+                      </span>
+                    </button>
+
+                    <UserMenuLink
+                      href="/help"
+                      icon={<HelpIcon className="h-5 w-5" />}
+                      title={copy.help}
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+
+                    <UserMenuLink
+                      href="/terms"
+                      icon={<ShieldIcon className="h-5 w-5" />}
+                      title={copy.terms}
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+
+                    <UserMenuLink
+                      href="/privacy"
+                      icon={<ShieldIcon className="h-5 w-5" />}
+                      title={copy.privacy}
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+                  </div>
+
+                  <div className="my-2 h-px bg-slate-100" />
+
+                  {userEmail ? (
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                      className="flex w-full items-center justify-center rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200 active:scale-[0.99] disabled:opacity-50"
+                    >
+                      {loggingOut ? copy.loggingOut : copy.logout}
+                    </button>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        href="/login"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center justify-center rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700"
+                      >
+                        {copy.login}
+                      </Link>
+                      <Link
+                        href="/signup/creator"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center justify-center rounded-full bg-[#ff5f67] px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(255,95,103,0.22)]"
+                      >
+                        {copy.signup}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl overflow-x-hidden px-4 py-5 pb-28 md:px-6 md:py-7 lg:pb-10">
+      <main
+        className={`mx-auto w-full max-w-5xl overflow-x-hidden px-4 pb-28 md:px-6 ${
+          limitReason ? "pt-[122px]" : "pt-[84px]"
+        }`}
+      >
         {children}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-2 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="mx-auto grid max-w-[520px] grid-cols-5 gap-1">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailNavContext);
             const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
@@ -830,23 +1265,35 @@ export default function CreatorLayoutShell({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative flex min-h-[62px] flex-col items-center justify-center rounded-[22px] px-1 py-2 text-[11px] font-black transition active:scale-[0.98] ${
+                className={`relative flex min-h-[68px] flex-col items-center justify-center rounded-[24px] px-1.5 py-2 text-[11px] font-black transition duration-200 active:scale-[0.96] ${
                   active
-                    ? "bg-rose-50 text-[#ff5f67]"
-                    : "bg-white text-slate-400"
+                    ? "text-[#ff5f67]"
+                    : "text-slate-400 hover:text-slate-600"
                 }`}
               >
                 <span
-                  className={`mb-1 flex h-7 w-7 items-center justify-center rounded-2xl text-sm ${
-                    active ? "bg-white shadow-sm" : "bg-transparent"
+                  className={`mb-1.5 flex h-9 w-9 items-center justify-center rounded-[18px] transition duration-200 ${
+                    active
+                      ? "bg-rose-50 shadow-sm"
+                      : "bg-transparent"
                   }`}
                 >
-                  {item.icon}
+                  <span
+                    className={`transition duration-200 ${
+                      active ? "scale-110" : "scale-100"
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
                 </span>
+
                 <span className="max-w-full truncate text-center leading-4">
-                  {item.shortLabel}
+                  {item.label}
                 </span>
-                {showUnread ? <MobileUnreadDot /> : null}
+
+                {showUnread ? (
+                  <RedDot className="right-[18px] top-[9px] h-2.5 w-2.5" />
+                ) : null}
               </Link>
             );
           })}
