@@ -1,11 +1,10 @@
 // File: app/creator/jobs/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-import DeadlineBadge from "@/app/components/DeadlineBadge";
 
 type ChatReadRow = {
   user_id: string;
@@ -82,12 +81,14 @@ type JobItem = {
   chat: ChatRow | null;
 };
 
+type FilterKey = "todo" | "all" | "delivered" | "completed";
+
 const STATUS_ORDER: Record<string, number> = {
   revision_requested: 0,
-  delivered: 1,
-  accepted_captured: 2,
-  in_progress: 2,
-  accepted: 2,
+  accepted_captured: 1,
+  in_progress: 1,
+  accepted: 1,
+  delivered: 2,
   completed: 3,
 };
 
@@ -95,6 +96,19 @@ function normalizeChat(chats: LegacyRequestRow["chats"]): ChatRow | null {
   if (!chats) return null;
   if (Array.isArray(chats)) return chats[0] ?? null;
   return chats;
+}
+
+function uniqueStrings(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value)))
+  );
+}
+
+function getTimestamp(value: string | null | undefined) {
+  if (!value) return 0;
+
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
@@ -117,7 +131,10 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+  });
 }
 
 function formatPrice(
@@ -125,7 +142,7 @@ function formatPrice(
   currency: string | null | undefined,
   locale: "ja" | "en"
 ) {
-  if (value == null) return "";
+  if (value == null) return locale === "ja" ? "未設定" : "Not set";
 
   const safeCurrency = currency || "JPY";
 
@@ -142,190 +159,137 @@ function formatPrice(
   }
 }
 
-function formatSignedFee(
-  value: number | null | undefined,
-  currency: string | null | undefined,
-  locale: "ja" | "en"
-) {
-  if (value == null) return "";
-
-  const formatted = formatPrice(Math.abs(value), currency, locale);
-  return value === 0 ? formatted : `-${formatted}`;
+function isActionStatus(status: string) {
+  return [
+    "revision_requested",
+    "accepted",
+    "accepted_captured",
+    "in_progress",
+  ].includes(status);
 }
 
-function formatBps(value: number | null | undefined) {
-  if (value == null) return "";
-  return `${value / 100}%`;
-}
+function isUnreadForUser(item: JobItem, userId: string | null) {
+  if (!userId) return false;
+  if (!item.chat?.last_message_at) return false;
 
-function getTimestamp(value: string | null | undefined) {
-  if (!value) return null;
+  const readRow =
+    item.chat.chat_reads?.find((row) => row.user_id === userId) ?? null;
 
-  const time = new Date(value).getTime();
-  if (Number.isNaN(time)) return null;
-
-  return time;
-}
-
-function getAutoCompleteSortValue(item: JobItem) {
-  if (item.kind !== "order") return 9999999999999;
-  if (item.status !== "delivered") return 9999999999999;
-
-  return getTimestamp(item.auto_complete_at) ?? 9999999999999;
-}
-
-function isWithinHours(value: string | null | undefined, hours: number) {
-  const time = getTimestamp(value);
-  if (!time) return false;
-
-  const diff = time - Date.now();
-  return diff > 0 && diff <= hours * 60 * 60 * 1000;
-}
-
-function getStatusMeta(status: string, locale: "ja" | "en") {
-  const ja: Record<string, { label: string; className: string }> = {
-    accepted: {
-      label: "進行中",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
-    },
-    accepted_captured: {
-      label: "進行中",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
-    },
-    in_progress: {
-      label: "進行中",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
-    },
-    delivered: {
-      label: "納品済み",
-      className: "bg-purple-100 text-purple-700 ring-purple-200",
-    },
-    revision_requested: {
-      label: "修正依頼",
-      className: "bg-amber-100 text-amber-800 ring-amber-200",
-    },
-    completed: {
-      label: "完了",
-      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-    },
-  };
-
-  const en: Record<string, { label: string; className: string }> = {
-    accepted: {
-      label: "Active",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
-    },
-    accepted_captured: {
-      label: "Active",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
-    },
-    in_progress: {
-      label: "In Progress",
-      className: "bg-blue-100 text-blue-700 ring-blue-200",
-    },
-    delivered: {
-      label: "Delivered",
-      className: "bg-purple-100 text-purple-700 ring-purple-200",
-    },
-    revision_requested: {
-      label: "Revision",
-      className: "bg-amber-100 text-amber-800 ring-amber-200",
-    },
-    completed: {
-      label: "Completed",
-      className: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-    },
-  };
+  if (!readRow?.last_read_at) return true;
 
   return (
-    (locale === "ja" ? ja[status] : en[status]) ?? {
-      label: status,
-      className: "bg-slate-100 text-slate-700 ring-slate-200",
+    new Date(item.chat.last_message_at).getTime() >
+    new Date(readRow.last_read_at).getTime()
+  );
+}
+
+function getStatusLabel(status: string, locale: "ja" | "en") {
+  if (locale === "ja") {
+    if (status === "revision_requested") return "修正対応";
+    if (
+      status === "accepted" ||
+      status === "accepted_captured" ||
+      status === "in_progress"
+    ) {
+      return "進行中";
     }
-  );
+    if (status === "delivered") return "納品済み";
+    if (status === "completed") return "完了";
+    return "注文";
+  }
+
+  if (status === "revision_requested") return "Revision";
+  if (
+    status === "accepted" ||
+    status === "accepted_captured" ||
+    status === "in_progress"
+  ) {
+    return "In progress";
+  }
+  if (status === "delivered") return "Delivered";
+  if (status === "completed") return "Done";
+  return "Order";
 }
 
-function getKindLabel(kind: JobItem["kind"], locale: "ja" | "en") {
-  if (kind === "order") return locale === "ja" ? "注文" : "Order";
-  return locale === "ja" ? "旧依頼" : "Legacy";
+function getStatusTone(status: string): "rose" | "blue" | "green" | "slate" {
+  if (status === "revision_requested") return "rose";
+  if (
+    status === "accepted" ||
+    status === "accepted_captured" ||
+    status === "in_progress"
+  ) {
+    return "blue";
+  }
+  if (status === "completed") return "green";
+  return "slate";
 }
 
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.filter((value): value is string => !!value))
-  );
-}
-
-function HeaderStat({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "attention" | "dark";
-}) {
-  const styles = {
-    default: "bg-white text-slate-950",
-    attention: "bg-amber-50 text-slate-950",
-    dark: "bg-slate-950 text-white",
-  };
-
-  return (
-    <div
-      className={`rounded-[24px] border border-slate-100 p-4 shadow-sm ${styles[tone]}`}
-    >
-      <p
-        className={`text-xs font-black uppercase tracking-[0.18em] ${
-          tone === "dark" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black">{value}</p>
-    </div>
-  );
-}
-
-function Pill({
+function SoftPill({
   children,
-  className,
+  tone = "slate",
 }: {
   children: React.ReactNode;
-  className: string;
+  tone?: "slate" | "rose" | "blue" | "green";
 }) {
+  const className =
+    tone === "rose"
+      ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
+      : tone === "blue"
+        ? "bg-blue-50 text-blue-700 ring-blue-100"
+        : tone === "green"
+          ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+          : "bg-slate-50 text-slate-600 ring-slate-100";
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ring-1 ${className}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
     >
       {children}
     </span>
   );
 }
 
-function MoneyRow({
+function FilterButton({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        active
+          ? "shrink-0 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-[0_10px_26px_rgba(15,23,42,0.16)]"
+          : "shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-200"
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function InfoRow({
   label,
   value,
   strong,
-  danger,
 }: {
   label: string;
   value: string;
   strong?: boolean;
-  danger?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
+      <span className="text-xs font-black text-slate-400">{label}</span>
       <span
-        className={`text-right ${
+        className={`max-w-[64%] truncate text-right ${
           strong
-            ? "text-lg font-black text-emerald-700"
-            : danger
-            ? "text-sm font-black text-rose-600"
-            : "text-sm font-bold text-slate-800"
+            ? "text-base font-black tracking-[-0.03em] text-slate-950"
+            : "text-sm font-black text-slate-800"
         }`}
       >
         {value}
@@ -334,24 +298,118 @@ function MoneyRow({
   );
 }
 
-function RevisionNotice({
-  note,
+function LoadingView() {
+  return (
+    <div className="space-y-4">
+      <div className="h-28 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="h-40 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100"
+        />
+      ))}
+    </div>
+  );
+}
+
+function JobCard({
+  item,
+  locale,
   copy,
+  unread,
 }: {
-  note: string | null | undefined;
-  copy: { revisionActionRequired: string };
+  item: JobItem;
+  locale: "ja" | "en";
+  copy: {
+    unnamedProduct: string;
+    updatedAt: string;
+    menu: string;
+    deadline: string;
+    payoutAmount: string;
+    detail: string;
+    newMessage: string;
+    revisionNeeded: string;
+    deliverySubmitted: string;
+  };
+  unread: boolean;
 }) {
-  if (!note?.trim()) return null;
+  const detailHref =
+    item.kind === "order"
+      ? `/creator/orders/${item.id}`
+      : `/creator/requests/${item.id}`;
+
+  const statusTone = getStatusTone(item.status);
+  const isRevision = item.status === "revision_requested";
+  const isDelivered = item.status === "delivered";
 
   return (
-    <div className="mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-4">
-      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-        {copy.revisionActionRequired}
-      </p>
-      <p className="mt-2 line-clamp-3 text-sm leading-6 text-amber-900">
-        {note}
-      </p>
-    </div>
+    <Link
+      href={detailHref}
+      className="block rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 transition active:scale-[0.98]"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <SoftPill tone={statusTone}>{getStatusLabel(item.status, locale)}</SoftPill>
+
+        {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
+
+        {isRevision ? (
+          <SoftPill tone="rose">{copy.revisionNeeded}</SoftPill>
+        ) : null}
+
+        {isDelivered || item.delivered_post_url ? (
+          <SoftPill tone="green">{copy.deliverySubmitted}</SoftPill>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">
+            {item.product_name || copy.unnamedProduct}
+          </h2>
+
+          <p className="mt-2 text-xs font-bold text-slate-400">
+            {copy.updatedAt}:{" "}
+            {formatDateTime(item.updated_at ?? item.created_at, locale)}
+          </p>
+        </div>
+
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-lg font-black text-slate-400">
+          ›
+        </span>
+      </div>
+
+      {isRevision && item.revision_note?.trim() ? (
+        <div className="mt-4 rounded-[22px] bg-rose-50 p-4 ring-1 ring-rose-100">
+          <p className="line-clamp-3 text-sm font-semibold leading-6 text-rose-900">
+            {item.revision_note}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+        <div className="space-y-3">
+          {item.menu_title ? (
+            <InfoRow label={copy.menu} value={item.menu_title} />
+          ) : null}
+
+          {item.deadline ? (
+            <InfoRow label={copy.deadline} value={formatDate(item.deadline, locale)} />
+          ) : null}
+
+          {item.kind === "order" ? (
+            <InfoRow
+              label={copy.payoutAmount}
+              value={formatPrice(item.creator_payout_amount, item.currency, locale)}
+              strong
+            />
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-5 flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white">
+        {copy.detail}
+      </div>
+    </Link>
   );
 }
 
@@ -364,72 +422,48 @@ export default function CreatorJobsPage() {
     () =>
       safeLocale === "ja"
         ? {
-            loading: "読み込み中...",
-            title: "進行中案件",
-            subtitle:
-              "承認済み・修正依頼・納品済み・完了済みの案件を確認できます。",
-            viewRequests: "承認待ちを見る",
-            editProfile: "プロフィール編集",
-            fetchError: "進行中案件の取得に失敗しました。",
-            unnamedProduct: "商品名未入力",
-            deadline: "期限",
+            title: "ToDo",
+            subtitle: "進行中の注文と、対応が必要なものを確認できます。",
+            fetchError: "ToDoの取得に失敗しました。",
+            unnamedProduct: "商品名未設定",
+            deadline: "希望日",
             menu: "メニュー",
-            price: "価格",
-            transactionFeeRate: "C側手数料率",
-            transactionFee: "Trendre手数料",
-            payoutAmount: "受取予定額",
-            deliveredUrl: "納品URLあり",
-            revisionActionRequired: "修正対応が必要",
-            revisionCount: "修正回数",
-            unreadMessages: "新着メッセージ",
-            lastMessage: "最終メッセージ",
+            payoutAmount: "受取予定",
+            revisionNeeded: "対応が必要",
+            newMessage: "新着あり",
             updatedAt: "更新",
-            detail: "案件を開く",
-            empty: "進行中の案件はありません。",
-            emptyBody:
-              "承認した注文や進行中の案件がここに表示されます。納品や修正対応もこの画面から確認できます。",
-            autoComplete: "自動完了",
-            autoCompleteExpired: "自動完了期限超過",
-            total: "すべて",
-            active: "進行中",
-            revision: "修正",
+            detail: "開く",
+            empty: "対応中の注文はありません",
+            emptyBody: "受けた注文や対応が必要なものがここに表示されます。",
+            checkRequests: "届いた注文を見る",
+            all: "すべて",
+            todo: "対応中",
             delivered: "納品済み",
             completed: "完了",
-            checkRequests: "承認待ちを見る",
+            deliverySubmitted: "納品済み",
+            errorTitle: "エラー",
           }
         : {
-            loading: "Loading...",
-            title: "Active Jobs",
-            subtitle:
-              "Check accepted, revision requested, delivered, and completed jobs.",
-            viewRequests: "View Pending Requests",
-            editProfile: "Edit Profile",
-            fetchError: "Failed to load active jobs.",
+            title: "ToDo",
+            subtitle: "Check active orders and items that need your action.",
+            fetchError: "Failed to load ToDo.",
             unnamedProduct: "No product name",
-            deadline: "Deadline",
+            deadline: "Preferred date",
             menu: "Menu",
-            price: "Price",
-            transactionFeeRate: "Creator fee rate",
-            transactionFee: "Trendre fee",
-            payoutAmount: "Estimated payout",
-            deliveredUrl: "Delivered URL submitted",
-            revisionActionRequired: "Revision needed",
-            revisionCount: "Revision count",
-            unreadMessages: "New messages",
-            lastMessage: "Last message",
+            payoutAmount: "Expected payout",
+            revisionNeeded: "Action needed",
+            newMessage: "New message",
             updatedAt: "Updated",
-            detail: "Open job",
-            empty: "There are no active jobs.",
-            emptyBody:
-              "Accepted orders and active jobs will appear here. Delivery and revision tasks can also be checked from this screen.",
-            autoComplete: "Auto complete",
-            autoCompleteExpired: "Auto-complete overdue",
-            total: "Total",
-            active: "Active",
-            revision: "Revision",
+            detail: "Open",
+            empty: "No active orders",
+            emptyBody: "Accepted orders and action items will appear here.",
+            checkRequests: "View incoming orders",
+            all: "All",
+            todo: "Active",
             delivered: "Delivered",
-            completed: "Completed",
-            checkRequests: "View requests",
+            completed: "Done",
+            deliverySubmitted: "Delivered",
+            errorTitle: "Error",
           },
     [safeLocale]
   );
@@ -438,6 +472,7 @@ export default function CreatorJobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterKey>("todo");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -681,41 +716,17 @@ export default function CreatorJobsPage() {
     };
   }, [load, supabase]);
 
-  const hasUnread = useCallback(
-    (item: JobItem) => {
-      if (!currentUserId) return false;
-      if (!item.chat?.last_message_at) return false;
-
-      const readRow =
-        item.chat.chat_reads?.find((row) => row.user_id === currentUserId) ??
-        null;
-
-      if (!readRow?.last_read_at) return true;
-
-      return (
-        new Date(item.chat.last_message_at).getTime() >
-        new Date(readRow.last_read_at).getTime()
-      );
-    },
-    [currentUserId]
-  );
-
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
+      const aUnread = isUnreadForUser(a, currentUserId) ? 1 : 0;
+      const bUnread = isUnreadForUser(b, currentUserId) ? 1 : 0;
+
+      if (aUnread !== bUnread) return bUnread - aUnread;
+
       const statusDiff =
         (STATUS_ORDER[a.status] ?? 999) - (STATUS_ORDER[b.status] ?? 999);
 
       if (statusDiff !== 0) return statusDiff;
-
-      const aAuto = getAutoCompleteSortValue(a);
-      const bAuto = getAutoCompleteSortValue(b);
-
-      if (aAuto !== bAuto) return aAuto - bAuto;
-
-      const aUnread = hasUnread(a) ? 1 : 0;
-      const bUnread = hasUnread(b) ? 1 : 0;
-
-      if (aUnread !== bUnread) return bUnread - aUnread;
 
       const aLast = a.chat?.last_message_at
         ? new Date(a.chat.last_message_at).getTime()
@@ -726,288 +737,125 @@ export default function CreatorJobsPage() {
 
       if (aLast !== bLast) return bLast - aLast;
 
-      const aTime = new Date(a.updated_at ?? a.created_at).getTime();
-      const bTime = new Date(b.updated_at ?? b.created_at).getTime();
-
-      return bTime - aTime;
+      return (
+        getTimestamp(b.updated_at ?? b.created_at) -
+        getTimestamp(a.updated_at ?? a.created_at)
+      );
     });
-  }, [items, hasUnread]);
+  }, [currentUserId, items]);
 
-  const activeCount = sortedItems.filter((item) =>
-    ["accepted", "accepted_captured", "in_progress"].includes(item.status)
-  ).length;
+  const todoItems = sortedItems.filter((item) => isActionStatus(item.status));
+  const deliveredItems = sortedItems.filter((item) => item.status === "delivered");
+  const completedItems = sortedItems.filter((item) => item.status === "completed");
 
-  const revisionCount = sortedItems.filter(
-    (item) => item.status === "revision_requested"
-  ).length;
+  const filteredItems = useMemo(() => {
+    if (filter === "todo") return todoItems;
+    if (filter === "delivered") return deliveredItems;
+    if (filter === "completed") return completedItems;
+    return sortedItems;
+  }, [completedItems, deliveredItems, filter, sortedItems, todoItems]);
 
-  const deliveredCount = sortedItems.filter(
-    (item) => item.status === "delivered"
-  ).length;
+  useEffect(() => {
+    if (filter !== "todo") return;
 
-  const completedCount = sortedItems.filter(
-    (item) => item.status === "completed"
-  ).length;
+    if (todoItems.length === 0 && sortedItems.length > 0) {
+      setFilter("all");
+    }
+  }, [filter, sortedItems.length, todoItems.length]);
 
   if (loading) {
-    return (
-      <div className="space-y-5">
-        <div className="h-32 animate-pulse rounded-[32px] bg-slate-100" />
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-52 animate-pulse rounded-[28px] bg-slate-100"
-          />
-        ))}
-      </div>
-    );
+    return <LoadingView />;
   }
 
   return (
-    <div className="space-y-6 pb-4">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          Creator Jobs
-        </p>
-        <div className="mt-3 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight">{copy.title}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+    <div className="space-y-4 pb-4">
+      <section className="relative overflow-hidden rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+
+        <div className="relative flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+              {copy.title}
+            </h1>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
               {copy.subtitle}
             </p>
           </div>
 
-          <div className="text-right">
-            <p className="text-5xl font-black">{sortedItems.length}</p>
-            <p className="text-xs font-bold text-white/50">{copy.total}</p>
+          <div className="shrink-0 text-right">
+            <p className="text-[30px] font-black leading-none tracking-[-0.05em] text-slate-950">
+              {todoItems.length}
+            </p>
+            <p className="mt-1 text-xs font-bold text-slate-400">
+              {copy.todo}
+            </p>
           </div>
         </div>
-      </section>
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <HeaderStat
-          label={copy.active}
-          value={activeCount}
-          tone={activeCount > 0 ? "dark" : "default"}
-        />
-        <HeaderStat
-          label={copy.revision}
-          value={revisionCount}
-          tone={revisionCount > 0 ? "attention" : "default"}
-        />
-        <HeaderStat
-          label={copy.delivered}
-          value={deliveredCount}
-          tone={deliveredCount > 0 ? "attention" : "default"}
-        />
-        <HeaderStat
-          label={copy.completed}
-          value={completedCount}
-          tone="default"
-        />
+        <div className="relative -mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FilterButton active={filter === "todo"} onClick={() => setFilter("todo")}>
+            {copy.todo} {todoItems.length}
+          </FilterButton>
+          <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
+            {copy.all} {sortedItems.length}
+          </FilterButton>
+          <FilterButton
+            active={filter === "delivered"}
+            onClick={() => setFilter("delivered")}
+          >
+            {copy.delivered} {deliveredItems.length}
+          </FilterButton>
+          <FilterButton
+            active={filter === "completed"}
+            onClick={() => setFilter("completed")}
+          >
+            {copy.completed} {completedItems.length}
+          </FilterButton>
+        </div>
       </section>
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
-          {error}
-        </div>
+        <section className="rounded-[26px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
+          <p className="text-sm font-black">{copy.errorTitle}</p>
+          <p className="mt-2 text-sm font-semibold leading-7 opacity-75">
+            {error}
+          </p>
+        </section>
       ) : null}
 
-      {sortedItems.length === 0 && !error ? (
-        <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
-            ▣
+      {filteredItems.length === 0 && !error ? (
+        <section className="rounded-[30px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-50 text-2xl">
+            ✓
           </div>
-          <h2 className="mt-5 text-xl font-black text-slate-950">
+
+          <h2 className="mt-5 text-xl font-black tracking-[-0.04em] text-slate-950">
             {copy.empty}
           </h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
+
+          <p className="mx-auto mt-3 max-w-sm text-sm font-semibold leading-7 text-slate-500">
             {copy.emptyBody}
           </p>
+
           <Link
             href="/creator/requests"
-            className="mt-6 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+            className="mt-6 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
           >
             {copy.checkRequests}
           </Link>
-        </div>
+        </section>
       ) : null}
 
       <section className="space-y-4">
-        {sortedItems.map((item) => {
-          const meta = getStatusMeta(item.status, safeLocale);
-          const detailHref =
-            item.kind === "order"
-              ? `/creator/orders/${item.id}`
-              : `/creator/requests/${item.id}`;
-
-          const unread = hasUnread(item);
-          const needsRevision = item.status === "revision_requested";
-          const delivered = item.status === "delivered";
-          const completed = item.status === "completed";
-
-          return (
-            <Link
-              key={`${item.kind}-${item.id}`}
-              href={detailHref}
-              className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
-                needsRevision
-                  ? "border-amber-200 ring-2 ring-amber-100"
-                  : delivered
-                  ? "border-purple-200 ring-2 ring-purple-100"
-                  : unread
-                  ? "border-blue-200 ring-2 ring-blue-100"
-                  : "border-slate-100"
-              }`}
-            >
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <Pill
-                  className={
-                    item.kind === "order"
-                      ? "bg-slate-950 text-white ring-slate-950"
-                      : "bg-slate-100 text-slate-700 ring-slate-200"
-                  }
-                >
-                  {getKindLabel(item.kind, safeLocale)}
-                </Pill>
-
-                <Pill className={meta.className}>{meta.label}</Pill>
-
-                {item.payment_status ? (
-                  <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                    {item.payment_status}
-                  </Pill>
-                ) : null}
-
-                {needsRevision ? (
-                  <Pill className="bg-amber-50 text-amber-800 ring-amber-200">
-                    {copy.revisionActionRequired}
-                  </Pill>
-                ) : null}
-
-                {unread ? (
-                  <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
-                    {copy.unreadMessages}
-                  </Pill>
-                ) : null}
-              </div>
-
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="truncate text-xl font-black text-slate-950">
-                    {item.product_name ?? copy.unnamedProduct}
-                  </p>
-                  <p className="mt-2 text-xs font-semibold text-slate-400">
-                    {copy.updatedAt}:{" "}
-                    {formatDateTime(item.updated_at ?? item.created_at, safeLocale)}
-                  </p>
-                </div>
-
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-                  ›
-                </span>
-              </div>
-
-              {needsRevision ? (
-                <RevisionNotice
-                  note={item.revision_note}
-                  copy={{ revisionActionRequired: copy.revisionActionRequired }}
-                />
-              ) : null}
-
-              <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-                <div className="grid gap-3">
-                  {item.deadline ? (
-                    <MoneyRow
-                      label={copy.deadline}
-                      value={formatDate(item.deadline, safeLocale)}
-                    />
-                  ) : null}
-
-                  {item.menu_title ? (
-                    <MoneyRow label={copy.menu} value={item.menu_title} />
-                  ) : null}
-
-                  {item.kind === "order" ? (
-                    <>
-                      <MoneyRow
-                        label={copy.price}
-                        value={formatPrice(
-                          item.menu_price_amount,
-                          item.currency,
-                          safeLocale
-                        )}
-                      />
-
-                      <MoneyRow
-                        label={copy.transactionFee}
-                        value={formatSignedFee(
-                          item.creator_transaction_fee_amount,
-                          item.currency,
-                          safeLocale
-                        )}
-                        danger
-                      />
-
-                      <MoneyRow
-                        label={copy.payoutAmount}
-                        value={formatPrice(
-                          item.creator_payout_amount,
-                          item.currency,
-                          safeLocale
-                        )}
-                        strong
-                      />
-                    </>
-                  ) : null}
-
-                  {needsRevision && item.revision_count != null ? (
-                    <MoneyRow
-                      label={copy.revisionCount}
-                      value={`${item.revision_count}/${item.max_revision_count ?? 1}`}
-                    />
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {delivered && item.auto_complete_at ? (
-                  <DeadlineBadge
-                    deadline={item.auto_complete_at}
-                    label={copy.autoComplete}
-                    expiredLabel={copy.autoCompleteExpired}
-                    locale={safeLocale}
-                    urgentHours={12}
-                    warningHours={24}
-                  />
-                ) : null}
-
-                {item.delivered_post_url ? (
-                  <Pill className="bg-purple-50 text-purple-700 ring-purple-200">
-                    {copy.deliveredUrl}
-                  </Pill>
-                ) : null}
-
-                {completed ? (
-                  <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                    {copy.completed}
-                  </Pill>
-                ) : null}
-
-                {item.chat?.last_message_at ? (
-                  <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
-                    {copy.lastMessage}:{" "}
-                    {formatDateTime(item.chat.last_message_at, safeLocale)}
-                  </Pill>
-                ) : null}
-              </div>
-
-              <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
-                {copy.detail}
-              </div>
-            </Link>
-          );
-        })}
+        {filteredItems.map((item) => (
+          <JobCard
+            key={`${item.kind}-${item.id}`}
+            item={item}
+            locale={safeLocale}
+            copy={copy}
+            unread={isUnreadForUser(item, currentUserId)}
+          />
+        ))}
       </section>
     </div>
   );
