@@ -208,13 +208,14 @@ function NoticeCard({
     tone === "danger"
       ? "bg-rose-50 ring-rose-100 text-rose-900"
       : tone === "warning"
-        ? "bg-amber-50 ring-amber-100 text-amber-950"
-        : "bg-white ring-slate-100 text-slate-950";
+      ? "bg-amber-50 ring-amber-100 text-amber-950"
+      : "bg-white ring-slate-100 text-slate-950";
 
   return (
     <section className={`rounded-[26px] p-5 ring-1 ${toneClass}`}>
       <h2 className="text-base font-black tracking-[-0.03em]">{title}</h2>
       <p className="mt-2 text-sm font-semibold leading-7 opacity-75">{body}</p>
+
       {href && cta ? (
         <Link
           href={href}
@@ -246,17 +247,16 @@ function NextActionCard({
     tone === "rose"
       ? "bg-rose-50 text-[#ff5f67]"
       : tone === "blue"
-        ? "bg-blue-50 text-blue-700"
-        : tone === "green"
-          ? "bg-emerald-50 text-emerald-700"
-          : "bg-slate-50 text-slate-500";
+      ? "bg-blue-50 text-blue-700"
+      : tone === "green"
+      ? "bg-emerald-50 text-emerald-700"
+      : "bg-slate-50 text-slate-500";
 
   return (
     <section className="rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-black text-slate-400">NEXT</p>
-          <h2 className="mt-2 text-[24px] font-black leading-tight tracking-[-0.05em] text-slate-950">
+          <h2 className="text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">
             {title}
           </h2>
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
@@ -266,7 +266,7 @@ function NextActionCard({
 
         {typeof count === "number" ? (
           <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-black ${markClass}`}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-lg font-black ${markClass}`}
           >
             {count}
           </div>
@@ -303,6 +303,7 @@ function PayoutMiniCard({
         <p className="text-sm font-black text-slate-950">{title}</p>
         <p className="mt-1 text-xs font-semibold text-slate-400">{body}</p>
       </div>
+
       <p className="text-xl font-black tracking-[-0.04em] text-slate-950">
         {amount}
       </p>
@@ -361,7 +362,6 @@ export default function CreatorDashboardPage() {
               "このページはインフルエンサーアカウントのみ利用できます。",
 
             greeting: "こんにちは",
-            heroBody: "今日やることだけ、ここで確認できます。",
 
             suspendedTitle: "現在このアカウントは制限中です",
             suspendedBody:
@@ -382,9 +382,9 @@ export default function CreatorDashboardPage() {
             nextTodoBody: "承認済みの注文を確認して、制作・投稿を進めましょう。",
             nextTodoCta: "ToDoを見る",
 
-            nextReadyTitle: "今は対応待ちなし",
+            nextReadyTitle: "プロフィール・メニューを充実させよう",
             nextReadyBody:
-              "プロフィールやメニューを整えて、次の注文を受けやすくしましょう。",
+              "写真や価格を整えて、次の注文を受けやすくしましょう。",
             nextReadyCta: "メニューを確認する",
 
             payoutTitle: "報酬",
@@ -405,7 +405,6 @@ export default function CreatorDashboardPage() {
               "This page is available only for influencer accounts.",
 
             greeting: "Hi",
-            heroBody: "Check only what matters today.",
 
             suspendedTitle: "This account is currently restricted",
             suspendedBody:
@@ -426,9 +425,9 @@ export default function CreatorDashboardPage() {
             nextTodoBody: "Check accepted orders and continue production.",
             nextTodoCta: "View ToDo",
 
-            nextReadyTitle: "Nothing pending right now",
+            nextReadyTitle: "Improve your profile and menus",
             nextReadyBody:
-              "Keep your profile and menus ready for the next order.",
+              "Update your photos and prices to make your next order easier to receive.",
             nextReadyCta: "Check menus",
 
             payoutTitle: "Payouts",
@@ -833,45 +832,45 @@ export default function CreatorDashboardPage() {
           tone: "rose" as const,
         }
       : activeTodoCount > 0
-        ? {
-            title: copy.nextTodoTitle,
-            body: copy.nextTodoBody,
-            href: "/creator/jobs",
-            cta: copy.nextTodoCta,
-            count: activeTodoCount,
-            tone: "blue" as const,
-          }
-        : {
-            title: copy.nextReadyTitle,
-            body: copy.nextReadyBody,
-            href: "/creator/menus",
-            cta: copy.nextReadyCta,
-            count: undefined,
-            tone: "slate" as const,
-          };
+      ? {
+          title: copy.nextTodoTitle,
+          body: copy.nextTodoBody,
+          href: "/creator/jobs",
+          cta: copy.nextTodoCta,
+          count: activeTodoCount,
+          tone: "blue" as const,
+        }
+      : {
+          title: copy.nextReadyTitle,
+          body: copy.nextReadyBody,
+          href: "/creator/menus",
+          cta: copy.nextReadyCta,
+          count: undefined,
+          tone: "slate" as const,
+        };
 
   const requestActivityItems: ActivityItem[] = recentRequests.map((item) => ({
-  kind: item.kind,
-  id: item.id,
-  product_name: item.product_name,
-  status: item.status,
-  date: item.created_at,
-}));
+    kind: item.kind,
+    id: item.id,
+    product_name: item.product_name,
+    status: item.status,
+    date: item.created_at,
+  }));
 
-const jobActivityItems: ActivityItem[] = recentJobs.map((item) => ({
-  kind: item.kind,
-  id: item.id,
-  product_name: item.product_name,
-  status: item.status,
-  date: item.updated_at ?? item.created_at,
-}));
+  const jobActivityItems: ActivityItem[] = recentJobs.map((item) => ({
+    kind: item.kind,
+    id: item.id,
+    product_name: item.product_name,
+    status: item.status,
+    date: item.updated_at ?? item.created_at,
+  }));
 
-const activityItems: ActivityItem[] = [
-  ...requestActivityItems,
-  ...jobActivityItems,
-]
-  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  .slice(0, 4);
+  const activityItems: ActivityItem[] = [
+    ...requestActivityItems,
+    ...jobActivityItems,
+  ]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 4);
 
   return (
     <div className="space-y-4 pb-4">
@@ -888,9 +887,6 @@ const activityItems: ActivityItem[] = [
             <h1 className="mt-0.5 truncate text-[24px] font-black leading-tight tracking-[-0.055em] text-slate-950">
               {displayName}
             </h1>
-            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-              {copy.heroBody}
-            </p>
           </div>
         </div>
       </section>
