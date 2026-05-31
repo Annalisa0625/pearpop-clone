@@ -390,7 +390,7 @@ export default function CreatorOrderDetailPage() {
             back: "一覧へ戻る",
             chatTitle: "注文チャット",
             nextAction: "次にやること",
-            orderContent: "Bからの注文内容",
+            orderContent: "注文内容",
             orderContentBody: "商品・希望日・依頼内容を確認できます。",
             deliveryTitle: "納品URLを提出",
             redeliveryTitle: "修正版の納品URLを提出",
