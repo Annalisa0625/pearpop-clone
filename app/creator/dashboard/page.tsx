@@ -1,4 +1,4 @@
-// app/creator/dashboard/page.tsx
+// File: app/creator/dashboard/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -37,7 +37,6 @@ type CreatorState = {
   isSuspended: boolean;
   creatorProfileCompleted: boolean;
   creatorApprovalStatus: string | null;
-  canUsePlatform: boolean;
 };
 
 type CreatorProfile = {
@@ -46,15 +45,7 @@ type CreatorProfile = {
   display_name: string;
   full_name: string | null;
   avatar_url: string | null;
-  cover_image_url: string | null;
   category: string | null;
-  bio: string | null;
-  country: string | null;
-  prefecture: string | null;
-  city: string | null;
-  content_language: string | null;
-  response_language: string | null;
-  sub_categories: string[] | null;
   approval_status: string;
   stripe_onboarding_completed: boolean | null;
 };
@@ -65,27 +56,14 @@ type PayoutSummary = {
   pendingAmount: number;
 };
 
-type BadgeTone =
-  | "gray"
-  | "yellow"
-  | "blue"
-  | "green"
-  | "red"
-  | "purple"
-  | "black";
-
-function compactText(value: string | null | undefined) {
-  return value?.trim() || "";
+function uniqueStrings(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value)))
+  );
 }
 
 function fallbackInitial(name: string) {
-  return (name || "C").slice(0, 1).toUpperCase();
-}
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.filter((value): value is string => !!value))
-  );
+  return (name || "T").slice(0, 1).toUpperCase();
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
@@ -94,7 +72,10 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+  });
 }
 
 function formatMoney(value: number, locale: "ja" | "en") {
@@ -109,168 +90,66 @@ function formatMoney(value: number, locale: "ja" | "en") {
   }
 }
 
-function getApprovalBadgeMeta(
-  status: string | null,
-  locale: "ja" | "en"
-): { label: string; tone: BadgeTone } {
-  if (locale === "ja") {
-    if (status === "approved") return { label: "承認済み", tone: "green" };
-    if (status === "pending") return { label: "審査中", tone: "yellow" };
-    if (status === "rejected") return { label: "却下", tone: "red" };
-    return { label: "未設定", tone: "gray" };
-  }
-
-  if (status === "approved") return { label: "Approved", tone: "green" };
-  if (status === "pending") return { label: "Under Review", tone: "yellow" };
-  if (status === "rejected") return { label: "Rejected", tone: "red" };
-  return { label: "Not Set", tone: "gray" };
+function getOrderHref(item: RecentRequest | RecentJob) {
+  return item.kind === "order"
+    ? `/creator/orders/${item.id}`
+    : `/creator/requests/${item.id}`;
 }
 
-function getWorkflowBadgeMeta(
-  status: string | null,
-  locale: "ja" | "en"
-): { label: string; className: string } {
-  const normalized = (status ?? "").toLowerCase();
+function getSimpleStatus(status: string | null, locale: "ja" | "en") {
+  const normalized = (status || "").toLowerCase();
 
   if (locale === "ja") {
     if (
       normalized === "pending" ||
       normalized === "authorized_pending_creator"
     ) {
-      return {
-        label:
-          normalized === "authorized_pending_creator"
-            ? "承認待ち注文"
-            : "承認待ち",
-        className: "bg-amber-100 text-amber-800",
-      };
-    }
-
-    if (normalized === "accepted" || normalized === "accepted_captured") {
-      return {
-        label:
-          normalized === "accepted_captured"
-            ? "承認済み"
-            : "進行中",
-        className: "bg-blue-100 text-blue-700",
-      };
-    }
-
-    if (normalized === "in_progress") {
-      return {
-        label: "進行中",
-        className: "bg-blue-100 text-blue-700",
-      };
-    }
-
-    if (normalized === "delivered") {
-      return {
-        label: "納品済み",
-        className: "bg-purple-100 text-purple-700",
-      };
-    }
-
-    if (normalized === "completed") {
-      return {
-        label: "完了",
-        className: "bg-emerald-100 text-emerald-700",
-      };
+      return "返答待ち";
     }
 
     if (
-      normalized === "rejected" ||
-      normalized === "declined_canceled" ||
-      normalized === "expired_canceled" ||
-      normalized === "capture_failed" ||
-      normalized === "cancel_failed"
+      normalized === "accepted" ||
+      normalized === "accepted_captured" ||
+      normalized === "in_progress"
     ) {
-      return {
-        label: "終了",
-        className: "bg-rose-100 text-rose-700",
-      };
+      return "進行中";
     }
 
-    return {
-      label: status || "未設定",
-      className: "bg-slate-100 text-slate-700",
-    };
+    if (normalized === "delivered") {
+      return "確認待ち";
+    }
+
+    if (normalized === "completed") {
+      return "完了";
+    }
+
+    return "注文";
+  }
+
+  if (normalized === "pending" || normalized === "authorized_pending_creator") {
+    return "New";
   }
 
   if (
-    normalized === "pending" ||
-    normalized === "authorized_pending_creator"
+    normalized === "accepted" ||
+    normalized === "accepted_captured" ||
+    normalized === "in_progress"
   ) {
-    return {
-      label:
-        normalized === "authorized_pending_creator"
-          ? "Pending Order"
-          : "Pending",
-      className: "bg-amber-100 text-amber-800",
-    };
-  }
-
-  if (normalized === "accepted" || normalized === "accepted_captured") {
-    return {
-      label: normalized === "accepted_captured" ? "Accepted" : "Active",
-      className: "bg-blue-100 text-blue-700",
-    };
-  }
-
-  if (normalized === "in_progress") {
-    return { label: "In Progress", className: "bg-blue-100 text-blue-700" };
+    return "In progress";
   }
 
   if (normalized === "delivered") {
-    return { label: "Delivered", className: "bg-purple-100 text-purple-700" };
+    return "Delivered";
   }
 
   if (normalized === "completed") {
-    return { label: "Completed", className: "bg-emerald-100 text-emerald-700" };
+    return "Done";
   }
 
-  if (
-    normalized === "rejected" ||
-    normalized === "declined_canceled" ||
-    normalized === "expired_canceled" ||
-    normalized === "capture_failed" ||
-    normalized === "cancel_failed"
-  ) {
-    return { label: "Closed", className: "bg-rose-100 text-rose-700" };
-  }
-
-  return {
-    label: status || "Not Set",
-    className: "bg-slate-100 text-slate-700",
-  };
+  return "Order";
 }
 
-function StatusBadge({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: BadgeTone;
-}) {
-  const tones: Record<BadgeTone, string> = {
-    gray: "bg-slate-100 text-slate-700",
-    yellow: "bg-amber-100 text-amber-800",
-    blue: "bg-blue-100 text-blue-700",
-    green: "bg-emerald-100 text-emerald-700",
-    red: "bg-rose-100 text-rose-700",
-    purple: "bg-purple-100 text-purple-700",
-    black: "bg-slate-950 text-white",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${tones[tone]}`}
-    >
-      {label}
-    </span>
-  );
-}
-
-function Avatar({
+function CreatorAvatar({
   name,
   src,
 }: {
@@ -282,234 +161,158 @@ function Avatar({
       <img
         src={src}
         alt={name}
-        className="h-16 w-16 rounded-3xl border-4 border-white object-cover shadow-lg"
+        className="h-12 w-12 rounded-2xl object-cover ring-1 ring-slate-100"
       />
     );
   }
 
   return (
-    <div className="flex h-16 w-16 items-center justify-center rounded-3xl border-4 border-white bg-slate-950 text-2xl font-black text-white shadow-lg">
+    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-base font-black text-[#ff5f67] shadow-sm ring-1 ring-slate-100">
       {fallbackInitial(name)}
     </div>
   );
 }
 
-function TaskCard({
-  href,
+function LoadingView() {
+  return (
+    <div className="space-y-5">
+      <div className="h-32 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+      <div className="flex gap-3 overflow-hidden">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-28 min-w-[74%] animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100 sm:min-w-[260px]"
+          />
+        ))}
+      </div>
+      <div className="h-44 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+    </div>
+  );
+}
+
+function NoticeCard({
   title,
+  body,
+  href,
+  cta,
+  tone = "soft",
+}: {
+  title: string;
+  body: string;
+  href?: string;
+  cta?: string;
+  tone?: "soft" | "warning" | "danger";
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "bg-rose-50 ring-rose-100 text-rose-900"
+      : tone === "warning"
+        ? "bg-amber-50 ring-amber-100 text-amber-950"
+        : "bg-white ring-slate-100 text-slate-950";
+
+  return (
+    <section className={`rounded-[28px] p-5 ring-1 ${toneClass}`}>
+      <h2 className="text-base font-black tracking-[-0.03em]">{title}</h2>
+      <p className="mt-2 text-sm font-semibold leading-7 opacity-75">{body}</p>
+      {href && cta ? (
+        <Link
+          href={href}
+          className="mt-4 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,95,103,0.22)] active:scale-[0.98]"
+        >
+          {cta}
+        </Link>
+      ) : null}
+    </section>
+  );
+}
+
+function SummaryCard({
+  href,
+  label,
   value,
   body,
-  tone,
+  accent,
 }: {
   href: string;
-  title: string;
-  value: number;
+  label: string;
+  value: number | string;
   body: string;
-  tone: "dark" | "amber" | "blue" | "purple";
+  accent: "rose" | "green" | "blue" | "slate";
 }) {
-  const styles = {
-    dark: "bg-slate-950 text-white",
-    amber: "bg-amber-50 text-slate-950",
-    blue: "bg-blue-50 text-slate-950",
-    purple: "bg-purple-50 text-slate-950",
-  };
-
-  const muted = tone === "dark" ? "text-white/65" : "text-slate-500";
+  const accentClass =
+    accent === "rose"
+      ? "bg-rose-50 text-[#ff5f67]"
+      : accent === "green"
+        ? "bg-emerald-50 text-emerald-700"
+        : accent === "blue"
+          ? "bg-blue-50 text-blue-700"
+          : "bg-slate-50 text-slate-700";
 
   return (
     <Link
       href={href}
-      className={`block rounded-[28px] p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${styles[tone]}`}
+      className="snap-start rounded-[28px] bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 transition active:scale-[0.98] sm:hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={`text-xs font-black uppercase tracking-[0.2em] ${muted}`}>
-            {title}
+          <p className="text-sm font-black text-slate-500">{label}</p>
+          <p className="mt-3 text-[34px] font-black leading-none tracking-[-0.05em] text-slate-950">
+            {value}
           </p>
-          <p className="mt-4 text-4xl font-black">{value}</p>
         </div>
         <span
-          className={`flex h-10 w-10 items-center justify-center rounded-2xl text-lg ${
-            tone === "dark" ? "bg-white text-slate-950" : "bg-white text-slate-950"
-          }`}
+          className={`flex h-10 w-10 items-center justify-center rounded-2xl text-lg font-black ${accentClass}`}
         >
-          →
+          ›
         </span>
       </div>
-      <p className={`mt-4 text-sm leading-6 ${muted}`}>{body}</p>
-    </Link>
-  );
-}
-
-function MoneyCard({
-  title,
-  amount,
-  helper,
-  href,
-  emphasis,
-}: {
-  title: string;
-  amount: string;
-  helper?: string;
-  href: string;
-  emphasis?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`block rounded-[28px] border p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
-        emphasis
-          ? "border-emerald-100 bg-emerald-50"
-          : "border-slate-100 bg-white"
-      }`}
-    >
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-        {title}
+      <p className="mt-4 text-sm font-semibold leading-6 text-slate-500">
+        {body}
       </p>
-      <p className="mt-4 text-3xl font-black text-slate-950">{amount}</p>
-      {helper ? (
-        <p className="mt-2 text-xs font-semibold text-slate-500">{helper}</p>
+    </Link>
+  );
+}
+
+function RecentOrderCard({
+  item,
+  locale,
+  productUnset,
+  dateLabel,
+}: {
+  item: RecentRequest | RecentJob;
+  locale: "ja" | "en";
+  productUnset: string;
+  dateLabel: string;
+}) {
+  return (
+    <Link
+      href={getOrderHref(item)}
+      className="block rounded-[24px] bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-base font-black tracking-[-0.03em] text-slate-950">
+            {item.product_name || productUnset}
+          </p>
+          <p className="mt-1 text-xs font-bold text-slate-400">
+            {dateLabel}:{" "}
+            {formatDate(
+              "updated_at" in item ? item.updated_at || item.created_at : item.created_at,
+              locale
+            )}
+          </p>
+        </div>
+
+        <span className="shrink-0 rounded-full bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
+          {getSimpleStatus(item.status, locale)}
+        </span>
+      </div>
+
+      {"delivered_post_url" in item && item.delivered_post_url ? (
+        <p className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
+          {locale === "ja" ? "納品済み" : "Delivered"}
+        </p>
       ) : null}
-    </Link>
-  );
-}
-
-function ActionRow({
-  href,
-  icon,
-  title,
-  body,
-}: {
-  href: string;
-  icon: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
-    >
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-black text-slate-950">
-          {title}
-        </span>
-        <span className="mt-1 block text-xs leading-5 text-slate-500">
-          {body}
-        </span>
-      </span>
-      <span className="text-slate-300">›</span>
-    </Link>
-  );
-}
-
-function WorkflowBadge({
-  status,
-  locale,
-}: {
-  status: string | null;
-  locale: "ja" | "en";
-}) {
-  const meta = getWorkflowBadgeMeta(status, locale);
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${meta.className}`}
-    >
-      {meta.label}
-    </span>
-  );
-}
-
-function RecentRequestCard({
-  item,
-  copy,
-  locale,
-}: {
-  item: RecentRequest;
-  copy: {
-    productUnset: string;
-    createdAt: string;
-    orderLabel: string;
-    legacyRequestLabel: string;
-  };
-  locale: "ja" | "en";
-}) {
-  const href =
-    item.kind === "order"
-      ? `/creator/orders/${item.id}`
-      : `/creator/requests/${item.id}`;
-
-  return (
-    <Link
-      href={href}
-      className="block rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-950">
-            {item.product_name || copy.productUnset}
-          </p>
-          <p className="mt-1 text-xs font-semibold text-slate-400">
-            {item.kind === "order" ? copy.orderLabel : copy.legacyRequestLabel}
-            {" · "}
-            {copy.createdAt}: {formatDate(item.created_at, locale)}
-          </p>
-        </div>
-
-        <WorkflowBadge status={item.status} locale={locale} />
-      </div>
-    </Link>
-  );
-}
-
-function RecentJobCard({
-  item,
-  copy,
-  locale,
-}: {
-  item: RecentJob;
-  copy: {
-    productUnset: string;
-    updatedAt: string;
-    deliveredUrl: string;
-    orderLabel: string;
-    legacyRequestLabel: string;
-  };
-  locale: "ja" | "en";
-}) {
-  const href =
-    item.kind === "order"
-      ? `/creator/orders/${item.id}`
-      : `/creator/requests/${item.id}`;
-
-  return (
-    <Link
-      href={href}
-      className="block rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-950">
-            {item.product_name || copy.productUnset}
-          </p>
-          <p className="mt-1 text-xs font-semibold text-slate-400">
-            {item.kind === "order" ? copy.orderLabel : copy.legacyRequestLabel}
-            {" · "}
-            {copy.updatedAt}: {formatDate(item.updated_at || item.created_at, locale)}
-          </p>
-          {item.delivered_post_url ? (
-            <p className="mt-2 text-xs font-bold text-purple-600">
-              {copy.deliveredUrl}
-            </p>
-          ) : null}
-        </div>
-
-        <WorkflowBadge status={item.status} locale={locale} />
-      </div>
     </Link>
   );
 }
@@ -523,128 +326,116 @@ export default function CreatorDashboardPage() {
     () =>
       safeLocale === "ja"
         ? {
-            loading: "読み込み中...",
-            defaultDisplayName: "creator",
-            genericErrorTitle: "エラーが発生しました",
-            creatorOnlyTitle: "クリエイター専用ページです",
+            defaultDisplayName: "インフルエンサー",
+            loadingError: "ホームの読み込み中にエラーが発生しました。",
+            loadError: "ホーム情報の取得に失敗しました。",
+            requestLoadError: "注文データの取得に失敗しました。",
+            genericErrorTitle: "読み込みに失敗しました",
+            creatorOnlyTitle: "インフルエンサー専用ページです",
             creatorOnlyBody:
-              "このページはクリエイターアカウントのみ利用できます。",
-            loadError: "ダッシュボード情報の取得に失敗しました。",
-            requestLoadError: "案件データの取得に失敗しました。",
-            loadingError: "ダッシュボードの読み込み中にエラーが発生しました。",
-            welcome: "おかえりなさい",
-            todayTask: "今日やること",
-            pendingBody: "新しく届いた注文・依頼を確認します。",
-            activeBody: "進行中の案件を確認します。",
-            deliveredBody: "納品済み・完了待ちを確認します。",
-            profileCompleted: "プロフィール完了",
-            profileIncomplete: "プロフィール未完了",
-            connectCompleted: "報酬受け取り設定済み",
-            suspended: "停止中",
+              "このページはインフルエンサーアカウントのみ利用できます。",
+
+            greeting: "こんにちは",
+            heroTitle: "今日の状況を確認しましょう",
+            heroBody:
+              "新しい注文、進行中のToDo、報酬の状況をここで確認できます。",
+            viewOrders: "注文を見る",
+
             suspendedTitle: "現在このアカウントは制限中です",
             suspendedBody:
               "アカウント状態の確認が必要です。一部機能をご利用いただけません。",
-            reviewPendingTitle: "審査結果待ちです",
+            reviewPendingTitle: "審査中です",
             reviewPendingBody:
-              "現在、クリエイターアカウントの審査中です。承認後に依頼受領や進行機能が安定して利用できます。",
-            profilePromptTitle: "プロフィール情報を確認してください",
+              "承認後に注文受付や進行機能を利用できます。",
+            profilePromptTitle: "プロフィールを整えてください",
             profilePromptBody:
-              "企業から見られる登録内容や依頼導線を整えるために、プロフィール情報を確認してください。",
-            goToProfile: "プロフィールを確認する",
-            notSet: "未設定",
-            earnings: "報酬",
-            expectedPayout: "受取予定",
-            transferred: "送金済み",
-            pendingPayout: "未送金",
-            payoutHelper: "報酬と振込履歴を確認",
-            quickTitle: "マイページ",
-            quickPayoutsTitle: "報酬・振込",
-            quickPayoutsBody: "受取予定額、送金済み、Stripe状態を確認",
-            quickProfileTitle: "プロフィール",
-            quickProfileBody: "写真、SNS、カテゴリ、自己紹介を更新",
-            quickMenusTitle: "メニュー管理",
-            quickMenusBody: "公開中メニューの確認・追加・編集",
-            quickAnalyticsTitle: "SNS分析",
-            quickAnalyticsBody: "フォロワー数や投稿結果は今後表示予定",
-            countPending: "承認待ち",
-            countAccepted: "進行中",
-            countDelivered: "納品済み",
-            countCompleted: "完了",
-            countMenus: "公開メニュー",
-            recentPendingTitle: "最近の承認待ち",
-            recentJobsTitle: "最近の案件",
-            viewAll: "すべて見る",
-            noPending: "承認待ちの注文・依頼はありません。",
-            noJobs: "進行中の案件はありません。",
-            productUnset: "商品名未設定",
-            createdAt: "作成日",
-            updatedAt: "更新日",
-            deliveredUrl: "納品URLあり",
-            responsePrefix: "対応",
+              "写真・SNS・メニューを整えると、企業が注文しやすくなります。",
+            goToProfile: "プロフィールを編集する",
+
             orderLabel: "注文",
-            legacyRequestLabel: "旧依頼",
+            orderBody: "新しく届いた注文を確認",
+            todoLabel: "ToDo",
+            todoBody: "承認済みで対応が必要な案件",
+            deliveredLabel: "確認待ち",
+            deliveredBody: "納品後の確認が必要な案件",
+            payoutLabel: "報酬",
+            payoutBody: "受取予定額と送金状況",
+
+            payoutExpected: "受取予定",
+            payoutPending: "未送金",
+            payoutTransferred: "送金済み",
+
+            recentTitle: "最近の動き",
+            recentOrders: "新しい注文",
+            recentTodo: "進行中",
+            viewAll: "すべて見る",
+            noOrders: "新しい注文はありません。",
+            noTodo: "対応中の案件はありません。",
+            productUnset: "商品名未設定",
+            createdAt: "作成",
+            updatedAt: "更新",
+
+            menuTitle: "プロフィールとメニュー",
+            menuBody:
+              "企業に表示されるプロフィールやメニュー価格を編集できます。",
+            editProfile: "プロフィール編集",
+            editMenus: "メニュー編集",
           }
         : {
-            loading: "Loading...",
-            defaultDisplayName: "creator",
-            genericErrorTitle: "Something went wrong",
-            creatorOnlyTitle: "Creator access only",
+            defaultDisplayName: "Influencer",
+            loadingError: "An error occurred while loading home.",
+            loadError: "Failed to load home information.",
+            requestLoadError: "Failed to load order data.",
+            genericErrorTitle: "Failed to load",
+            creatorOnlyTitle: "Influencer access only",
             creatorOnlyBody:
-              "This page is available only for creator accounts.",
-            loadError: "Failed to load dashboard information.",
-            requestLoadError: "Failed to load request data.",
-            loadingError: "An error occurred while loading the dashboard.",
-            welcome: "Welcome back",
-            todayTask: "Today",
-            pendingBody: "Review new incoming orders and requests.",
-            activeBody: "Check jobs currently in progress.",
-            deliveredBody: "Review delivered jobs waiting for completion.",
-            profileCompleted: "Profile Complete",
-            profileIncomplete: "Profile Incomplete",
-            connectCompleted: "Payout setup complete",
-            suspended: "Suspended",
+              "This page is available only for influencer accounts.",
+
+            greeting: "Hi",
+            heroTitle: "Check today's activity",
+            heroBody:
+              "Review new orders, active to-dos, and payout status here.",
+            viewOrders: "View orders",
+
             suspendedTitle: "This account is currently restricted",
             suspendedBody:
               "Your account status requires review. Some features are temporarily unavailable.",
-            reviewPendingTitle: "Your review is still in progress",
+            reviewPendingTitle: "Your review is in progress",
             reviewPendingBody:
-              "Your creator account is currently under review. Request handling and workflow features will be fully available after approval.",
-            profilePromptTitle: "Please review your profile information",
+              "Order handling becomes available after approval.",
+            profilePromptTitle: "Complete your profile",
             profilePromptBody:
-              "Make sure your registration details and public profile information are ready for brands to view.",
-            goToProfile: "Review profile",
-            notSet: "Not set",
-            earnings: "Earnings",
-            expectedPayout: "Expected",
-            transferred: "Transferred",
-            pendingPayout: "Pending",
-            payoutHelper: "Check payout history",
-            quickTitle: "My Page",
-            quickPayoutsTitle: "Payouts",
-            quickPayoutsBody: "Check payout estimates, transfers, and Stripe status.",
-            quickProfileTitle: "Profile",
-            quickProfileBody: "Update photos, social accounts, category, and bio.",
-            quickMenusTitle: "Menus",
-            quickMenusBody: "Check active menus, create new ones, and edit.",
-            quickAnalyticsTitle: "SNS Analytics",
-            quickAnalyticsBody: "Follower and post performance data will appear later.",
-            countPending: "Pending",
-            countAccepted: "Active",
-            countDelivered: "Delivered",
-            countCompleted: "Completed",
-            countMenus: "Active Menus",
-            recentPendingTitle: "Recent Pending",
-            recentJobsTitle: "Recent Jobs",
-            viewAll: "View All",
-            noPending: "There are no pending orders or requests.",
-            noJobs: "There are no active jobs.",
+              "Add photos, social accounts, and menus so brands can order easily.",
+            goToProfile: "Edit profile",
+
+            orderLabel: "Orders",
+            orderBody: "Review new incoming orders",
+            todoLabel: "ToDo",
+            todoBody: "Accepted jobs waiting for action",
+            deliveredLabel: "Review",
+            deliveredBody: "Delivered jobs awaiting confirmation",
+            payoutLabel: "Payouts",
+            payoutBody: "Expected payout and transfer status",
+
+            payoutExpected: "Expected",
+            payoutPending: "Pending",
+            payoutTransferred: "Transferred",
+
+            recentTitle: "Recent activity",
+            recentOrders: "New orders",
+            recentTodo: "In progress",
+            viewAll: "View all",
+            noOrders: "No new orders.",
+            noTodo: "No active jobs.",
             productUnset: "No product name",
             createdAt: "Created",
             updatedAt: "Updated",
-            deliveredUrl: "Delivered URL Submitted",
-            responsePrefix: "Response",
-            orderLabel: "Order",
-            legacyRequestLabel: "Legacy Request",
+
+            menuTitle: "Profile and menus",
+            menuBody:
+              "Edit the profile and menu prices shown to brands.",
+            editProfile: "Edit profile",
+            editMenus: "Edit menus",
           },
     [safeLocale]
   );
@@ -652,13 +443,11 @@ export default function CreatorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [gate, setGate] = useState<CreatorState>({
     isCreator: false,
     isSuspended: false,
     creatorProfileCompleted: false,
     creatorApprovalStatus: null,
-    canUsePlatform: false,
   });
   const [counts, setCounts] = useState<DashboardCounts>({
     pendingRequests: 0,
@@ -690,12 +479,6 @@ export default function CreatorDashboardPage() {
           return;
         }
 
-        const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-        const metadataCover =
-          typeof metadata.creator_cover_image_url === "string"
-            ? metadata.creator_cover_image_url
-            : null;
-
         const [
           { data: roles, error: rolesError },
           { data: userState, error: stateError },
@@ -716,7 +499,7 @@ export default function CreatorDashboardPage() {
           supabase
             .from("creators")
             .select(
-              "id, user_id, display_name, full_name, avatar_url, cover_image_url, category, bio, country, prefecture, city, content_language, response_language, sub_categories, approval_status, stripe_onboarding_completed"
+              "id, user_id, display_name, full_name, avatar_url, category, approval_status, stripe_onboarding_completed"
             )
             .eq("user_id", user.id)
             .maybeSingle(),
@@ -739,23 +522,15 @@ export default function CreatorDashboardPage() {
         const creatorProfileCompleted = !!userState?.creator_profile_completed;
         const creatorApprovalStatus = creatorRow?.approval_status ?? null;
 
-        const canUsePlatform =
-          isCreator &&
-          !isSuspended &&
-          creatorProfileCompleted &&
-          creatorApprovalStatus === "approved";
-
         setGate({
           isCreator,
           isSuspended,
           creatorProfileCompleted,
           creatorApprovalStatus,
-          canUsePlatform,
         });
 
         if (!creatorRow) {
           setCreator(null);
-          setCoverImageUrl(metadataCover);
           setLoading(false);
           return;
         }
@@ -767,7 +542,6 @@ export default function CreatorDashboardPage() {
 
         const typedCreator = creatorRow as CreatorProfile;
         setCreator(typedCreator);
-        setCoverImageUrl(typedCreator.cover_image_url || metadataCover);
 
         const legacyCreatorKeys = uniqueStrings([typedCreator.id, user.id]);
         const menuCreatorKeys = uniqueStrings([typedCreator.id, user.id]);
@@ -967,16 +741,15 @@ export default function CreatorDashboardPage() {
           created_at: row.created_at,
         }));
 
-        const nextRecentRequests = [
-          ...orderPendingItems,
-          ...legacyPendingItems,
-        ]
-          .sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          )
-          .slice(0, 3);
+        setRecentRequests(
+          [...orderPendingItems, ...legacyPendingItems]
+            .sort(
+              (a, b) =>
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime()
+            )
+            .slice(0, 3)
+        );
 
         const legacyJobItems: RecentJob[] = (recentLegacyJobRows ?? []).map(
           (row: any) => ({
@@ -1002,16 +775,16 @@ export default function CreatorDashboardPage() {
           })
         );
 
-        const nextRecentJobs = [...orderJobItems, ...legacyJobItems]
-          .sort((a, b) => {
-            const aTime = new Date(a.updated_at || a.created_at).getTime();
-            const bTime = new Date(b.updated_at || b.created_at).getTime();
-            return bTime - aTime;
-          })
-          .slice(0, 3);
+        setRecentJobs(
+          [...orderJobItems, ...legacyJobItems]
+            .sort((a, b) => {
+              const aTime = new Date(a.updated_at || a.created_at).getTime();
+              const bTime = new Date(b.updated_at || b.created_at).getTime();
+              return bTime - aTime;
+            })
+            .slice(0, 3)
+        );
 
-        setRecentRequests(nextRecentRequests);
-        setRecentJobs(nextRecentJobs);
         setLoading(false);
       } catch (e) {
         console.error(e);
@@ -1023,313 +796,274 @@ export default function CreatorDashboardPage() {
     void load();
   }, [copy.loadError, copy.loadingError, copy.requestLoadError, supabase]);
 
-  const approvalMeta = getApprovalBadgeMeta(
-    gate.creatorApprovalStatus,
-    safeLocale
-  );
-
   if (loading) {
-    return (
-      <div className="space-y-5">
-        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
-        <div className="grid gap-4 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-32 animate-pulse rounded-[28px] bg-slate-100"
-            />
-          ))}
-        </div>
-      </div>
-    );
+    return <LoadingView />;
   }
 
   if (errorMsg) {
     return (
-      <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-6">
-        <h1 className="text-xl font-black text-rose-800">
-          {copy.genericErrorTitle}
-        </h1>
-        <p className="mt-3 text-sm leading-7 text-rose-700">{errorMsg}</p>
-      </div>
+      <NoticeCard
+        tone="danger"
+        title={copy.genericErrorTitle}
+        body={errorMsg}
+      />
     );
   }
 
   if (!gate.isCreator) {
     return (
-      <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-black text-slate-950">
-          {copy.creatorOnlyTitle}
-        </h1>
-        <p className="mt-3 text-sm leading-7 text-slate-500">
-          {copy.creatorOnlyBody}
-        </p>
-      </div>
+      <NoticeCard
+        title={copy.creatorOnlyTitle}
+        body={copy.creatorOnlyBody}
+      />
     );
   }
 
   const displayName =
     creator?.display_name || creator?.full_name || copy.defaultDisplayName;
 
-  const heroStyle = coverImageUrl
-    ? {
-        backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.78), rgba(15,23,42,0.36)), url(${coverImageUrl})`,
-      }
-    : undefined;
+  const primaryHref =
+    counts.pendingRequests > 0
+      ? "/creator/requests"
+      : counts.acceptedJobs + counts.deliveredJobs > 0
+        ? "/creator/jobs"
+        : "/creator/payouts";
+
+  const primaryLabel =
+    counts.pendingRequests > 0
+      ? copy.orderLabel
+      : counts.acceptedJobs + counts.deliveredJobs > 0
+        ? copy.todoLabel
+        : copy.payoutLabel;
 
   return (
-    <div className="space-y-7 pb-4">
-      <section
-        className={`overflow-hidden rounded-[32px] p-6 text-white shadow-sm ${
-          coverImageUrl
-            ? "bg-cover bg-center"
-            : "bg-gradient-to-br from-slate-950 via-slate-800 to-slate-600"
-        }`}
-        style={heroStyle}
-      >
-        <div className="flex items-end gap-4">
-          <Avatar name={displayName} src={creator?.avatar_url} />
+    <div className="space-y-5 pb-4">
+      <section className="relative overflow-hidden rounded-[32px] bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-rose-100/50 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-20 h-56 w-56 rounded-full bg-emerald-100/35 blur-3xl" />
+
+        <div className="relative flex items-start gap-4">
+          <CreatorAvatar name={displayName} src={creator?.avatar_url} />
 
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-white/60">
-              Creator Home
+            <p className="text-sm font-black text-slate-500">
+              {copy.greeting}
             </p>
-            <h1 className="mt-2 truncate text-3xl font-black tracking-tight">
-              {copy.welcome}, {displayName}
+            <h1 className="mt-1 truncate text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950">
+              {displayName}
             </h1>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <StatusBadge label={approvalMeta.label} tone={approvalMeta.tone} />
-              <StatusBadge
-                label={
-                  gate.creatorProfileCompleted
-                    ? copy.profileCompleted
-                    : copy.profileIncomplete
-                }
-                tone={gate.creatorProfileCompleted ? "green" : "yellow"}
-              />
-              {creator?.stripe_onboarding_completed ? (
-                <StatusBadge label={copy.connectCompleted} tone="black" />
-              ) : null}
-            </div>
+            <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+              {copy.heroBody}
+            </p>
           </div>
         </div>
+
+        <Link
+          href={primaryHref}
+          className="relative mt-5 flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.22)] transition active:scale-[0.98]"
+        >
+          {primaryLabel}
+        </Link>
       </section>
 
       {gate.isSuspended ? (
-        <section className="rounded-[28px] border border-rose-200 bg-rose-50 p-5">
-          <h2 className="text-lg font-black text-rose-800">
-            {copy.suspendedTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-7 text-rose-700">
-            {copy.suspendedBody}
-          </p>
-        </section>
+        <NoticeCard
+          tone="danger"
+          title={copy.suspendedTitle}
+          body={copy.suspendedBody}
+        />
       ) : null}
 
       {gate.creatorApprovalStatus === "pending" ? (
-        <section className="rounded-[28px] border border-amber-200 bg-amber-50 p-5">
-          <h2 className="text-lg font-black text-amber-900">
-            {copy.reviewPendingTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-7 text-amber-800">
-            {copy.reviewPendingBody}
-          </p>
-        </section>
+        <NoticeCard
+          tone="warning"
+          title={copy.reviewPendingTitle}
+          body={copy.reviewPendingBody}
+        />
       ) : null}
 
       {!gate.creatorProfileCompleted ? (
-        <section className="rounded-[28px] border border-blue-200 bg-blue-50 p-5">
-          <h2 className="text-lg font-black text-blue-900">
-            {copy.profilePromptTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-7 text-blue-800">
-            {copy.profilePromptBody}
-          </p>
-          <Link
-            href="/creator/profile"
-            className="mt-4 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white active:scale-[0.98]"
-          >
-            {copy.goToProfile}
-          </Link>
-        </section>
+        <NoticeCard
+          title={copy.profilePromptTitle}
+          body={copy.profilePromptBody}
+          href="/creator/profile"
+          cta={copy.goToProfile}
+        />
       ) : null}
 
       <section>
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-              {copy.todayTask}
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-slate-950">
-              {copy.todayTask}
-            </h2>
-          </div>
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+            {copy.heroTitle}
+          </h2>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <TaskCard
-            href="/creator/requests"
-            title={copy.countPending}
-            value={counts.pendingRequests}
-            body={copy.pendingBody}
-            tone={counts.pendingRequests > 0 ? "dark" : "amber"}
-          />
-          <TaskCard
-            href="/creator/jobs"
-            title={copy.countAccepted}
-            value={counts.acceptedJobs}
-            body={copy.activeBody}
-            tone="blue"
-          />
-          <TaskCard
-            href="/creator/jobs"
-            title={copy.countDelivered}
-            value={counts.deliveredJobs}
-            body={copy.deliveredBody}
-            tone="purple"
-          />
+        <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+          <div className="min-w-[76%] sm:min-w-0">
+            <SummaryCard
+              href="/creator/requests"
+              label={copy.orderLabel}
+              value={counts.pendingRequests}
+              body={copy.orderBody}
+              accent={counts.pendingRequests > 0 ? "rose" : "slate"}
+            />
+          </div>
+
+          <div className="min-w-[76%] sm:min-w-0">
+            <SummaryCard
+              href="/creator/jobs"
+              label={copy.todoLabel}
+              value={counts.acceptedJobs + counts.deliveredJobs}
+              body={copy.todoBody}
+              accent={
+                counts.acceptedJobs + counts.deliveredJobs > 0
+                  ? "blue"
+                  : "slate"
+              }
+            />
+          </div>
+
+          <div className="min-w-[76%] sm:min-w-0">
+            <SummaryCard
+              href="/creator/payouts"
+              label={copy.payoutLabel}
+              value={formatMoney(payoutSummary.pendingAmount, safeLocale)}
+              body={copy.payoutBody}
+              accent={payoutSummary.pendingAmount > 0 ? "green" : "slate"}
+            />
+          </div>
         </div>
       </section>
 
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-black text-slate-950">
-            {copy.earnings}
-          </h2>
+      <section className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+              {copy.payoutLabel}
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-400">
+              {copy.payoutExpected}:{" "}
+              {formatMoney(payoutSummary.completedPayoutAmount, safeLocale)}
+            </p>
+          </div>
+
           <Link
             href="/creator/payouts"
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 active:scale-[0.98]"
+            className="rounded-full bg-slate-50 px-4 py-2 text-sm font-black text-slate-700 active:scale-[0.98]"
           >
             {copy.viewAll}
           </Link>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <MoneyCard
-            title={copy.expectedPayout}
-            amount={formatMoney(payoutSummary.completedPayoutAmount, safeLocale)}
-            helper={copy.payoutHelper}
-            href="/creator/payouts"
-          />
-          <MoneyCard
-            title={copy.transferred}
-            amount={formatMoney(payoutSummary.transferredAmount, safeLocale)}
-            href="/creator/payouts"
-            emphasis
-          />
-          <MoneyCard
-            title={copy.pendingPayout}
-            amount={formatMoney(payoutSummary.pendingAmount, safeLocale)}
-            href="/creator/payouts"
-          />
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-[22px] bg-slate-50 p-4">
+            <p className="text-xs font-black text-slate-400">
+              {copy.payoutPending}
+            </p>
+            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-slate-950">
+              {formatMoney(payoutSummary.pendingAmount, safeLocale)}
+            </p>
+          </div>
+
+          <div className="rounded-[22px] bg-emerald-50 p-4">
+            <p className="text-xs font-black text-emerald-600">
+              {copy.payoutTransferred}
+            </p>
+            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-slate-950">
+              {formatMoney(payoutSummary.transferredAmount, safeLocale)}
+            </p>
+          </div>
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-4 text-2xl font-black text-slate-950">
-          {copy.quickTitle}
-        </h2>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <ActionRow
-            href="/creator/payouts"
-            icon="¥"
-            title={copy.quickPayoutsTitle}
-            body={copy.quickPayoutsBody}
-          />
-          <ActionRow
-            href="/creator/profile"
-            icon="◯"
-            title={copy.quickProfileTitle}
-            body={copy.quickProfileBody}
-          />
-          <ActionRow
-            href="/creator/menus"
-            icon="+"
-            title={copy.quickMenusTitle}
-            body={copy.quickMenusBody}
-          />
-          <ActionRow
-            href="/creator/profile"
-            icon="▥"
-            title={copy.quickAnalyticsTitle}
-            body={copy.quickAnalyticsBody}
-          />
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
           <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-xl font-black text-slate-950">
-              {copy.recentPendingTitle}
+            <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+              {copy.recentOrders}
             </h2>
             <Link
               href="/creator/requests"
-              className="text-sm font-bold text-slate-500 hover:text-slate-950"
+              className="text-sm font-black text-slate-400"
             >
               {copy.viewAll}
             </Link>
           </div>
 
           {recentRequests.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
-              {copy.noPending}
+            <p className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500">
+              {copy.noOrders}
             </p>
           ) : (
             <div className="space-y-3">
               {recentRequests.map((item) => (
-                <RecentRequestCard
+                <RecentOrderCard
                   key={`${item.kind}-${item.id}`}
                   item={item}
-                  copy={{
-                    productUnset: copy.productUnset,
-                    createdAt: copy.createdAt,
-                    orderLabel: copy.orderLabel,
-                    legacyRequestLabel: copy.legacyRequestLabel,
-                  }}
                   locale={safeLocale}
+                  productUnset={copy.productUnset}
+                  dateLabel={copy.createdAt}
                 />
               ))}
             </div>
           )}
         </div>
 
-        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
           <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-xl font-black text-slate-950">
-              {copy.recentJobsTitle}
+            <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+              {copy.recentTodo}
             </h2>
             <Link
               href="/creator/jobs"
-              className="text-sm font-bold text-slate-500 hover:text-slate-950"
+              className="text-sm font-black text-slate-400"
             >
               {copy.viewAll}
             </Link>
           </div>
 
           {recentJobs.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
-              {copy.noJobs}
+            <p className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500">
+              {copy.noTodo}
             </p>
           ) : (
             <div className="space-y-3">
               {recentJobs.map((item) => (
-                <RecentJobCard
+                <RecentOrderCard
                   key={`${item.kind}-${item.id}`}
                   item={item}
-                  copy={{
-                    productUnset: copy.productUnset,
-                    updatedAt: copy.updatedAt,
-                    deliveredUrl: copy.deliveredUrl,
-                    orderLabel: copy.orderLabel,
-                    legacyRequestLabel: copy.legacyRequestLabel,
-                  }}
                   locale={safeLocale}
+                  productUnset={copy.productUnset}
+                  dateLabel={copy.updatedAt}
                 />
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
+          {copy.menuTitle}
+        </h2>
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+          {copy.menuBody}
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Link
+            href="/creator/profile"
+            className="flex items-center justify-center rounded-full bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 active:scale-[0.98]"
+          >
+            {copy.editProfile}
+          </Link>
+
+          <Link
+            href="/creator/menus"
+            className="flex items-center justify-center rounded-full bg-slate-950 px-4 py-3 text-sm font-black text-white active:scale-[0.98]"
+          >
+            {copy.editMenus}
+          </Link>
         </div>
       </section>
     </div>
