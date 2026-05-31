@@ -1,15 +1,10 @@
 // File: app/creator/requests/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import {
-  getRequestStatusBadgeClass,
-  getRequestStatusMeta,
-} from "@/lib/i18n/requestStatus";
 import { useAppLocale } from "@/lib/i18n/locale";
-import DeadlineBadge from "@/app/components/DeadlineBadge";
 
 type ChatReadRow = {
   user_id: string;
@@ -111,7 +106,10 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
     return value;
   }
 
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+  });
 }
 
 function formatPrice(
@@ -132,58 +130,8 @@ function formatPrice(
       maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
     }).format(value);
   } catch {
-    if (safeCurrency === "USD") {
-      return `$${value.toLocaleString()}`;
-    }
-
     return `¥${value.toLocaleString()}`;
   }
-}
-
-function formatRateBps(value: number | null | undefined) {
-  if (value == null) return "-";
-  return `${value / 100}%`;
-}
-
-function formatNegativePrice(
-  value: number | null | undefined,
-  currency: string | null | undefined,
-  locale: "ja" | "en"
-) {
-  if (value == null) return locale === "ja" ? "未設定" : "Not set";
-  return `-${formatPrice(value, currency, locale)}`;
-}
-
-function getOrderStatusLabel(
-  status: string,
-  paymentStatus: string,
-  locale: "ja" | "en"
-) {
-  if (status === "authorized_pending_creator") {
-    return locale === "ja" ? "承認待ち注文" : "Pending order approval";
-  }
-
-  if (status === "checkout_pending") {
-    return locale === "ja" ? "Checkout未完了" : "Checkout pending";
-  }
-
-  if (paymentStatus === "authorized") {
-    return locale === "ja" ? "支払い方法確認済み" : "Payment authorized";
-  }
-
-  return status;
-}
-
-function getOrderBadgeClass(status: string) {
-  if (status === "authorized_pending_creator") {
-    return "bg-slate-950 text-white ring-slate-950";
-  }
-
-  if (status === "checkout_pending") {
-    return "bg-amber-50 text-amber-700 ring-amber-200";
-  }
-
-  return "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
 function getDeadlineTime(value: string | null | undefined) {
@@ -208,87 +156,211 @@ function getUrgencyScore(item: PendingItem) {
 
 function isWithinHours(value: string | null | undefined, hours: number) {
   const time = getDeadlineTime(value);
+
   if (!time) return false;
 
   const diff = time - Date.now();
+
   return diff > 0 && diff <= hours * 60 * 60 * 1000;
 }
 
-function HeaderStat({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "urgent" | "dark";
-}) {
-  const styles = {
-    default: "bg-white text-slate-950",
-    urgent: "bg-amber-50 text-slate-950",
-    dark: "bg-slate-950 text-white",
-  };
+function isExpired(value: string | null | undefined) {
+  const time = getDeadlineTime(value);
+
+  if (!time) return false;
+
+  return time <= Date.now();
+}
+
+function isUnreadForUser(chat: ChatRow | null, userId: string | null) {
+  if (!userId) return false;
+  if (!chat?.last_message_at) return false;
+
+  const readRow =
+    chat.chat_reads?.find((row) => row.user_id === userId) ?? null;
+
+  if (!readRow?.last_read_at) return true;
 
   return (
-    <div
-      className={`rounded-[24px] border border-slate-100 p-4 shadow-sm ${styles[tone]}`}
-    >
-      <p
-        className={`text-xs font-black uppercase tracking-[0.18em] ${
-          tone === "dark" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black">{value}</p>
+    new Date(chat.last_message_at).getTime() >
+    new Date(readRow.last_read_at).getTime()
+  );
+}
+
+function getAcceptDeadlineLabel(
+  value: string | null | undefined,
+  locale: "ja" | "en"
+) {
+  if (!value) return null;
+
+  if (isExpired(value)) {
+    return locale === "ja" ? "返答期限切れ" : "Expired";
+  }
+
+  if (isWithinHours(value, 12)) {
+    return locale === "ja"
+      ? `まもなく期限 ${formatDateTime(value, locale)}`
+      : `Due soon ${formatDateTime(value, locale)}`;
+  }
+
+  return locale === "ja"
+    ? `返答期限 ${formatDateTime(value, locale)}`
+    : `Reply by ${formatDateTime(value, locale)}`;
+}
+
+function getItemHref(item: PendingItem) {
+  return item.kind === "order"
+    ? `/creator/orders/${item.id}`
+    : `/creator/requests/${item.id}`;
+}
+
+function LoadingView() {
+  return (
+    <div className="space-y-4">
+      <div className="h-28 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="h-40 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100"
+        />
+      ))}
     </div>
   );
 }
 
-function Pill({
+function SoftPill({
   children,
-  className,
+  tone = "slate",
 }: {
   children: React.ReactNode;
-  className: string;
+  tone?: "slate" | "rose" | "blue" | "amber" | "green";
 }) {
+  const className =
+    tone === "rose"
+      ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
+      : tone === "blue"
+      ? "bg-blue-50 text-blue-700 ring-blue-100"
+      : tone === "amber"
+      ? "bg-amber-50 text-amber-800 ring-amber-100"
+      : tone === "green"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+      : "bg-slate-50 text-slate-500 ring-slate-100";
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ring-1 ${className}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
     >
       {children}
     </span>
   );
 }
 
-function MoneyRow({
-  label,
-  value,
-  strong,
-  danger,
+function OrderCard({
+  item,
+  locale,
+  copy,
+  unread,
+  urgent,
 }: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  danger?: boolean;
+  item: PendingItem;
+  locale: "ja" | "en";
+  copy: {
+    unnamedProduct: string;
+    received: string;
+    menu: string;
+    payout: string;
+    deadline: string;
+    detail: string;
+    newMessage: string;
+    paymentReady: string;
+    oldRequest: string;
+  };
+  unread: boolean;
+  urgent: boolean;
 }) {
+  const href = getItemHref(item);
+  const acceptDeadline =
+    item.kind === "order"
+      ? getAcceptDeadlineLabel(item.creator_accept_deadline, locale)
+      : null;
+
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
-      <span
-        className={`text-right ${
-          strong
-            ? "text-lg font-black text-emerald-700"
-            : danger
-            ? "text-sm font-black text-rose-600"
-            : "text-sm font-bold text-slate-800"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
+    <Link
+      href={href}
+      className="block rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 transition active:scale-[0.98]"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
+        {urgent ? <SoftPill tone="amber">{acceptDeadline}</SoftPill> : null}
+        {!urgent && acceptDeadline ? (
+          <SoftPill tone="slate">{acceptDeadline}</SoftPill>
+        ) : null}
+        {item.kind === "order" ? (
+          <SoftPill tone="green">{copy.paymentReady}</SoftPill>
+        ) : (
+          <SoftPill tone="slate">{copy.oldRequest}</SoftPill>
+        )}
+      </div>
+
+      <div className="mt-4 flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">
+            {item.product_name || copy.unnamedProduct}
+          </h2>
+
+          <p className="mt-2 text-xs font-bold text-slate-400">
+            {copy.received}: {formatDateTime(item.created_at, locale)}
+          </p>
+        </div>
+
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-lg font-black text-slate-400">
+          ›
+        </span>
+      </div>
+
+      {item.kind === "order" ? (
+        <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-xs font-black text-slate-400">
+                {copy.menu}
+              </span>
+              <span className="max-w-[62%] truncate text-right text-sm font-black text-slate-900">
+                {item.menu_title || "-"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-xs font-black text-slate-400">
+                {copy.payout}
+              </span>
+              <span className="text-right text-lg font-black tracking-[-0.03em] text-slate-950">
+                {formatPrice(
+                  item.creator_payout_amount,
+                  item.currency,
+                  locale
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : item.deadline ? (
+        <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-xs font-black text-slate-400">
+              {copy.deadline}
+            </span>
+            <span className="text-right text-sm font-black text-slate-900">
+              {formatDate(item.deadline, locale)}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-5 flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white">
+        {copy.detail}
+      </div>
+    </Link>
   );
 }
 
@@ -301,76 +373,42 @@ export default function CreatorRequestsPage() {
     () =>
       safeLocale === "ja"
         ? {
-            loading: "読み込み中...",
-            title: "承認待ち",
-            subtitle:
-              "新しく届いた注文・依頼を確認し、期限内に承認または辞退します。",
-            fetchError: "取得に失敗しました",
-            unnamedProduct: "商品名未入力",
-            deadline: "希望納期",
-            detail: "内容を確認する",
-            empty: "承認待ちの注文・依頼はありません。",
-            emptyBody:
-              "新しい注文が届くとここに表示されます。通知や未読メッセージもこの画面で確認できます。",
-            viewActiveJobs: "進行中案件を見る",
-            editProfile: "プロフィール編集",
-            order: "注文",
-            legacyRequest: "旧依頼",
-            paymentAuthorized: "支払い方法確認済み",
-            menu: "メニュー",
-            price: "価格",
-            creatorFeeRate: "C側手数料率",
-            transactionFee: "Trendre手数料",
-            creatorPayout: "受取予定額",
-            creatorDeadline: "承認期限",
-            creatorDeadlineExpired: "承認期限切れ",
-            notSet: "未設定",
-            newMessage: "新着メッセージ",
-            lastMessage: "最終メッセージ",
-            urgentNotice:
-              "期限が近い注文と新着メッセージがある注文を優先表示しています。",
-            total: "すべて",
-            urgent: "期限間近",
-            unread: "未読",
+            title: "注文",
+            subtitle: "届いた注文を確認して、受けるか辞退できます。",
+            fetchError: "注文の取得に失敗しました。",
+            unnamedProduct: "商品名未設定",
             received: "受信",
-            check: "確認",
-            close: "閉じる",
+            menu: "メニュー",
+            payout: "受取予定",
+            deadline: "希望日",
+            detail: "内容を確認する",
+            empty: "届いている注文はありません",
+            emptyBody: "新しい注文が届くとここに表示されます。",
+            profileCta: "プロフィールを確認する",
+            newMessage: "新着あり",
+            paymentReady: "支払い確認済み",
+            oldRequest: "依頼",
+            total: "件",
+            errorTitle: "エラー",
           }
         : {
-            loading: "Loading...",
-            title: "Pending",
-            subtitle:
-              "Review new incoming orders and requests, then accept or decline before the deadline.",
-            fetchError: "Failed to load requests.",
+            title: "Orders",
+            subtitle: "Review incoming orders and accept or decline.",
+            fetchError: "Failed to load orders.",
             unnamedProduct: "No product name",
-            deadline: "Preferred deadline",
-            detail: "View details",
-            empty: "There are no pending orders or requests.",
-            emptyBody:
-              "New orders will appear here. Unread messages and deadlines are also shown on this screen.",
-            viewActiveJobs: "View Active Jobs",
-            editProfile: "Edit Profile",
-            order: "Order",
-            legacyRequest: "Legacy Request",
-            paymentAuthorized: "Payment authorized",
-            menu: "Menu",
-            price: "Price",
-            creatorFeeRate: "Creator fee rate",
-            transactionFee: "Trendre fee",
-            creatorPayout: "Expected payout",
-            creatorDeadline: "Approval deadline",
-            creatorDeadlineExpired: "Approval expired",
-            notSet: "Not set",
-            newMessage: "New messages",
-            lastMessage: "Last message",
-            urgentNotice:
-              "Orders close to the deadline and orders with unread messages are shown first.",
-            total: "Total",
-            urgent: "Urgent",
-            unread: "Unread",
             received: "Received",
-            check: "Check",
-            close: "Close",
+            menu: "Menu",
+            payout: "Expected",
+            deadline: "Preferred date",
+            detail: "View details",
+            empty: "No incoming orders",
+            emptyBody: "New orders will appear here.",
+            profileCta: "Check profile",
+            newMessage: "New message",
+            paymentReady: "Payment ready",
+            oldRequest: "Request",
+            total: "",
+            errorTitle: "Error",
           },
     [safeLocale]
   );
@@ -379,24 +417,6 @@ export default function CreatorRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-  const hasUnread = useCallback(
-    (chat: ChatRow | null) => {
-      if (!currentUserId) return false;
-      if (!chat?.last_message_at) return false;
-
-      const readRow =
-        chat.chat_reads?.find((row) => row.user_id === currentUserId) ?? null;
-
-      if (!readRow?.last_read_at) return true;
-
-      return (
-        new Date(chat.last_message_at).getTime() >
-        new Date(readRow.last_read_at).getTime()
-      );
-    },
-    [currentUserId]
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -569,8 +589,8 @@ export default function CreatorRequestsPage() {
     );
 
     const nextItems = [...orderItems, ...legacyPendingItems].sort((a, b) => {
-      const aUnread = hasUnread(a.chat) ? 1 : 0;
-      const bUnread = hasUnread(b.chat) ? 1 : 0;
+      const aUnread = isUnreadForUser(a.chat, user.id) ? 1 : 0;
+      const bUnread = isUnreadForUser(b.chat, user.id) ? 1 : 0;
 
       if (aUnread !== bUnread) return bUnread - aUnread;
 
@@ -600,7 +620,7 @@ export default function CreatorRequestsPage() {
     }
 
     setLoading(false);
-  }, [copy.fetchError, hasUnread, supabase]);
+  }, [copy.fetchError, supabase]);
 
   useEffect(() => {
     void load();
@@ -667,240 +687,97 @@ export default function CreatorRequestsPage() {
     };
   }, [load, supabase]);
 
-  const urgentCount = items.filter(
-    (item) =>
-      item.kind === "order" && isWithinHours(item.creator_accept_deadline, 24)
-  ).length;
-
-  const unreadCount = items.filter((item) => hasUnread(item.chat)).length;
-
   if (loading) {
-    return (
-      <div className="space-y-5">
-        <div className="h-32 animate-pulse rounded-[32px] bg-slate-100" />
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-48 animate-pulse rounded-[28px] bg-slate-100"
-          />
-        ))}
-      </div>
-    );
+    return <LoadingView />;
   }
 
+  const unreadCount = items.filter((item) =>
+    isUnreadForUser(item.chat, currentUserId)
+  ).length;
+
   return (
-    <div className="space-y-6 pb-4">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          Creator Requests
-        </p>
-        <div className="mt-3 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight">{copy.title}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+    <div className="space-y-4 pb-4">
+      <section className="relative overflow-hidden rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+
+        <div className="relative flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+              {copy.title}
+            </h1>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
               {copy.subtitle}
             </p>
           </div>
 
-          <div className="text-right">
-            <p className="text-5xl font-black">{items.length}</p>
-            <p className="text-xs font-bold text-white/50">{copy.total}</p>
+          <div className="shrink-0 text-right">
+            <p className="text-[30px] font-black leading-none tracking-[-0.05em] text-slate-950">
+              {items.length}
+            </p>
+            <p className="mt-1 text-xs font-bold text-slate-400">
+              {copy.total}
+            </p>
           </div>
         </div>
-      </section>
 
-      <section className="grid grid-cols-3 gap-3">
-        <HeaderStat label={copy.total} value={items.length} tone="dark" />
-        <HeaderStat label={copy.urgent} value={urgentCount} tone="urgent" />
-        <HeaderStat label={copy.unread} value={unreadCount} />
+        {unreadCount > 0 ? (
+          <div className="relative mt-4">
+            <SoftPill tone="blue">
+              {copy.newMessage} {unreadCount}
+            </SoftPill>
+          </div>
+        ) : null}
       </section>
-
-      {items.length > 0 ? (
-        <section className="rounded-[24px] border border-blue-100 bg-blue-50 p-4 text-sm font-semibold leading-6 text-blue-800">
-          {copy.urgentNotice}
-        </section>
-      ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
-          {error}
-        </div>
+        <section className="rounded-[26px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
+          <p className="text-sm font-black">{copy.errorTitle}</p>
+          <p className="mt-2 text-sm font-semibold leading-7 opacity-75">
+            {error}
+          </p>
+        </section>
       ) : null}
 
       <section className="space-y-4">
         {items.map((item) => {
-          const isOrder = item.kind === "order";
-          const unread = hasUnread(item.chat);
-          const isUrgent =
+          const unread = isUnreadForUser(item.chat, currentUserId);
+          const urgent =
             item.kind === "order" &&
             isWithinHours(item.creator_accept_deadline, 24);
 
-          const legacyMeta =
-            item.kind === "legacy_request"
-              ? getRequestStatusMeta(item.status ?? "pending", safeLocale)
-              : null;
-
-          const href = isOrder
-            ? `/creator/orders/${item.id}`
-            : `/creator/requests/${item.id}`;
-
           return (
-            <Link
+            <OrderCard
               key={`${item.kind}-${item.id}`}
-              href={href}
-              className={`block rounded-[30px] border bg-white p-5 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md ${
-                isUrgent
-                  ? "border-amber-200 ring-2 ring-amber-100"
-                  : unread
-                  ? "border-blue-200 ring-2 ring-blue-100"
-                  : "border-slate-100"
-              }`}
-            >
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <Pill
-                  className={
-                    isOrder
-                      ? "bg-slate-950 text-white ring-slate-950"
-                      : "bg-slate-100 text-slate-700 ring-slate-200"
-                  }
-                >
-                  {isOrder ? copy.order : copy.legacyRequest}
-                </Pill>
-
-                {isOrder ? (
-                  <Pill className={getOrderBadgeClass(item.status)}>
-                    {getOrderStatusLabel(
-                      item.status,
-                      item.payment_status ?? "",
-                      safeLocale
-                    )}
-                  </Pill>
-                ) : legacyMeta ? (
-                  <Pill className={getRequestStatusBadgeClass(legacyMeta.tone)}>
-                    {legacyMeta.shortLabel}
-                  </Pill>
-                ) : null}
-
-                {isOrder ? (
-                  <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                    {copy.paymentAuthorized}
-                  </Pill>
-                ) : null}
-
-                {unread ? (
-                  <Pill className="bg-blue-50 text-blue-700 ring-blue-200">
-                    {copy.newMessage}
-                  </Pill>
-                ) : null}
-              </div>
-
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="truncate text-xl font-black text-slate-950">
-                    {item.product_name ?? copy.unnamedProduct}
-                  </p>
-                  <p className="mt-2 text-xs font-semibold text-slate-400">
-                    {copy.received}: {formatDateTime(item.created_at, safeLocale)}
-                  </p>
-                </div>
-
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-                  ›
-                </span>
-              </div>
-
-              {isOrder ? (
-                <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-                  <div className="grid gap-3">
-                    <MoneyRow
-                      label={copy.menu}
-                      value={item.menu_title || copy.notSet}
-                    />
-                    <MoneyRow
-                      label={copy.price}
-                      value={formatPrice(item.amount, item.currency, safeLocale)}
-                    />
-                    <MoneyRow
-                      label={copy.transactionFee}
-                      value={formatNegativePrice(
-                        item.creator_transaction_fee_amount,
-                        item.currency,
-                        safeLocale
-                      )}
-                      danger
-                    />
-                    <MoneyRow
-                      label={copy.creatorPayout}
-                      value={formatPrice(
-                        item.creator_payout_amount,
-                        item.currency,
-                        safeLocale
-                      )}
-                      strong
-                    />
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {isOrder ? (
-                  <DeadlineBadge
-                    deadline={item.creator_accept_deadline}
-                    label={copy.creatorDeadline}
-                    expiredLabel={copy.creatorDeadlineExpired}
-                    locale={safeLocale}
-                    urgentHours={12}
-                    warningHours={24}
-                  />
-                ) : null}
-
-                {item.deadline ? (
-                  <Pill className="bg-slate-50 text-slate-700 ring-slate-200">
-                    {copy.deadline}: {formatDate(item.deadline, safeLocale)}
-                  </Pill>
-                ) : null}
-
-                {item.chat?.last_message_at ? (
-                  <Pill className="bg-slate-50 text-slate-500 ring-slate-200">
-                    {copy.lastMessage}:{" "}
-                    {formatDateTime(item.chat.last_message_at, safeLocale)}
-                  </Pill>
-                ) : null}
-              </div>
-
-              <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
-                {copy.detail}
-              </div>
-            </Link>
+              item={item}
+              locale={safeLocale}
+              copy={copy}
+              unread={unread}
+              urgent={urgent}
+            />
           );
         })}
 
         {items.length === 0 && !error ? (
-          <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
+          <section className="rounded-[30px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-50 text-2xl">
               ◎
             </div>
-            <h2 className="mt-5 text-xl font-black text-slate-950">
+
+            <h2 className="mt-5 text-xl font-black tracking-[-0.04em] text-slate-950">
               {copy.empty}
             </h2>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
+
+            <p className="mx-auto mt-3 max-w-sm text-sm font-semibold leading-7 text-slate-500">
               {copy.emptyBody}
             </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Link
-                href="/creator/jobs"
-                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-              >
-                {copy.viewActiveJobs}
-              </Link>
-              <Link
-                href="/creator/profile"
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
-              >
-                {copy.editProfile}
-              </Link>
-            </div>
-          </div>
+
+            <Link
+              href="/creator/profile"
+              className="mt-6 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+            >
+              {copy.profileCta}
+            </Link>
+          </section>
         ) : null}
       </section>
     </div>
