@@ -39,6 +39,7 @@ type DraftState = {
   country: string;
   prefecture: string;
   canReceiveProductsChoice: string;
+  activeGenreGroup: string;
   selectedCategories: string[];
   socialAccounts: SocialAccountForm[];
   menus: MenuForm[];
@@ -46,22 +47,20 @@ type DraftState = {
   agreedToPrivacy: boolean;
 };
 
-const STORAGE_KEY = "trendre_creator_signup_draft_v6";
+const STORAGE_KEY = "trendre_creator_signup_draft_v7";
 
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
 
 const TOTAL_STEPS = 7;
-
-const GENDER_OPTIONS = ["男性", "女性", "その他"];
-
-const GENDER_OPTIONS_EN: Record<string, string> = {
-  男性: "Male",
-  女性: "Female",
-  その他: "Other",
-};
-
 const COUNTRY_DEFAULT = "日本";
+
+const GENDER_OPTIONS = [
+  { value: "", ja: "選択してください", en: "Select" },
+  { value: "女性", ja: "女性", en: "Female" },
+  { value: "男性", ja: "男性", en: "Male" },
+  { value: "その他", ja: "その他", en: "Other" },
+];
 
 const PREFECTURE_OPTIONS = [
   "北海道",
@@ -113,43 +112,122 @@ const PREFECTURE_OPTIONS = [
   "沖縄県",
 ];
 
-const CATEGORY_OPTIONS = [
-  "美容",
-  "ファッション",
-  "フィットネス",
-  "旅行",
-  "グルメ",
-  "ライフスタイル",
-  "子育て",
-  "ビジネス",
-  "教育",
-  "テック",
-  "エンタメ",
-  "ペット",
-  "インテリア",
-  "カメラ・写真",
-  "動画制作",
-  "その他",
+const GENRE_GROUPS = [
+  {
+    key: "beauty",
+    ja: "ビューティ",
+    en: "Beauty",
+    items: [
+      "美容サロン",
+      "美容室",
+      "美容整形",
+      "美容医療",
+      "スキンケア",
+      "コスメ",
+      "韓国コスメ",
+      "ヘアケア",
+      "ネイル",
+      "まつ毛・眉毛",
+      "香水",
+      "メンズ美容",
+    ],
+  },
+  {
+    key: "fitness",
+    ja: "フィットネス",
+    en: "Fitness",
+    items: [
+      "ジム",
+      "パーソナルジム",
+      "ヨガ",
+      "ピラティス",
+      "ダイエット",
+      "筋トレ",
+      "ランニング",
+      "スポーツウェア",
+      "健康食品",
+      "プロテイン",
+      "サウナ",
+      "整体・ストレッチ",
+    ],
+  },
+  {
+    key: "food",
+    ja: "グルメ",
+    en: "Food",
+    items: [
+      "カフェ",
+      "レストラン",
+      "居酒屋",
+      "スイーツ",
+      "大食い",
+      "お酒",
+      "料理",
+      "節約レシピ",
+      "時短レシピ",
+      "お取り寄せ",
+      "食品レビュー",
+      "ヴィーガン",
+    ],
+  },
+  {
+    key: "travel",
+    ja: "トラベル",
+    en: "Travel",
+    items: [
+      "国内旅行",
+      "海外旅行",
+      "ホテル",
+      "旅館",
+      "観光地",
+      "温泉",
+      "グランピング",
+      "テーマパーク",
+      "インバウンド",
+      "地方PR",
+      "街歩き",
+      "カップル旅行",
+    ],
+  },
+  {
+    key: "life",
+    ja: "ライフスタイル",
+    en: "Lifestyle",
+    items: [
+      "ファッション",
+      "インテリア",
+      "雑貨",
+      "ガジェット",
+      "ペット",
+      "子育て",
+      "家事",
+      "暮らし",
+      "節約",
+      "勉強",
+      "仕事術",
+      "Vlog",
+    ],
+  },
+  {
+    key: "creative",
+    ja: "クリエイティブ",
+    en: "Creative",
+    items: [
+      "写真撮影",
+      "動画制作",
+      "UGC制作",
+      "商品レビュー",
+      "開封動画",
+      "ライブ配信",
+      "イベント体験",
+      "モデル",
+      "ダンス",
+      "音楽",
+      "イラスト",
+      "その他",
+    ],
+  },
 ];
-
-const CATEGORY_OPTIONS_EN: Record<string, string> = {
-  美容: "Beauty",
-  ファッション: "Fashion",
-  フィットネス: "Fitness",
-  旅行: "Travel",
-  グルメ: "Food",
-  ライフスタイル: "Lifestyle",
-  子育て: "Parenting",
-  ビジネス: "Business",
-  教育: "Education",
-  テック: "Tech",
-  エンタメ: "Entertainment",
-  ペット: "Pets",
-  インテリア: "Interior",
-  "カメラ・写真": "Photo",
-  動画制作: "Video",
-  その他: "Other",
-};
 
 const PLATFORM_OPTIONS = ["Instagram", "TikTok", "YouTube", "X", "Website"];
 
@@ -406,7 +484,6 @@ function getAgeFromBirthDate(value: string) {
   if (Number.isNaN(birthDate.getTime())) return 0;
 
   let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
-
   const currentMonth = today.getUTCMonth();
   const birthMonth = birthDate.getUTCMonth();
 
@@ -524,52 +601,6 @@ function fileExtension(file: File) {
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
-function BackdropHero() {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-white">
-      <div className="absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
-      <div className="absolute right-[-260px] top-[120px] h-[560px] w-[560px] rounded-full bg-emerald-100/25 blur-[150px]" />
-      <div className="absolute left-[-260px] bottom-[-160px] h-[520px] w-[520px] rounded-full bg-rose-100/25 blur-[150px]" />
-
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 pt-24 opacity-60 md:grid-cols-[minmax(0,1fr)_520px] md:px-6">
-        <div className="pt-12">
-          <p className="max-w-xl text-[34px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[54px]">
-            PRやUGC制作の注文を、オンラインで受けられる。
-          </p>
-          <p className="mt-5 max-w-lg text-sm font-semibold leading-8 text-slate-500">
-            プロフィール、SNS、ポートフォリオ、メニューを登録すると、
-            企業があなたを見つけて注文できます。
-          </p>
-        </div>
-
-        {imageFailed ? (
-          <div className="hidden h-[460px] rounded-[36px] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)] md:block" />
-        ) : (
-          <img
-            src="/brand/trendre-home-hero.png"
-            alt=""
-            onError={() => setImageFailed(true)}
-            className="hidden w-full object-contain md:block"
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ProgressBar({ current }: { current: number }) {
-  return (
-    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-      <div
-        className="h-full rounded-full bg-[#ff5f67] transition-all duration-300"
-        style={{ width: `${((current + 1) / TOTAL_STEPS) * 100}%` }}
-      />
-    </div>
-  );
-}
-
 function FieldLabel({ children }: { children: ReactNode }) {
   return <label className="text-sm font-black text-slate-900">{children}</label>;
 }
@@ -581,7 +612,7 @@ function TextInput({
   return (
     <input
       {...props}
-      className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-slate-950 ${className}`}
+      className={`w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-[16px] font-bold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
     />
   );
 }
@@ -594,7 +625,7 @@ function SelectInput({
   return (
     <select
       {...props}
-      className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-semibold text-slate-950 outline-none transition focus:border-slate-950 ${className}`}
+      className={`w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-[16px] font-bold text-slate-950 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
     >
       {children}
     </select>
@@ -617,9 +648,9 @@ function ChoiceButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-2 text-sm font-black transition disabled:opacity-40 ${
+      className={`rounded-full px-4 py-2.5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
         selected
-          ? "bg-slate-950 text-white"
+          ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.22)]"
           : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
       }`}
     >
@@ -641,7 +672,7 @@ function FilePickerButton({
 }) {
   return (
     <label
-      className={`inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-black ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_12px_26px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4f58] ${className}`}
     >
       {children}
       <input
@@ -675,12 +706,23 @@ function StepShell({
       </h1>
 
       {body ? (
-        <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
+        <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
           {body}
         </p>
       ) : null}
 
       <div className="mt-6">{children}</div>
+    </div>
+  );
+}
+
+function ProgressBar({ current }: { current: number }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+      <div
+        className="h-full rounded-full bg-[#ff5f67] transition-all duration-300"
+        style={{ width: `${((current + 1) / TOTAL_STEPS) * 100}%` }}
+      />
     </div>
   );
 }
@@ -700,7 +742,7 @@ export default function SignupCreatorClient() {
 
             displayTitle: "基本情報",
             displayBody:
-              "ユーザーネームはSNSのアカウント名と同じにするのがおすすめです。",
+              "ユーザーネームは、SNSのアカウント名と同じにするのがおすすめです。",
             displayName: "ユーザーネーム",
             displayNamePlaceholder: "例：Yuna Beauty",
             gender: "性別",
@@ -715,13 +757,14 @@ export default function SignupCreatorClient() {
             orText: "または",
 
             categoryTitle: "ジャンル",
-            categoryBody: "得意、または興味のあるジャンルを5つまで選んでください。",
+            categoryBody:
+              "大きなジャンルを選び、得意または興味のある詳細ジャンルを5つまで選択してください。",
             categoryCount: "選択中",
 
-            areaTitle: "対応エリア",
+            areaTitle: "体験対応エリア",
             areaBody:
-              "対応できるエリアと、商品配送によるPRが可能かを選択してください。",
-            prefecture: "対応できる都道府県",
+              "来店・体験に対応できるエリアと、商品配送によるPRが可能かを選択してください。",
+            prefecture: "体験対応できるエリア",
             selectPrefecture: "都道府県を選択",
             productPr: "商品配送によるPR",
             productPrYes: "商品を受け取ってPRできます",
@@ -779,7 +822,7 @@ export default function SignupCreatorClient() {
             passwordRequired: "パスワードは8文字以上必要です",
             categoryRequired: "ジャンルを1つ以上選択してください",
             categoryLimit: "ジャンルは5つまで選択できます",
-            areaRequired: "対応できる都道府県を選択してください",
+            areaRequired: "体験対応できるエリアを選択してください",
             productPrRequired: "商品配送によるPR可否を選択してください",
             socialRequired: "SNSを少なくとも1件、正しく入力してください",
             avatarRequired: "プロフィール画像を追加してください",
@@ -795,7 +838,7 @@ export default function SignupCreatorClient() {
         : {
             step: "STEP",
 
-            displayTitle: "Basic info",
+            displayTitle: "Basic information",
             displayBody:
               "We recommend using the same username as your social account.",
             displayName: "Username",
@@ -812,13 +855,14 @@ export default function SignupCreatorClient() {
             orText: "or",
 
             categoryTitle: "Categories",
-            categoryBody: "Choose up to 5 categories you are good at or interested in.",
+            categoryBody:
+              "Choose a broad category, then select up to 5 detailed genres.",
             categoryCount: "Selected",
 
-            areaTitle: "Area",
+            areaTitle: "Experience area",
             areaBody:
-              "Select your available area and whether you can receive products for PR.",
-            prefecture: "Available prefecture",
+              "Select the area where you can visit or experience services, and whether you can receive products.",
+            prefecture: "Available area",
             selectPrefecture: "Select prefecture",
             productPr: "Product shipping PR",
             productPrYes: "I can receive products for PR",
@@ -876,7 +920,7 @@ export default function SignupCreatorClient() {
             passwordRequired: "Password must be at least 8 characters",
             categoryRequired: "Please select at least one category",
             categoryLimit: "You can select up to 5 categories",
-            areaRequired: "Please select your available prefecture",
+            areaRequired: "Please select your available area",
             productPrRequired: "Please select whether you can receive products",
             socialRequired: "Please add at least one valid social account",
             avatarRequired: "Please add a profile image",
@@ -894,7 +938,15 @@ export default function SignupCreatorClient() {
   const stepTitles = useMemo(
     () =>
       appLocale === "ja"
-        ? ["基本情報", "ログイン", "ジャンル", "対応エリア", "SNS", "写真", "メニュー"]
+        ? [
+            "基本情報",
+            "ログイン",
+            "ジャンル",
+            "対応エリア",
+            "SNS",
+            "写真",
+            "メニュー",
+          ]
         : ["Basic", "Login", "Categories", "Area", "Socials", "Images", "Menus"],
     [appLocale]
   );
@@ -913,6 +965,7 @@ export default function SignupCreatorClient() {
   const [prefecture, setPrefecture] = useState("");
   const [canReceiveProductsChoice, setCanReceiveProductsChoice] = useState("");
 
+  const [activeGenreGroup, setActiveGenreGroup] = useState(GENRE_GROUPS[0].key);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountForm[]>([
@@ -937,6 +990,11 @@ export default function SignupCreatorClient() {
 
   const hasOAuthReturn = searchParams.get("oauth") === "1";
   const shouldResetDraft = searchParams.get("reset") === "1";
+
+  const activeGenre = useMemo(
+    () => GENRE_GROUPS.find((group) => group.key === activeGenreGroup) ?? GENRE_GROUPS[0],
+    [activeGenreGroup]
+  );
 
   const goToStep = (nextStep: number, pushHistory = true) => {
     const safeStep = Math.max(0, Math.min(nextStep, TOTAL_STEPS - 1));
@@ -966,6 +1024,7 @@ export default function SignupCreatorClient() {
     setPassword("");
     setPrefecture("");
     setCanReceiveProductsChoice("");
+    setActiveGenreGroup(GENRE_GROUPS[0].key);
     setSelectedCategories([]);
     setSocialAccounts([createEmptySocial()]);
     setAvatarFile(null);
@@ -1011,6 +1070,7 @@ export default function SignupCreatorClient() {
       setEmail(safeString(draft.email));
       setPrefecture(safeString(draft.prefecture));
       setCanReceiveProductsChoice(safeString(draft.canReceiveProductsChoice));
+      setActiveGenreGroup(safeString(draft.activeGenreGroup, GENRE_GROUPS[0].key));
       setSelectedCategories(safeStringArray(draft.selectedCategories));
       setSocialAccounts(safeSocialAccounts(draft.socialAccounts));
       setMenus(safeMenus(draft.menus));
@@ -1066,6 +1126,7 @@ export default function SignupCreatorClient() {
       country,
       prefecture,
       canReceiveProductsChoice,
+      activeGenreGroup,
       selectedCategories,
       socialAccounts,
       menus,
@@ -1084,6 +1145,7 @@ export default function SignupCreatorClient() {
     country,
     prefecture,
     canReceiveProductsChoice,
+    activeGenreGroup,
     selectedCategories,
     socialAccounts,
     menus,
@@ -1532,8 +1594,7 @@ export default function SignupCreatorClient() {
           creator_gender: gender,
           creator_birth_date: birthDate,
           creator_prefecture: prefecture,
-          creator_can_receive_products:
-            canReceiveProductsChoice === "yes",
+          creator_can_receive_products: canReceiveProductsChoice === "yes",
         },
       },
     });
@@ -1691,7 +1752,7 @@ export default function SignupCreatorClient() {
     if (step === 0) {
       return (
         <StepShell title={copy.displayTitle} body={copy.displayBody}>
-          <div className="grid gap-4">
+          <div className="grid gap-5">
             <div>
               <FieldLabel>{copy.displayName}</FieldLabel>
               <TextInput
@@ -1704,27 +1765,29 @@ export default function SignupCreatorClient() {
 
             <div>
               <FieldLabel>{copy.gender}</FieldLabel>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <SelectInput
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="mt-2"
+              >
                 {GENDER_OPTIONS.map((item) => (
-                  <ChoiceButton
-                    key={item}
-                    selected={gender === item}
-                    onClick={() => setGender(item)}
-                  >
-                    {formatOption(item, appLocale, GENDER_OPTIONS_EN)}
-                  </ChoiceButton>
+                  <option key={item.value || "empty"} value={item.value}>
+                    {appLocale === "ja" ? item.ja : item.en}
+                  </option>
                 ))}
-              </div>
+              </SelectInput>
             </div>
 
             <div>
               <FieldLabel>{copy.birthDate}</FieldLabel>
-              <TextInput
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-                className="mt-2"
-              />
+              <div className="mt-2 rounded-[22px] border border-slate-200 bg-white px-4 py-1 transition focus-within:border-[#ff5f67] focus-within:ring-4 focus-within:ring-rose-100">
+                <input
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  className="w-full bg-transparent py-3 text-[16px] font-bold text-slate-950 outline-none"
+                />
+              </div>
             </div>
           </div>
         </StepShell>
@@ -1737,17 +1800,20 @@ export default function SignupCreatorClient() {
           <button
             type="button"
             onClick={handleGoogleSignup}
-            className="flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-black"
+            className="flex w-full items-center justify-center gap-3 rounded-full bg-white px-5 py-4 text-sm font-black text-slate-950 shadow-[0_14px_34px_rgba(15,23,42,0.08)] ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-slate-50"
           >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-50 text-base font-black text-[#ff5f67] ring-1 ring-slate-100">
+              G
+            </span>
             {copy.signUpWithGoogle}
           </button>
 
           <div className="my-5 flex items-center gap-4">
-            <div className="h-px flex-1 bg-slate-100" />
+            <div className="h-px flex-1 bg-slate-200" />
             <span className="text-xs font-black text-slate-300">
               {copy.orText}
             </span>
-            <div className="h-px flex-1 bg-slate-100" />
+            <div className="h-px flex-1 bg-slate-200" />
           </div>
 
           {oauthSessionEmail ? (
@@ -1781,7 +1847,30 @@ export default function SignupCreatorClient() {
     if (step === 2) {
       return (
         <StepShell title={copy.categoryTitle} body={copy.categoryBody}>
-          <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3">
+          <div className="rounded-[26px] bg-slate-50 p-3 ring-1 ring-slate-100">
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {GENRE_GROUPS.map((group) => {
+                const active = activeGenreGroup === group.key;
+
+                return (
+                  <button
+                    key={group.key}
+                    type="button"
+                    onClick={() => setActiveGenreGroup(group.key)}
+                    className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-black transition ${
+                      active
+                        ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.22)]"
+                        : "bg-white text-slate-600 ring-1 ring-slate-200"
+                    }`}
+                  >
+                    {appLocale === "ja" ? group.ja : group.en}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100">
             <span className="text-sm font-black text-slate-500">
               {copy.categoryCount}
             </span>
@@ -1790,23 +1879,43 @@ export default function SignupCreatorClient() {
             </span>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            {CATEGORY_OPTIONS.map((item) => {
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {activeGenre.items.map((item) => {
               const selected = selectedCategories.includes(item);
               const disabled = !selected && selectedCategories.length >= 5;
 
               return (
-                <ChoiceButton
+                <button
                   key={item}
-                  selected={selected}
+                  type="button"
                   disabled={disabled}
                   onClick={() => toggleCategory(item)}
+                  className={`min-h-[48px] rounded-2xl px-3 py-3 text-left text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                    selected
+                      ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.22)]"
+                      : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                  }`}
                 >
-                  {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
-                </ChoiceButton>
+                  {item}
+                </button>
               );
             })}
           </div>
+
+          {selectedCategories.length > 0 ? (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {selectedCategories.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => toggleCategory(item)}
+                  className="rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100"
+                >
+                  {item} ×
+                </button>
+              ))}
+            </div>
+          ) : null}
         </StepShell>
       );
     }
@@ -1851,7 +1960,7 @@ export default function SignupCreatorClient() {
                   onClick={() => setCanReceiveProductsChoice("no")}
                   className={`rounded-[22px] px-4 py-4 text-left text-sm font-black ring-1 transition ${
                     canReceiveProductsChoice === "no"
-                      ? "bg-slate-950 text-white ring-slate-950"
+                      ? "bg-rose-50 text-[#ff5f67] ring-rose-200"
                       : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
                   }`}
                 >
@@ -1878,7 +1987,7 @@ export default function SignupCreatorClient() {
               return (
                 <div
                   key={index}
-                  className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
+                  className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100"
                 >
                   <div className="mb-4 flex items-center justify-between">
                     <p className="font-black text-slate-950">SNS {index + 1}</p>
@@ -1907,7 +2016,7 @@ export default function SignupCreatorClient() {
                     </SelectInput>
 
                     <div>
-                      <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-slate-950">
+                      <div className="flex overflow-hidden rounded-[22px] border border-slate-200 bg-white focus-within:border-[#ff5f67] focus-within:ring-4 focus-within:ring-rose-100">
                         {config.prefix ? (
                           <div className="flex max-w-[45%] items-center bg-slate-50 px-3 text-xs font-black text-slate-400">
                             <span className="truncate">{config.prefix}</span>
@@ -1923,7 +2032,7 @@ export default function SignupCreatorClient() {
                               e.target.value
                             )
                           }
-                          className="min-w-0 flex-1 px-4 py-3.5 text-base font-semibold outline-none"
+                          className="min-w-0 flex-1 px-4 py-4 text-[16px] font-bold outline-none"
                           placeholder={config.placeholder}
                         />
                       </div>
@@ -1995,7 +2104,7 @@ export default function SignupCreatorClient() {
       return (
         <StepShell title={copy.imagesTitle} body={copy.imagesBody}>
           <div className="space-y-5">
-            <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
+            <div className="rounded-[26px] bg-slate-50 p-5 ring-1 ring-slate-100">
               <div className="flex items-center gap-5">
                 <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white ring-1 ring-slate-200">
                   {avatarPreview ? (
@@ -2025,7 +2134,7 @@ export default function SignupCreatorClient() {
               </div>
             </div>
 
-            <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
+            <div className="rounded-[26px] bg-slate-50 p-5 ring-1 ring-slate-100">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="font-black text-slate-950">{copy.portfolio}</p>
@@ -2094,7 +2203,7 @@ export default function SignupCreatorClient() {
           {menus.map((menu, index) => (
             <div
               key={index}
-              className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
+              className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100"
             >
               <div className="mb-4 flex items-center justify-between">
                 <p className="font-black text-slate-950">Menu {index + 1}</p>
@@ -2149,7 +2258,7 @@ export default function SignupCreatorClient() {
           + {copy.addMenu}
         </button>
 
-        <div className="mt-6 space-y-3 rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+        <div className="mt-6 space-y-3 rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100">
           <p className="text-sm font-black text-slate-950">{copy.termsTitle}</p>
 
           <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
@@ -2195,16 +2304,23 @@ export default function SignupCreatorClient() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-slate-50">
-      <BackdropHero />
+    <main className="min-h-screen overflow-x-hidden bg-[#f6f8fb] text-slate-950">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-[-180px] top-[-120px] h-[420px] w-[420px] rounded-full bg-rose-100/45 blur-[120px]" />
+        <div className="absolute right-[-180px] top-[180px] h-[420px] w-[420px] rounded-full bg-emerald-100/35 blur-[120px]" />
+      </div>
 
-      <div className="relative z-10 flex min-h-screen flex-col">
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 md:px-6">
+      <div className="relative z-10">
+        <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 md:px-6">
           <Link href="/for-creators" className="inline-flex items-center">
-            <img src="/brand/trendre-logo.png" alt="Trendre" className="h-9 w-auto" />
+            <img
+              src="/brand/trendre-logo-full.png"
+              alt="Trendre"
+              className="h-8 w-auto object-contain md:h-9"
+            />
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setLocale(appLocale === "ja" ? "en" : "ja")}
@@ -2215,18 +2331,18 @@ export default function SignupCreatorClient() {
 
             <Link
               href="/login"
-              className="hidden rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50 sm:inline-flex"
+              className="rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
             >
               {copy.login}
             </Link>
           </div>
         </header>
 
-        <div className="mx-auto flex w-full max-w-5xl flex-1 items-center px-4 pb-10 pt-4 md:px-6 md:pb-16">
-          <section className="w-full overflow-hidden rounded-[34px] bg-white/92 shadow-[0_24px_90px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur-2xl">
-            <div className="grid md:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="mx-auto flex w-full max-w-5xl px-3 pb-8 pt-2 md:px-6 md:pb-14 md:pt-8">
+          <section className="w-full overflow-hidden rounded-[32px] bg-white/95 shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-white backdrop-blur-xl md:rounded-[40px]">
+            <div className="grid md:grid-cols-[300px_minmax(0,1fr)]">
               <aside className="hidden border-r border-slate-100 bg-slate-50/70 p-7 md:block">
-                <div className="sticky top-6">
+                <div className="sticky top-8">
                   <p className="text-xs font-black tracking-[0.22em] text-slate-400">
                     {copy.step} {step + 1}/{TOTAL_STEPS}
                   </p>
@@ -2245,7 +2361,7 @@ export default function SignupCreatorClient() {
                         }}
                         className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                           index === step
-                            ? "bg-slate-950 text-white"
+                            ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.18)]"
                             : index < step
                               ? "bg-white text-slate-800 ring-1 ring-slate-100"
                               : "text-slate-400"
@@ -2254,7 +2370,7 @@ export default function SignupCreatorClient() {
                         <span
                           className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${
                             index === step
-                              ? "bg-white text-slate-950"
+                              ? "bg-white text-[#ff5f67]"
                               : index < step
                                 ? "bg-emerald-50 text-emerald-700"
                                 : "bg-slate-100 text-slate-400"
@@ -2294,7 +2410,9 @@ export default function SignupCreatorClient() {
                   <ProgressBar current={step} />
                 </div>
 
-                <div className="min-h-[520px]">{renderStep()}</div>
+                <div className="min-h-[520px] md:min-h-[560px]">
+                  {renderStep()}
+                </div>
 
                 {error ? (
                   <div className="mt-6 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black leading-6 text-rose-700 ring-1 ring-rose-100">
