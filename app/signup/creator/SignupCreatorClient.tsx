@@ -9,7 +9,6 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
-  type TextareaHTMLAttributes,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -34,58 +33,35 @@ type DraftState = {
   step: number;
   displayName: string;
   username: string;
+  gender: string;
+  birthDate: string;
   email: string;
   country: string;
   prefecture: string;
-  mainCategory: string;
-  subCategories: string[];
-  shortBio: string;
-  isAdultConfirmed: boolean;
+  canReceiveProductsChoice: string;
+  selectedCategories: string[];
   socialAccounts: SocialAccountForm[];
   menus: MenuForm[];
-  phoneNumber: string;
   agreedToTerms: boolean;
   agreedToPrivacy: boolean;
 };
 
-const STORAGE_KEY = "trendre_creator_signup_draft_v5";
+const STORAGE_KEY = "trendre_creator_signup_draft_v6";
 
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
 
 const TOTAL_STEPS = 7;
 
-const COUNTRY_OPTIONS = [
-  "日本",
-  "韓国",
-  "台湾",
-  "香港",
-  "中国",
-  "タイ",
-  "ベトナム",
-  "インドネシア",
-  "フィリピン",
-  "マレーシア",
-  "シンガポール",
-  "インド",
-  "その他アジア",
-];
+const GENDER_OPTIONS = ["男性", "女性", "その他"];
 
-const COUNTRY_OPTIONS_EN: Record<string, string> = {
-  日本: "Japan",
-  韓国: "Korea",
-  台湾: "Taiwan",
-  香港: "Hong Kong",
-  中国: "China",
-  タイ: "Thailand",
-  ベトナム: "Vietnam",
-  インドネシア: "Indonesia",
-  フィリピン: "Philippines",
-  マレーシア: "Malaysia",
-  シンガポール: "Singapore",
-  インド: "India",
-  その他アジア: "Other Asia",
+const GENDER_OPTIONS_EN: Record<string, string> = {
+  男性: "Male",
+  女性: "Female",
+  その他: "Other",
 };
+
+const COUNTRY_DEFAULT = "日本";
 
 const PREFECTURE_OPTIONS = [
   "北海道",
@@ -149,6 +125,10 @@ const CATEGORY_OPTIONS = [
   "教育",
   "テック",
   "エンタメ",
+  "ペット",
+  "インテリア",
+  "カメラ・写真",
+  "動画制作",
   "その他",
 ];
 
@@ -164,6 +144,10 @@ const CATEGORY_OPTIONS_EN: Record<string, string> = {
   教育: "Education",
   テック: "Tech",
   エンタメ: "Entertainment",
+  ペット: "Pets",
+  インテリア: "Interior",
+  "カメラ・写真": "Photo",
+  動画制作: "Video",
   その他: "Other",
 };
 
@@ -244,7 +228,7 @@ const MENU_OPTIONS = [
     value: "Instagram投稿",
     labelJa: "Instagram投稿",
     labelEn: "Instagram Feed Post",
-    helpJa: "Instagramのフィード投稿として商品やサービスを紹介します。",
+    helpJa: "Instagramのフィード投稿として紹介します。",
     helpEn: "A feed post published on Instagram.",
   },
   {
@@ -329,17 +313,17 @@ function createEmptyMenu(): MenuForm {
   };
 }
 
-function safeString(value: unknown, fallback = ""): string {
+function safeString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
-function safeBoolean(value: unknown): boolean {
+function safeBoolean(value: unknown) {
   return value === true;
 }
 
 function safeStringArray(value: unknown): string[] {
   return Array.isArray(value)
-    ? value.filter((v): v is string => typeof v === "string")
+    ? value.filter((item): item is string => typeof item === "string")
     : [];
 }
 
@@ -389,6 +373,7 @@ function randomToken(length = 8) {
   if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
     const bytes = new Uint8Array(length);
     window.crypto.getRandomValues(bytes);
+
     return Array.from(bytes)
       .map((byte) => (byte % 36).toString(36))
       .join("");
@@ -412,6 +397,27 @@ function makeInternalUsername(displayName: string) {
   const safeBase = base && /^[a-z0-9]/.test(base) ? base : "influencer";
 
   return `${safeBase}-${randomToken(6)}`;
+}
+
+function getAgeFromBirthDate(value: string) {
+  const birthDate = new Date(`${value}T00:00:00.000Z`);
+  const today = new Date();
+
+  if (Number.isNaN(birthDate.getTime())) return 0;
+
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+
+  const currentMonth = today.getUTCMonth();
+  const birthMonth = birthDate.getUTCMonth();
+
+  if (
+    currentMonth < birthMonth ||
+    (currentMonth === birthMonth && today.getUTCDate() < birthDate.getUTCDate())
+  ) {
+    age -= 1;
+  }
+
+  return age;
 }
 
 function getSocialConfig(platform: string, locale: Locale) {
@@ -482,12 +488,14 @@ function getSocialConfig(platform: string, locale: Locale) {
 
 function buildSocialPreview(platform: string, handle: string) {
   const normalized = normalizeHandle(handle);
+
   if (!platform || !normalized) return "";
   if (/^https?:\/\//i.test(normalized)) return normalized;
   if (platform === "Instagram") return `https://www.instagram.com/${normalized}`;
   if (platform === "TikTok") return `https://www.tiktok.com/@${normalized}`;
   if (platform === "YouTube") return `https://www.youtube.com/@${normalized}`;
   if (platform === "X") return `https://x.com/${normalized}`;
+
   return normalized;
 }
 
@@ -525,7 +533,7 @@ function BackdropHero() {
       <div className="absolute right-[-260px] top-[120px] h-[560px] w-[560px] rounded-full bg-emerald-100/25 blur-[150px]" />
       <div className="absolute left-[-260px] bottom-[-160px] h-[520px] w-[520px] rounded-full bg-rose-100/25 blur-[150px]" />
 
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 pt-24 opacity-70 md:grid-cols-[minmax(0,1fr)_520px] md:px-6">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 pt-24 opacity-60 md:grid-cols-[minmax(0,1fr)_520px] md:px-6">
         <div className="pt-12">
           <p className="max-w-xl text-[34px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[54px]">
             PRやUGC制作の注文を、オンラインで受けられる。
@@ -551,24 +559,6 @@ function BackdropHero() {
   );
 }
 
-function LocaleButton({
-  locale,
-  setLocale,
-}: {
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
-      className="rounded-full bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-700 transition hover:bg-slate-200"
-    >
-      {locale === "ja" ? "EN" : "日本語"}
-    </button>
-  );
-}
-
 function ProgressBar({ current }: { current: number }) {
   return (
     <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -581,9 +571,7 @@ function ProgressBar({ current }: { current: number }) {
 }
 
 function FieldLabel({ children }: { children: ReactNode }) {
-  return (
-    <label className="text-sm font-black text-slate-900">{children}</label>
-  );
+  return <label className="text-sm font-black text-slate-900">{children}</label>;
 }
 
 function TextInput({
@@ -594,18 +582,6 @@ function TextInput({
     <input
       {...props}
       className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-slate-950 ${className}`}
-    />
-  );
-}
-
-function TextArea({
-  className = "",
-  ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-semibold leading-7 text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-slate-950 ${className}`}
     />
   );
 }
@@ -629,16 +605,19 @@ function ChoiceButton({
   selected,
   children,
   onClick,
+  disabled,
 }: {
   selected: boolean;
   children: ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-black transition ${
+      disabled={disabled}
+      className={`rounded-full px-4 py-2 text-sm font-black transition disabled:opacity-40 ${
         selected
           ? "bg-slate-950 text-white"
           : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
@@ -718,11 +697,14 @@ export default function SignupCreatorClient() {
       appLocale === "ja"
         ? {
             step: "STEP",
-            displayTitle: "プロフィール入力",
+
+            displayTitle: "基本情報",
             displayBody:
-              "ユーザーネームはSNSのアカウント名と同じにするのがおすすめです。企業が見つけやすくなります。",
+              "ユーザーネームはSNSのアカウント名と同じにするのがおすすめです。",
             displayName: "ユーザーネーム",
             displayNamePlaceholder: "例：Yuna Beauty",
+            gender: "性別",
+            birthDate: "生年月日",
 
             accountTitle: "ログイン方法",
             accountBody: "Google、またはメールアドレスで登録できます。",
@@ -732,17 +714,18 @@ export default function SignupCreatorClient() {
             signUpWithGoogle: "Googleで続ける",
             orText: "または",
 
-            profileTitle: "活動エリアとジャンル",
-            profileBody:
-              "国とメインカテゴリを選択してください。日本を選んだ場合は、都道府県も選べます。",
-            country: "国",
-            selectCountry: "国を選択",
-            prefecture: "都道府県",
+            categoryTitle: "ジャンル",
+            categoryBody: "得意、または興味のあるジャンルを5つまで選んでください。",
+            categoryCount: "選択中",
+
+            areaTitle: "対応エリア",
+            areaBody:
+              "対応できるエリアと、商品配送によるPRが可能かを選択してください。",
+            prefecture: "対応できる都道府県",
             selectPrefecture: "都道府県を選択",
-            mainCategory: "メインカテゴリ",
-            subCategories: "サブカテゴリ",
-            shortBio: "短い自己紹介",
-            adultConfirm: "18歳以上です",
+            productPr: "商品配送によるPR",
+            productPrYes: "商品を受け取ってPRできます",
+            productPrNo: "商品配送のPRは受け付けません",
 
             socialTitle: "SNSアカウント",
             socialBody:
@@ -773,14 +756,7 @@ export default function SignupCreatorClient() {
             price: "金額（円）",
             addMenu: "メニューを追加",
 
-            phoneTitle: "確認",
-            phoneBody:
-              "電話番号を確認し、利用規約とプライバシーポリシーに同意してください。",
-            phoneNumber: "電話番号（例：09012345678）",
-            sendCode: "認証コードを送信",
-            verificationCode: "6桁認証コード",
-            verifyCode: "確認する",
-            verified: "確認済み",
+            termsTitle: "確認",
             termsLabel: "利用規約に同意する",
             privacyLabel: "プライバシーポリシーに同意する",
             termsLink: "利用規約",
@@ -795,20 +771,22 @@ export default function SignupCreatorClient() {
             reset: "最初からやり直す",
 
             displayNameRequired: "ユーザーネームを入力してください",
+            genderRequired: "性別を選択してください",
+            birthDateRequired: "生年月日を選択してください",
+            ageRequired: "18歳以上の方のみ登録できます",
             emailRequired: "メールアドレスを入力してください",
             emailInvalid: "メールアドレスの形式が正しくありません",
             passwordRequired: "パスワードは8文字以上必要です",
-            categoryRequired: "国・メインカテゴリ・18歳以上確認が必要です",
+            categoryRequired: "ジャンルを1つ以上選択してください",
+            categoryLimit: "ジャンルは5つまで選択できます",
+            areaRequired: "対応できる都道府県を選択してください",
+            productPrRequired: "商品配送によるPR可否を選択してください",
             socialRequired: "SNSを少なくとも1件、正しく入力してください",
             avatarRequired: "プロフィール画像を追加してください",
             portfolioRequired: "ポートフォリオ画像を3枚以上追加してください",
             menuRequired: "メニューを少なくとも1つ正しく入力してください",
-            phoneRequired: "電話番号を入力してください",
-            phoneVerifyRequired: "電話番号の確認を完了してください",
             termsRequired:
               "利用規約とプライバシーポリシーへの同意が必要です",
-            devCodeAlert: "開発用認証コード: ",
-            codeInvalid: "認証コードが正しくありません",
             signupFailed: "登録に失敗しました",
             imageUploadFailed: "画像のアップロードに失敗しました",
             sessionMissing:
@@ -816,11 +794,14 @@ export default function SignupCreatorClient() {
           }
         : {
             step: "STEP",
-            displayTitle: "Profile",
+
+            displayTitle: "Basic info",
             displayBody:
-              "We recommend using the same username as your social account so brands can recognize you easily.",
+              "We recommend using the same username as your social account.",
             displayName: "Username",
             displayNamePlaceholder: "Example: Yuna Beauty",
+            gender: "Gender",
+            birthDate: "Date of birth",
 
             accountTitle: "Login method",
             accountBody: "Continue with Google or sign up with email.",
@@ -830,17 +811,18 @@ export default function SignupCreatorClient() {
             signUpWithGoogle: "Continue with Google",
             orText: "or",
 
-            profileTitle: "Location and category",
-            profileBody:
-              "Select your country and main category. If you choose Japan, you can also select a prefecture.",
-            country: "Country",
-            selectCountry: "Select country",
-            prefecture: "Prefecture",
+            categoryTitle: "Categories",
+            categoryBody: "Choose up to 5 categories you are good at or interested in.",
+            categoryCount: "Selected",
+
+            areaTitle: "Area",
+            areaBody:
+              "Select your available area and whether you can receive products for PR.",
+            prefecture: "Available prefecture",
             selectPrefecture: "Select prefecture",
-            mainCategory: "Main category",
-            subCategories: "Sub-categories",
-            shortBio: "Short bio",
-            adultConfirm: "I am 18 years old or older",
+            productPr: "Product shipping PR",
+            productPrYes: "I can receive products for PR",
+            productPrNo: "I do not accept shipped product PR",
 
             socialTitle: "Social accounts",
             socialBody:
@@ -871,14 +853,7 @@ export default function SignupCreatorClient() {
             price: "Price (JPY)",
             addMenu: "Add menu",
 
-            phoneTitle: "Confirmation",
-            phoneBody:
-              "Verify your phone number and agree to the Terms and Privacy Policy.",
-            phoneNumber: "Phone number",
-            sendCode: "Send code",
-            verificationCode: "6-digit code",
-            verifyCode: "Verify",
-            verified: "Verified",
+            termsTitle: "Confirm",
             termsLabel: "I agree to the Terms of Service",
             privacyLabel: "I agree to the Privacy Policy",
             termsLink: "Terms",
@@ -893,20 +868,21 @@ export default function SignupCreatorClient() {
             reset: "Start over",
 
             displayNameRequired: "Please enter your username",
+            genderRequired: "Please select your gender",
+            birthDateRequired: "Please select your date of birth",
+            ageRequired: "You must be 18 or older to register",
             emailRequired: "Please enter your email address",
             emailInvalid: "Please enter a valid email address",
             passwordRequired: "Password must be at least 8 characters",
-            categoryRequired:
-              "Country, main category, and age confirmation are required",
+            categoryRequired: "Please select at least one category",
+            categoryLimit: "You can select up to 5 categories",
+            areaRequired: "Please select your available prefecture",
+            productPrRequired: "Please select whether you can receive products",
             socialRequired: "Please add at least one valid social account",
             avatarRequired: "Please add a profile image",
             portfolioRequired: "Please add at least 3 portfolio images",
             menuRequired: "Please add at least one valid menu",
-            phoneRequired: "Please enter your phone number",
-            phoneVerifyRequired: "Please complete phone verification",
             termsRequired: "You must agree to the Terms and Privacy Policy",
-            devCodeAlert: "Development verification code: ",
-            codeInvalid: "The verification code is incorrect",
             signupFailed: "Sign up failed",
             imageUploadFailed: "Failed to upload images",
             sessionMissing:
@@ -918,8 +894,8 @@ export default function SignupCreatorClient() {
   const stepTitles = useMemo(
     () =>
       appLocale === "ja"
-        ? ["プロフィール入力", "ログイン", "ジャンル", "SNS", "写真", "メニュー", "確認"]
-        : ["Profile", "Login", "Category", "Socials", "Images", "Menus", "Confirm"],
+        ? ["基本情報", "ログイン", "ジャンル", "対応エリア", "SNS", "写真", "メニュー"]
+        : ["Basic", "Login", "Categories", "Area", "Socials", "Images", "Menus"],
     [appLocale]
   );
 
@@ -927,17 +903,17 @@ export default function SignupCreatorClient() {
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthDate, setBirthDate] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [country, setCountry] = useState("");
+  const [country] = useState(COUNTRY_DEFAULT);
   const [prefecture, setPrefecture] = useState("");
+  const [canReceiveProductsChoice, setCanReceiveProductsChoice] = useState("");
 
-  const [mainCategory, setMainCategory] = useState("");
-  const [subCategories, setSubCategories] = useState<string[]>([]);
-  const [shortBio, setShortBio] = useState("");
-  const [isAdultConfirmed, setIsAdultConfirmed] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountForm[]>([
     createEmptySocial(),
@@ -949,11 +925,6 @@ export default function SignupCreatorClient() {
   const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
 
   const [menus, setMenus] = useState<MenuForm[]>([createEmptyMenu()]);
-
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [sentCode, setSentCode] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [phoneVerified, setPhoneVerified] = useState(false);
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
@@ -989,24 +960,19 @@ export default function SignupCreatorClient() {
     setStep(0);
     setDisplayName("");
     setUsername("");
+    setGender("");
+    setBirthDate("");
     setEmail("");
     setPassword("");
-    setCountry("");
     setPrefecture("");
-    setMainCategory("");
-    setSubCategories([]);
-    setShortBio("");
-    setIsAdultConfirmed(false);
+    setCanReceiveProductsChoice("");
+    setSelectedCategories([]);
     setSocialAccounts([createEmptySocial()]);
     setAvatarFile(null);
     setAvatarPreview(null);
     setPortfolioFiles([]);
     setPortfolioPreviews([]);
     setMenus([createEmptyMenu()]);
-    setPhoneNumber("");
-    setSentCode("");
-    setVerificationCode("");
-    setPhoneVerified(false);
     setAgreedToTerms(false);
     setAgreedToPrivacy(false);
     setError(null);
@@ -1040,16 +1006,14 @@ export default function SignupCreatorClient() {
 
       setDisplayName(safeString(draft.displayName));
       setUsername(safeString(draft.username));
+      setGender(safeString(draft.gender));
+      setBirthDate(safeString(draft.birthDate));
       setEmail(safeString(draft.email));
-      setCountry(safeString(draft.country));
       setPrefecture(safeString(draft.prefecture));
-      setMainCategory(safeString(draft.mainCategory));
-      setSubCategories(safeStringArray(draft.subCategories));
-      setShortBio(safeString(draft.shortBio));
-      setIsAdultConfirmed(safeBoolean(draft.isAdultConfirmed));
+      setCanReceiveProductsChoice(safeString(draft.canReceiveProductsChoice));
+      setSelectedCategories(safeStringArray(draft.selectedCategories));
       setSocialAccounts(safeSocialAccounts(draft.socialAccounts));
       setMenus(safeMenus(draft.menus));
-      setPhoneNumber(safeString(draft.phoneNumber));
       setAgreedToTerms(safeBoolean(draft.agreedToTerms));
       setAgreedToPrivacy(safeBoolean(draft.agreedToPrivacy));
     } catch {
@@ -1096,16 +1060,15 @@ export default function SignupCreatorClient() {
       step,
       displayName,
       username,
+      gender,
+      birthDate,
       email,
       country,
       prefecture,
-      mainCategory,
-      subCategories,
-      shortBio,
-      isAdultConfirmed,
+      canReceiveProductsChoice,
+      selectedCategories,
       socialAccounts,
       menus,
-      phoneNumber,
       agreedToTerms,
       agreedToPrivacy,
     };
@@ -1115,16 +1078,15 @@ export default function SignupCreatorClient() {
     step,
     displayName,
     username,
+    gender,
+    birthDate,
     email,
     country,
     prefecture,
-    mainCategory,
-    subCategories,
-    shortBio,
-    isAdultConfirmed,
+    canReceiveProductsChoice,
+    selectedCategories,
     socialAccounts,
     menus,
-    phoneNumber,
     agreedToTerms,
     agreedToPrivacy,
   ]);
@@ -1239,12 +1201,21 @@ export default function SignupCreatorClient() {
     throw new Error(copy.signupFailed);
   };
 
-  const toggleSubCategory = (value: string) => {
-    setSubCategories((prev) =>
-      prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value]
-    );
+  const toggleCategory = (value: string) => {
+    setError(null);
+
+    setSelectedCategories((prev) => {
+      if (prev.includes(value)) {
+        return prev.filter((item) => item !== value);
+      }
+
+      if (prev.length >= 5) {
+        setError(copy.categoryLimit);
+        return prev;
+      }
+
+      return [...prev, value];
+    });
   };
 
   const updateSocial = (
@@ -1323,6 +1294,21 @@ export default function SignupCreatorClient() {
         return false;
       }
 
+      if (!gender.trim()) {
+        setError(copy.genderRequired);
+        return false;
+      }
+
+      if (!birthDate.trim()) {
+        setError(copy.birthDateRequired);
+        return false;
+      }
+
+      if (getAgeFromBirthDate(birthDate) < 18) {
+        setError(copy.ageRequired);
+        return false;
+      }
+
       try {
         await ensureAvailableUsername();
       } catch (e) {
@@ -1353,13 +1339,30 @@ export default function SignupCreatorClient() {
     }
 
     if (step === 2) {
-      if (!country.trim() || !mainCategory.trim() || !isAdultConfirmed) {
+      if (selectedCategories.length === 0) {
         setError(copy.categoryRequired);
+        return false;
+      }
+
+      if (selectedCategories.length > 5) {
+        setError(copy.categoryLimit);
         return false;
       }
     }
 
     if (step === 3) {
+      if (!prefecture.trim()) {
+        setError(copy.areaRequired);
+        return false;
+      }
+
+      if (!canReceiveProductsChoice) {
+        setError(copy.productPrRequired);
+        return false;
+      }
+    }
+
+    if (step === 4) {
       const cleaned = socialAccounts.filter(
         (item) =>
           item.platform.trim() ||
@@ -1387,7 +1390,7 @@ export default function SignupCreatorClient() {
       }
     }
 
-    if (step === 4) {
+    if (step === 5) {
       if (!avatarFile) {
         setError(copy.avatarRequired);
         return false;
@@ -1399,7 +1402,7 @@ export default function SignupCreatorClient() {
       }
     }
 
-    if (step === 5) {
+    if (step === 6) {
       const filledMenus = menus.filter(
         (menu) => menu.menu_type.trim() || menu.price.trim()
       );
@@ -1421,18 +1424,6 @@ export default function SignupCreatorClient() {
 
       if (hasInvalidMenu) {
         setError(copy.menuRequired);
-        return false;
-      }
-    }
-
-    if (step === 6) {
-      if (!phoneNumber.trim()) {
-        setError(copy.phoneRequired);
-        return false;
-      }
-
-      if (!phoneVerified) {
-        setError(copy.phoneVerifyRequired);
         return false;
       }
 
@@ -1480,27 +1471,6 @@ export default function SignupCreatorClient() {
     if (oauthError) {
       setError(oauthError.message);
     }
-  };
-
-  const sendDevCode = () => {
-    if (!phoneNumber.trim()) {
-      setError(copy.phoneRequired);
-      return;
-    }
-
-    const code = "123456";
-    setSentCode(code);
-    window.alert(`${copy.devCodeAlert}${code}`);
-  };
-
-  const verifyDevCode = () => {
-    if (!sentCode || verificationCode.trim() !== sentCode) {
-      setError(copy.codeInvalid);
-      return;
-    }
-
-    setError(null);
-    setPhoneVerified(true);
   };
 
   const uploadImageAndGetUrl = async (
@@ -1559,6 +1529,11 @@ export default function SignupCreatorClient() {
           full_name: displayName.trim(),
           display_name: displayName.trim(),
           creator_username: internalUsername,
+          creator_gender: gender,
+          creator_birth_date: birthDate,
+          creator_prefecture: prefecture,
+          creator_can_receive_products:
+            canReceiveProductsChoice === "yes",
         },
       },
     });
@@ -1655,20 +1630,24 @@ export default function SignupCreatorClient() {
           avatar_url: avatarUrl,
           portfolio_assets: portfolioAssets,
 
-          country: country.trim(),
-          prefecture: country === "日本" ? prefecture.trim() || null : null,
-          city: null,
+          gender,
+          birth_date: birthDate,
 
-          main_category: mainCategory,
-          sub_categories: subCategories,
+          country,
+          prefecture: prefecture.trim(),
+          city: null,
+          can_receive_products: canReceiveProductsChoice === "yes",
+
+          main_category: selectedCategories[0],
+          sub_categories: selectedCategories,
           content_language: "日本語",
           response_language: "日本語",
-          short_bio: shortBio.trim() || null,
-          is_adult_confirmed: isAdultConfirmed,
+          short_bio: null,
+          is_adult_confirmed: true,
 
-          phone_country_code: "+81",
-          phone_number: phoneNumber.trim(),
-          phone_verified: phoneVerified,
+          phone_country_code: null,
+          phone_number: null,
+          phone_verified: false,
 
           social_accounts: socialAccounts
             .map((account) => ({
@@ -1712,17 +1691,41 @@ export default function SignupCreatorClient() {
     if (step === 0) {
       return (
         <StepShell title={copy.displayTitle} body={copy.displayBody}>
-          <div>
-            <FieldLabel>{copy.displayName}</FieldLabel>
-            <TextInput
-              value={displayName}
-              onChange={(e) => {
-                setDisplayName(e.target.value);
-                setUsername("");
-              }}
-              placeholder={copy.displayNamePlaceholder}
-              className="mt-2"
-            />
+          <div className="grid gap-4">
+            <div>
+              <FieldLabel>{copy.displayName}</FieldLabel>
+              <TextInput
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={copy.displayNamePlaceholder}
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <FieldLabel>{copy.gender}</FieldLabel>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {GENDER_OPTIONS.map((item) => (
+                  <ChoiceButton
+                    key={item}
+                    selected={gender === item}
+                    onClick={() => setGender(item)}
+                  >
+                    {formatOption(item, appLocale, GENDER_OPTIONS_EN)}
+                  </ChoiceButton>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel>{copy.birthDate}</FieldLabel>
+              <TextInput
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="mt-2"
+              />
+            </div>
           </div>
         </StepShell>
       );
@@ -1734,19 +1737,21 @@ export default function SignupCreatorClient() {
           <button
             type="button"
             onClick={handleGoogleSignup}
-            className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-900 transition hover:bg-slate-50"
+            className="flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-black"
           >
             {copy.signUpWithGoogle}
           </button>
 
-          <div className="my-6 flex items-center gap-4 text-xs font-black text-slate-300">
-            <div className="h-px flex-1 bg-slate-200" />
-            {copy.orText}
-            <div className="h-px flex-1 bg-slate-200" />
+          <div className="my-5 flex items-center gap-4">
+            <div className="h-px flex-1 bg-slate-100" />
+            <span className="text-xs font-black text-slate-300">
+              {copy.orText}
+            </span>
+            <div className="h-px flex-1 bg-slate-100" />
           </div>
 
           {oauthSessionEmail ? (
-            <div className="mb-5 rounded-2xl bg-emerald-50 p-4 text-sm font-black text-emerald-700 ring-1 ring-emerald-100">
+            <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 ring-1 ring-emerald-100">
               {copy.oauthConnected}: {oauthSessionEmail}
             </div>
           ) : null}
@@ -1775,103 +1780,91 @@ export default function SignupCreatorClient() {
 
     if (step === 2) {
       return (
-        <StepShell title={copy.profileTitle} body={copy.profileBody}>
-          <div className="grid gap-4">
-            <div>
-              <FieldLabel>{copy.country}</FieldLabel>
-              <SelectInput
-                value={country}
-                onChange={(e) => {
-                  setCountry(e.target.value);
-                  if (e.target.value !== "日本") {
-                    setPrefecture("");
-                  }
-                }}
-                className="mt-2"
-              >
-                <option value="">{copy.selectCountry}</option>
-                {COUNTRY_OPTIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {formatOption(item, appLocale, COUNTRY_OPTIONS_EN)}
-                  </option>
-                ))}
-              </SelectInput>
-            </div>
+        <StepShell title={copy.categoryTitle} body={copy.categoryBody}>
+          <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3">
+            <span className="text-sm font-black text-slate-500">
+              {copy.categoryCount}
+            </span>
+            <span className="text-sm font-black text-slate-950">
+              {selectedCategories.length}/5
+            </span>
+          </div>
 
-            {country === "日本" ? (
-              <div>
-                <FieldLabel>{copy.prefecture}</FieldLabel>
-                <SelectInput
-                  value={prefecture}
-                  onChange={(e) => setPrefecture(e.target.value)}
-                  className="mt-2"
+          <div className="mt-5 flex flex-wrap gap-2">
+            {CATEGORY_OPTIONS.map((item) => {
+              const selected = selectedCategories.includes(item);
+              const disabled = !selected && selectedCategories.length >= 5;
+
+              return (
+                <ChoiceButton
+                  key={item}
+                  selected={selected}
+                  disabled={disabled}
+                  onClick={() => toggleCategory(item)}
                 >
-                  <option value="">{copy.selectPrefecture}</option>
-                  {PREFECTURE_OPTIONS.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </SelectInput>
-              </div>
-            ) : null}
-
-            <div>
-              <p className="text-sm font-black text-slate-950">
-                {copy.mainCategory}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {CATEGORY_OPTIONS.map((item) => (
-                  <ChoiceButton
-                    key={item}
-                    selected={mainCategory === item}
-                    onClick={() => setMainCategory(item)}
-                  >
-                    {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
-                  </ChoiceButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-black text-slate-950">
-                {copy.subCategories}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {CATEGORY_OPTIONS.map((item) => (
-                  <ChoiceButton
-                    key={item}
-                    selected={subCategories.includes(item)}
-                    onClick={() => toggleSubCategory(item)}
-                  >
-                    {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
-                  </ChoiceButton>
-                ))}
-              </div>
-            </div>
-
-            <TextArea
-              value={shortBio}
-              onChange={(e) => setShortBio(e.target.value)}
-              rows={3}
-              placeholder={copy.shortBio}
-            />
-
-            <label className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4 text-sm font-black text-slate-900">
-              <input
-                type="checkbox"
-                checked={isAdultConfirmed}
-                onChange={(e) => setIsAdultConfirmed(e.target.checked)}
-                className="h-4 w-4"
-              />
-              {copy.adultConfirm}
-            </label>
+                  {formatOption(item, appLocale, CATEGORY_OPTIONS_EN)}
+                </ChoiceButton>
+              );
+            })}
           </div>
         </StepShell>
       );
     }
 
     if (step === 3) {
+      return (
+        <StepShell title={copy.areaTitle} body={copy.areaBody}>
+          <div className="grid gap-5">
+            <div>
+              <FieldLabel>{copy.prefecture}</FieldLabel>
+              <SelectInput
+                value={prefecture}
+                onChange={(e) => setPrefecture(e.target.value)}
+                className="mt-2"
+              >
+                <option value="">{copy.selectPrefecture}</option>
+                {PREFECTURE_OPTIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </SelectInput>
+            </div>
+
+            <div>
+              <FieldLabel>{copy.productPr}</FieldLabel>
+              <div className="mt-3 grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCanReceiveProductsChoice("yes")}
+                  className={`rounded-[22px] px-4 py-4 text-left text-sm font-black ring-1 transition ${
+                    canReceiveProductsChoice === "yes"
+                      ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+                      : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {copy.productPrYes}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCanReceiveProductsChoice("no")}
+                  className={`rounded-[22px] px-4 py-4 text-left text-sm font-black ring-1 transition ${
+                    canReceiveProductsChoice === "no"
+                      ? "bg-slate-950 text-white ring-slate-950"
+                      : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {copy.productPrNo}
+                </button>
+              </div>
+            </div>
+          </div>
+        </StepShell>
+      );
+    }
+
+    if (step === 4) {
       return (
         <StepShell title={copy.socialTitle} body={copy.socialBody}>
           <div className="space-y-4">
@@ -1998,7 +1991,7 @@ export default function SignupCreatorClient() {
       );
     }
 
-    if (step === 4) {
+    if (step === 5) {
       return (
         <StepShell title={copy.imagesTitle} body={copy.imagesBody}>
           <div className="space-y-5">
@@ -2095,245 +2088,254 @@ export default function SignupCreatorClient() {
       );
     }
 
-    if (step === 5) {
-      return (
-        <StepShell title={copy.menuTitle} body={copy.menuBody}>
-          <div className="space-y-4">
-            {menus.map((menu, index) => (
-              <div
-                key={index}
-                className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <p className="font-black text-slate-950">Menu {index + 1}</p>
-                  <button
-                    type="button"
-                    onClick={() => removeMenu(index)}
-                    className="text-sm font-black text-[#ff5f67]"
-                  >
-                    {copy.remove}
-                  </button>
-                </div>
-
-                <div className="grid gap-3">
-                  <SelectInput
-                    value={menu.menu_type}
-                    onChange={(e) =>
-                      updateMenu(index, "menu_type", e.target.value)
-                    }
-                  >
-                    <option value="">{copy.selectPlease}</option>
-                    {MENU_OPTIONS.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {appLocale === "ja" ? item.labelJa : item.labelEn}
-                      </option>
-                    ))}
-                  </SelectInput>
-
-                  {menu.menu_type ? (
-                    <p className="rounded-2xl bg-white px-4 py-3 text-xs font-bold leading-6 text-slate-500 ring-1 ring-slate-100">
-                      {getMenuLabel(menu.menu_type, appLocale)}：{" "}
-                      {getMenuHelp(menu.menu_type, appLocale)}
-                    </p>
-                  ) : null}
-
-                  <TextInput
-                    type="number"
-                    min={1}
-                    value={menu.price}
-                    onChange={(e) =>
-                      updateMenu(index, "price", e.target.value)
-                    }
-                    placeholder={copy.price}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={addMenu}
-            className="mt-5 w-full rounded-full bg-white px-4 py-4 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
-          >
-            + {copy.addMenu}
-          </button>
-        </StepShell>
-      );
-    }
-
     return (
-      <StepShell title={copy.phoneTitle} body={copy.phoneBody}>
-        <div className="grid gap-4">
-          <TextInput
-            value={phoneNumber}
-            onChange={(e) => {
-              setPhoneNumber(e.target.value);
-              setPhoneVerified(false);
-              setSentCode("");
-              setVerificationCode("");
-            }}
-            placeholder={copy.phoneNumber}
-            inputMode="tel"
-          />
-
-          <button
-            type="button"
-            onClick={sendDevCode}
-            className="w-fit rounded-full bg-white px-5 py-3 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
-          >
-            {copy.sendCode}
-          </button>
-
-          <div className="flex gap-3">
-            <TextInput
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              placeholder={copy.verificationCode}
-              inputMode="numeric"
-              className="min-w-0 flex-1"
-            />
-            <button
-              type="button"
-              onClick={verifyDevCode}
-              className="shrink-0 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
+      <StepShell title={copy.menuTitle} body={copy.menuBody}>
+        <div className="space-y-4">
+          {menus.map((menu, index) => (
+            <div
+              key={index}
+              className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
             >
-              {phoneVerified ? copy.verified : copy.verifyCode}
-            </button>
-          </div>
+              <div className="mb-4 flex items-center justify-between">
+                <p className="font-black text-slate-950">Menu {index + 1}</p>
+                <button
+                  type="button"
+                  onClick={() => removeMenu(index)}
+                  className="text-sm font-black text-[#ff5f67]"
+                >
+                  {copy.remove}
+                </button>
+              </div>
 
-          <div className="mt-2 space-y-3 rounded-[24px] bg-slate-50 p-4">
-            <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <span>
-                {copy.termsLabel}{" "}
-                <Link href="/terms" className="font-black underline">
-                  {copy.termsLink}
-                </Link>
-              </span>
-            </label>
+              <div className="grid gap-3">
+                <SelectInput
+                  value={menu.menu_type}
+                  onChange={(e) =>
+                    updateMenu(index, "menu_type", e.target.value)
+                  }
+                >
+                  <option value="">{copy.selectPlease}</option>
+                  {MENU_OPTIONS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {appLocale === "ja" ? item.labelJa : item.labelEn}
+                    </option>
+                  ))}
+                </SelectInput>
 
-            <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
-              <input
-                type="checkbox"
-                checked={agreedToPrivacy}
-                onChange={(e) => setAgreedToPrivacy(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <span>
-                {copy.privacyLabel}{" "}
-                <Link href="/privacy" className="font-black underline">
-                  {copy.privacyLink}
-                </Link>
-              </span>
-            </label>
-          </div>
+                {menu.menu_type ? (
+                  <p className="rounded-2xl bg-white px-4 py-3 text-xs font-bold leading-6 text-slate-500 ring-1 ring-slate-100">
+                    {getMenuLabel(menu.menu_type, appLocale)}：{" "}
+                    {getMenuHelp(menu.menu_type, appLocale)}
+                  </p>
+                ) : null}
+
+                <TextInput
+                  type="number"
+                  inputMode="numeric"
+                  value={menu.price}
+                  onChange={(e) => updateMenu(index, "price", e.target.value)}
+                  placeholder={copy.price}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={addMenu}
+          className="mt-5 w-full rounded-full bg-white px-4 py-4 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
+        >
+          + {copy.addMenu}
+        </button>
+
+        <div className="mt-6 space-y-3 rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+          <p className="text-sm font-black text-slate-950">{copy.termsTitle}</p>
+
+          <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <span>
+              {copy.termsLabel}{" "}
+              <Link
+                href="/terms"
+                target="_blank"
+                className="text-[#ff5f67] underline underline-offset-4"
+              >
+                {copy.termsLink}
+              </Link>
+            </span>
+          </label>
+
+          <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
+            <input
+              type="checkbox"
+              checked={agreedToPrivacy}
+              onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <span>
+              {copy.privacyLabel}{" "}
+              <Link
+                href="/privacy"
+                target="_blank"
+                className="text-[#ff5f67] underline underline-offset-4"
+              >
+                {copy.privacyLink}
+              </Link>
+            </span>
+          </label>
         </div>
       </StepShell>
     );
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-white">
+    <main className="relative min-h-screen overflow-x-hidden bg-slate-50">
       <BackdropHero />
 
-      <header className="relative z-20 flex items-center justify-between px-4 py-4 md:px-8">
-        <Link href="/home" className="flex items-center" aria-label="Trendre">
-          <img
-            src="/brand/trendre-logo-full.png"
-            alt="Trendre"
-            className="h-8 w-auto object-contain"
-          />
-        </Link>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className="hidden rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50 sm:inline-flex"
-          >
-            {copy.login}
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 md:px-6">
+          <Link href="/for-creators" className="inline-flex items-center">
+            <img src="/brand/trendre-logo.png" alt="Trendre" className="h-9 w-auto" />
           </Link>
-          <LocaleButton locale={appLocale} setLocale={setLocale} />
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setLocale(appLocale === "ja" ? "en" : "ja")}
+              className="rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
+            >
+              {appLocale === "ja" ? "EN" : "日本語"}
+            </button>
+
+            <Link
+              href="/login"
+              className="hidden rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50 sm:inline-flex"
+            >
+              {copy.login}
+            </Link>
+          </div>
+        </header>
+
+        <div className="mx-auto flex w-full max-w-5xl flex-1 items-center px-4 pb-10 pt-4 md:px-6 md:pb-16">
+          <section className="w-full overflow-hidden rounded-[34px] bg-white/92 shadow-[0_24px_90px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur-2xl">
+            <div className="grid md:grid-cols-[320px_minmax(0,1fr)]">
+              <aside className="hidden border-r border-slate-100 bg-slate-50/70 p-7 md:block">
+                <div className="sticky top-6">
+                  <p className="text-xs font-black tracking-[0.22em] text-slate-400">
+                    {copy.step} {step + 1}/{TOTAL_STEPS}
+                  </p>
+
+                  <h2 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.05em] text-slate-950">
+                    {stepTitles[step]}
+                  </h2>
+
+                  <div className="mt-7 space-y-2">
+                    {stepTitles.map((title, index) => (
+                      <button
+                        key={title}
+                        type="button"
+                        onClick={() => {
+                          if (index <= step) goToStep(index);
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
+                          index === step
+                            ? "bg-slate-950 text-white"
+                            : index < step
+                              ? "bg-white text-slate-800 ring-1 ring-slate-100"
+                              : "text-slate-400"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${
+                            index === step
+                              ? "bg-white text-slate-950"
+                              : index < step
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          {index < step ? "✓" : index + 1}
+                        </span>
+                        <span>{title}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="mt-6 text-xs font-black text-slate-400 underline underline-offset-4"
+                  >
+                    {copy.reset}
+                  </button>
+                </div>
+              </aside>
+
+              <div className="p-5 md:p-8">
+                <div className="mb-6 md:hidden">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs font-black tracking-[0.2em] text-slate-400">
+                      {copy.step} {step + 1}/{TOTAL_STEPS}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="text-xs font-black text-slate-400 underline underline-offset-4"
+                    >
+                      {copy.reset}
+                    </button>
+                  </div>
+                  <ProgressBar current={step} />
+                </div>
+
+                <div className="min-h-[520px]">{renderStep()}</div>
+
+                {error ? (
+                  <div className="mt-6 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black leading-6 text-rose-700 ring-1 ring-rose-100">
+                    {error}
+                  </div>
+                ) : null}
+
+                <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    disabled={step === 0 || loading}
+                    className="rounded-full bg-white px-6 py-4 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {copy.back}
+                  </button>
+
+                  {step < TOTAL_STEPS - 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => void goNext()}
+                      disabled={loading}
+                      className="rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {copy.continue}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleFinish()}
+                      disabled={loading}
+                      className="rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {loading ? copy.loading : copy.finish}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-      </header>
-
-      <div className="fixed inset-0 z-10 bg-slate-950/10 backdrop-blur-[6px]" />
-
-      <div className="fixed inset-0 z-30 flex items-center justify-center overflow-hidden px-4 py-5">
-        <section className="relative flex max-h-[calc(100vh-40px)] w-full max-w-[680px] flex-col overflow-hidden rounded-[34px] border border-white/80 bg-white/95 shadow-[0_34px_120px_rgba(15,23,42,0.24)] backdrop-blur-xl">
-          <div className="border-b border-slate-100 px-5 py-5 md:px-7">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ff5f67]">
-                  {copy.step} {step + 1} / {TOTAL_STEPS}
-                </p>
-                <p className="mt-1 text-sm font-black text-slate-500">
-                  {stepTitles[step]}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-800"
-              >
-                {copy.reset}
-              </button>
-            </div>
-
-            <div className="mt-5">
-              <ProgressBar current={step} />
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-7">
-            {renderStep()}
-
-            {error ? (
-              <div className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700 ring-1 ring-rose-100">
-                {error}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="border-t border-slate-100 bg-white px-5 py-4 md:px-7">
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={goBack}
-                disabled={step === 0 || loading}
-                className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {copy.back}
-              </button>
-
-              {step < TOTAL_STEPS - 1 ? (
-                <button
-                  type="button"
-                  onClick={() => void goNext()}
-                  disabled={loading}
-                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {copy.continue}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void handleFinish()}
-                  disabled={loading}
-                  className="inline-flex items-center justify-center rounded-full bg-[#ff5f67] px-7 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? copy.loading : copy.finish}
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
       </div>
     </main>
   );
