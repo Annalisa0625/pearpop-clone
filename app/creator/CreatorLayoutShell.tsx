@@ -503,7 +503,7 @@ export default function CreatorLayoutShell({
             orders: "注文",
             todo: "ToDo",
             payouts: "報酬",
-            menu: "メニュー",
+            menu: "プロフィール",
 
             notifications: "通知",
             waitingWork: "実行待ち",
@@ -535,7 +535,7 @@ export default function CreatorLayoutShell({
             orders: "Orders",
             todo: "ToDo",
             payouts: "Payouts",
-            menu: "Menu",
+            menu: "Profile",
 
             notifications: "Notifications",
             waitingWork: "Waiting work",
@@ -590,10 +590,10 @@ export default function CreatorLayoutShell({
         icon: <YenIcon className="h-[25px] w-[25px]" />,
       },
       {
-        href: "/creator/profile",
-        label: copy.menu,
-        icon: <MenuIcon className="h-[25px] w-[25px]" />,
-      },
+  href: "/creator/profile",
+  label: copy.menu,
+  icon: <ProfileIcon className="h-[25px] w-[25px]" />,
+},
     ],
     [copy.home, copy.menu, copy.orders, copy.payouts, copy.todo]
   );
