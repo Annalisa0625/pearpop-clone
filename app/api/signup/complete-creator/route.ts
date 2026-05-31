@@ -42,20 +42,24 @@ type RequestBody = {
   avatar_url?: string | null;
   portfolio_assets?: PortfolioAssetInput[];
 
+  gender?: string | null;
+  birth_date?: string | null;
+
   country?: string | null;
   prefecture?: string | null;
   city?: string | null;
+  can_receive_products?: boolean | null;
 
   main_category: string;
   sub_categories?: string[];
   content_language?: string | null;
   response_language?: string | null;
   short_bio?: string | null;
-  is_adult_confirmed: boolean;
+  is_adult_confirmed?: boolean;
 
   phone_country_code?: string | null;
-  phone_number: string;
-  phone_verified: boolean;
+  phone_number?: string | null;
+  phone_verified?: boolean | null;
 
   social_accounts: SocialAccountInput[];
 
@@ -82,6 +86,8 @@ const RESERVED_USERNAMES = new Set([
   "terms",
   "legal",
 ]);
+
+const VALID_GENDERS = new Set(["男性", "女性", "その他"]);
 
 function normalizeUsername(input: string) {
   return input.trim().toLowerCase();
@@ -122,6 +128,7 @@ function inferPlatformFromMenuType(menuType: string) {
   if (menuType.includes("Instagram")) return "Instagram";
   if (menuType.includes("TikTok")) return "TikTok";
   if (menuType.includes("YouTube")) return "YouTube";
+
   if (
     menuType.includes("投稿なし") ||
     menuType.includes("素材のみ") ||
@@ -129,7 +136,9 @@ function inferPlatformFromMenuType(menuType: string) {
   ) {
     return "UGC";
   }
+
   if (menuType.includes("イベント")) return "Event";
+
   return "Other";
 }
 
@@ -170,6 +179,39 @@ function isMaterialOnlyMenu(menuType: string) {
   );
 }
 
+function normalizeBirthDate(input?: string | null) {
+  const value = input?.trim();
+
+  if (!value) return null;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  return value;
+}
+
+function getAgeFromBirthDate(birthDate: string) {
+  const today = new Date();
+  const birthday = new Date(`${birthDate}T00:00:00.000Z`);
+
+  let age = today.getUTCFullYear() - birthday.getUTCFullYear();
+
+  const currentMonth = today.getUTCMonth();
+  const birthMonth = birthday.getUTCMonth();
+
+  if (
+    currentMonth < birthMonth ||
+    (currentMonth === birthMonth && today.getUTCDate() < birthday.getUTCDate())
+  ) {
+    age -= 1;
+  }
+
+  return age;
+}
+
 async function findExistingUserByEmail(email: string) {
   const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
@@ -183,7 +225,10 @@ async function findExistingUserByEmail(email: string) {
   return { user, error: null };
 }
 
-async function ensureNoDuplicateUsername(username: string, userId?: string | null) {
+async function ensureNoDuplicateUsername(
+  username: string,
+  userId?: string | null
+) {
   const { data, error } = await supabaseAdmin
     .from("profiles")
     .select("id")
@@ -239,44 +284,49 @@ export async function POST(req: Request) {
       password,
       avatar_url,
       portfolio_assets,
+      gender,
+      birth_date,
       country,
       prefecture,
       main_category,
       sub_categories,
       short_bio,
-      is_adult_confirmed,
-      phone_number,
-      phone_verified,
       social_accounts,
       agreed_to_terms,
       agreed_to_privacy,
     } = body;
 
     const normalizedUsername = normalizeUsername(username ?? "");
+
     const normalizedDisplayName =
       display_name?.trim() || full_name?.trim() || normalizedUsername;
 
     const normalizedFullName = full_name?.trim() || normalizedDisplayName;
 
-    const normalizedCountry = country?.trim() || null;
+    const normalizedCountry = country?.trim() || "日本";
     const normalizedPrefecture = prefecture?.trim() || null;
     const normalizedContentLanguage =
       body.content_language?.trim() || "日本語";
     const normalizedResponseLanguage =
       body.response_language?.trim() || "日本語";
-    const normalizedPhoneCountryCode =
-      body.phone_country_code?.trim() || "+81";
+
+    const normalizedGender = gender?.trim() || null;
+    const normalizedBirthDate = normalizeBirthDate(birth_date);
+    const normalizedCanReceiveProducts = Boolean(body.can_receive_products);
 
     const normalizedSubCategories = Array.isArray(sub_categories)
-      ? sub_categories.filter(
-          (item): item is string =>
-            typeof item === "string" && item.trim().length > 0
-        )
+      ? sub_categories
+          .filter(
+            (item): item is string =>
+              typeof item === "string" && item.trim().length > 0
+          )
+          .map((item) => item.trim())
+          .slice(0, 5)
       : [];
 
     if (!normalizedUsername) {
       return NextResponse.json(
-        { error: "公開URL用IDを入力してください" },
+        { error: "ユーザーネームを入力してください" },
         { status: 400 }
       );
     }
@@ -285,7 +335,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "公開URL用IDは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
+            "ユーザーネームは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
         },
         { status: 400 }
       );
@@ -293,14 +343,35 @@ export async function POST(req: Request) {
 
     if (RESERVED_USERNAMES.has(normalizedUsername)) {
       return NextResponse.json(
-        { error: "この公開URL用IDは使用できません" },
+        { error: "このユーザーネームは使用できません" },
         { status: 400 }
       );
     }
 
     if (!normalizedDisplayName) {
       return NextResponse.json(
-        { error: "表示名を入力してください" },
+        { error: "ユーザーネームを入力してください" },
+        { status: 400 }
+      );
+    }
+
+    if (!normalizedGender || !VALID_GENDERS.has(normalizedGender)) {
+      return NextResponse.json(
+        { error: "性別を選択してください" },
+        { status: 400 }
+      );
+    }
+
+    if (!normalizedBirthDate) {
+      return NextResponse.json(
+        { error: "生年月日を選択してください" },
+        { status: 400 }
+      );
+    }
+
+    if (getAgeFromBirthDate(normalizedBirthDate) < 18) {
+      return NextResponse.json(
+        { error: "18歳以上の方のみ登録できます" },
         { status: 400 }
       );
     }
@@ -317,7 +388,8 @@ export async function POST(req: Request) {
           .map((item, index) => ({
             asset_url: item.asset_url?.trim() ?? "",
             title: item.title?.trim() || null,
-            sort_order: typeof item.sort_order === "number" ? item.sort_order : index,
+            sort_order:
+              typeof item.sort_order === "number" ? item.sort_order : index,
           }))
           .filter((item) => item.asset_url.length > 0)
       : [];
@@ -329,23 +401,33 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!main_category?.trim()) {
+    if (normalizedSubCategories.length === 0) {
       return NextResponse.json(
-        { error: "メインカテゴリを選択してください" },
+        { error: "得意または興味のあるジャンルを選択してください" },
         { status: 400 }
       );
     }
 
-    if (!is_adult_confirmed) {
+    if (normalizedSubCategories.length > 5) {
       return NextResponse.json(
-        { error: "18歳以上の確認が必要です" },
+        { error: "ジャンルは5つまで選択できます" },
         { status: 400 }
       );
     }
 
-    if (!phone_number?.trim() || !phone_verified) {
+    const normalizedMainCategory =
+      main_category?.trim() || normalizedSubCategories[0] || "";
+
+    if (!normalizedMainCategory) {
       return NextResponse.json(
-        { error: "電話番号の本人確認が必要です" },
+        { error: "ジャンルを選択してください" },
+        { status: 400 }
+      );
+    }
+
+    if (!normalizedCountry) {
+      return NextResponse.json(
+        { error: "国を選択してください" },
         { status: 400 }
       );
     }
@@ -452,7 +534,7 @@ export async function POST(req: Request) {
 
       if (!duplicateOk) {
         return NextResponse.json(
-          { error: "この公開URL用IDは既に使われています" },
+          { error: "このユーザーネームは既に使われています" },
           { status: 400 }
         );
       }
@@ -466,12 +548,14 @@ export async function POST(req: Request) {
             full_name: normalizedFullName,
             display_name: normalizedDisplayName,
             creator_username: normalizedUsername,
+            creator_gender: normalizedGender,
+            creator_birth_date: normalizedBirthDate,
             creator_country: normalizedCountry,
             creator_prefecture: normalizedPrefecture,
+            creator_can_receive_products: normalizedCanReceiveProducts,
             creator_content_language: normalizedContentLanguage,
             creator_response_language: normalizedResponseLanguage,
             creator_sub_categories: normalizedSubCategories,
-            creator_phone: `${normalizedPhoneCountryCode}${phone_number.trim()}`,
           },
         });
 
@@ -517,7 +601,7 @@ export async function POST(req: Request) {
 
       if (existingCreator) {
         return NextResponse.json(
-          { error: "このアカウントは既にクリエイター登録済みです" },
+          { error: "このアカウントは既にインフルエンサー登録済みです" },
           { status: 400 }
         );
       }
@@ -529,7 +613,7 @@ export async function POST(req: Request) {
 
       if (!duplicateOk) {
         return NextResponse.json(
-          { error: "この公開URL用IDは既に使われています" },
+          { error: "このユーザーネームは既に使われています" },
           { status: 400 }
         );
       }
@@ -541,12 +625,14 @@ export async function POST(req: Request) {
             full_name: normalizedFullName,
             display_name: normalizedDisplayName,
             creator_username: normalizedUsername,
+            creator_gender: normalizedGender,
+            creator_birth_date: normalizedBirthDate,
             creator_country: normalizedCountry,
             creator_prefecture: normalizedPrefecture,
+            creator_can_receive_products: normalizedCanReceiveProducts,
             creator_content_language: normalizedContentLanguage,
             creator_response_language: normalizedResponseLanguage,
             creator_sub_categories: normalizedSubCategories,
-            creator_phone: `${normalizedPhoneCountryCode}${phone_number.trim()}`,
           },
         });
 
@@ -568,8 +654,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const phoneVerifiedAt = new Date().toISOString();
-
     const { data: createdCreator, error: creatorError } = await supabaseAdmin
       .from("creators")
       .insert({
@@ -577,17 +661,20 @@ export async function POST(req: Request) {
         contact_email: currentEmail || email?.trim() || null,
         display_name: normalizedDisplayName,
         full_name: normalizedFullName,
+        gender: normalizedGender,
+        birth_date: normalizedBirthDate,
         bio: short_bio?.trim() || null,
-        category: main_category.trim(),
+        category: normalizedMainCategory,
         country: normalizedCountry,
         prefecture: normalizedPrefecture,
         city: null,
+        can_receive_products: normalizedCanReceiveProducts,
         content_language: normalizedContentLanguage,
         response_language: normalizedResponseLanguage,
         sub_categories: normalizedSubCategories,
-        phone_country_code: normalizedPhoneCountryCode,
-        phone_number: phone_number.trim(),
-        phone_verified_at: phoneVerifiedAt,
+        phone_country_code: null,
+        phone_number: null,
+        phone_verified_at: null,
         approval_status: "approved",
         is_public: true,
         is_suspended: false,
@@ -599,7 +686,7 @@ export async function POST(req: Request) {
 
     if (creatorError || !createdCreator) {
       return NextResponse.json(
-        { error: creatorError?.message ?? "クリエイター作成に失敗しました" },
+        { error: creatorError?.message ?? "インフルエンサー作成に失敗しました" },
         { status: 500 }
       );
     }
@@ -609,7 +696,7 @@ export async function POST(req: Request) {
     const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
       username: normalizedUsername,
-      category: main_category.trim(),
+      category: normalizedMainCategory,
       bio: short_bio?.trim() || null,
       avatar_url: avatar_url.trim(),
       is_public: true,
@@ -688,7 +775,7 @@ export async function POST(req: Request) {
         account_url: matchingSocial,
         reference_price_text: null,
         allow_secondary_use: isMaterialOnlyMenu(menuType),
-        category: main_category.trim(),
+        category: normalizedMainCategory,
         menu_type: inferMenuType(menuType),
         sort_order: index,
       };
