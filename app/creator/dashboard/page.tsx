@@ -32,6 +32,14 @@ type RecentJob = {
   delivered_post_url: string | null;
 };
 
+type ActivityItem = {
+  kind: "order" | "legacy_request";
+  id: string;
+  product_name: string | null;
+  status: string | null;
+  date: string;
+};
+
 type CreatorState = {
   isCreator: boolean;
   isSuspended: boolean;
@@ -90,7 +98,7 @@ function formatMoney(value: number, locale: "ja" | "en") {
   }
 }
 
-function getOrderHref(item: RecentRequest | RecentJob) {
+function getItemHref(item: ActivityItem) {
   return item.kind === "order"
     ? `/creator/orders/${item.id}`
     : `/creator/requests/${item.id}`;
@@ -139,7 +147,7 @@ function getSimpleStatus(status: string | null, locale: "ja" | "en") {
   }
 
   if (normalized === "delivered") {
-    return "Delivered";
+    return "Review";
   }
 
   if (normalized === "completed") {
@@ -167,7 +175,7 @@ function CreatorAvatar({
   }
 
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-base font-black text-[#ff5f67] shadow-sm ring-1 ring-slate-100">
+    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-base font-black text-[#ff5f67] ring-1 ring-rose-100">
       {fallbackInitial(name)}
     </div>
   );
@@ -175,17 +183,10 @@ function CreatorAvatar({
 
 function LoadingView() {
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      <div className="h-28 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
       <div className="h-32 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-      <div className="flex gap-3 overflow-hidden">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-28 min-w-[74%] animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100 sm:min-w-[260px]"
-          />
-        ))}
-      </div>
-      <div className="h-44 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+      <div className="h-52 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
     </div>
   );
 }
@@ -211,13 +212,13 @@ function NoticeCard({
         : "bg-white ring-slate-100 text-slate-950";
 
   return (
-    <section className={`rounded-[28px] p-5 ring-1 ${toneClass}`}>
+    <section className={`rounded-[26px] p-5 ring-1 ${toneClass}`}>
       <h2 className="text-base font-black tracking-[-0.03em]">{title}</h2>
       <p className="mt-2 text-sm font-semibold leading-7 opacity-75">{body}</p>
       {href && cta ? (
         <Link
           href={href}
-          className="mt-4 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,95,103,0.22)] active:scale-[0.98]"
+          className="mt-4 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,95,103,0.2)] active:scale-[0.98]"
         >
           {cta}
         </Link>
@@ -226,68 +227,102 @@ function NoticeCard({
   );
 }
 
-function SummaryCard({
-  href,
-  label,
-  value,
+function NextActionCard({
+  title,
   body,
-  accent,
+  href,
+  cta,
+  count,
+  tone,
 }: {
-  href: string;
-  label: string;
-  value: number | string;
+  title: string;
   body: string;
-  accent: "rose" | "green" | "blue" | "slate";
+  href: string;
+  cta: string;
+  count?: number;
+  tone: "rose" | "blue" | "green" | "slate";
 }) {
-  const accentClass =
-    accent === "rose"
+  const markClass =
+    tone === "rose"
       ? "bg-rose-50 text-[#ff5f67]"
-      : accent === "green"
-        ? "bg-emerald-50 text-emerald-700"
-        : accent === "blue"
-          ? "bg-blue-50 text-blue-700"
-          : "bg-slate-50 text-slate-700";
+      : tone === "blue"
+        ? "bg-blue-50 text-blue-700"
+        : tone === "green"
+          ? "bg-emerald-50 text-emerald-700"
+          : "bg-slate-50 text-slate-500";
 
+  return (
+    <section className="rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-black text-slate-400">NEXT</p>
+          <h2 className="mt-2 text-[24px] font-black leading-tight tracking-[-0.05em] text-slate-950">
+            {title}
+          </h2>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            {body}
+          </p>
+        </div>
+
+        {typeof count === "number" ? (
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-black ${markClass}`}
+          >
+            {count}
+          </div>
+        ) : null}
+      </div>
+
+      <Link
+        href={href}
+        className="mt-5 flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] active:scale-[0.98]"
+      >
+        {cta}
+      </Link>
+    </section>
+  );
+}
+
+function PayoutMiniCard({
+  title,
+  amount,
+  body,
+  href,
+}: {
+  title: string;
+  amount: string;
+  body: string;
+  href: string;
+}) {
   return (
     <Link
       href={href}
-      className="snap-start rounded-[28px] bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 transition active:scale-[0.98] sm:hover:-translate-y-0.5"
+      className="flex items-center justify-between gap-4 rounded-[26px] bg-white p-5 shadow-[0_16px_45px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 active:scale-[0.98]"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-black text-slate-500">{label}</p>
-          <p className="mt-3 text-[34px] font-black leading-none tracking-[-0.05em] text-slate-950">
-            {value}
-          </p>
-        </div>
-        <span
-          className={`flex h-10 w-10 items-center justify-center rounded-2xl text-lg font-black ${accentClass}`}
-        >
-          ›
-        </span>
+      <div>
+        <p className="text-sm font-black text-slate-950">{title}</p>
+        <p className="mt-1 text-xs font-semibold text-slate-400">{body}</p>
       </div>
-      <p className="mt-4 text-sm font-semibold leading-6 text-slate-500">
-        {body}
+      <p className="text-xl font-black tracking-[-0.04em] text-slate-950">
+        {amount}
       </p>
     </Link>
   );
 }
 
-function RecentOrderCard({
+function ActivityCard({
   item,
   locale,
   productUnset,
-  dateLabel,
 }: {
-  item: RecentRequest | RecentJob;
+  item: ActivityItem;
   locale: "ja" | "en";
   productUnset: string;
-  dateLabel: string;
 }) {
   return (
     <Link
-      href={getOrderHref(item)}
-      className="block rounded-[24px] bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]"
+      href={getItemHref(item)}
+      className="block rounded-[24px] bg-slate-50 p-4 transition active:scale-[0.98]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -295,24 +330,14 @@ function RecentOrderCard({
             {item.product_name || productUnset}
           </p>
           <p className="mt-1 text-xs font-bold text-slate-400">
-            {dateLabel}:{" "}
-            {formatDate(
-              "updated_at" in item ? item.updated_at || item.created_at : item.created_at,
-              locale
-            )}
+            {formatDate(item.date, locale)}
           </p>
         </div>
 
-        <span className="shrink-0 rounded-full bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
+        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 ring-1 ring-slate-100">
           {getSimpleStatus(item.status, locale)}
         </span>
       </div>
-
-      {"delivered_post_url" in item && item.delivered_post_url ? (
-        <p className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
-          {locale === "ja" ? "納品済み" : "Delivered"}
-        </p>
-      ) : null}
     </Link>
   );
 }
@@ -336,10 +361,7 @@ export default function CreatorDashboardPage() {
               "このページはインフルエンサーアカウントのみ利用できます。",
 
             greeting: "こんにちは",
-            heroTitle: "今日の状況を確認しましょう",
-            heroBody:
-              "新しい注文、進行中のToDo、報酬の状況をここで確認できます。",
-            viewOrders: "注文を見る",
+            heroBody: "今日やることだけ、ここで確認できます。",
 
             suspendedTitle: "現在このアカウントは制限中です",
             suspendedBody:
@@ -352,34 +374,25 @@ export default function CreatorDashboardPage() {
               "写真・SNS・メニューを整えると、企業が注文しやすくなります。",
             goToProfile: "プロフィールを編集する",
 
-            orderLabel: "注文",
-            orderBody: "新しく届いた注文を確認",
-            todoLabel: "ToDo",
-            todoBody: "承認済みで対応が必要な案件",
-            deliveredLabel: "確認待ち",
-            deliveredBody: "納品後の確認が必要な案件",
-            payoutLabel: "報酬",
-            payoutBody: "受取予定額と送金状況",
+            nextPendingTitle: "新しい注文があります",
+            nextPendingBody: "内容を確認して、受けるか辞退するか選べます。",
+            nextPendingCta: "注文を確認する",
 
-            payoutExpected: "受取予定",
-            payoutPending: "未送金",
-            payoutTransferred: "送金済み",
+            nextTodoTitle: "対応が必要な注文があります",
+            nextTodoBody: "承認済みの注文を確認して、制作・投稿を進めましょう。",
+            nextTodoCta: "ToDoを見る",
 
-            recentTitle: "最近の動き",
-            recentOrders: "新しい注文",
-            recentTodo: "進行中",
+            nextReadyTitle: "今は対応待ちなし",
+            nextReadyBody:
+              "プロフィールやメニューを整えて、次の注文を受けやすくしましょう。",
+            nextReadyCta: "メニューを確認する",
+
+            payoutTitle: "報酬",
+            payoutBody: "受取予定額を確認",
+            activityTitle: "最近の注文",
             viewAll: "すべて見る",
-            noOrders: "新しい注文はありません。",
-            noTodo: "対応中の案件はありません。",
+            noActivity: "まだ表示する注文はありません。",
             productUnset: "商品名未設定",
-            createdAt: "作成",
-            updatedAt: "更新",
-
-            menuTitle: "プロフィールとメニュー",
-            menuBody:
-              "企業に表示されるプロフィールやメニュー価格を編集できます。",
-            editProfile: "プロフィール編集",
-            editMenus: "メニュー編集",
           }
         : {
             defaultDisplayName: "Influencer",
@@ -392,10 +405,7 @@ export default function CreatorDashboardPage() {
               "This page is available only for influencer accounts.",
 
             greeting: "Hi",
-            heroTitle: "Check today's activity",
-            heroBody:
-              "Review new orders, active to-dos, and payout status here.",
-            viewOrders: "View orders",
+            heroBody: "Check only what matters today.",
 
             suspendedTitle: "This account is currently restricted",
             suspendedBody:
@@ -408,34 +418,25 @@ export default function CreatorDashboardPage() {
               "Add photos, social accounts, and menus so brands can order easily.",
             goToProfile: "Edit profile",
 
-            orderLabel: "Orders",
-            orderBody: "Review new incoming orders",
-            todoLabel: "ToDo",
-            todoBody: "Accepted jobs waiting for action",
-            deliveredLabel: "Review",
-            deliveredBody: "Delivered jobs awaiting confirmation",
-            payoutLabel: "Payouts",
-            payoutBody: "Expected payout and transfer status",
+            nextPendingTitle: "You have a new order",
+            nextPendingBody: "Review the details and accept or decline.",
+            nextPendingCta: "Review order",
 
-            payoutExpected: "Expected",
-            payoutPending: "Pending",
-            payoutTransferred: "Transferred",
+            nextTodoTitle: "You have work to do",
+            nextTodoBody: "Check accepted orders and continue production.",
+            nextTodoCta: "View ToDo",
 
-            recentTitle: "Recent activity",
-            recentOrders: "New orders",
-            recentTodo: "In progress",
+            nextReadyTitle: "Nothing pending right now",
+            nextReadyBody:
+              "Keep your profile and menus ready for the next order.",
+            nextReadyCta: "Check menus",
+
+            payoutTitle: "Payouts",
+            payoutBody: "Expected payout",
+            activityTitle: "Recent orders",
             viewAll: "View all",
-            noOrders: "No new orders.",
-            noTodo: "No active jobs.",
+            noActivity: "No orders to show yet.",
             productUnset: "No product name",
-            createdAt: "Created",
-            updatedAt: "Updated",
-
-            menuTitle: "Profile and menus",
-            menuBody:
-              "Edit the profile and menu prices shown to brands.",
-            editProfile: "Edit profile",
-            editMenus: "Edit menus",
           },
     [safeLocale]
   );
@@ -812,58 +813,86 @@ export default function CreatorDashboardPage() {
 
   if (!gate.isCreator) {
     return (
-      <NoticeCard
-        title={copy.creatorOnlyTitle}
-        body={copy.creatorOnlyBody}
-      />
+      <NoticeCard title={copy.creatorOnlyTitle} body={copy.creatorOnlyBody} />
     );
   }
 
   const displayName =
     creator?.display_name || creator?.full_name || copy.defaultDisplayName;
 
-  const primaryHref =
-    counts.pendingRequests > 0
-      ? "/creator/requests"
-      : counts.acceptedJobs + counts.deliveredJobs > 0
-        ? "/creator/jobs"
-        : "/creator/payouts";
+  const activeTodoCount = counts.acceptedJobs + counts.deliveredJobs;
 
-  const primaryLabel =
+  const nextAction =
     counts.pendingRequests > 0
-      ? copy.orderLabel
-      : counts.acceptedJobs + counts.deliveredJobs > 0
-        ? copy.todoLabel
-        : copy.payoutLabel;
+      ? {
+          title: copy.nextPendingTitle,
+          body: copy.nextPendingBody,
+          href: "/creator/requests",
+          cta: copy.nextPendingCta,
+          count: counts.pendingRequests,
+          tone: "rose" as const,
+        }
+      : activeTodoCount > 0
+        ? {
+            title: copy.nextTodoTitle,
+            body: copy.nextTodoBody,
+            href: "/creator/jobs",
+            cta: copy.nextTodoCta,
+            count: activeTodoCount,
+            tone: "blue" as const,
+          }
+        : {
+            title: copy.nextReadyTitle,
+            body: copy.nextReadyBody,
+            href: "/creator/menus",
+            cta: copy.nextReadyCta,
+            count: undefined,
+            tone: "slate" as const,
+          };
+
+  const requestActivityItems: ActivityItem[] = recentRequests.map((item) => ({
+  kind: item.kind,
+  id: item.id,
+  product_name: item.product_name,
+  status: item.status,
+  date: item.created_at,
+}));
+
+const jobActivityItems: ActivityItem[] = recentJobs.map((item) => ({
+  kind: item.kind,
+  id: item.id,
+  product_name: item.product_name,
+  status: item.status,
+  date: item.updated_at ?? item.created_at,
+}));
+
+const activityItems: ActivityItem[] = [
+  ...requestActivityItems,
+  ...jobActivityItems,
+]
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  .slice(0, 4);
 
   return (
-    <div className="space-y-5 pb-4">
-      <section className="relative overflow-hidden rounded-[32px] bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-rose-100/50 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 left-20 h-56 w-56 rounded-full bg-emerald-100/35 blur-3xl" />
+    <div className="space-y-4 pb-4">
+      <section className="relative overflow-hidden rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
 
-        <div className="relative flex items-start gap-4">
+        <div className="relative flex items-center gap-4">
           <CreatorAvatar name={displayName} src={creator?.avatar_url} />
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-slate-500">
+            <p className="text-sm font-bold text-slate-400">
               {copy.greeting}
             </p>
-            <h1 className="mt-1 truncate text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950">
+            <h1 className="mt-0.5 truncate text-[24px] font-black leading-tight tracking-[-0.055em] text-slate-950">
               {displayName}
             </h1>
-            <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
               {copy.heroBody}
             </p>
           </div>
         </div>
-
-        <Link
-          href={primaryHref}
-          className="relative mt-5 flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.22)] transition active:scale-[0.98]"
-        >
-          {primaryLabel}
-        </Link>
       </section>
 
       {gate.isSuspended ? (
@@ -891,180 +920,45 @@ export default function CreatorDashboardPage() {
         />
       ) : null}
 
-      <section>
-        <div className="mb-3 flex items-end justify-between">
+      <NextActionCard {...nextAction} />
+
+      <PayoutMiniCard
+        title={copy.payoutTitle}
+        body={copy.payoutBody}
+        amount={formatMoney(payoutSummary.pendingAmount, safeLocale)}
+        href="/creator/payouts"
+      />
+
+      <section className="rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-            {copy.heroTitle}
+            {copy.activityTitle}
           </h2>
-        </div>
-
-        <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
-          <div className="min-w-[76%] sm:min-w-0">
-            <SummaryCard
-              href="/creator/requests"
-              label={copy.orderLabel}
-              value={counts.pendingRequests}
-              body={copy.orderBody}
-              accent={counts.pendingRequests > 0 ? "rose" : "slate"}
-            />
-          </div>
-
-          <div className="min-w-[76%] sm:min-w-0">
-            <SummaryCard
-              href="/creator/jobs"
-              label={copy.todoLabel}
-              value={counts.acceptedJobs + counts.deliveredJobs}
-              body={copy.todoBody}
-              accent={
-                counts.acceptedJobs + counts.deliveredJobs > 0
-                  ? "blue"
-                  : "slate"
-              }
-            />
-          </div>
-
-          <div className="min-w-[76%] sm:min-w-0">
-            <SummaryCard
-              href="/creator/payouts"
-              label={copy.payoutLabel}
-              value={formatMoney(payoutSummary.pendingAmount, safeLocale)}
-              body={copy.payoutBody}
-              accent={payoutSummary.pendingAmount > 0 ? "green" : "slate"}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-              {copy.payoutLabel}
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-400">
-              {copy.payoutExpected}:{" "}
-              {formatMoney(payoutSummary.completedPayoutAmount, safeLocale)}
-            </p>
-          </div>
 
           <Link
-            href="/creator/payouts"
-            className="rounded-full bg-slate-50 px-4 py-2 text-sm font-black text-slate-700 active:scale-[0.98]"
+            href="/creator/requests"
+            className="text-sm font-black text-slate-400"
           >
             {copy.viewAll}
           </Link>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-[22px] bg-slate-50 p-4">
-            <p className="text-xs font-black text-slate-400">
-              {copy.payoutPending}
-            </p>
-            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-slate-950">
-              {formatMoney(payoutSummary.pendingAmount, safeLocale)}
-            </p>
+        {activityItems.length === 0 ? (
+          <p className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500">
+            {copy.noActivity}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {activityItems.map((item) => (
+              <ActivityCard
+                key={`${item.kind}-${item.id}`}
+                item={item}
+                locale={safeLocale}
+                productUnset={copy.productUnset}
+              />
+            ))}
           </div>
-
-          <div className="rounded-[22px] bg-emerald-50 p-4">
-            <p className="text-xs font-black text-emerald-600">
-              {copy.payoutTransferred}
-            </p>
-            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-slate-950">
-              {formatMoney(payoutSummary.transferredAmount, safeLocale)}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-              {copy.recentOrders}
-            </h2>
-            <Link
-              href="/creator/requests"
-              className="text-sm font-black text-slate-400"
-            >
-              {copy.viewAll}
-            </Link>
-          </div>
-
-          {recentRequests.length === 0 ? (
-            <p className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500">
-              {copy.noOrders}
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentRequests.map((item) => (
-                <RecentOrderCard
-                  key={`${item.kind}-${item.id}`}
-                  item={item}
-                  locale={safeLocale}
-                  productUnset={copy.productUnset}
-                  dateLabel={copy.createdAt}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-              {copy.recentTodo}
-            </h2>
-            <Link
-              href="/creator/jobs"
-              className="text-sm font-black text-slate-400"
-            >
-              {copy.viewAll}
-            </Link>
-          </div>
-
-          {recentJobs.length === 0 ? (
-            <p className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500">
-              {copy.noTodo}
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentJobs.map((item) => (
-                <RecentOrderCard
-                  key={`${item.kind}-${item.id}`}
-                  item={item}
-                  locale={safeLocale}
-                  productUnset={copy.productUnset}
-                  dateLabel={copy.updatedAt}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-          {copy.menuTitle}
-        </h2>
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-          {copy.menuBody}
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <Link
-            href="/creator/profile"
-            className="flex items-center justify-center rounded-full bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 active:scale-[0.98]"
-          >
-            {copy.editProfile}
-          </Link>
-
-          <Link
-            href="/creator/menus"
-            className="flex items-center justify-center rounded-full bg-slate-950 px-4 py-3 text-sm font-black text-white active:scale-[0.98]"
-          >
-            {copy.editMenus}
-          </Link>
-        </div>
+        )}
       </section>
     </div>
   );
