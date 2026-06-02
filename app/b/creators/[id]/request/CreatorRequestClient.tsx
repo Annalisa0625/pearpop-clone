@@ -59,6 +59,8 @@ type FormState = {
   product_url: string;
   deadline: string;
   note: string;
+  pr_account: string;
+  pr_hashtags: string[];
   creator_menu_id: string;
 };
 
@@ -75,6 +77,9 @@ type GateState = {
   canSendRequests: boolean;
   needsBilling: boolean;
 };
+
+const MAX_HASHTAGS = 8;
+const MIN_VISIBLE_HASHTAG_INPUTS = 3;
 
 function normalizePlanCode(
   value: string | null | undefined
@@ -235,6 +240,55 @@ function isUgcMenu(menu: CreatorMenu | null) {
     text.includes("動画素材") ||
     text.includes("画像素材")
   );
+}
+
+function normalizePrAccountInput(value: string) {
+  return value.replace(/^[@＠]+/g, "").replace(/\s+/g, "").trim();
+}
+
+function normalizeHashtagInput(value: string) {
+  return value.replace(/^[#＃]+/g, "").replace(/\s+/g, "").trim();
+}
+
+function getCleanHashtags(values: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    const normalized = normalizeHashtagInput(value);
+    if (!normalized) continue;
+
+    const key = normalized.toLowerCase();
+
+    if (key === "pr" || key === "ad" || key === "sponsored") continue;
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    result.push(normalized);
+
+    if (result.length >= MAX_HASHTAGS) break;
+  }
+
+  return result;
+}
+
+function normalizeHashtagsForForm(values: string[]) {
+  const sliced = values.slice(0, MAX_HASHTAGS);
+  const missing = Math.max(MIN_VISIBLE_HASHTAG_INPUTS - sliced.length, 0);
+
+  return [...sliced, ...Array(missing).fill("")];
+}
+
+function buildPrCopyText(prAccount: string, hashtags: string[]) {
+  const account = normalizePrAccountInput(prAccount);
+  const cleanHashtags = getCleanHashtags(hashtags);
+
+  const accountLine = account ? `PR@${account}` : "PR";
+  const hashtagLine = ["#PR", ...cleanHashtags.map((tag) => `#${tag}`)].join(
+    " "
+  );
+
+  return `${accountLine}\n${hashtagLine}`;
 }
 
 function PlatformIcon({ platform }: { platform: string | null | undefined }) {
@@ -499,13 +553,31 @@ export default function CreatorRequestClient() {
             deadline: "希望日",
             deadlineStepTitle: "希望日を選択",
             deadlineStepBody: "明確な希望日がなければスキップできます。",
-            requirements: "依頼内容",
-            requirementsStepTitle: "伝えたいことを入力",
+            requirements: "投稿に入れる内容",
+            requirementsStepTitle: "投稿に入れる内容を入力",
             requirementsDescription:
-              "紹介してほしいポイント、投稿内容、希望形式、避けてほしい表現などを入力してください。",
+              "インフルエンサーが投稿時に使うPR表記、ハッシュタグ、触れてほしい内容を入力します。",
             requirementsPlaceholder:
-              "例：商品の特徴、投稿で伝えてほしい内容、撮影イメージ、NG表現、参考URLなど",
+              "例：部屋から海が見えること、朝食、アクセスの良さに触れてください。老朽化や水道の出の悪さなどには触れないでください。",
             chatLater: "詳細は注文後のチャットで相談します。",
+            postSettings: "投稿設定",
+            postSettingsStepTitle: "投稿に入れる内容を入力",
+            postSettingsDescription:
+              "投稿の最後に貼るPR表記と、投稿で触れてほしいことを整理します。",
+            tagAccount: "タグ付けするアカウント名",
+            tagAccountPlaceholder: "例：trendre_official",
+            hashtags: "付けたいハッシュタグ",
+            hashtagsHelp: "最大8個まで。#は自動で整えます。",
+            hashtagPlaceholder: "例：旅行",
+            addHashtag: "ハッシュタグを追加",
+            postNotes: "触れてほしいポイント・注意事項など",
+            postNotesPlaceholder:
+              "例：部屋から海が見えること、朝食、アクセスの良さに触れてください。老朽化や水道の出の悪さなどには触れないでください。",
+            prCopyPreview: "投稿の最後に貼り付ける内容",
+            latestTemplateButton: "前回の内容をコピー",
+            latestTemplateEmpty: "前回の投稿設定はまだありません。",
+            latestTemplateApplied: "前回の投稿設定を反映しました。",
+            latestTemplateError: "前回の投稿設定を取得できませんでした。",
             menuRequired: "注文するメニューを選択してください。",
             freeLimitReached:
               "Basicでは月5件まで注文できます。上限に達したため、プラン変更をご検討ください。",
@@ -591,13 +663,31 @@ export default function CreatorRequestClient() {
             deadlineStepTitle: "Select a preferred date",
             deadlineStepBody:
               "You can skip this if you do not have a specific date yet.",
-            requirements: "Order details",
-            requirementsStepTitle: "Add notes",
+            requirements: "Post instructions",
+            requirementsStepTitle: "Add post instructions",
             requirementsDescription:
-              "Add key points, requested content, preferred format, expressions to avoid, and reference ideas.",
+              "Add the PR line, hashtags, and points the influencer should mention.",
             requirementsPlaceholder:
-              "Example: key product points, requested content, shooting image, NG expressions, reference URLs",
+              "Example: Please mention the ocean view, breakfast, and access. Please avoid mentioning old facilities or weak water pressure.",
             chatLater: "Details will be discussed in chat after the order.",
+            postSettings: "Post settings",
+            postSettingsStepTitle: "Add post instructions",
+            postSettingsDescription:
+              "Prepare the PR text and notes the influencer can use when posting.",
+            tagAccount: "Account to tag",
+            tagAccountPlaceholder: "Example: trendre_official",
+            hashtags: "Hashtags",
+            hashtagsHelp: "Up to 8. # will be formatted automatically.",
+            hashtagPlaceholder: "Example: travel",
+            addHashtag: "Add hashtag",
+            postNotes: "Points and notes",
+            postNotesPlaceholder:
+              "Example: Please mention the ocean view, breakfast, and access. Please avoid mentioning old facilities or weak water pressure.",
+            prCopyPreview: "Text to paste at the end of the post",
+            latestTemplateButton: "Copy previous settings",
+            latestTemplateEmpty: "No previous post settings yet.",
+            latestTemplateApplied: "Previous post settings applied.",
+            latestTemplateError: "Could not load previous post settings.",
             menuRequired: "Please select a menu to order.",
             freeLimitReached:
               "Basic allows up to 5 orders per month. You have reached the limit, so please consider upgrading.",
@@ -663,6 +753,8 @@ export default function CreatorRequestClient() {
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [orderModalOpen, setOrderModalOpen] = useState(false);
@@ -689,6 +781,8 @@ export default function CreatorRequestClient() {
     product_url: "",
     deadline: "",
     note: "",
+    pr_account: "",
+    pr_hashtags: ["", "", ""],
     creator_menu_id: "",
   });
 
@@ -984,7 +1078,9 @@ export default function CreatorRequestClient() {
 
   const displayProductUrl = form.product_url.trim() || copy.skipped;
   const displayDeadline = form.deadline || copy.skipped;
-  const displayNote = form.note.trim() || copy.chatLater;
+  const displayPostNotes = form.note.trim() || copy.skipped;
+  const cleanHashtags = getCleanHashtags(form.pr_hashtags);
+  const prCopyText = buildPrCopyText(form.pr_account, form.pr_hashtags);
 
   const buildFinalRequirements = () => {
     const usageNote = selectedMenuIsUgc
@@ -996,14 +1092,100 @@ export default function CreatorRequestClient() {
         ? `\n\n【商品配送について】\n${copy.productDeliveryNotice}`
         : "";
 
+    const postNotesBlock = form.note.trim()
+      ? `\n\n【投稿で触れてほしいこと・注意事項】\n${form.note.trim()}`
+      : "";
+
     return `【案件タイプ】
 ${selectedProjectTypeLabel}
 
 【利用範囲】
-${usageNote}${deliveryNote}
+${usageNote}${deliveryNote}${postNotesBlock}`;
+  };
 
-【依頼内容】
-${displayNote}`;
+  const updateHashtag = (index: number, value: string) => {
+    setTemplateMessage(null);
+    setForm((prev) => {
+      const next = [...prev.pr_hashtags];
+      next[index] = value;
+
+      return {
+        ...prev,
+        pr_hashtags: next,
+      };
+    });
+  };
+
+  const addHashtagInput = () => {
+    setTemplateMessage(null);
+    setForm((prev) => {
+      if (prev.pr_hashtags.length >= MAX_HASHTAGS) return prev;
+
+      return {
+        ...prev,
+        pr_hashtags: [...prev.pr_hashtags, ""],
+      };
+    });
+  };
+
+  const applyLatestTemplate = async () => {
+    if (templateLoading) return;
+
+    setTemplateLoading(true);
+    setTemplateMessage(null);
+    setErrorMsg(null);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token ?? null;
+
+      if (!accessToken) {
+        setTemplateMessage(copy.authError);
+        setTemplateLoading(false);
+        return;
+      }
+
+      const res = await fetch("/api/company/order-pr-template/latest", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setTemplateMessage(json?.error ?? copy.latestTemplateError);
+        setTemplateLoading(false);
+        return;
+      }
+
+      const template = json?.template ?? null;
+
+      if (!template) {
+        setTemplateMessage(copy.latestTemplateEmpty);
+        setTemplateLoading(false);
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        pr_account: template.pr_account ?? "",
+        pr_hashtags: normalizeHashtagsForForm(
+          Array.isArray(template.pr_hashtags) ? template.pr_hashtags : []
+        ),
+        note: template.post_notes ?? prev.note,
+      }));
+
+      setTemplateMessage(copy.latestTemplateApplied);
+    } catch {
+      setTemplateMessage(copy.latestTemplateError);
+    } finally {
+      setTemplateLoading(false);
+    }
   };
 
   const closeOrderModal = () => {
@@ -1118,6 +1300,9 @@ ${displayNote}`;
           product_url: form.product_url.trim() || null,
           deadline: form.deadline || null,
           requirements: buildFinalRequirements(),
+          pr_account: form.pr_account,
+          pr_hashtags: cleanHashtags,
+          post_notes: form.note.trim() || null,
           has_free_offer:
             form.project_type === "visit_experience" ||
             form.project_type === "product_delivery",
@@ -1386,30 +1571,114 @@ ${displayNote}`;
     if (currentStep === "note") {
       return (
         <div>
-          <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
-            {copy.requirementsStepTitle}
-          </h3>
-          <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
-            {copy.requirementsDescription}
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
+                {copy.postSettingsStepTitle}
+              </h3>
+              <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+                {copy.postSettingsDescription}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={applyLatestTemplate}
+              disabled={templateLoading}
+              className="w-fit shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {templateLoading ? copy.loading : copy.latestTemplateButton}
+            </button>
+          </div>
+
+          {templateMessage ? (
+            <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs font-bold leading-6 text-slate-500">
+              {templateMessage}
+            </div>
+          ) : null}
+
+          <div className="mt-6">
+            <ModalInput
+              label={copy.tagAccount}
+              value={form.pr_account}
+              onChange={(value) => {
+                setTemplateMessage(null);
+                setForm((prev) => ({ ...prev, pr_account: value }));
+              }}
+              placeholder={copy.tagAccountPlaceholder}
+            />
+          </div>
+
+          <div className="mt-6">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-sm font-black text-slate-800">
+                  {copy.hashtags}
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-400">
+                  {copy.hashtagsHelp}
+                </p>
+              </div>
+
+              <span className="text-xs font-black text-slate-400">
+                {cleanHashtags.length}/{MAX_HASHTAGS}
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {form.pr_hashtags.map((value, index) => (
+                <label key={index} className="relative block">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-300">
+                    #
+                  </span>
+                  <input
+                    value={value}
+                    onChange={(event) => updateHashtag(index, event.target.value)}
+                    placeholder={`${copy.hashtagPlaceholder} ${index + 1}`}
+                    className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-8 pr-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                  />
+                </label>
+              ))}
+            </div>
+
+            {form.pr_hashtags.length < MAX_HASHTAGS ? (
+              <button
+                type="button"
+                onClick={addHashtagInput}
+                className="mt-3 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                ＋ {copy.addHashtag}
+              </button>
+            ) : null}
+          </div>
 
           <label className="mt-6 block">
             <span className="text-sm font-black text-slate-800">
-              {copy.requirements}
+              {copy.postNotes}
             </span>
             <textarea
               value={form.note}
-              onChange={(event) =>
+              onChange={(event) => {
+                setTemplateMessage(null);
                 setForm((prev) => ({
                   ...prev,
                   note: event.target.value,
-                }))
-              }
-              placeholder={copy.requirementsPlaceholder}
-              rows={7}
+                }));
+              }}
+              placeholder={copy.postNotesPlaceholder}
+              rows={6}
               className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
             />
           </label>
+
+          <div className="mt-5 rounded-[24px] border border-rose-100 bg-rose-50/60 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#ff5f67]">
+              {copy.prCopyPreview}
+            </p>
+            <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm font-black leading-7 text-slate-950">
+              {prCopyText}
+            </pre>
+          </div>
         </div>
       );
     }
@@ -1501,7 +1770,25 @@ ${displayNote}`;
           <div className="rounded-[24px] bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                {copy.requirements}
+                {copy.prCopyPreview}
+              </p>
+              <button
+                type="button"
+                onClick={() => goToStep("note")}
+                className="text-xs font-black text-[#ff5f67]"
+              >
+                {copy.edit}
+              </button>
+            </div>
+            <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm font-black leading-7 text-slate-950">
+              {prCopyText}
+            </pre>
+          </div>
+
+          <div className="rounded-[24px] bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                {copy.postNotes}
               </p>
               <button
                 type="button"
@@ -1512,7 +1799,7 @@ ${displayNote}`;
               </button>
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm font-bold leading-7 text-slate-700">
-              {displayNote}
+              {displayPostNotes}
             </p>
           </div>
         </div>
