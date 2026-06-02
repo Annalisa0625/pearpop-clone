@@ -24,6 +24,10 @@ type CheckoutBody = {
   note?: string;
   has_free_offer?: boolean;
   wants_secondary_use?: boolean;
+
+  pr_account?: string;
+  pr_hashtags?: string[];
+  post_notes?: string;
 };
 
 const ZERO_DECIMAL_CURRENCIES = new Set([
@@ -288,6 +292,64 @@ function isPaidPlan(planCode: string | null | undefined) {
   return normalized === "standard" || normalized === "global_pro";
 }
 
+function normalizePrAccount(value: unknown) {
+  const text = getString(value)
+    .replace(/^[@＠]+/g, "")
+    .replace(/\s+/g, "");
+
+  return text || null;
+}
+
+function normalizeHashtag(value: unknown) {
+  const text = getString(value)
+    .replace(/^[#＃]+/g, "")
+    .replace(/\s+/g, "");
+
+  if (!text) return null;
+
+  const lower = text.toLowerCase();
+
+  if (lower === "pr" || lower === "ad" || lower === "sponsored") {
+    return null;
+  }
+
+  return text;
+}
+
+function normalizeHashtags(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const item of value) {
+    const normalized = normalizeHashtag(item);
+    if (!normalized) continue;
+
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    result.push(normalized);
+
+    if (result.length >= 8) break;
+  }
+
+  return result;
+}
+
+function buildPrCopyText(args: {
+  prAccount: string | null;
+  prHashtags: string[];
+}) {
+  const accountLine = args.prAccount ? `PR@${args.prAccount}` : "PR";
+  const hashtagLine = ["#PR", ...args.prHashtags.map((tag) => `#${tag}`)].join(
+    " "
+  );
+
+  return `${accountLine}\n${hashtagLine}`;
+}
+
 export async function POST(req: NextRequest) {
   let createdOrderId: string | null = null;
 
@@ -349,8 +411,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Basicは無料プランなので、subscription_statusがactiveでなくても注文可能。
-    // Pro/Premium相当の内部プランだけ、月額課金がactiveであることを要求する。
     if (
       isPaidPlan(planCode) &&
       userState.company_subscription_status !== "active"
@@ -393,9 +453,20 @@ export async function POST(req: NextRequest) {
     const productName = getString(body.product_name);
     const productUrl = getNullableString(body.product_url);
     const deadline = getNullableString(body.deadline);
-    const requirements = getString(body.requirements ?? body.note);
+    const postNotes = getNullableString(body.post_notes);
+    const requirements =
+      getString(body.requirements ?? body.note) ||
+      postNotes ||
+      "詳細は注文後のチャットで相談します。";
     const hasFreeOffer = getBoolean(body.has_free_offer);
     const requestedSecondaryUse = getBoolean(body.wants_secondary_use);
+
+    const prAccount = normalizePrAccount(body.pr_account);
+    const prHashtags = normalizeHashtags(body.pr_hashtags);
+    const prCopyText = buildPrCopyText({
+      prAccount,
+      prHashtags,
+    });
 
     if (!creatorId) {
       return NextResponse.json(
@@ -427,7 +498,7 @@ export async function POST(req: NextRequest) {
 
     if (requirements.length < 10) {
       return NextResponse.json(
-        { error: "依頼内容・requirements は10文字以上で入力してください" },
+        { error: "依頼内容は10文字以上で入力してください" },
         { status: 400 }
       );
     }
@@ -546,7 +617,6 @@ export async function POST(req: NextRequest) {
 
     const currency = normalizeCurrency(menu.currency);
 
-    // 初期MVPは「日本CがJPYで出す → 日本BがJPYで買う」に固定。
     if (currency !== "JPY") {
       return NextResponse.json(
         { error: "現在のMVPではJPYメニューのみ注文できます" },
@@ -609,6 +679,11 @@ export async function POST(req: NextRequest) {
       has_free_offer: hasFreeOffer,
       wants_secondary_use: wantsSecondaryUse,
 
+      pr_account: prAccount,
+      pr_hashtags: prHashtags,
+      pr_copy_text: prCopyText,
+      post_notes: postNotes,
+
       menu_title_snapshot: menu.title,
       menu_description_snapshot: menu.description,
       menu_platform_snapshot: menu.platform ?? menu.sns,
@@ -632,7 +707,6 @@ export async function POST(req: NextRequest) {
       creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
       platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
 
-      // 既存画面・既存APIとの後方互換用。
       fee_rate_bps: fees.buyerMarketplaceFeeRateBps,
       platform_fee_amount: fees.platformGrossRevenueAmount,
       creator_payout_amount: fees.creatorPayoutAmount,
@@ -648,6 +722,8 @@ export async function POST(req: NextRequest) {
         project_type: projectType,
         buyer_marketplace_fee_rate_bps: fees.buyerMarketplaceFeeRateBps,
         creator_transaction_fee_rate_bps: fees.creatorTransactionFeeRateBps,
+        pr_account: prAccount,
+        pr_hashtags: prHashtags,
       },
     };
 
@@ -681,6 +757,8 @@ export async function POST(req: NextRequest) {
         stripe_amount: stripeAmount,
         payment_flow: "manual_capture",
         project_type: projectType,
+        pr_account: prAccount,
+        pr_hashtags: prHashtags,
       },
     });
 
@@ -717,7 +795,9 @@ export async function POST(req: NextRequest) {
           )!,
           product_data: {
             name: "Trendre marketplace fee",
-            description: `Buyer marketplace fee (${fees.buyerMarketplaceFeeRateBps / 100}%)`,
+            description: `Buyer marketplace fee (${
+              fees.buyerMarketplaceFeeRateBps / 100
+            }%)`,
             metadata: {
               order_id: order.id,
               item_type: "buyer_marketplace_fee",
