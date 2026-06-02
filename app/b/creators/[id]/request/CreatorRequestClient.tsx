@@ -9,6 +9,10 @@ import { useAppLocale } from "@/lib/i18n/locale";
 const BILLING_PATH = "/b/billing";
 
 type ProjectType = "visit_experience" | "product_delivery" | "provided_assets";
+type ImplementationTiming =
+  | "within_3_days"
+  | "within_1_week"
+  | "no_preference";
 
 type OrderStep =
   | "project_type"
@@ -57,7 +61,7 @@ type FormState = {
   project_type: ProjectType | "";
   product_name: string;
   product_url: string;
-  deadline: string;
+  deadline: ImplementationTiming | "";
   note: string;
   pr_account: string;
   pr_hashtags: string[];
@@ -273,10 +277,10 @@ function getCleanHashtags(values: string[]) {
 }
 
 function normalizeHashtagsForForm(values: string[]) {
-  const sliced = values.slice(0, MAX_HASHTAGS);
-  const missing = Math.max(MIN_VISIBLE_HASHTAG_INPUTS - sliced.length, 0);
+  const cleaned = getCleanHashtags(values);
+  const missing = Math.max(MIN_VISIBLE_HASHTAG_INPUTS - cleaned.length, 0);
 
-  return [...sliced, ...Array(missing).fill("")];
+  return [...cleaned, ...Array(missing).fill("")];
 }
 
 function buildPrCopyText(prAccount: string, hashtags: string[]) {
@@ -475,6 +479,33 @@ function ModalInput({
   );
 }
 
+function AccountInput({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-black text-slate-800">{label}</span>
+      <div className="mt-3 flex items-center rounded-2xl border border-slate-200 bg-white px-4 transition focus-within:border-[#ff5f67] focus-within:ring-4 focus-within:ring-rose-100">
+        <span className="shrink-0 text-base font-black text-slate-400">@</span>
+        <input
+          value={value}
+          onChange={(event) => onChange(normalizePrAccountInput(event.target.value))}
+          placeholder={placeholder}
+          className="min-w-0 flex-1 bg-transparent px-1 py-4 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-300"
+        />
+      </div>
+    </label>
+  );
+}
+
 export default function CreatorRequestClient() {
   const router = useRouter();
   const params = useParams();
@@ -520,6 +551,7 @@ export default function CreatorRequestClient() {
             mainAudience: "主な視聴者",
             notSet: "未設定",
             skipped: "未入力",
+            noPreference: "希望なし",
             pageTitle: "注文内容を入力",
             pageSubtitle:
               "必要な内容だけ入力してください。インフルエンサーが承認した場合のみ決済が確定します。",
@@ -550,9 +582,15 @@ export default function CreatorRequestClient() {
             productUrlStepBody:
               "商品ページ、店舗ページ、参考URLなどがあれば入れてください。",
             productUrlPlaceholder: "https://...",
-            deadline: "希望日",
-            deadlineStepTitle: "希望日を選択",
-            deadlineStepBody: "明確な希望日がなければスキップできます。",
+            deadline: "実施タイミング",
+            deadlineStepTitle: "実施タイミングを選択",
+            deadlineStepBody:
+              "具体的な日付ではなく、体験・商品受取・素材受取からの目安を選びます。",
+            visitTimingSubject: "来店・体験から",
+            productTimingSubject: "商品受取から",
+            assetsTimingSubject: "素材受取から",
+            within3Days: "3日以内の実施を希望",
+            within1Week: "1週間以内の実施を希望",
             requirements: "投稿に入れる内容",
             requirementsStepTitle: "投稿に入れる内容を入力",
             requirementsDescription:
@@ -565,10 +603,11 @@ export default function CreatorRequestClient() {
             postSettingsDescription:
               "投稿の最後に貼るPR表記と、投稿で触れてほしいことを整理します。",
             tagAccount: "タグ付けするアカウント名",
-            tagAccountPlaceholder: "例：trendre_official",
+            tagAccountPlaceholder: "trendre_official",
             hashtags: "付けたいハッシュタグ",
             hashtagsHelp: "最大8個まで。#は自動で整えます。",
             hashtagPlaceholder: "例：旅行",
+            hashtagExamples: ["旅行", "オーシャンビュー", "客室露天風呂"],
             addHashtag: "ハッシュタグを追加",
             postNotes: "触れてほしいポイント・注意事項など",
             postNotesPlaceholder:
@@ -629,6 +668,7 @@ export default function CreatorRequestClient() {
             mainAudience: "Main audience",
             notSet: "Not set",
             skipped: "Skipped",
+            noPreference: "No preference",
             pageTitle: "Enter order details",
             pageSubtitle:
               "Enter only the required details. Payment is captured only if the influencer accepts.",
@@ -659,10 +699,15 @@ export default function CreatorRequestClient() {
             productUrlStepBody:
               "Add a product page, store page, or reference URL if available.",
             productUrlPlaceholder: "https://...",
-            deadline: "Preferred date",
-            deadlineStepTitle: "Select a preferred date",
+            deadline: "Timing",
+            deadlineStepTitle: "Select timing",
             deadlineStepBody:
-              "You can skip this if you do not have a specific date yet.",
+              "Instead of a fixed date, choose the preferred timing after the visit, product receipt, or asset receipt.",
+            visitTimingSubject: "Within",
+            productTimingSubject: "Within",
+            assetsTimingSubject: "Within",
+            within3Days: "3 days",
+            within1Week: "1 week",
             requirements: "Post instructions",
             requirementsStepTitle: "Add post instructions",
             requirementsDescription:
@@ -675,10 +720,11 @@ export default function CreatorRequestClient() {
             postSettingsDescription:
               "Prepare the PR text and notes the influencer can use when posting.",
             tagAccount: "Account to tag",
-            tagAccountPlaceholder: "Example: trendre_official",
+            tagAccountPlaceholder: "trendre_official",
             hashtags: "Hashtags",
             hashtagsHelp: "Up to 8. # will be formatted automatically.",
             hashtagPlaceholder: "Example: travel",
+            hashtagExamples: ["travel", "oceanview", "privatebath"],
             addHashtag: "Add hashtag",
             postNotes: "Points and notes",
             postNotesPlaceholder:
@@ -785,6 +831,28 @@ export default function CreatorRequestClient() {
     pr_hashtags: ["", "", ""],
     creator_menu_id: "",
   });
+
+  const selectedMenu =
+    menus.find((menu) => menu.id === form.creator_menu_id) ?? null;
+
+  const selectedMenuIsUgc = isUgcMenu(selectedMenu);
+
+  const currentStep = orderSteps[stepIndex];
+
+  const menuPriceAmount =
+    typeof selectedMenu?.price === "number" ? selectedMenu.price : 0;
+
+  const buyerFeeRateBps = getBuyerFeeRateBps(gate.companyPlanCode);
+  const buyerFeeAmount = Math.round((menuPriceAmount * buyerFeeRateBps) / 10000);
+  const buyerTotalAmount = menuPriceAmount + buyerFeeAmount;
+
+  const remainingRequests =
+    gate.monthlyRequestLimit === null
+      ? null
+      : Math.max(gate.monthlyRequestLimit - gate.monthlyRequestUsed, 0);
+
+  const reachedLimit =
+    gate.monthlyRequestLimit !== null && remainingRequests === 0;
 
   useEffect(() => {
     if (!orderModalOpen) return;
@@ -998,11 +1066,6 @@ export default function CreatorRequestClient() {
     };
   }, [creatorId, initialMenuId, router, supabase]);
 
-  const selectedMenu =
-    menus.find((menu) => menu.id === form.creator_menu_id) ?? null;
-
-  const selectedMenuIsUgc = isUgcMenu(selectedMenu);
-
   useEffect(() => {
     if (selectedMenuIsUgc && !form.project_type) {
       setForm((prev) => ({
@@ -1033,26 +1096,10 @@ export default function CreatorRequestClient() {
     selectedMenu,
     gate.canSendRequests,
     gate.needsBilling,
+    reachedLimit,
     startParam,
     initialMenuId,
   ]);
-
-  const currentStep = orderSteps[stepIndex];
-
-  const menuPriceAmount =
-    typeof selectedMenu?.price === "number" ? selectedMenu.price : 0;
-
-  const buyerFeeRateBps = getBuyerFeeRateBps(gate.companyPlanCode);
-  const buyerFeeAmount = Math.round((menuPriceAmount * buyerFeeRateBps) / 10000);
-  const buyerTotalAmount = menuPriceAmount + buyerFeeAmount;
-
-  const remainingRequests =
-    gate.monthlyRequestLimit === null
-      ? null
-      : Math.max(gate.monthlyRequestLimit - gate.monthlyRequestUsed, 0);
-
-  const reachedLimit =
-    gate.monthlyRequestLimit !== null && remainingRequests === 0;
 
   const audienceCountries = uniqueNonEmpty(
     socialAccounts.map((account) => account.audience_country)
@@ -1073,11 +1120,57 @@ export default function CreatorRequestClient() {
   const selectedProjectTypeLabel =
     projectTypes.find((item) => item.value === form.project_type)?.title ?? "";
 
+  const timingSubject =
+    form.project_type === "visit_experience"
+      ? copy.visitTimingSubject
+      : form.project_type === "product_delivery"
+        ? copy.productTimingSubject
+        : copy.assetsTimingSubject;
+
+  const timingOptions: Array<{
+    value: ImplementationTiming;
+    title: string;
+    body: string;
+  }> = [
+    {
+      value: "within_3_days",
+      title:
+        safeLocale === "ja"
+          ? `${timingSubject}${copy.within3Days}`
+          : `${copy.within3Days} after receiving/experience`,
+      body:
+        safeLocale === "ja"
+          ? "スピード感を重視したい場合に選びます。"
+          : "Choose this when you want a faster turnaround.",
+    },
+    {
+      value: "within_1_week",
+      title:
+        safeLocale === "ja"
+          ? `${timingSubject}${copy.within1Week}`
+          : `${copy.within1Week} after receiving/experience`,
+      body:
+        safeLocale === "ja"
+          ? "通常のPR依頼で使いやすい目安です。"
+          : "A standard timing for most PR orders.",
+    },
+    {
+      value: "no_preference",
+      title: copy.noPreference,
+      body:
+        safeLocale === "ja"
+          ? "日程は注文後のチャットで相談します。"
+          : "Discuss timing in chat after the order.",
+    },
+  ];
+
   const displayProductName =
     form.product_name.trim() || selectedMenu?.title || copy.skipped;
 
   const displayProductUrl = form.product_url.trim() || copy.skipped;
-  const displayDeadline = form.deadline || copy.skipped;
+  const displayTiming =
+    timingOptions.find((option) => option.value === form.deadline)?.title ||
+    copy.skipped;
   const displayPostNotes = form.note.trim() || copy.skipped;
   const cleanHashtags = getCleanHashtags(form.pr_hashtags);
   const prCopyText = buildPrCopyText(form.pr_account, form.pr_hashtags);
@@ -1086,6 +1179,10 @@ export default function CreatorRequestClient() {
     const usageNote = selectedMenuIsUgc
       ? copy.ugcUsageNote
       : copy.postUrlUsageNote;
+
+    const timingBlock = form.deadline
+      ? `\n\n【実施タイミング】\n${displayTiming}`
+      : "";
 
     const deliveryNote =
       form.project_type === "product_delivery"
@@ -1097,7 +1194,7 @@ export default function CreatorRequestClient() {
       : "";
 
     return `【案件タイプ】
-${selectedProjectTypeLabel}
+${selectedProjectTypeLabel}${timingBlock}
 
 【利用範囲】
 ${usageNote}${deliveryNote}${postNotesBlock}`;
@@ -1173,7 +1270,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
 
       setForm((prev) => ({
         ...prev,
-        pr_account: template.pr_account ?? "",
+        pr_account: normalizePrAccountInput(template.pr_account ?? ""),
         pr_hashtags: normalizeHashtagsForForm(
           Array.isArray(template.pr_hashtags) ? template.pr_hashtags : []
         ),
@@ -1219,9 +1316,19 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
     setForm((prev) => ({
       ...prev,
       project_type: value,
+      deadline: prev.project_type === value ? prev.deadline : "",
     }));
     setErrorMsg(null);
     setStepIndex(1);
+  };
+
+  const selectTimingAndContinue = (value: ImplementationTiming) => {
+    setForm((prev) => ({
+      ...prev,
+      deadline: value,
+    }));
+    setErrorMsg(null);
+    setStepIndex(4);
   };
 
   const goNext = () => {
@@ -1298,7 +1405,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
           project_type: form.project_type,
           product_name: form.product_name.trim() || selectedMenu.title,
           product_url: form.product_url.trim() || null,
-          deadline: form.deadline || null,
+          deadline: null,
           requirements: buildFinalRequirements(),
           pr_account: form.pr_account,
           pr_hashtags: cleanHashtags,
@@ -1554,15 +1661,40 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
             {copy.deadlineStepBody}
           </p>
 
-          <div className="mt-6">
-            <ModalInput
-              type="date"
-              label={copy.deadline}
-              value={form.deadline}
-              onChange={(value) =>
-                setForm((prev) => ({ ...prev, deadline: value }))
-              }
-            />
+          <div className="mt-6 grid gap-3">
+            {timingOptions.map((item) => {
+              const selected = form.deadline === item.value;
+
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => selectTimingAndContinue(item.value)}
+                  className={`rounded-[24px] border p-4 text-left transition ${
+                    selected
+                      ? "border-[#ff5f67]/70 bg-rose-50/70 shadow-[0_16px_38px_rgba(255,95,103,0.13)] ring-4 ring-rose-100/70"
+                      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-base font-black text-slate-950">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-sm font-bold leading-6 text-slate-500">
+                        {item.body}
+                      </p>
+                    </div>
+
+                    {selected ? (
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ff5f67] text-white">
+                        <CheckIcon />
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       );
@@ -1598,7 +1730,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
           ) : null}
 
           <div className="mt-6">
-            <ModalInput
+            <AccountInput
               label={copy.tagAccount}
               value={form.pr_account}
               onChange={(value) => {
@@ -1626,19 +1758,26 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {form.pr_hashtags.map((value, index) => (
-                <label key={index} className="relative block">
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-300">
-                    #
-                  </span>
-                  <input
-                    value={value}
-                    onChange={(event) => updateHashtag(index, event.target.value)}
-                    placeholder={`${copy.hashtagPlaceholder} ${index + 1}`}
-                    className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-8 pr-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
-                  />
-                </label>
-              ))}
+              {form.pr_hashtags.map((value, index) => {
+                const placeholder =
+                  copy.hashtagExamples[index] ?? copy.hashtagPlaceholder;
+
+                return (
+                  <label key={index} className="relative block">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-300">
+                      #
+                    </span>
+                    <input
+                      value={value}
+                      onChange={(event) =>
+                        updateHashtag(index, event.target.value)
+                      }
+                      placeholder={placeholder}
+                      className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-8 pr-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                    />
+                  </label>
+                );
+              })}
             </div>
 
             {form.pr_hashtags.length < MAX_HASHTAGS ? (
@@ -1762,7 +1901,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
                 </button>
               </div>
               <p className="mt-2 text-sm font-black text-slate-950">
-                {displayDeadline}
+                {displayTiming}
               </p>
             </div>
           </div>
