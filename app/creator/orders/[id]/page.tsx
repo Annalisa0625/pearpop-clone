@@ -107,35 +107,76 @@ function menuTypeLabel(
   return labels[value || ""]?.[locale] || fallback;
 }
 
-function statusLabel(status: string, locale: "ja" | "en") {
+function isTerminalStatus(status: string) {
+  return [
+    "completed",
+    "declined_canceled",
+    "expired_canceled",
+    "canceled",
+    "cancelled",
+  ].includes(status);
+}
+
+function isCheckoutPending(order: OrderDetail) {
+  return (
+    order.status === "checkout_pending" ||
+    order.payment_status === "checkout_pending"
+  );
+}
+
+function isWaitingForCreator(order: OrderDetail) {
+  if (order.status === "authorized_pending_creator") return true;
+
+  return (
+    order.payment_status === "authorized" &&
+    !isTerminalStatus(order.status) &&
+    order.status !== "delivered" &&
+    order.status !== "revision_requested" &&
+    order.status !== "completed"
+  );
+}
+
+function isInProgress(order: OrderDetail) {
+  return (
+    order.status === "accepted_captured" ||
+    order.status === "in_progress" ||
+    (order.payment_status === "captured" &&
+      !["delivered", "revision_requested", "completed"].includes(order.status))
+  );
+}
+
+function statusLabel(order: OrderDetail, locale: "ja" | "en") {
+  const status = order.status;
+
   if (locale === "ja") {
-    if (status === "authorized_pending_creator") return "返答待ち";
-    if (status === "accepted_captured" || status === "in_progress")
-      return "進行中";
+    if (isCheckoutPending(order)) return "支払い確認中";
+    if (isWaitingForCreator(order)) return "返答待ち";
+    if (isInProgress(order)) return "進行中";
     if (status === "revision_requested") return "修正対応";
     if (status === "delivered") return "確認待ち";
     if (status === "completed") return "完了";
     if (status === "declined_canceled") return "辞退済み";
     if (status === "expired_canceled") return "期限切れ";
-    return "注文";
+    return "確認中";
   }
 
-  if (status === "authorized_pending_creator") return "Pending";
-  if (status === "accepted_captured" || status === "in_progress")
-    return "In progress";
+  if (isCheckoutPending(order)) return "Checking payment";
+  if (isWaitingForCreator(order)) return "Pending";
+  if (isInProgress(order)) return "In progress";
   if (status === "revision_requested") return "Revision";
   if (status === "delivered") return "Review";
   if (status === "completed") return "Done";
   if (status === "declined_canceled") return "Declined";
   if (status === "expired_canceled") return "Expired";
-  return "Order";
+  return "Checking";
 }
 
-function statusTone(status: string): "rose" | "blue" | "amber" | "green" | "slate" {
-  if (status === "authorized_pending_creator") return "amber";
-  if (status === "revision_requested") return "rose";
-  if (status === "accepted_captured" || status === "in_progress") return "blue";
-  if (status === "completed") return "green";
+function statusTone(order: OrderDetail): "rose" | "blue" | "amber" | "green" | "slate" {
+  if (isCheckoutPending(order)) return "slate";
+  if (isWaitingForCreator(order)) return "amber";
+  if (order.status === "revision_requested") return "rose";
+  if (isInProgress(order)) return "blue";
+  if (order.status === "completed") return "green";
   return "slate";
 }
 
@@ -197,15 +238,22 @@ function getCleanHashtags(values: string[] | null | undefined) {
 }
 
 function buildPrCopyText(order: OrderDetail) {
-  if (order.pr_copy_text?.trim()) return order.pr_copy_text.trim();
+  const stored = order.pr_copy_text?.trim();
+
+  if (stored && stored !== "PR\n#PR") {
+    return stored;
+  }
 
   const account = normalizePrAccountInput(order.pr_account);
   const hashtags = getCleanHashtags(order.pr_hashtags);
 
-  const accountLine = account ? `PR@${account}` : "PR";
   const hashtagLine = ["#PR", ...hashtags.map((tag) => `#${tag}`)].join(" ");
 
-  return `${accountLine}\n${hashtagLine}`;
+  if (!account) {
+    return hashtagLine;
+  }
+
+  return `PR@${account}\n${hashtagLine}`;
 }
 
 function extractRequirementSection(
@@ -225,30 +273,8 @@ function extractRequirementSection(
   return (nextSection >= 0 ? rest.slice(0, nextSection) : rest).trim();
 }
 
-function getCompactRequirements(requirements: string | null | undefined) {
-  const text = requirements?.trim();
-  if (!text) return "";
-
-  const hiddenSections = [
-    "投稿で触れてほしいこと・注意事項",
-  ];
-
-  let result = text;
-
-  for (const title of hiddenSections) {
-    const marker = `【${title}】`;
-    const start = result.indexOf(marker);
-    if (start < 0) continue;
-
-    const before = result.slice(0, start).trim();
-    const rest = result.slice(start + marker.length).trim();
-    const next = rest.search(/\n\n【.+?】/);
-    const after = next >= 0 ? rest.slice(next).trim() : "";
-
-    result = [before, after].filter(Boolean).join("\n\n");
-  }
-
-  return result.trim();
+function firstLine(value: string | null | undefined) {
+  return (value ?? "").split("\n").map((line) => line.trim()).filter(Boolean)[0] ?? "";
 }
 
 function SoftPill({
@@ -288,8 +314,8 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] bg-white p-5 shadow-[0_16px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-      <h2 className="text-[19px] font-black leading-tight tracking-[-0.04em] text-slate-950">
+    <section className="rounded-[26px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+      <h2 className="text-[18px] font-black leading-tight tracking-[-0.04em] text-slate-950">
         {title}
       </h2>
       {body ? (
@@ -388,37 +414,44 @@ function CopyIcon() {
   );
 }
 
-function getNextActionCopy(status: string, locale: "ja" | "en") {
+function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
   if (locale === "ja") {
-    if (status === "authorized_pending_creator") {
+    if (isCheckoutPending(order)) {
+      return {
+        title: "支払い確認中です",
+        body: "注文情報の確認が完了すると、返答できる状態になります。",
+      };
+    }
+
+    if (isWaitingForCreator(order)) {
       return {
         title: "注文内容を確認してください",
         body: "内容を確認して、対応できる場合は注文を受けてください。",
       };
     }
 
-    if (status === "revision_requested") {
+    if (order.status === "revision_requested") {
       return {
         title: "修正対応が必要です",
         body: "修正内容を確認して、再度納品URLを提出してください。",
       };
     }
 
-    if (status === "delivered") {
+    if (order.status === "delivered") {
       return {
         title: "確認待ちです",
         body: "納品URLは提出済みです。確認完了までお待ちください。",
       };
     }
 
-    if (status === "completed") {
+    if (order.status === "completed") {
       return {
         title: "この注文は完了しました",
         body: "報酬の状況は報酬ページから確認できます。",
       };
     }
 
-    if (status === "accepted_captured" || status === "in_progress") {
+    if (isInProgress(order)) {
       return {
         title: "納品を進めましょう",
         body: "制作・投稿が完了したら、納品URLを提出してください。",
@@ -426,40 +459,47 @@ function getNextActionCopy(status: string, locale: "ja" | "en") {
     }
 
     return {
-      title: "この注文は終了しています",
-      body: "この注文は現在対応できません。",
+      title: "確認中です",
+      body: "注文の状態を確認しています。",
     };
   }
 
-  if (status === "authorized_pending_creator") {
+  if (isCheckoutPending(order)) {
+    return {
+      title: "Checking payment",
+      body: "You will be able to respond once the order is confirmed.",
+    };
+  }
+
+  if (isWaitingForCreator(order)) {
     return {
       title: "Review this order",
       body: "Review the details and accept it if you can handle it.",
     };
   }
 
-  if (status === "revision_requested") {
+  if (order.status === "revision_requested") {
     return {
       title: "Revision needed",
       body: "Check the revision request and submit the updated delivery URL.",
     };
   }
 
-  if (status === "delivered") {
+  if (order.status === "delivered") {
     return {
       title: "Waiting for review",
       body: "Your delivery URL has been submitted.",
     };
   }
 
-  if (status === "completed") {
+  if (order.status === "completed") {
     return {
       title: "This order is complete",
       body: "You can check payout status from the payouts page.",
     };
   }
 
-  if (status === "accepted_captured" || status === "in_progress") {
+  if (isInProgress(order)) {
     return {
       title: "Continue delivery",
       body: "Submit the delivery URL when the work is ready.",
@@ -467,8 +507,8 @@ function getNextActionCopy(status: string, locale: "ja" | "en") {
   }
 
   return {
-    title: "This order is closed",
-    body: "This order is currently unavailable.",
+    title: "Checking",
+    body: "Checking the order status.",
   };
 }
 
@@ -490,7 +530,7 @@ export default function CreatorOrderDetailPage() {
             chatTitle: "注文チャット",
             nextAction: "対応",
             orderContent: "注文内容",
-            orderContentBody: "商品・URL・実施タイミング・依頼内容を確認できます。",
+            orderContentBody: "商品・URL・実施タイミングを確認できます。",
             deliveryTitle: "納品URLを提出",
             redeliveryTitle: "修正版の納品URLを提出",
             deliveryBody:
@@ -518,12 +558,13 @@ export default function CreatorOrderDetailPage() {
             authFailed: "ログイン情報を取得できませんでした。",
             productName: "商品・案件",
             productUrl: "商品URL",
+            projectType: "案件タイプ",
             timing: "実施タイミング",
             freeOffer: "商品提供",
             secondaryUse: "二次利用",
             yes: "あり",
             no: "なし",
-            requirements: "確認事項",
+            requestNote: "依頼内容",
             postInstructionTitle: "投稿に入れる内容",
             postInstructionBody:
               "投稿の最後に貼り付けるPR表記とハッシュタグです。",
@@ -532,14 +573,12 @@ export default function CreatorOrderDetailPage() {
             postNotes: "投稿で触れてほしいこと・注意事項",
             menuAndPayout: "メニュー・報酬",
             menuTitle: "メニュー",
-            platform: "SNS",
-            menuType: "形式",
-            category: "カテゴリー",
             deliveryDays: "目安",
             deliverables: "納品物",
             price: "メニュー価格",
             payout: "受取予定",
             transfer: "送金",
+            payoutPage: "報酬ページを見る",
             revisionTitle: "修正依頼",
             notSet: "未設定",
           }
@@ -550,8 +589,7 @@ export default function CreatorOrderDetailPage() {
             chatTitle: "Order chat",
             nextAction: "Action",
             orderContent: "Order details",
-            orderContentBody:
-              "Check the product, URL, timing, and request details.",
+            orderContentBody: "Check the product, URL, and timing.",
             deliveryTitle: "Submit delivery URL",
             redeliveryTitle: "Submit revised URL",
             deliveryBody:
@@ -579,12 +617,13 @@ export default function CreatorOrderDetailPage() {
             authFailed: "Could not retrieve your login session.",
             productName: "Product",
             productUrl: "Product URL",
+            projectType: "Project type",
             timing: "Timing",
             freeOffer: "Free product",
             secondaryUse: "Secondary use",
             yes: "Yes",
             no: "No",
-            requirements: "Notes",
+            requestNote: "Request note",
             postInstructionTitle: "Post text",
             postInstructionBody:
               "PR text and hashtags to paste at the end of the post.",
@@ -593,14 +632,12 @@ export default function CreatorOrderDetailPage() {
             postNotes: "Points and notes",
             menuAndPayout: "Menu & payout",
             menuTitle: "Menu",
-            platform: "Platform",
-            menuType: "Type",
-            category: "Category",
             deliveryDays: "Delivery",
             deliverables: "Deliverable",
             price: "Menu price",
             payout: "Expected payout",
             transfer: "Transfer",
+            payoutPage: "View payouts",
             revisionTitle: "Revision request",
             notSet: "Not set",
           },
@@ -818,9 +855,9 @@ export default function CreatorOrderDetailPage() {
   if (loading) {
     return (
       <div className="space-y-4 overflow-x-hidden pb-28">
-        <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-        <div className="h-[420px] animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-        <div className="h-48 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-28 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[360px] animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
+        <div className="h-48 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
       </div>
     );
   }
@@ -840,10 +877,7 @@ export default function CreatorOrderDetailPage() {
     );
   }
 
-  const canAct =
-    order.status === "authorized_pending_creator" &&
-    order.payment_status === "authorized";
-
+  const canAct = isWaitingForCreator(order);
   const canDeliver =
     [
       "accepted_captured",
@@ -853,35 +887,36 @@ export default function CreatorOrderDetailPage() {
     ].includes(order.status) && order.payment_status === "captured";
 
   const isRevisionRequested = order.status === "revision_requested";
-  const nextAction = getNextActionCopy(order.status, safeLocale);
+  const nextAction = getNextActionCopy(order, safeLocale);
 
-  const backHref =
-    order.status === "authorized_pending_creator"
-      ? "/creator/requests"
-      : "/creator/jobs";
+  const backHref = isWaitingForCreator(order)
+    ? "/creator/requests"
+    : "/creator/jobs";
 
   const prCopyText = buildPrCopyText(order);
   const postNotes =
     order.post_notes?.trim() ||
     extractRequirementSection(order.requirements, "投稿で触れてほしいこと・注意事項");
 
+  const projectTypeText = firstLine(
+    extractRequirementSection(order.requirements, "案件タイプ")
+  );
   const timingText = extractRequirementSection(order.requirements, "実施タイミング");
-  const compactRequirements = getCompactRequirements(order.requirements);
+  const requestNote = extractRequirementSection(order.requirements, "依頼内容");
 
   return (
     <div className="max-w-full touch-pan-y space-y-4 overflow-x-hidden overscroll-y-contain pb-28">
-      <section className="relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_16px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <section className="relative overflow-hidden rounded-[26px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
         <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-24 h-52 w-52 rounded-full bg-emerald-100/40 blur-3xl" />
 
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">
-            <SoftPill tone={statusTone(order.status)}>
-              {statusLabel(order.status, safeLocale)}
+            <SoftPill tone={statusTone(order)}>
+              {statusLabel(order, safeLocale)}
             </SoftPill>
 
-            {order.creator_accept_deadline &&
-            order.status === "authorized_pending_creator" ? (
+            {order.creator_accept_deadline && isWaitingForCreator(order) ? (
               <SoftPill tone="amber">
                 {formatDateTime(order.creator_accept_deadline, safeLocale)}
               </SoftPill>
@@ -932,7 +967,7 @@ export default function CreatorOrderDetailPage() {
         </Card>
       ) : null}
 
-      <div className="max-w-full overflow-hidden rounded-[28px] bg-white shadow-[0_16px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <div className="max-w-full overflow-hidden rounded-[26px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 [&>div>div:nth-child(2)]:!h-[300px] md:[&>div>div:nth-child(2)]:!h-[340px]">
         <ChatEmbed orderId={order.id} title={copy.chatTitle} />
       </div>
 
@@ -1033,6 +1068,11 @@ export default function CreatorOrderDetailPage() {
           />
 
           <InfoRow
+            label={copy.projectType}
+            value={projectTypeText || copy.notSet}
+          />
+
+          <InfoRow
             label={copy.timing}
             value={timingText || copy.notSet}
           />
@@ -1048,12 +1088,12 @@ export default function CreatorOrderDetailPage() {
           />
         </div>
 
-        {compactRequirements ? (
+        {requestNote ? (
           <div className="mt-4">
             <p className="mb-2 text-xs font-black text-slate-400">
-              {copy.requirements}
+              {copy.requestNote}
             </p>
-            <TextBlock value={compactRequirements} emptyLabel={copy.notSet} />
+            <TextBlock value={requestNote} emptyLabel={copy.notSet} />
           </div>
         ) : null}
       </Card>
@@ -1126,9 +1166,9 @@ export default function CreatorOrderDetailPage() {
 
         <Link
           href="/creator/payouts"
-          className="mt-5 flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition active:scale-[0.98]"
+          className="mt-5 flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3.5 text-sm font-black text-slate-700 transition active:scale-[0.98]"
         >
-          {copy.payout}
+          {copy.payoutPage}
         </Link>
       </Card>
     </div>
