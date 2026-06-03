@@ -22,6 +22,11 @@ type OrderDetail = {
   has_free_offer: boolean | null;
   wants_secondary_use: boolean | null;
 
+  pr_account: string | null;
+  pr_hashtags: string[] | null;
+  pr_copy_text: string | null;
+  post_notes: string | null;
+
   menu_title_snapshot: string | null;
   menu_platform_snapshot: string | null;
   menu_type_snapshot: string | null;
@@ -50,18 +55,6 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
-}
-
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
-    month: "numeric",
-    day: "numeric",
   });
 }
 
@@ -117,7 +110,8 @@ function menuTypeLabel(
 function statusLabel(status: string, locale: "ja" | "en") {
   if (locale === "ja") {
     if (status === "authorized_pending_creator") return "返答待ち";
-    if (status === "accepted_captured" || status === "in_progress") return "進行中";
+    if (status === "accepted_captured" || status === "in_progress")
+      return "進行中";
     if (status === "revision_requested") return "修正対応";
     if (status === "delivered") return "確認待ち";
     if (status === "completed") return "完了";
@@ -127,7 +121,8 @@ function statusLabel(status: string, locale: "ja" | "en") {
   }
 
   if (status === "authorized_pending_creator") return "Pending";
-  if (status === "accepted_captured" || status === "in_progress") return "In progress";
+  if (status === "accepted_captured" || status === "in_progress")
+    return "In progress";
   if (status === "revision_requested") return "Revision";
   if (status === "delivered") return "Review";
   if (status === "completed") return "Done";
@@ -150,7 +145,7 @@ function transferLabel(value: string | null, locale: "ja" | "en") {
   if (locale === "ja") {
     if (status === "transferred") return "送金済み";
     if (status === "pending") return "送金処理中";
-    if (status === "failed") return "送金確認中";
+    if (status === "failed") return "確認中";
     return "完了後に反映";
   }
 
@@ -170,6 +165,90 @@ function getPlatformIcon(value: string | null | undefined) {
   if (normalized.includes("ugc")) return "▣";
 
   return "●";
+}
+
+function normalizePrAccountInput(value: string | null | undefined) {
+  return (value ?? "").replace(/^[@＠]+/g, "").replace(/\s+/g, "").trim();
+}
+
+function normalizeHashtagInput(value: string) {
+  return value.replace(/^[#＃]+/g, "").replace(/\s+/g, "").trim();
+}
+
+function getCleanHashtags(values: string[] | null | undefined) {
+  if (!Array.isArray(values)) return [];
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    const normalized = normalizeHashtagInput(String(value ?? ""));
+    if (!normalized) continue;
+
+    const key = normalized.toLowerCase();
+    if (key === "pr" || key === "ad" || key === "sponsored") continue;
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
+function buildPrCopyText(order: OrderDetail) {
+  if (order.pr_copy_text?.trim()) return order.pr_copy_text.trim();
+
+  const account = normalizePrAccountInput(order.pr_account);
+  const hashtags = getCleanHashtags(order.pr_hashtags);
+
+  const accountLine = account ? `PR@${account}` : "PR";
+  const hashtagLine = ["#PR", ...hashtags.map((tag) => `#${tag}`)].join(" ");
+
+  return `${accountLine}\n${hashtagLine}`;
+}
+
+function extractRequirementSection(
+  requirements: string | null | undefined,
+  sectionTitle: string
+) {
+  const text = requirements?.trim();
+  if (!text) return "";
+
+  const marker = `【${sectionTitle}】`;
+  const start = text.indexOf(marker);
+  if (start < 0) return "";
+
+  const rest = text.slice(start + marker.length).trim();
+  const nextSection = rest.search(/\n\n【.+?】/);
+
+  return (nextSection >= 0 ? rest.slice(0, nextSection) : rest).trim();
+}
+
+function getCompactRequirements(requirements: string | null | undefined) {
+  const text = requirements?.trim();
+  if (!text) return "";
+
+  const hiddenSections = [
+    "投稿で触れてほしいこと・注意事項",
+  ];
+
+  let result = text;
+
+  for (const title of hiddenSections) {
+    const marker = `【${title}】`;
+    const start = result.indexOf(marker);
+    if (start < 0) continue;
+
+    const before = result.slice(0, start).trim();
+    const rest = result.slice(start + marker.length).trim();
+    const next = rest.search(/\n\n【.+?】/);
+    const after = next >= 0 ? rest.slice(next).trim() : "";
+
+    result = [before, after].filter(Boolean).join("\n\n");
+  }
+
+  return result.trim();
 }
 
 function SoftPill({
@@ -209,8 +288,8 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-      <h2 className="text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">
+    <section className="rounded-[28px] bg-white p-5 shadow-[0_16px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <h2 className="text-[19px] font-black leading-tight tracking-[-0.04em] text-slate-950">
         {title}
       </h2>
       {body ? (
@@ -234,9 +313,11 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
-      <span className="shrink-0 text-xs font-black text-slate-400">{label}</span>
+      <span className="shrink-0 text-xs font-black text-slate-400">
+        {label}
+      </span>
       <span
-        className={`min-w-0 max-w-[66%] break-words text-right text-sm ${
+        className={`min-w-0 max-w-[68%] break-words text-right text-sm ${
           strong ? "font-black text-slate-950" : "font-bold text-slate-700"
         }`}
       >
@@ -254,8 +335,8 @@ function TextBlock({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-[24px] bg-slate-50 p-4">
-      <p className="whitespace-pre-line text-sm font-semibold leading-7 text-slate-700">
+    <div className="rounded-[22px] bg-slate-50 p-4">
+      <p className="whitespace-pre-line break-words text-sm font-semibold leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
       </p>
     </div>
@@ -289,33 +370,51 @@ function ActionButton({
   );
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M7 7.5A2.5 2.5 0 0 1 9.5 5h5A2.5 2.5 0 0 1 17 7.5v5A2.5 2.5 0 0 1 14.5 15h-5A2.5 2.5 0 0 1 7 12.5v-5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M4.5 12H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function getNextActionCopy(status: string, locale: "ja" | "en") {
   if (locale === "ja") {
     if (status === "authorized_pending_creator") {
       return {
         title: "注文内容を確認してください",
-        body: "受ける場合は承認、対応が難しい場合は辞退できます。",
+        body: "内容を確認して、対応できる場合は注文を受けてください。",
       };
     }
 
     if (status === "revision_requested") {
       return {
         title: "修正対応が必要です",
-        body: "企業からの修正内容を確認して、再度納品URLを提出してください。",
+        body: "修正内容を確認して、再度納品URLを提出してください。",
       };
     }
 
     if (status === "delivered") {
       return {
-        title: "企業の確認待ちです",
-        body: "納品URLは提出済みです。企業の確認を待ちましょう。",
+        title: "確認待ちです",
+        body: "納品URLは提出済みです。確認完了までお待ちください。",
       };
     }
 
     if (status === "completed") {
       return {
         title: "この注文は完了しました",
-        body: "報酬の送金状況は報酬ページから確認できます。",
+        body: "報酬の状況は報酬ページから確認できます。",
       };
     }
 
@@ -328,14 +427,14 @@ function getNextActionCopy(status: string, locale: "ja" | "en") {
 
     return {
       title: "この注文は終了しています",
-      body: "辞退または期限切れの注文です。",
+      body: "この注文は現在対応できません。",
     };
   }
 
   if (status === "authorized_pending_creator") {
     return {
       title: "Review this order",
-      body: "Accept it if you can handle it, or decline if it is not suitable.",
+      body: "Review the details and accept it if you can handle it.",
     };
   }
 
@@ -349,7 +448,7 @@ function getNextActionCopy(status: string, locale: "ja" | "en") {
   if (status === "delivered") {
     return {
       title: "Waiting for review",
-      body: "Your delivery URL has been submitted. Wait for the company review.",
+      body: "Your delivery URL has been submitted.",
     };
   }
 
@@ -369,7 +468,7 @@ function getNextActionCopy(status: string, locale: "ja" | "en") {
 
   return {
     title: "This order is closed",
-    body: "This order was declined or expired.",
+    body: "This order is currently unavailable.",
   };
 }
 
@@ -389,13 +488,13 @@ export default function CreatorOrderDetailPage() {
             notFound: "注文が見つかりませんでした。",
             back: "一覧へ戻る",
             chatTitle: "注文チャット",
-            nextAction: "次にやること",
+            nextAction: "対応",
             orderContent: "注文内容",
-            orderContentBody: "商品・希望日・依頼内容を確認できます。",
+            orderContentBody: "商品・URL・実施タイミング・依頼内容を確認できます。",
             deliveryTitle: "納品URLを提出",
             redeliveryTitle: "修正版の納品URLを提出",
             deliveryBody:
-              "投稿URL、成果物URL、Google Drive URLなど、企業が確認できるURLを入力してください。",
+              "投稿URL、成果物URL、Google Drive URLなど、確認できるURLを入力してください。",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "提出済みURLを開く",
             deliver: "納品URLを提出する",
@@ -419,12 +518,18 @@ export default function CreatorOrderDetailPage() {
             authFailed: "ログイン情報を取得できませんでした。",
             productName: "商品・案件",
             productUrl: "商品URL",
-            deadline: "希望日",
+            timing: "実施タイミング",
             freeOffer: "商品提供",
             secondaryUse: "二次利用",
             yes: "あり",
             no: "なし",
-            requirements: "依頼内容",
+            requirements: "確認事項",
+            postInstructionTitle: "投稿に入れる内容",
+            postInstructionBody:
+              "投稿の最後に貼り付けるPR表記とハッシュタグです。",
+            copyPostText: "コピーする",
+            copied: "コピーしました",
+            postNotes: "投稿で触れてほしいこと・注意事項",
             menuAndPayout: "メニュー・報酬",
             menuTitle: "メニュー",
             platform: "SNS",
@@ -443,9 +548,10 @@ export default function CreatorOrderDetailPage() {
             notFound: "Order was not found.",
             back: "Back",
             chatTitle: "Order chat",
-            nextAction: "Next action",
+            nextAction: "Action",
             orderContent: "Order details",
-            orderContentBody: "Check the product, date, and request details.",
+            orderContentBody:
+              "Check the product, URL, timing, and request details.",
             deliveryTitle: "Submit delivery URL",
             redeliveryTitle: "Submit revised URL",
             deliveryBody:
@@ -473,12 +579,18 @@ export default function CreatorOrderDetailPage() {
             authFailed: "Could not retrieve your login session.",
             productName: "Product",
             productUrl: "Product URL",
-            deadline: "Preferred date",
+            timing: "Timing",
             freeOffer: "Free product",
             secondaryUse: "Secondary use",
             yes: "Yes",
             no: "No",
-            requirements: "Request",
+            requirements: "Notes",
+            postInstructionTitle: "Post text",
+            postInstructionBody:
+              "PR text and hashtags to paste at the end of the post.",
+            copyPostText: "Copy",
+            copied: "Copied",
+            postNotes: "Points and notes",
             menuAndPayout: "Menu & payout",
             menuTitle: "Menu",
             platform: "Platform",
@@ -502,6 +614,7 @@ export default function CreatorOrderDetailPage() {
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [deliveryUrl, setDeliveryUrl] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const loadOrder = useCallback(async () => {
     setLoading(true);
@@ -533,6 +646,10 @@ export default function CreatorOrderDetailPage() {
         deadline,
         has_free_offer,
         wants_secondary_use,
+        pr_account,
+        pr_hashtags,
+        pr_copy_text,
+        post_notes,
         menu_title_snapshot,
         menu_platform_snapshot,
         menu_type_snapshot,
@@ -684,23 +801,37 @@ export default function CreatorOrderDetailPage() {
     }
   };
 
+  const handleCopyPostText = async () => {
+    if (!order) return;
+
+    const text = buildPrCopyText(order);
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="space-y-4 overflow-x-hidden pb-4">
-        <div className="h-28 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-        <div className="h-[520px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-        <div className="h-48 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+      <div className="space-y-4 overflow-x-hidden pb-28">
+        <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[420px] animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-48 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="overflow-x-hidden pb-4">
+      <div className="overflow-x-hidden pb-28">
         <Card title={copy.notFound}>
           <Link
             href="/creator/requests"
-            className="inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white"
+            className="inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white"
           >
             {copy.back}
           </Link>
@@ -729,10 +860,20 @@ export default function CreatorOrderDetailPage() {
       ? "/creator/requests"
       : "/creator/jobs";
 
+  const prCopyText = buildPrCopyText(order);
+  const postNotes =
+    order.post_notes?.trim() ||
+    extractRequirementSection(order.requirements, "投稿で触れてほしいこと・注意事項");
+
+  const timingText = extractRequirementSection(order.requirements, "実施タイミング");
+  const compactRequirements = getCompactRequirements(order.requirements);
+
   return (
-    <div className="max-w-full touch-pan-y space-y-4 overflow-x-hidden overscroll-y-contain pb-4">
-      <section className="relative overflow-hidden rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+    <div className="max-w-full touch-pan-y space-y-4 overflow-x-hidden overscroll-y-contain pb-28">
+      <section className="relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_16px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
         <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-52 w-52 rounded-full bg-emerald-100/40 blur-3xl" />
+
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">
             <SoftPill tone={statusTone(order.status)}>
@@ -747,16 +888,13 @@ export default function CreatorOrderDetailPage() {
             ) : null}
           </div>
 
-          <div className="mt-4 flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <h1 className="break-words text-[24px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-                {order.product_name || nextAction.title}
-              </h1>
-              <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                {nextAction.body}
-              </p>
-            </div>
-          </div>
+          <h1 className="mt-4 break-words text-[24px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+            {order.product_name || nextAction.title}
+          </h1>
+
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            {nextAction.body}
+          </p>
 
           <Link
             href={backHref}
@@ -768,7 +906,7 @@ export default function CreatorOrderDetailPage() {
       </section>
 
       {error ? (
-        <section className="rounded-[26px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
+        <section className="rounded-[24px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
           <p className="text-sm font-semibold leading-7">{error}</p>
         </section>
       ) : null}
@@ -794,7 +932,7 @@ export default function CreatorOrderDetailPage() {
         </Card>
       ) : null}
 
-      <div className="max-w-full overflow-hidden rounded-[30px] shadow-[0_18px_55px_rgba(15,23,42,0.045)]">
+      <div className="max-w-full overflow-hidden rounded-[28px] bg-white shadow-[0_16px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
         <ChatEmbed orderId={order.id} title={copy.chatTitle} />
       </div>
 
@@ -839,6 +977,29 @@ export default function CreatorOrderDetailPage() {
         </Card>
       ) : null}
 
+      <Card title={copy.postInstructionTitle} body={copy.postInstructionBody}>
+        <div className="rounded-[22px] bg-slate-50 p-4">
+          <pre className="whitespace-pre-wrap break-words font-sans text-[15px] font-black leading-7 text-slate-950">
+            {prCopyText}
+          </pre>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleCopyPostText()}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
+        >
+          <CopyIcon />
+          {copied ? copy.copied : copy.copyPostText}
+        </button>
+      </Card>
+
+      {postNotes ? (
+        <Card title={copy.postNotes}>
+          <TextBlock value={postNotes} emptyLabel={copy.notSet} />
+        </Card>
+      ) : null}
+
       {isRevisionRequested && order.revision_note ? (
         <Card title={copy.revisionTitle}>
           <TextBlock value={order.revision_note} emptyLabel={copy.notSet} />
@@ -846,7 +1007,7 @@ export default function CreatorOrderDetailPage() {
       ) : null}
 
       <Card title={copy.orderContent} body={copy.orderContentBody}>
-        <div className="rounded-[24px] bg-slate-50 p-4">
+        <div className="rounded-[22px] bg-slate-50 p-4">
           <InfoRow
             label={copy.productName}
             value={order.product_name || copy.notSet}
@@ -872,8 +1033,8 @@ export default function CreatorOrderDetailPage() {
           />
 
           <InfoRow
-            label={copy.deadline}
-            value={formatDate(order.deadline, safeLocale)}
+            label={copy.timing}
+            value={timingText || copy.notSet}
           />
 
           <InfoRow
@@ -887,19 +1048,23 @@ export default function CreatorOrderDetailPage() {
           />
         </div>
 
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-black text-slate-400">
-            {copy.requirements}
-          </p>
-          <TextBlock value={order.requirements} emptyLabel={copy.notSet} />
-        </div>
+        {compactRequirements ? (
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-black text-slate-400">
+              {copy.requirements}
+            </p>
+            <TextBlock value={compactRequirements} emptyLabel={copy.notSet} />
+          </div>
+        ) : null}
       </Card>
 
       <Card title={copy.menuAndPayout}>
         <div className="mb-4 flex flex-wrap gap-2">
           {order.menu_platform_snapshot ? (
             <SoftPill tone="slate">
-              <span className="mr-1">{getPlatformIcon(order.menu_platform_snapshot)}</span>
+              <span className="mr-1">
+                {getPlatformIcon(order.menu_platform_snapshot)}
+              </span>
               {order.menu_platform_snapshot}
             </SoftPill>
           ) : null}
@@ -917,7 +1082,7 @@ export default function CreatorOrderDetailPage() {
           ) : null}
         </div>
 
-        <div className="rounded-[24px] bg-slate-50 p-4">
+        <div className="rounded-[22px] bg-slate-50 p-4">
           <InfoRow
             label={copy.menuTitle}
             value={order.menu_title_snapshot || copy.notSet}
@@ -945,7 +1110,11 @@ export default function CreatorOrderDetailPage() {
 
           <InfoRow
             label={copy.payout}
-            value={formatPrice(order.creator_payout_amount, order.currency, safeLocale)}
+            value={formatPrice(
+              order.creator_payout_amount,
+              order.currency,
+              safeLocale
+            )}
             strong
           />
 
