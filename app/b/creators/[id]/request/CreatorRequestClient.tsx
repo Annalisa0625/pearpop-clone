@@ -287,12 +287,17 @@ function buildPrCopyText(prAccount: string, hashtags: string[]) {
   const account = normalizePrAccountInput(prAccount);
   const cleanHashtags = getCleanHashtags(hashtags);
 
-  const accountLine = account ? `PR@${account}` : "PR";
-  const hashtagLine = ["#PR", ...cleanHashtags.map((tag) => `#${tag}`)].join(
-    " "
-  );
+  const lines: string[] = [];
 
-  return `${accountLine}\n${hashtagLine}`;
+  if (account) {
+    lines.push(`PR@${account}`);
+  }
+
+  if (cleanHashtags.length > 0) {
+    lines.push(cleanHashtags.map((tag) => `#${tag}`).join(" "));
+  }
+
+  return lines.join("\n");
 }
 
 function PlatformIcon({ platform }: { platform: string | null | undefined }) {
@@ -601,7 +606,7 @@ export default function CreatorRequestClient() {
             postSettings: "投稿設定",
             postSettingsStepTitle: "投稿に入れる内容を入力",
             postSettingsDescription:
-              "投稿の最後に貼るPR表記と、投稿で触れてほしいことを整理します。",
+              "投稿の最後に貼るアカウント表記と、投稿で触れてほしいことを整理します。",
             tagAccount: "タグ付けするアカウント名",
             tagAccountPlaceholder: "trendre_official",
             hashtags: "付けたいハッシュタグ",
@@ -718,7 +723,7 @@ export default function CreatorRequestClient() {
             postSettings: "Post settings",
             postSettingsStepTitle: "Add post instructions",
             postSettingsDescription:
-              "Prepare the PR text and notes the influencer can use when posting.",
+              "Prepare the account mention and notes the influencer can use when posting.",
             tagAccount: "Account to tag",
             tagAccountPlaceholder: "trendre_official",
             hashtags: "Hashtags",
@@ -1815,7 +1820,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
               {copy.prCopyPreview}
             </p>
             <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm font-black leading-7 text-slate-950">
-              {prCopyText}
+              {prCopyText || copy.skipped}
             </pre>
           </div>
         </div>
@@ -1920,7 +1925,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
               </button>
             </div>
             <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm font-black leading-7 text-slate-950">
-              {prCopyText}
+              {prCopyText || copy.skipped}
             </pre>
           </div>
 
