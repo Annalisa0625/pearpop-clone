@@ -309,6 +309,7 @@ function normalizeHashtag(value: unknown) {
 
   const lower = text.toLowerCase();
 
+  // Bが間違ってPR系を入れても重複・誤解を避けるため保存しない
   if (lower === "pr" || lower === "ad" || lower === "sponsored") {
     return null;
   }
@@ -342,12 +343,17 @@ function buildPrCopyText(args: {
   prAccount: string | null;
   prHashtags: string[];
 }) {
-  const accountLine = args.prAccount ? `PR@${args.prAccount}` : "PR";
-  const hashtagLine = ["#PR", ...args.prHashtags.map((tag) => `#${tag}`)].join(
-    " "
-  );
+  const lines: string[] = [];
 
-  return `${accountLine}\n${hashtagLine}`;
+  if (args.prAccount) {
+    lines.push(`PR@${args.prAccount}`);
+  }
+
+  if (args.prHashtags.length > 0) {
+    lines.push(args.prHashtags.map((tag) => `#${tag}`).join(" "));
+  }
+
+  return lines.join("\n");
 }
 
 export async function POST(req: NextRequest) {
@@ -681,7 +687,7 @@ export async function POST(req: NextRequest) {
 
       pr_account: prAccount,
       pr_hashtags: prHashtags,
-      pr_copy_text: prCopyText,
+      pr_copy_text: prCopyText || null,
       post_notes: postNotes,
 
       menu_title_snapshot: menu.title,

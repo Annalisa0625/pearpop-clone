@@ -80,15 +80,6 @@ function formatPrice(
   }
 }
 
-function formatDeliveryDays(
-  value: number | null | undefined,
-  locale: "ja" | "en",
-  fallback: string
-) {
-  if (value == null) return fallback;
-  return locale === "ja" ? `${value}日` : `${value} days`;
-}
-
 function menuTypeLabel(
   value: string | null | undefined,
   locale: "ja" | "en",
@@ -125,6 +116,7 @@ function isCheckoutPending(order: OrderDetail) {
 }
 
 function isWaitingForCreator(order: OrderDetail) {
+  if (isCheckoutPending(order)) return false;
   if (order.status === "authorized_pending_creator") return true;
 
   return (
@@ -143,6 +135,11 @@ function isInProgress(order: OrderDetail) {
     (order.payment_status === "captured" &&
       !["delivered", "revision_requested", "completed"].includes(order.status))
   );
+}
+
+function canUseChat(order: OrderDetail) {
+  if (isCheckoutPending(order)) return false;
+  return !isTerminalStatus(order.status);
 }
 
 function statusLabel(order: OrderDetail, locale: "ja" | "en") {
@@ -171,7 +168,9 @@ function statusLabel(order: OrderDetail, locale: "ja" | "en") {
   return "Checking";
 }
 
-function statusTone(order: OrderDetail): "rose" | "blue" | "amber" | "green" | "slate" {
+function statusTone(
+  order: OrderDetail
+): "rose" | "blue" | "amber" | "green" | "slate" {
   if (isCheckoutPending(order)) return "slate";
   if (isWaitingForCreator(order)) return "amber";
   if (order.status === "revision_requested") return "rose";
@@ -227,6 +226,7 @@ function getCleanHashtags(values: string[] | null | undefined) {
     if (!normalized) continue;
 
     const key = normalized.toLowerCase();
+
     if (key === "pr" || key === "ad" || key === "sponsored") continue;
     if (seen.has(key)) continue;
 
@@ -238,22 +238,20 @@ function getCleanHashtags(values: string[] | null | undefined) {
 }
 
 function buildPrCopyText(order: OrderDetail) {
-  const stored = order.pr_copy_text?.trim();
-
-  if (stored && stored !== "PR\n#PR") {
-    return stored;
-  }
-
   const account = normalizePrAccountInput(order.pr_account);
   const hashtags = getCleanHashtags(order.pr_hashtags);
 
-  const hashtagLine = ["#PR", ...hashtags.map((tag) => `#${tag}`)].join(" ");
+  const lines: string[] = [];
 
-  if (!account) {
-    return hashtagLine;
+  if (account) {
+    lines.push(`PR@${account}`);
   }
 
-  return `PR@${account}\n${hashtagLine}`;
+  if (hashtags.length > 0) {
+    lines.push(hashtags.map((tag) => `#${tag}`).join(" "));
+  }
+
+  return lines.join("\n");
 }
 
 function extractRequirementSection(
@@ -274,7 +272,12 @@ function extractRequirementSection(
 }
 
 function firstLine(value: string | null | undefined) {
-  return (value ?? "").split("\n").map((line) => line.trim()).filter(Boolean)[0] ?? "";
+  return (
+    (value ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)[0] ?? ""
+  );
 }
 
 function SoftPill({
@@ -567,13 +570,12 @@ export default function CreatorOrderDetailPage() {
             requestNote: "依頼内容",
             postInstructionTitle: "投稿に入れる内容",
             postInstructionBody:
-              "投稿の最後に貼り付けるPR表記とハッシュタグです。",
+              "投稿の最後に貼り付けるアカウント表記とハッシュタグです。",
             copyPostText: "コピーする",
             copied: "コピーしました",
             postNotes: "投稿で触れてほしいこと・注意事項",
             menuAndPayout: "メニュー・報酬",
             menuTitle: "メニュー",
-            deliveryDays: "目安",
             deliverables: "納品物",
             price: "メニュー価格",
             payout: "受取予定",
@@ -581,6 +583,10 @@ export default function CreatorOrderDetailPage() {
             payoutPage: "報酬ページを見る",
             revisionTitle: "修正依頼",
             notSet: "未設定",
+            noPostInstruction: "指定された投稿用テキストはありません。",
+            chatUnavailableTitle: "チャットは支払い確認後に使えます",
+            chatUnavailableBody:
+              "支払い確認が完了すると、注文チャットで詳細を相談できます。",
           }
         : {
             loading: "Loading...",
@@ -626,13 +632,12 @@ export default function CreatorOrderDetailPage() {
             requestNote: "Request note",
             postInstructionTitle: "Post text",
             postInstructionBody:
-              "PR text and hashtags to paste at the end of the post.",
+              "Account mention and hashtags to paste at the end of the post.",
             copyPostText: "Copy",
             copied: "Copied",
             postNotes: "Points and notes",
             menuAndPayout: "Menu & payout",
             menuTitle: "Menu",
-            deliveryDays: "Delivery",
             deliverables: "Deliverable",
             price: "Menu price",
             payout: "Expected payout",
@@ -640,6 +645,10 @@ export default function CreatorOrderDetailPage() {
             payoutPage: "View payouts",
             revisionTitle: "Revision request",
             notSet: "Not set",
+            noPostInstruction: "No post text was specified.",
+            chatUnavailableTitle: "Chat will be available after payment confirmation",
+            chatUnavailableBody:
+              "Once payment is confirmed, you can discuss details in order chat.",
           },
     [safeLocale]
   );
@@ -843,6 +852,8 @@ export default function CreatorOrderDetailPage() {
 
     const text = buildPrCopyText(order);
 
+    if (!text) return;
+
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -967,9 +978,19 @@ export default function CreatorOrderDetailPage() {
         </Card>
       ) : null}
 
-      <div className="max-w-full overflow-hidden rounded-[26px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 [&>div>div:nth-child(2)]:!h-[300px] md:[&>div>div:nth-child(2)]:!h-[340px]">
-        <ChatEmbed orderId={order.id} title={copy.chatTitle} />
-      </div>
+      {canUseChat(order) ? (
+        <div className="max-w-full overflow-hidden rounded-[26px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 [&>div>div:nth-child(2)]:!h-[300px] md:[&>div>div:nth-child(2)]:!h-[340px]">
+          <ChatEmbed orderId={order.id} title={copy.chatTitle} />
+        </div>
+      ) : (
+        <Card title={copy.chatUnavailableTitle} body={copy.chatUnavailableBody}>
+          <div className="rounded-[22px] bg-slate-50 p-4">
+            <p className="text-sm font-semibold leading-7 text-slate-500">
+              {copy.chatUnavailableBody}
+            </p>
+          </div>
+        </Card>
+      )}
 
       {canDeliver ? (
         <Card
@@ -1014,19 +1035,27 @@ export default function CreatorOrderDetailPage() {
 
       <Card title={copy.postInstructionTitle} body={copy.postInstructionBody}>
         <div className="rounded-[22px] bg-slate-50 p-4">
-          <pre className="whitespace-pre-wrap break-words font-sans text-[15px] font-black leading-7 text-slate-950">
-            {prCopyText}
-          </pre>
+          {prCopyText ? (
+            <pre className="whitespace-pre-wrap break-words font-sans text-[15px] font-black leading-7 text-slate-950">
+              {prCopyText}
+            </pre>
+          ) : (
+            <p className="text-sm font-semibold leading-7 text-slate-500">
+              {copy.noPostInstruction}
+            </p>
+          )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => void handleCopyPostText()}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
-        >
-          <CopyIcon />
-          {copied ? copy.copied : copy.copyPostText}
-        </button>
+        {prCopyText ? (
+          <button
+            type="button"
+            onClick={() => void handleCopyPostText()}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
+          >
+            <CopyIcon />
+            {copied ? copy.copied : copy.copyPostText}
+          </button>
+        ) : null}
       </Card>
 
       {postNotes ? (
@@ -1072,10 +1101,7 @@ export default function CreatorOrderDetailPage() {
             value={projectTypeText || copy.notSet}
           />
 
-          <InfoRow
-            label={copy.timing}
-            value={timingText || copy.notSet}
-          />
+          <InfoRow label={copy.timing} value={timingText || copy.notSet} />
 
           <InfoRow
             label={copy.freeOffer}
@@ -1127,15 +1153,6 @@ export default function CreatorOrderDetailPage() {
             label={copy.menuTitle}
             value={order.menu_title_snapshot || copy.notSet}
             strong
-          />
-
-          <InfoRow
-            label={copy.deliveryDays}
-            value={formatDeliveryDays(
-              order.menu_delivery_days_snapshot,
-              safeLocale,
-              copy.notSet
-            )}
           />
 
           <InfoRow
