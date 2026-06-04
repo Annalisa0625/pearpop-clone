@@ -123,13 +123,8 @@ function getSimpleStatus(status: string | null, locale: "ja" | "en") {
       return "進行中";
     }
 
-    if (normalized === "delivered") {
-      return "確認待ち";
-    }
-
-    if (normalized === "completed") {
-      return "完了";
-    }
+    if (normalized === "delivered") return "確認待ち";
+    if (normalized === "completed") return "完了";
 
     return "注文";
   }
@@ -146,15 +141,67 @@ function getSimpleStatus(status: string | null, locale: "ja" | "en") {
     return "In progress";
   }
 
+  if (normalized === "delivered") return "Review";
+  if (normalized === "completed") return "Done";
+
+  return "Order";
+}
+
+function getStatusTone(status: string | null) {
+  const normalized = (status || "").toLowerCase();
+
+  if (
+    normalized === "pending" ||
+    normalized === "authorized_pending_creator"
+  ) {
+    return "bg-rose-50 text-[#ff5f67] ring-rose-100";
+  }
+
+  if (
+    normalized === "accepted" ||
+    normalized === "accepted_captured" ||
+    normalized === "in_progress"
+  ) {
+    return "bg-blue-50 text-blue-700 ring-blue-100";
+  }
+
   if (normalized === "delivered") {
-    return "Review";
+    return "bg-amber-50 text-amber-700 ring-amber-100";
   }
 
   if (normalized === "completed") {
-    return "Done";
+    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   }
 
-  return "Order";
+  return "bg-slate-50 text-slate-500 ring-slate-100";
+}
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h10.5M10.5 5.5 15 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m8 5 5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function CreatorAvatar({
@@ -169,13 +216,13 @@ function CreatorAvatar({
       <img
         src={src}
         alt={name}
-        className="h-12 w-12 rounded-2xl object-cover ring-1 ring-slate-100"
+        className="h-12 w-12 shrink-0 rounded-[18px] object-cover ring-1 ring-slate-100"
       />
     );
   }
 
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-base font-black text-[#ff5f67] ring-1 ring-rose-100">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-base font-black text-[#ff5f67] ring-1 ring-rose-100">
       {fallbackInitial(name)}
     </div>
   );
@@ -183,10 +230,11 @@ function CreatorAvatar({
 
 function LoadingView() {
   return (
-    <div className="space-y-4">
-      <div className="h-28 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-      <div className="h-32 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-      <div className="h-52 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+    <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
+      <div className="h-24 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+      <div className="h-36 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+      <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+      <div className="h-40 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
     </div>
   );
 }
@@ -206,29 +254,32 @@ function NoticeCard({
 }) {
   const toneClass =
     tone === "danger"
-      ? "bg-rose-50 ring-rose-100 text-rose-900"
+      ? "bg-rose-50 text-rose-900 ring-rose-100"
       : tone === "warning"
-      ? "bg-amber-50 ring-amber-100 text-amber-950"
-      : "bg-white ring-slate-100 text-slate-950";
+        ? "bg-amber-50 text-amber-950 ring-amber-100"
+        : "bg-white text-slate-950 ring-slate-100";
 
   return (
-    <section className={`rounded-[26px] p-5 ring-1 ${toneClass}`}>
-      <h2 className="text-base font-black tracking-[-0.03em]">{title}</h2>
-      <p className="mt-2 text-sm font-semibold leading-7 opacity-75">{body}</p>
+    <section className={`creator-home-appear rounded-[24px] p-4 ring-1 ${toneClass}`}>
+      <h2 className="text-[15px] font-black tracking-[-0.03em]">{title}</h2>
+      <p className="mt-1.5 text-xs font-semibold leading-6 opacity-75">
+        {body}
+      </p>
 
       {href && cta ? (
         <Link
           href={href}
-          className="mt-4 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,95,103,0.2)] active:scale-[0.98]"
+          className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#ff5f67] px-4 py-2.5 text-xs font-black text-white shadow-[0_14px_30px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
         >
           {cta}
+          <ArrowIcon />
         </Link>
       ) : null}
     </section>
   );
 }
 
-function NextActionCard({
+function MainActionCard({
   title,
   body,
   href,
@@ -241,77 +292,86 @@ function NextActionCard({
   href: string;
   cta: string;
   count?: number;
-  tone: "rose" | "blue" | "green" | "slate";
+  tone: "rose" | "blue" | "slate";
 }) {
-  const markClass =
-    tone === "rose"
-      ? "bg-rose-50 text-[#ff5f67]"
-      : tone === "blue"
+  const countClass =
+    tone === "blue"
       ? "bg-blue-50 text-blue-700"
-      : tone === "green"
-      ? "bg-emerald-50 text-emerald-700"
-      : "bg-slate-50 text-slate-500";
+      : tone === "rose"
+        ? "bg-rose-50 text-[#ff5f67]"
+        : "bg-slate-50 text-slate-500";
 
   return (
-    <section className="rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">
-            {title}
-          </h2>
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            {body}
-          </p>
+    <section className="creator-home-appear creator-home-appear-delay-1 relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <div className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-rose-100/45 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -left-24 h-52 w-52 rounded-full bg-emerald-100/35 blur-3xl" />
+
+      <div className="relative">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-[20px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+              {title}
+            </h2>
+            <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+              {body}
+            </p>
+          </div>
+
+          {typeof count === "number" ? (
+            <div
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-lg font-black ${countClass}`}
+            >
+              {count}
+            </div>
+          ) : null}
         </div>
 
-        {typeof count === "number" ? (
-          <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-lg font-black ${markClass}`}
-          >
-            {count}
-          </div>
-        ) : null}
+        <Link
+          href={href}
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] transition active:scale-[0.98]"
+        >
+          {cta}
+          <ArrowIcon />
+        </Link>
       </div>
-
-      <Link
-        href={href}
-        className="mt-5 flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] active:scale-[0.98]"
-      >
-        {cta}
-      </Link>
     </section>
   );
 }
 
-function PayoutMiniCard({
+function CompactPayout({
   title,
-  amount,
   body,
+  amount,
   href,
 }: {
   title: string;
-  amount: string;
   body: string;
+  amount: string;
   href: string;
 }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-4 rounded-[26px] bg-white p-5 shadow-[0_16px_45px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 active:scale-[0.98]"
+      className="creator-home-appear creator-home-appear-delay-2 flex items-center justify-between gap-4 rounded-[24px] bg-white px-5 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 transition active:scale-[0.98]"
     >
-      <div>
+      <div className="min-w-0">
         <p className="text-sm font-black text-slate-950">{title}</p>
         <p className="mt-1 text-xs font-semibold text-slate-400">{body}</p>
       </div>
 
-      <p className="text-xl font-black tracking-[-0.04em] text-slate-950">
-        {amount}
-      </p>
+      <div className="flex shrink-0 items-center gap-3">
+        <p className="text-[22px] font-black tracking-[-0.055em] text-slate-950">
+          {amount}
+        </p>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400">
+          <ChevronIcon />
+        </span>
+      </div>
     </Link>
   );
 }
 
-function ActivityCard({
+function ActivityRow({
   item,
   locale,
   productUnset,
@@ -323,29 +383,90 @@ function ActivityCard({
   return (
     <Link
       href={getItemHref(item)}
-      className="block rounded-[24px] bg-slate-50 p-4 transition active:scale-[0.98]"
+      className="group flex items-center justify-between gap-3 rounded-[20px] bg-slate-50 px-4 py-3.5 transition active:scale-[0.98]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-base font-black tracking-[-0.03em] text-slate-950">
-            {item.product_name || productUnset}
-          </p>
-          <p className="mt-1 text-xs font-bold text-slate-400">
-            {formatDate(item.date, locale)}
-          </p>
-        </div>
+      <div className="min-w-0">
+        <p className="truncate text-[15px] font-black tracking-[-0.03em] text-slate-950">
+          {item.product_name || productUnset}
+        </p>
+        <p className="mt-1 text-xs font-bold text-slate-400">
+          {formatDate(item.date, locale)}
+        </p>
+      </div>
 
-        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 ring-1 ring-slate-100">
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          className={`rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${getStatusTone(
+            item.status
+          )}`}
+        >
           {getSimpleStatus(item.status, locale)}
+        </span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-100 transition group-active:scale-95">
+          <ChevronIcon />
         </span>
       </div>
     </Link>
   );
 }
 
+function RecentActivityCard({
+  title,
+  viewAll,
+  viewAllHref,
+  emptyText,
+  items,
+  locale,
+  productUnset,
+}: {
+  title: string;
+  viewAll: string;
+  viewAllHref: string;
+  emptyText: string;
+  items: ActivityItem[];
+  locale: "ja" | "en";
+  productUnset: string;
+}) {
+  return (
+    <section className="creator-home-appear creator-home-appear-delay-3 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
+          {title}
+        </h2>
+
+        <Link
+          href={viewAllHref}
+          className="text-xs font-black text-slate-400 transition active:scale-95"
+        >
+          {viewAll}
+        </Link>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="rounded-[22px] bg-slate-50 px-4 py-5">
+          <p className="text-sm font-semibold leading-7 text-slate-500">
+            {emptyText}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {items.map((item) => (
+            <ActivityRow
+              key={`${item.kind}-${item.id}`}
+              item={item}
+              locale={locale}
+              productUnset={productUnset}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function CreatorDashboardPage() {
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const copy = useMemo(
@@ -363,34 +484,33 @@ export default function CreatorDashboardPage() {
 
             greeting: "こんにちは",
 
-            suspendedTitle: "現在このアカウントは制限中です",
+            suspendedTitle: "アカウント確認中です",
             suspendedBody:
-              "アカウント状態の確認が必要です。一部機能をご利用いただけません。",
+              "一部機能を制限しています。確認が完了するまでお待ちください。",
             reviewPendingTitle: "審査中です",
             reviewPendingBody:
               "承認後に注文受付や進行機能を利用できます。",
-            profilePromptTitle: "プロフィールを整えてください",
+            profilePromptTitle: "プロフィールを整えましょう",
             profilePromptBody:
-              "写真・SNS・メニューを整えると、企業が注文しやすくなります。",
-            goToProfile: "プロフィールを編集する",
+              "写真・SNS・メニューを整えると、注文を受けやすくなります。",
+            goToProfile: "プロフィールを編集",
 
             nextPendingTitle: "新しい注文があります",
-            nextPendingBody: "内容を確認して、受けるか辞退するか選べます。",
-            nextPendingCta: "注文を確認する",
+            nextPendingBody: "内容を確認して、受けるか相談できます。",
+            nextPendingCta: "確認する",
 
-            nextTodoTitle: "対応が必要な注文があります",
-            nextTodoBody: "承認済みの注文を確認して、制作・投稿を進めましょう。",
+            nextTodoTitle: "対応が必要です",
+            nextTodoBody: "承認済みの注文を進めましょう。",
             nextTodoCta: "ToDoを見る",
 
-            nextReadyTitle: "プロフィール・メニューを充実させよう",
-            nextReadyBody:
-              "写真や価格を整えて、次の注文を受けやすくしましょう。",
-            nextReadyCta: "メニューを確認する",
+            nextReadyTitle: "受けられる状態を整えましょう",
+            nextReadyBody: "プロフィールやメニューを整えて、次の注文に備えます。",
+            nextReadyCta: "プロフィールを見る",
 
-            payoutTitle: "報酬",
-            payoutBody: "受取予定額を確認",
+            payoutTitle: "受取予定",
+            payoutBody: "報酬ページで詳細を確認",
             activityTitle: "最近の注文",
-            viewAll: "すべて見る",
+            viewAll: "すべて",
             noActivity: "まだ表示する注文はありません。",
             productUnset: "商品名未設定",
           }
@@ -406,34 +526,34 @@ export default function CreatorDashboardPage() {
 
             greeting: "Hi",
 
-            suspendedTitle: "This account is currently restricted",
+            suspendedTitle: "Account under review",
             suspendedBody:
-              "Your account status requires review. Some features are temporarily unavailable.",
+              "Some features are temporarily limited while your account is reviewed.",
             reviewPendingTitle: "Your review is in progress",
             reviewPendingBody:
               "Order handling becomes available after approval.",
-            profilePromptTitle: "Complete your profile",
+            profilePromptTitle: "Improve your profile",
             profilePromptBody:
               "Add photos, social accounts, and menus so brands can order easily.",
             goToProfile: "Edit profile",
 
             nextPendingTitle: "You have a new order",
-            nextPendingBody: "Review the details and accept or decline.",
-            nextPendingCta: "Review order",
+            nextPendingBody: "Review details and decide whether to accept.",
+            nextPendingCta: "Review",
 
-            nextTodoTitle: "You have work to do",
-            nextTodoBody: "Check accepted orders and continue production.",
+            nextTodoTitle: "Action needed",
+            nextTodoBody: "Continue accepted orders.",
             nextTodoCta: "View ToDo",
 
-            nextReadyTitle: "Improve your profile and menus",
+            nextReadyTitle: "Get ready for orders",
             nextReadyBody:
-              "Update your photos and prices to make your next order easier to receive.",
-            nextReadyCta: "Check menus",
+              "Update your profile and menus to receive future orders.",
+            nextReadyCta: "View profile",
 
-            payoutTitle: "Payouts",
-            payoutBody: "Expected payout",
+            payoutTitle: "Expected payout",
+            payoutBody: "Check details on the payout page",
             activityTitle: "Recent orders",
-            viewAll: "View all",
+            viewAll: "All",
             noActivity: "No orders to show yet.",
             productUnset: "No product name",
           },
@@ -692,8 +812,7 @@ export default function CreatorDashboardPage() {
         setCounts({
           pendingRequests:
             (legacyPendingCount ?? 0) + (orderPendingCount ?? 0),
-          acceptedJobs:
-            (legacyAcceptedCount ?? 0) + (orderAcceptedCount ?? 0),
+          acceptedJobs: (legacyAcceptedCount ?? 0) + (orderAcceptedCount ?? 0),
           deliveredJobs:
             (legacyDeliveredCount ?? 0) + (orderDeliveredCount ?? 0),
           completedJobs:
@@ -821,33 +940,44 @@ export default function CreatorDashboardPage() {
 
   const activeTodoCount = counts.acceptedJobs + counts.deliveredJobs;
 
-  const nextAction =
-    counts.pendingRequests > 0
+  const nextAction = !gate.creatorProfileCompleted
+    ? {
+        title: copy.profilePromptTitle,
+        body: copy.profilePromptBody,
+        href: "/creator/profile",
+        cta: copy.goToProfile,
+        count: undefined,
+        tone: "slate" as const,
+      }
+    : counts.pendingRequests > 0
       ? {
           title: copy.nextPendingTitle,
           body: copy.nextPendingBody,
-          href: "/creator/requests",
+          href: "/creator/orders",
           cta: copy.nextPendingCta,
           count: counts.pendingRequests,
           tone: "rose" as const,
         }
       : activeTodoCount > 0
-      ? {
-          title: copy.nextTodoTitle,
-          body: copy.nextTodoBody,
-          href: "/creator/jobs",
-          cta: copy.nextTodoCta,
-          count: activeTodoCount,
-          tone: "blue" as const,
-        }
-      : {
-          title: copy.nextReadyTitle,
-          body: copy.nextReadyBody,
-          href: "/creator/menus",
-          cta: copy.nextReadyCta,
-          count: undefined,
-          tone: "slate" as const,
-        };
+        ? {
+            title: copy.nextTodoTitle,
+            body: copy.nextTodoBody,
+            href: "/creator/jobs",
+            cta: copy.nextTodoCta,
+            count: activeTodoCount,
+            tone: "blue" as const,
+          }
+        : {
+            title: copy.nextReadyTitle,
+            body:
+              counts.activeMenus > 0
+                ? copy.nextReadyBody
+                : copy.profilePromptBody,
+            href: counts.activeMenus > 0 ? "/creator/menus" : "/creator/profile",
+            cta: counts.activeMenus > 0 ? copy.nextReadyCta : copy.goToProfile,
+            count: undefined,
+            tone: "slate" as const,
+          };
 
   const requestActivityItems: ActivityItem[] = recentRequests.map((item) => ({
     kind: item.kind,
@@ -870,21 +1000,60 @@ export default function CreatorDashboardPage() {
     ...jobActivityItems,
   ]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 4);
+    .slice(0, 3);
 
   return (
-    <div className="space-y-4 pb-4">
-      <section className="relative overflow-hidden rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
+      <style jsx global>{`
+        @keyframes creatorHomeFadeUp {
+          from {
+            opacity: 0;
+            transform: translate3d(0, 12px, 0);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+
+        .creator-home-appear {
+          animation: creatorHomeFadeUp 420ms cubic-bezier(0.2, 0.8, 0.2, 1)
+            both;
+        }
+
+        .creator-home-appear-delay-1 {
+          animation-delay: 50ms;
+        }
+
+        .creator-home-appear-delay-2 {
+          animation-delay: 95ms;
+        }
+
+        .creator-home-appear-delay-3 {
+          animation-delay: 140ms;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .creator-home-appear,
+          .creator-home-appear-delay-1,
+          .creator-home-appear-delay-2,
+          .creator-home-appear-delay-3 {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <section className="creator-home-appear relative overflow-hidden rounded-[28px] bg-white px-5 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-rose-100/35 blur-3xl" />
 
         <div className="relative flex items-center gap-4">
           <CreatorAvatar name={displayName} src={creator?.avatar_url} />
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-400">
+            <p className="text-xs font-bold text-slate-400">
               {copy.greeting}
             </p>
-            <h1 className="mt-0.5 truncate text-[24px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+            <h1 className="mt-0.5 truncate text-[23px] font-black leading-tight tracking-[-0.06em] text-slate-950">
               {displayName}
             </h1>
           </div>
@@ -907,55 +1076,24 @@ export default function CreatorDashboardPage() {
         />
       ) : null}
 
-      {!gate.creatorProfileCompleted ? (
-        <NoticeCard
-          title={copy.profilePromptTitle}
-          body={copy.profilePromptBody}
-          href="/creator/profile"
-          cta={copy.goToProfile}
-        />
-      ) : null}
+      <MainActionCard {...nextAction} />
 
-      <NextActionCard {...nextAction} />
-
-      <PayoutMiniCard
+      <CompactPayout
         title={copy.payoutTitle}
         body={copy.payoutBody}
         amount={formatMoney(payoutSummary.pendingAmount, safeLocale)}
         href="/creator/payouts"
       />
 
-      <section className="rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-            {copy.activityTitle}
-          </h2>
-
-          <Link
-            href="/creator/requests"
-            className="text-sm font-black text-slate-400"
-          >
-            {copy.viewAll}
-          </Link>
-        </div>
-
-        {activityItems.length === 0 ? (
-          <p className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500">
-            {copy.noActivity}
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {activityItems.map((item) => (
-              <ActivityCard
-                key={`${item.kind}-${item.id}`}
-                item={item}
-                locale={safeLocale}
-                productUnset={copy.productUnset}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      <RecentActivityCard
+        title={copy.activityTitle}
+        viewAll={copy.viewAll}
+        viewAllHref="/creator/orders"
+        emptyText={copy.noActivity}
+        items={activityItems}
+        locale={safeLocale}
+        productUnset={copy.productUnset}
+      />
     </div>
   );
 }
