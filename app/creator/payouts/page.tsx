@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -45,96 +45,6 @@ type PayoutOrderRow = {
 };
 
 type NoticeTone = "info" | "success" | "warning" | "error";
-type BadgeTone = "gray" | "green" | "blue" | "yellow" | "red";
-
-function Notice({
-  tone,
-  title,
-  body,
-}: {
-  tone: NoticeTone;
-  title: string;
-  body: string;
-}) {
-  const styles: Record<NoticeTone, string> = {
-    info: "border-slate-200 bg-white text-slate-800",
-    success: "border-emerald-100 bg-emerald-50 text-emerald-900",
-    warning: "border-amber-100 bg-amber-50 text-amber-900",
-    error: "border-rose-100 bg-rose-50 text-rose-900",
-  };
-
-  return (
-    <div className={`rounded-[26px] border p-5 text-sm ${styles[tone]}`}>
-      <p className="font-black">{title}</p>
-      <p className="mt-2 font-semibold leading-7 opacity-80">{body}</p>
-    </div>
-  );
-}
-
-function Badge({
-  tone,
-  children,
-}: {
-  tone: BadgeTone;
-  children: React.ReactNode;
-}) {
-  const styles: Record<BadgeTone, string> = {
-    gray: "bg-slate-100 text-slate-700",
-    green: "bg-emerald-100 text-emerald-700",
-    blue: "bg-blue-100 text-blue-700",
-    yellow: "bg-amber-100 text-amber-800",
-    red: "bg-rose-100 text-rose-700",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ${styles[tone]}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function FieldRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
-      <p className="text-sm font-bold text-slate-400">{label}</p>
-      <div className="text-right text-sm font-black text-slate-900">{value}</div>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: string;
-  helper?: string;
-}) {
-  return (
-    <div className="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-        {label}
-      </p>
-      <p className="mt-4 text-3xl font-black tracking-[-0.04em] text-slate-950">
-        {value}
-      </p>
-      {helper ? (
-        <p className="mt-2 text-xs font-bold leading-5 text-slate-400">
-          {helper}
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
 function formatMoney(
   value: number | null | undefined,
@@ -156,28 +66,16 @@ function formatMoney(
   }
 }
 
-function formatDateTime(
-  value: string | null | undefined,
-  locale: "ja" | "en"
-) {
+function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
   });
-}
-
-function shortId(value: string | null | undefined) {
-  if (!value) return "-";
-  if (value.length <= 14) return value;
-  return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
 function isSameMonth(value: string | null | undefined) {
@@ -194,10 +92,13 @@ function isSameMonth(value: string | null | undefined) {
   );
 }
 
-function getTransferBadgeMeta(
+function getTransferMeta(
   transferStatus: string | null | undefined,
   locale: "ja" | "en"
-): { label: string; tone: BadgeTone } {
+): {
+  label: string;
+  tone: "green" | "blue" | "rose" | "amber" | "slate";
+} {
   const normalized = (transferStatus || "not_started").toLowerCase();
 
   if (locale === "ja") {
@@ -210,14 +111,14 @@ function getTransferBadgeMeta(
     }
 
     if (normalized === "failed") {
-      return { label: "失敗", tone: "red" };
+      return { label: "確認が必要", tone: "rose" };
     }
 
     if (normalized === "skipped") {
-      return { label: "保留", tone: "yellow" };
+      return { label: "保留中", tone: "amber" };
     }
 
-    return { label: "未送金", tone: "gray" };
+    return { label: "送金待ち", tone: "slate" };
   }
 
   if (normalized === "transferred") {
@@ -229,28 +130,121 @@ function getTransferBadgeMeta(
   }
 
   if (normalized === "failed") {
-    return { label: "Failed", tone: "red" };
+    return { label: "Needs check", tone: "rose" };
   }
 
   if (normalized === "skipped") {
-    return { label: "On hold", tone: "yellow" };
+    return { label: "On hold", tone: "amber" };
   }
 
-  return { label: "Not sent", tone: "gray" };
+  return { label: "Waiting", tone: "slate" };
+}
+
+function Notice({
+  tone,
+  title,
+  body,
+}: {
+  tone: NoticeTone;
+  title: string;
+  body: string;
+}) {
+  const styles: Record<NoticeTone, string> = {
+    info: "bg-white text-slate-900 ring-slate-100",
+    success: "bg-emerald-50 text-emerald-950 ring-emerald-100",
+    warning: "bg-amber-50 text-amber-950 ring-amber-100",
+    error: "bg-rose-50 text-rose-950 ring-rose-100",
+  };
+
+  return (
+    <section
+      className={`creator-payouts-appear rounded-[24px] p-4 ring-1 ${styles[tone]}`}
+    >
+      <p className="text-sm font-black tracking-[-0.03em]">{title}</p>
+      <p className="mt-1.5 text-xs font-semibold leading-6 opacity-75">
+        {body}
+      </p>
+    </section>
+  );
+}
+
+function SoftBadge({
+  children,
+  tone = "slate",
+}: {
+  children: ReactNode;
+  tone?: "green" | "blue" | "rose" | "amber" | "slate";
+}) {
+  const className =
+    tone === "green"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+      : tone === "blue"
+        ? "bg-blue-50 text-blue-700 ring-blue-100"
+        : tone === "rose"
+          ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
+          : tone === "amber"
+            ? "bg-amber-50 text-amber-800 ring-amber-100"
+            : "bg-slate-50 text-slate-500 ring-slate-100";
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m8 5 5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <path
+        d="M12 3v18M17 6.5c-.9-1-2.5-1.7-4.2-1.7-2.4 0-4.3 1.2-4.3 3.1 0 2.2 2.2 2.8 4.5 3.3 2.2.5 4.2 1.1 4.2 3.4 0 2-1.9 3.3-4.5 3.3-2.1 0-3.9-.8-4.9-2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h10.5M10.5 5.5 15 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function LoadingView() {
   return (
-    <div className="space-y-5 pb-10">
-      <div className="h-48 animate-pulse rounded-[34px] bg-white shadow-sm ring-1 ring-slate-100" />
-      <div className="grid gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-28 animate-pulse rounded-[28px] bg-white shadow-sm ring-1 ring-slate-100"
-          />
-        ))}
+    <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
+      <div className="h-40 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-24 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+        <div className="h-24 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
       </div>
+      <div className="h-40 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
     </div>
   );
 }
@@ -265,12 +259,12 @@ function SetupStep({
   body: string;
 }) {
   return (
-    <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+    <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-[#ff5f67] shadow-sm ring-1 ring-slate-100">
           {number}
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-black text-slate-950">{title}</p>
           <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
             {body}
@@ -281,11 +275,93 @@ function SetupStep({
   );
 }
 
+function SummaryMiniCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+}) {
+  return (
+    <div className="creator-payouts-appear creator-payouts-appear-delay-2 rounded-[24px] bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100">
+      <p className="text-xs font-black text-slate-400">{label}</p>
+      <p className="mt-2 text-[24px] font-black tracking-[-0.055em] text-slate-950">
+        {value}
+      </p>
+      {helper ? (
+        <p className="mt-1 text-xs font-semibold text-slate-400">{helper}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function HistoryRow({
+  order,
+  locale,
+  copy,
+}: {
+  order: PayoutOrderRow;
+  locale: "ja" | "en";
+  copy: {
+    order: string;
+    completedAt: string;
+    payoutAmount: string;
+    orderDetail: string;
+  };
+}) {
+  const badge = getTransferMeta(order.transfer_status, locale);
+
+  return (
+    <Link
+      href={`/creator/orders/${order.id}`}
+      className="creator-payouts-appear group block rounded-[22px] bg-slate-50 px-4 py-3.5 transition active:scale-[0.98]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex flex-wrap gap-2">
+            <SoftBadge tone={badge.tone}>{badge.label}</SoftBadge>
+          </div>
+
+          <p className="truncate text-[15px] font-black tracking-[-0.035em] text-slate-950">
+            {order.product_name || copy.order}
+          </p>
+
+          <p className="mt-1 text-xs font-bold text-slate-400">
+            {copy.completedAt}：
+            {formatDate(order.completed_at || order.created_at, locale)}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="text-right">
+            <p className="text-[15px] font-black tracking-[-0.035em] text-slate-950">
+              {formatMoney(
+                order.creator_payout_amount,
+                order.currency,
+                locale
+              )}
+            </p>
+            <p className="mt-1 text-[11px] font-black text-slate-400">
+              {copy.payoutAmount}
+            </p>
+          </div>
+
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-100 transition group-active:scale-95">
+            <ChevronIcon />
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function CreatorPayoutsPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
   const [creator, setCreator] = useState<CreatorPayoutState | null>(null);
   const [status, setStatus] = useState<ConnectStatus | null>(null);
@@ -312,73 +388,66 @@ export default function CreatorPayoutsPage() {
             onboardingFailed: "Stripeの登録開始に失敗しました。",
 
             title: "報酬",
-            subtitle:
-              "完了した注文の受取予定額と送金状況を確認できます。",
-            signupTitle: "最後に、報酬の受け取り設定をします",
+            subtitle: "受取予定額と送金状況を確認できます。",
+            signupTitle: "報酬の受け取り設定",
             signupSubtitle:
-              "注文が完了したあとに報酬を受け取るため、Stripeで本人確認と振込先を登録してください。",
+              "注文完了後に報酬を受け取るため、Stripeで本人確認と振込先を登録します。",
             requiredTitle: "報酬の受け取り設定が必要です",
             requiredSubtitle:
-              "この設定が完了すると、注文の受け付けと報酬受け取りを安全に進められます。",
+              "この設定が完了すると、注文の受付と報酬受け取りを進められます。",
 
-            setupLabel: "登録の最終ステップ",
-            readyLabel: "設定完了",
+            setupLabel: "設定が必要",
+            readyLabel: "設定済み",
             notReadyLabel: "設定が必要",
-            backDashboard: "ホームへ",
             goDashboard: "ホームへ進む",
 
-            start: "Stripeで受け取り設定をする",
-            continue: "Stripe登録を続ける",
+            start: "受け取り設定をする",
+            continue: "設定を続ける",
             refresh: "設定状況を確認する",
             refreshing: "確認中...",
             starting: "Stripeへ移動中...",
 
             step1Title: "本人確認",
-            step1Body: "本人確認に必要な情報をStripe側で入力します。",
+            step1Body: "Stripeの画面で本人確認情報を入力します。",
             step2Title: "振込先登録",
-            step2Body: "報酬を受け取る銀行口座をStripe側で登録します。",
+            step2Body: "報酬を受け取る銀行口座を登録します。",
             step3Title: "受け取り開始",
-            step3Body: "設定完了後、注文完了時に報酬を受け取れます。",
+            step3Body: "設定完了後、注文完了時に報酬が反映されます。",
 
             statusReadyTitle: "受け取り設定は完了しています",
-            statusReadyBody:
-              "注文完了後に報酬を受け取る準備ができています。",
+            statusReadyBody: "注文完了後に報酬を受け取る準備ができています。",
             statusNotReadyTitle: "受け取り設定がまだ完了していません",
             statusNotReadyBody:
-              "Stripeの画面で本人確認と振込先登録を完了してください。",
+              "報酬を受け取るには、Stripeで本人確認と振込先登録を完了してください。",
             returnedTitle: "Stripeから戻りました",
             returnedBody:
-              "最新の状態を確認しました。まだ未完了の場合は、もう一度登録を続けてください。",
+              "状態を確認しました。未完了の場合は、もう一度設定を続けてください。",
             refreshTitle: "Stripe登録が中断されました",
-            refreshBody:
-              "登録を再開できます。下のボタンからStripeの画面へ戻ってください。",
+            refreshBody: "下のボタンから登録を再開できます。",
             accountManagedByStripe:
               "銀行口座情報はStripe側で安全に管理されます。Trendreには口座番号の詳細は保存されません。",
 
-            monthRevenue: "今月",
-            totalEarned: "受取予定",
+            thisMonthExpected: "今月の受取予定",
+            totalExpected: "受取予定",
             totalTransferred: "送金済み",
-            pendingAmount: "未送金",
+            pendingAmount: "送金待ち",
             completedOrders: "完了件数",
+            countSuffix: "件",
+
             historyTitle: "報酬履歴",
-            historyBody:
-              "完了した注文の受取予定額と送金状況を確認できます。",
+            historyBody: "完了した注文の報酬がここに表示されます。",
             historyEmptyTitle: "まだ報酬履歴はありません",
             historyEmptyBody:
-              "注文が完了し、受取予定額が確定するとここに表示されます。",
+              "注文が完了して受取予定額が確定すると、ここに表示されます。",
             order: "注文",
             orderDetail: "注文を見る",
-            payoutAmount: "受取予定額",
-            completedAt: "完了日時",
-            transferredAt: "送金日時",
-            transferId: "送金ID",
-            failedReason: "失敗理由",
+            payoutAmount: "受取予定",
+            completedAt: "完了日",
             settingTitle: "受け取り設定",
             settingBody:
-              "未完了の場合は、報酬を受け取れないため早めに設定してください。",
-            connected: "完了済み",
-            incomplete: "未完了",
-            none: "なし",
+              "報酬を受け取るための本人確認と振込先設定です。",
+            connected: "設定済み",
+            incomplete: "未設定",
             errorTitle: "エラー",
           }
         : {
@@ -391,33 +460,31 @@ export default function CreatorPayoutsPage() {
             onboardingFailed: "Failed to start Stripe onboarding.",
 
             title: "Payouts",
-            subtitle:
-              "Review payout amounts and transfer status for completed orders.",
-            signupTitle: "Last step: Set up payouts",
+            subtitle: "Check expected payouts and transfer status.",
+            signupTitle: "Set up payouts",
             signupSubtitle:
-              "Complete identity verification and payout details in Stripe so you can receive earnings after completed orders.",
+              "Complete identity verification and payout details in Stripe to receive earnings after completed orders.",
             requiredTitle: "Payout setup is required",
             requiredSubtitle:
-              "Complete this setup to safely accept orders and receive payouts.",
+              "Complete this setup to accept orders and receive payouts.",
 
-            setupLabel: "Final setup step",
+            setupLabel: "Setup required",
             readyLabel: "Ready",
             notReadyLabel: "Setup required",
-            backDashboard: "Home",
             goDashboard: "Go to home",
 
-            start: "Set up payouts with Stripe",
-            continue: "Continue Stripe setup",
+            start: "Set up payouts",
+            continue: "Continue setup",
             refresh: "Check setup status",
             refreshing: "Checking...",
             starting: "Opening Stripe...",
 
             step1Title: "Identity verification",
-            step1Body: "Enter required identity details securely in Stripe.",
+            step1Body: "Enter identity details securely in Stripe.",
             step2Title: "Bank account",
-            step2Body: "Add the bank account where you want to receive payouts.",
+            step2Body: "Add the bank account for your payouts.",
             step3Title: "Start receiving",
-            step3Body: "After setup, you can receive payouts from completed orders.",
+            step3Body: "After setup, payouts appear after completed orders.",
 
             statusReadyTitle: "Payout setup is complete",
             statusReadyBody:
@@ -427,37 +494,33 @@ export default function CreatorPayoutsPage() {
               "Complete identity verification and payout details in Stripe.",
             returnedTitle: "Returned from Stripe",
             returnedBody:
-              "We refreshed your status. If it is still incomplete, continue setup again.",
+              "We checked your status. Continue setup again if it is still incomplete.",
             refreshTitle: "Stripe setup was interrupted",
-            refreshBody:
-              "You can resume setup from the button below.",
+            refreshBody: "You can resume setup from the button below.",
             accountManagedByStripe:
               "Bank account details are securely managed by Stripe. Trendre does not store full bank account numbers.",
 
-            monthRevenue: "This month",
-            totalEarned: "Expected",
+            thisMonthExpected: "This month",
+            totalExpected: "Expected",
             totalTransferred: "Transferred",
-            pendingAmount: "Pending",
-            completedOrders: "Completed orders",
+            pendingAmount: "Waiting",
+            completedOrders: "Completed",
+            countSuffix: "",
+
             historyTitle: "Payout history",
-            historyBody:
-              "Review payout amounts and transfer status for completed orders.",
+            historyBody: "Completed order payouts will appear here.",
             historyEmptyTitle: "No payout history yet",
             historyEmptyBody:
               "Completed orders with confirmed payout amounts will appear here.",
             order: "Order",
             orderDetail: "View order",
-            payoutAmount: "Payout amount",
-            completedAt: "Completed at",
-            transferredAt: "Transferred at",
-            transferId: "Transfer ID",
-            failedReason: "Failure reason",
+            payoutAmount: "Expected",
+            completedAt: "Completed",
             settingTitle: "Payout setup",
             settingBody:
-              "Complete setup early so payouts can be sent after orders are completed.",
-            connected: "Complete",
-            incomplete: "Incomplete",
-            none: "None",
+              "Identity verification and bank account setup for payouts.",
+            connected: "Ready",
+            incomplete: "Not set",
             errorTitle: "Error",
           },
     [safeLocale]
@@ -584,7 +647,8 @@ export default function CreatorPayoutsPage() {
         return;
       }
 
-      setCreator(creatorRow as CreatorPayoutState);
+      const typedCreator = creatorRow as CreatorPayoutState;
+      setCreator(typedCreator);
 
       const params = new URLSearchParams(window.location.search);
       const connectParam = params.get("connect");
@@ -603,7 +667,7 @@ export default function CreatorPayoutsPage() {
 
       await Promise.all([
         refreshConnectStatus(accessToken),
-        loadPayoutHistory(user.id, creatorRow.id),
+        loadPayoutHistory(user.id, typedCreator.id),
       ]);
     } catch (err) {
       console.error("creator payouts load error:", err);
@@ -681,10 +745,12 @@ export default function CreatorPayoutsPage() {
   };
 
   const isReady = Boolean(status?.stripe_onboarding_completed);
-  const hasAccount = Boolean(status?.has_stripe_account || creator?.stripe_account_id);
+  const hasAccount = Boolean(
+    status?.has_stripe_account || creator?.stripe_account_id
+  );
 
   const payoutSummary = useMemo(() => {
-    const totalEarned = payoutOrders.reduce(
+    const totalExpected = payoutOrders.reduce(
       (sum, order) => sum + Number(order.creator_payout_amount || 0),
       0
     );
@@ -693,20 +759,26 @@ export default function CreatorPayoutsPage() {
       .filter((order) => order.transfer_status === "transferred")
       .reduce((sum, order) => sum + Number(order.creator_payout_amount || 0), 0);
 
-    const pendingAmount = Math.max(totalEarned - totalTransferred, 0);
+    const pendingAmount = Math.max(totalExpected - totalTransferred, 0);
 
-    const thisMonthEarned = payoutOrders
-      .filter((order) => isSameMonth(order.completed_at || order.created_at))
-      .reduce((sum, order) => sum + Number(order.creator_payout_amount || 0), 0);
+    const thisMonthOrders = payoutOrders.filter((order) =>
+      isSameMonth(order.completed_at || order.created_at)
+    );
+
+    const thisMonthExpected = thisMonthOrders.reduce(
+      (sum, order) => sum + Number(order.creator_payout_amount || 0),
+      0
+    );
 
     const mainCurrency =
       payoutOrders.find((order) => order.currency)?.currency || "JPY";
 
     return {
-      totalEarned,
+      totalExpected,
       totalTransferred,
       pendingAmount,
-      thisMonthEarned,
+      thisMonthExpected,
+      thisMonthCompletedCount: thisMonthOrders.length,
       mainCurrency,
       completedCount: payoutOrders.length,
     };
@@ -718,152 +790,62 @@ export default function CreatorPayoutsPage() {
 
   if (signupMode) {
     return (
-      <div className="relative overflow-hidden pb-10">
-        <div className="pointer-events-none absolute -left-36 top-10 h-80 w-80 rounded-full bg-rose-100/50 blur-3xl" />
-        <div className="pointer-events-none absolute -right-36 top-32 h-96 w-96 rounded-full bg-emerald-100/40 blur-3xl" />
+      <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
+        <style jsx global>{`
+          @keyframes creatorPayoutsFadeUp {
+            from {
+              opacity: 0;
+              transform: translate3d(0, 10px, 0);
+            }
+            to {
+              opacity: 1;
+              transform: translate3d(0, 0, 0);
+            }
+          }
 
-        <div className="relative mx-auto max-w-3xl px-2">
-          <section className="rounded-[34px] bg-white p-6 shadow-[0_26px_80px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 md:p-8">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={isReady ? "green" : "yellow"}>
-                {isReady ? copy.readyLabel : copy.setupLabel}
-              </Badge>
-            </div>
+          .creator-payouts-appear {
+            animation: creatorPayoutsFadeUp 380ms
+              cubic-bezier(0.2, 0.8, 0.2, 1) both;
+          }
 
-            <h1 className="mt-5 text-[30px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[42px]">
+          .creator-payouts-appear-delay-1 {
+            animation-delay: 50ms;
+          }
+
+          .creator-payouts-appear-delay-2 {
+            animation-delay: 90ms;
+          }
+
+          .creator-payouts-appear-delay-3 {
+            animation-delay: 130ms;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .creator-payouts-appear,
+            .creator-payouts-appear-delay-1,
+            .creator-payouts-appear-delay-2,
+            .creator-payouts-appear-delay-3 {
+              animation: none;
+            }
+          }
+        `}</style>
+
+        <section className="creator-payouts-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
+
+          <div className="relative">
+            <SoftBadge tone={isReady ? "green" : "amber"}>
+              {isReady ? copy.readyLabel : copy.setupLabel}
+            </SoftBadge>
+
+            <h1 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
               {isReady ? copy.statusReadyTitle : copy.signupTitle}
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-500 md:text-base md:leading-8">
+            <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
               {isReady ? copy.statusReadyBody : copy.signupSubtitle}
             </p>
-
-            {returnNotice === "return" ? (
-              <div className="mt-5">
-                <Notice
-                  tone={isReady ? "success" : "info"}
-                  title={copy.returnedTitle}
-                  body={copy.returnedBody}
-                />
-              </div>
-            ) : null}
-
-            {returnNotice === "refresh" ? (
-              <div className="mt-5">
-                <Notice
-                  tone="warning"
-                  title={copy.refreshTitle}
-                  body={copy.refreshBody}
-                />
-              </div>
-            ) : null}
-
-            {error ? (
-              <div className="mt-5">
-                <Notice tone="error" title={copy.errorTitle} body={error} />
-              </div>
-            ) : null}
-
-            <div className="mt-7 grid gap-3">
-              <SetupStep
-                number="1"
-                title={copy.step1Title}
-                body={copy.step1Body}
-              />
-              <SetupStep
-                number="2"
-                title={copy.step2Title}
-                body={copy.step2Body}
-              />
-              <SetupStep
-                number="3"
-                title={copy.step3Title}
-                body={copy.step3Body}
-              />
-            </div>
-
-            <div className="mt-7 grid gap-3">
-              {isReady ? (
-                <Link
-                  href="/creator/dashboard"
-                  className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-6 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98]"
-                >
-                  {copy.goDashboard}
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleStartOnboarding}
-                  disabled={starting}
-                  className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-6 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {starting
-                    ? copy.starting
-                    : hasAccount
-                    ? copy.continue
-                    : copy.start}
-                </button>
-              )}
-
-              {!isReady ? (
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className="flex w-full items-center justify-center rounded-full bg-slate-100 px-6 py-4 text-sm font-black text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {refreshing ? copy.refreshing : copy.refresh}
-                </button>
-              ) : null}
-            </div>
-
-            <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
-              {copy.accountManagedByStripe}
-            </p>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative overflow-hidden pb-10">
-      <div className="pointer-events-none absolute -left-40 top-10 h-96 w-96 rounded-full bg-rose-100/45 blur-3xl" />
-      <div className="pointer-events-none absolute -right-40 top-32 h-[420px] w-[420px] rounded-full bg-emerald-100/35 blur-3xl" />
-
-      <div className="relative space-y-6">
-        <section className="rounded-[34px] bg-white p-6 shadow-[0_26px_80px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-8">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={isReady ? "green" : "yellow"}>
-                  {isReady ? copy.connected : copy.notReadyLabel}
-                </Badge>
-              </div>
-
-              <h1 className="mt-4 text-[32px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[44px]">
-                {copy.title}
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500 md:text-base md:leading-8">
-                {copy.subtitle}
-              </p>
-            </div>
-
-            {!isReady ? (
-              <button
-                type="button"
-                onClick={handleStartOnboarding}
-                disabled={starting}
-                className="rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {starting
-                  ? copy.starting
-                  : hasAccount
-                  ? copy.continue
-                  : copy.start}
-              </button>
-            ) : null}
           </div>
         </section>
 
@@ -883,202 +865,298 @@ export default function CreatorPayoutsPage() {
           />
         ) : null}
 
-        {error ? <Notice tone="error" title={copy.errorTitle} body={error} /> : null}
+        {error ? (
+          <Notice tone="error" title={copy.errorTitle} body={error} />
+        ) : null}
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <StatCard
-            label={copy.monthRevenue}
-            value={formatMoney(
-              payoutSummary.thisMonthEarned,
-              payoutSummary.mainCurrency,
-              safeLocale
-            )}
-            helper={copy.completedOrders}
-          />
-
-          <StatCard
-            label={copy.totalEarned}
-            value={formatMoney(
-              payoutSummary.totalEarned,
-              payoutSummary.mainCurrency,
-              safeLocale
-            )}
-            helper={`${copy.pendingAmount}: ${formatMoney(
-              payoutSummary.pendingAmount,
-              payoutSummary.mainCurrency,
-              safeLocale
-            )}`}
-          />
-
-          <StatCard
-            label={copy.totalTransferred}
-            value={formatMoney(
-              payoutSummary.totalTransferred,
-              payoutSummary.mainCurrency,
-              safeLocale
-            )}
-            helper={`${payoutSummary.completedCount}${safeLocale === "ja" ? "件" : ""}`}
-          />
-        </section>
-
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-black tracking-[-0.04em] text-slate-950">
-                  {copy.historyTitle}
-                </h2>
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                  {copy.historyBody}
-                </p>
-              </div>
+        {!isReady ? (
+          <section className="creator-payouts-appear creator-payouts-appear-delay-1 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+            <div className="grid gap-3">
+              <SetupStep
+                number="1"
+                title={copy.step1Title}
+                body={copy.step1Body}
+              />
+              <SetupStep
+                number="2"
+                title={copy.step2Title}
+                body={copy.step2Body}
+              />
+              <SetupStep
+                number="3"
+                title={copy.step3Title}
+                body={copy.step3Body}
+              />
             </div>
 
-            {payoutOrders.length === 0 ? (
-              <div className="mt-6 rounded-[26px] bg-slate-50 p-8 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-xl font-black text-slate-950 shadow-sm ring-1 ring-slate-100">
-                  ¥
-                </div>
-                <h3 className="mt-4 text-lg font-black text-slate-950">
-                  {copy.historyEmptyTitle}
-                </h3>
-                <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-7 text-slate-500">
-                  {copy.historyEmptyBody}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 space-y-3">
-                {payoutOrders.map((order) => {
-                  const badge = getTransferBadgeMeta(
-                    order.transfer_status,
-                    safeLocale
-                  );
+            <div className="mt-5 grid gap-3">
+              <button
+                type="button"
+                onClick={handleStartOnboarding}
+                disabled={starting}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {starting
+                  ? copy.starting
+                  : hasAccount
+                    ? copy.continue
+                    : copy.start}
+                {!starting ? <ArrowIcon /> : null}
+              </button>
 
-                  return (
-                    <div
-                      key={order.id}
-                      className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-base font-black text-slate-950">
-                            {order.product_name || `${copy.order} ${shortId(order.id)}`}
-                          </p>
-                          <p className="mt-1 text-xs font-bold text-slate-400">
-                            {copy.completedAt}:{" "}
-                            {formatDateTime(
-                              order.completed_at || order.created_at,
-                              safeLocale
-                            )}
-                          </p>
-                        </div>
-                        <Badge tone={badge.tone}>{badge.label}</Badge>
-                      </div>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex w-full items-center justify-center rounded-full bg-slate-100 px-6 py-4 text-sm font-black text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {refreshing ? copy.refreshing : copy.refresh}
+              </button>
+            </div>
 
-                      <div className="mt-4 rounded-[22px] bg-white px-4 py-2 ring-1 ring-slate-100">
-                        <FieldRow
-                          label={copy.payoutAmount}
-                          value={formatMoney(
-                            order.creator_payout_amount,
-                            order.currency,
-                            safeLocale
-                          )}
-                        />
-                        <FieldRow
-                          label={copy.transferredAt}
-                          value={formatDateTime(order.transferred_at, safeLocale)}
-                        />
-                        {order.stripe_transfer_id ? (
-                          <FieldRow
-                            label={copy.transferId}
-                            value={shortId(order.stripe_transfer_id)}
-                          />
-                        ) : null}
-                        {order.transfer_failed_reason ? (
-                          <FieldRow
-                            label={copy.failedReason}
-                            value={order.transfer_failed_reason}
-                          />
-                        ) : null}
-                      </div>
+            <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
+              {copy.accountManagedByStripe}
+            </p>
+          </section>
+        ) : (
+          <section className="creator-payouts-appear creator-payouts-appear-delay-1 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+            <Link
+              href="/creator/dashboard"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98]"
+            >
+              {copy.goDashboard}
+              <ArrowIcon />
+            </Link>
+          </section>
+        )}
+      </div>
+    );
+  }
 
-                      <Link
-                        href={`/creator/orders/${order.id}`}
-                        className="mt-4 flex w-full items-center justify-center rounded-full bg-slate-950 px-4 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-                      >
-                        {copy.orderDetail}
-                      </Link>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+  return (
+    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
+      <style jsx global>{`
+        @keyframes creatorPayoutsFadeUp {
+          from {
+            opacity: 0;
+            transform: translate3d(0, 10px, 0);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
 
-          <aside className="space-y-4">
-            <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
-                    {copy.settingTitle}
-                  </h2>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                    {isReady ? copy.statusReadyBody : copy.settingBody}
-                  </p>
-                </div>
+        .creator-payouts-appear {
+          animation: creatorPayoutsFadeUp 380ms cubic-bezier(0.2, 0.8, 0.2, 1)
+            both;
+        }
 
-                <Badge tone={isReady ? "green" : "yellow"}>
-                  {isReady ? copy.connected : copy.incomplete}
-                </Badge>
-              </div>
+        .creator-payouts-appear-delay-1 {
+          animation-delay: 50ms;
+        }
 
-              <div className="mt-5 grid gap-3">
-                {!isReady ? (
-                  <button
-                    type="button"
-                    onClick={handleStartOnboarding}
-                    disabled={starting}
-                    className="w-full rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_30px_rgba(255,95,103,0.2)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {starting
-                      ? copy.starting
-                      : hasAccount
-                      ? copy.continue
-                      : copy.start}
-                  </button>
-                ) : null}
+        .creator-payouts-appear-delay-2 {
+          animation-delay: 90ms;
+        }
 
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className="w-full rounded-full bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {refreshing ? copy.refreshing : copy.refresh}
-                </button>
-              </div>
+        .creator-payouts-appear-delay-3 {
+          animation-delay: 130ms;
+        }
 
-              <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
-                {copy.accountManagedByStripe}
+        @media (prefers-reduced-motion: reduce) {
+          .creator-payouts-appear,
+          .creator-payouts-appear-delay-1,
+          .creator-payouts-appear-delay-2,
+          .creator-payouts-appear-delay-3 {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <section className="creator-payouts-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
+
+        <div className="relative">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+                {copy.title}
+              </h1>
+
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                {copy.subtitle}
               </p>
             </div>
 
             {!isReady ? (
-              <Notice
-                tone="warning"
-                title={copy.statusNotReadyTitle}
-                body={copy.statusNotReadyBody}
-              />
-            ) : (
-              <Notice
-                tone="success"
-                title={copy.statusReadyTitle}
-                body={copy.statusReadyBody}
-              />
-            )}
-          </aside>
+              <SoftBadge tone="amber">{copy.incomplete}</SoftBadge>
+            ) : null}
+          </div>
+
+          <div className="mt-6">
+            <p className="text-xs font-black text-slate-400">
+              {copy.thisMonthExpected}
+            </p>
+
+            <p className="mt-2 text-[42px] font-black leading-none tracking-[-0.075em] text-slate-950">
+              {formatMoney(
+                payoutSummary.thisMonthExpected,
+                payoutSummary.mainCurrency,
+                safeLocale
+              )}
+            </p>
+
+            <p className="mt-2 text-xs font-semibold text-slate-400">
+              {copy.completedOrders}：{payoutSummary.thisMonthCompletedCount}
+              {safeLocale === "ja" ? copy.countSuffix : ""}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {returnNotice === "return" ? (
+        <Notice
+          tone={isReady ? "success" : "info"}
+          title={copy.returnedTitle}
+          body={copy.returnedBody}
+        />
+      ) : null}
+
+      {returnNotice === "refresh" ? (
+        <Notice
+          tone="warning"
+          title={copy.refreshTitle}
+          body={copy.refreshBody}
+        />
+      ) : null}
+
+      {error ? (
+        <Notice tone="error" title={copy.errorTitle} body={error} />
+      ) : null}
+
+      {!isReady ? (
+        <section className="creator-payouts-appear creator-payouts-appear-delay-1 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+          <h2 className="text-[18px] font-black tracking-[-0.045em] text-slate-950">
+            {copy.statusNotReadyTitle}
+          </h2>
+
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            {copy.statusNotReadyBody}
+          </p>
+
+          <button
+            type="button"
+            onClick={handleStartOnboarding}
+            disabled={starting}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {starting ? copy.starting : hasAccount ? copy.continue : copy.start}
+            {!starting ? <ArrowIcon /> : null}
+          </button>
         </section>
-      </div>
+      ) : null}
+
+      <section className="grid grid-cols-2 gap-3">
+        <SummaryMiniCard
+          label={copy.pendingAmount}
+          value={formatMoney(
+            payoutSummary.pendingAmount,
+            payoutSummary.mainCurrency,
+            safeLocale
+          )}
+        />
+
+        <SummaryMiniCard
+          label={copy.totalTransferred}
+          value={formatMoney(
+            payoutSummary.totalTransferred,
+            payoutSummary.mainCurrency,
+            safeLocale
+          )}
+        />
+      </section>
+
+      <section className="creator-payouts-appear creator-payouts-appear-delay-3 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
+              {copy.historyTitle}
+            </h2>
+
+            <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
+              {copy.historyBody}
+            </p>
+          </div>
+
+          <SoftBadge tone="slate">
+            {payoutSummary.completedCount}
+            {safeLocale === "ja" ? copy.countSuffix : ""}
+          </SoftBadge>
+        </div>
+
+        {payoutOrders.length === 0 ? (
+          <div className="rounded-[24px] bg-slate-50 px-5 py-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-white text-slate-400 shadow-sm ring-1 ring-slate-100">
+              <EmptyIcon />
+            </div>
+
+            <h3 className="mt-5 text-lg font-black tracking-[-0.04em] text-slate-950">
+              {copy.historyEmptyTitle}
+            </h3>
+
+            <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-7 text-slate-500">
+              {copy.historyEmptyBody}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {payoutOrders.map((order) => (
+              <HistoryRow
+                key={order.id}
+                order={order}
+                locale={safeLocale}
+                copy={copy}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="creator-payouts-appear creator-payouts-appear-delay-3 rounded-[24px] bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-black text-slate-950">
+              {copy.settingTitle}
+            </h2>
+
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
+              {isReady ? copy.statusReadyBody : copy.settingBody}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <SoftBadge tone={isReady ? "green" : "amber"}>
+              {isReady ? copy.connected : copy.incomplete}
+            </SoftBadge>
+
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100 transition active:scale-95 disabled:opacity-50"
+              aria-label={copy.refresh}
+            >
+              <ChevronIcon />
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs font-semibold leading-6 text-slate-400">
+          {copy.accountManagedByStripe}
+        </p>
+      </section>
     </div>
   );
 }
