@@ -34,11 +34,7 @@ type OrderRow = {
   created_at: string;
   product_name: string | null;
   deadline: string | null;
-  requirements: string;
   menu_title_snapshot: string | null;
-  menu_price_amount: number | null;
-  creator_transaction_fee_rate_bps: number | null;
-  creator_transaction_fee_amount: number | null;
   creator_payout_amount: number | null;
   currency: string | null;
   creator_accept_deadline: string | null;
@@ -54,9 +50,6 @@ type PendingItem =
       product_name: string | null;
       deadline: string | null;
       menu_title: string | null;
-      amount: number | null;
-      creator_transaction_fee_rate_bps: number | null;
-      creator_transaction_fee_amount: number | null;
       creator_payout_amount: number | null;
       currency: string | null;
       creator_accept_deadline: string | null;
@@ -71,14 +64,26 @@ type PendingItem =
       product_name: string | null;
       deadline: string | null;
       menu_title: null;
-      amount: null;
-      creator_transaction_fee_rate_bps: null;
-      creator_transaction_fee_amount: null;
       creator_payout_amount: null;
       currency: "JPY";
       creator_accept_deadline: null;
       chat: ChatRow | null;
     };
+
+function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+  });
+}
 
 function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
@@ -94,21 +99,6 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
-}
-
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
-    month: "numeric",
-    day: "numeric",
   });
 }
 
@@ -144,16 +134,6 @@ function getDeadlineTime(value: string | null | undefined) {
   return time;
 }
 
-function getUrgencyScore(item: PendingItem) {
-  if (item.kind !== "order") return 9999999999999;
-
-  const deadlineTime = getDeadlineTime(item.creator_accept_deadline);
-
-  if (!deadlineTime) return 9999999999999;
-
-  return deadlineTime;
-}
-
 function isWithinHours(value: string | null | undefined, hours: number) {
   const time = getDeadlineTime(value);
 
@@ -170,6 +150,16 @@ function isExpired(value: string | null | undefined) {
   if (!time) return false;
 
   return time <= Date.now();
+}
+
+function getUrgencyScore(item: PendingItem) {
+  if (item.kind !== "order") return 9999999999999;
+
+  const deadlineTime = getDeadlineTime(item.creator_accept_deadline);
+
+  if (!deadlineTime) return 9999999999999;
+
+  return deadlineTime;
 }
 
 function isUnreadForUser(chat: ChatRow | null, userId: string | null) {
@@ -203,9 +193,13 @@ function getAcceptDeadlineLabel(
       : `Due soon ${formatDateTime(value, locale)}`;
   }
 
-  return locale === "ja"
-    ? `返答期限 ${formatDateTime(value, locale)}`
-    : `Reply by ${formatDateTime(value, locale)}`;
+  if (isWithinHours(value, 24)) {
+    return locale === "ja"
+      ? `返答期限 ${formatDateTime(value, locale)}`
+      : `Reply by ${formatDateTime(value, locale)}`;
+  }
+
+  return null;
 }
 
 function getItemHref(item: PendingItem) {
@@ -216,15 +210,46 @@ function getItemHref(item: PendingItem) {
 
 function LoadingView() {
   return (
-    <div className="space-y-4">
-      <div className="h-28 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-40 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100"
-        />
-      ))}
+    <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
+      <div className="h-24 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
     </div>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m8 5 5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -233,25 +258,48 @@ function SoftPill({
   tone = "slate",
 }: {
   children: React.ReactNode;
-  tone?: "slate" | "rose" | "blue" | "amber" | "green";
+  tone?: "slate" | "rose" | "blue" | "amber";
 }) {
   const className =
     tone === "rose"
       ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
       : tone === "blue"
-      ? "bg-blue-50 text-blue-700 ring-blue-100"
-      : tone === "amber"
-      ? "bg-amber-50 text-amber-800 ring-amber-100"
-      : tone === "green"
-      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-      : "bg-slate-50 text-slate-500 ring-slate-100";
+        ? "bg-blue-50 text-blue-700 ring-blue-100"
+        : tone === "amber"
+          ? "bg-amber-50 text-amber-800 ring-amber-100"
+          : "bg-slate-50 text-slate-500 ring-slate-100";
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${className}`}
     >
       {children}
     </span>
+  );
+}
+
+function MiniInfo({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: React.ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-black text-slate-400">{label}</p>
+      <p
+        className={`mt-1 truncate text-sm ${
+          strong
+            ? "font-black tracking-[-0.03em] text-slate-950"
+            : "font-bold text-slate-700"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -266,13 +314,11 @@ function OrderCard({
   locale: "ja" | "en";
   copy: {
     unnamedProduct: string;
-    received: string;
+    orderDate: string;
     menu: string;
     payout: string;
-    deadline: string;
     detail: string;
     newMessage: string;
-    paymentReady: string;
     oldRequest: string;
   };
   unread: boolean;
@@ -287,86 +333,59 @@ function OrderCard({
   return (
     <Link
       href={href}
-      className="block rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 transition active:scale-[0.98]"
+      className="creator-orders-appear block rounded-[26px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
-        {urgent ? <SoftPill tone="amber">{acceptDeadline}</SoftPill> : null}
-        {!urgent && acceptDeadline ? (
-          <SoftPill tone="slate">{acceptDeadline}</SoftPill>
-        ) : null}
-        {item.kind === "order" ? (
-          <SoftPill tone="green">{copy.paymentReady}</SoftPill>
-        ) : (
-          <SoftPill tone="slate">{copy.oldRequest}</SoftPill>
-        )}
-      </div>
-
-      <div className="mt-4 flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">
+          <div className="mb-2 flex flex-wrap gap-2">
+            {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
+            {urgent && acceptDeadline ? (
+              <SoftPill tone="amber">{acceptDeadline}</SoftPill>
+            ) : null}
+            {item.kind === "legacy_request" ? (
+              <SoftPill tone="slate">{copy.oldRequest}</SoftPill>
+            ) : null}
+          </div>
+
+          <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
             {item.product_name || copy.unnamedProduct}
           </h2>
 
-          <p className="mt-2 text-xs font-bold text-slate-400">
-            {copy.received}: {formatDateTime(item.created_at, locale)}
+          <p className="mt-1.5 text-xs font-bold text-slate-400">
+            {copy.orderDate}：{formatDate(item.created_at, locale)}
           </p>
         </div>
 
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-lg font-black text-slate-400">
-          ›
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+          <ChevronIcon />
         </span>
       </div>
 
       {item.kind === "order" ? (
-        <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-xs font-black text-slate-400">
-                {copy.menu}
-              </span>
-              <span className="max-w-[62%] truncate text-right text-sm font-black text-slate-900">
-                {item.menu_title || "-"}
-              </span>
-            </div>
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[22px] bg-slate-50 px-4 py-3.5">
+          <MiniInfo
+            label={copy.menu}
+            value={item.menu_title || "-"}
+          />
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-xs font-black text-slate-400">
-                {copy.payout}
-              </span>
-              <span className="text-right text-lg font-black tracking-[-0.03em] text-slate-950">
-                {formatPrice(
-                  item.creator_payout_amount,
-                  item.currency,
-                  locale
-                )}
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : item.deadline ? (
-        <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs font-black text-slate-400">
-              {copy.deadline}
-            </span>
-            <span className="text-right text-sm font-black text-slate-900">
-              {formatDate(item.deadline, locale)}
-            </span>
-          </div>
+          <MiniInfo
+            label={copy.payout}
+            value={formatPrice(
+              item.creator_payout_amount,
+              item.currency,
+              locale
+            )}
+            strong
+          />
         </div>
       ) : null}
-
-      <div className="mt-5 flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white">
-        {copy.detail}
-      </div>
     </Link>
   );
 }
 
 export default function CreatorRequestsPage() {
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const copy = useMemo(
@@ -374,40 +393,34 @@ export default function CreatorRequestsPage() {
       safeLocale === "ja"
         ? {
             title: "注文",
-            subtitle: "届いた注文を確認して、受けるか辞退できます。",
+            subtitle: "届いた注文を確認して、受けるか相談できます。",
             fetchError: "注文の取得に失敗しました。",
             unnamedProduct: "商品名未設定",
-            received: "受信",
+            orderDate: "注文日",
             menu: "メニュー",
             payout: "受取予定",
-            deadline: "希望日",
             detail: "内容を確認する",
             empty: "届いている注文はありません",
             emptyBody: "新しい注文が届くとここに表示されます。",
-            profileCta: "プロフィールを確認する",
-            newMessage: "新着あり",
-            paymentReady: "支払い確認済み",
+            profileCta: "プロフィールを整える",
+            newMessage: "新着メッセージ",
             oldRequest: "依頼",
-            total: "件",
             errorTitle: "エラー",
           }
         : {
             title: "Orders",
-            subtitle: "Review incoming orders and accept or decline.",
+            subtitle: "Review incoming orders and discuss if needed.",
             fetchError: "Failed to load orders.",
             unnamedProduct: "No product name",
-            received: "Received",
+            orderDate: "Order date",
             menu: "Menu",
             payout: "Expected",
-            deadline: "Preferred date",
             detail: "View details",
             empty: "No incoming orders",
             emptyBody: "New orders will appear here.",
-            profileCta: "Check profile",
+            profileCta: "Update profile",
             newMessage: "New message",
-            paymentReady: "Payment ready",
             oldRequest: "Request",
-            total: "",
             errorTitle: "Error",
           },
     [safeLocale]
@@ -439,6 +452,7 @@ export default function CreatorRequestsPage() {
     const [legacyRes, orderRes] = await Promise.all([
       fetch("/api/creator/requests", {
         credentials: "include",
+        cache: "no-store",
       }),
 
       supabase
@@ -451,18 +465,14 @@ export default function CreatorRequestsPage() {
           created_at,
           product_name,
           deadline,
-          requirements,
           menu_title_snapshot,
-          menu_price_amount,
-          creator_transaction_fee_rate_bps,
-          creator_transaction_fee_amount,
           creator_payout_amount,
           currency,
           creator_accept_deadline
         `
         )
         .eq("creator_user_id", user.id)
-        .in("status", ["authorized_pending_creator", "checkout_pending"])
+        .eq("status", "authorized_pending_creator")
         .order("created_at", { ascending: false }),
     ]);
 
@@ -556,9 +566,6 @@ export default function CreatorRequestsPage() {
         product_name: request.product_name,
         deadline: request.deadline,
         menu_title: null,
-        amount: null,
-        creator_transaction_fee_rate_bps: null,
-        creator_transaction_fee_amount: null,
         creator_payout_amount: null,
         currency: "JPY",
         creator_accept_deadline: null,
@@ -576,11 +583,6 @@ export default function CreatorRequestsPage() {
         product_name: order.product_name,
         deadline: order.deadline,
         menu_title: order.menu_title_snapshot,
-        amount: order.menu_price_amount,
-        creator_transaction_fee_rate_bps:
-          order.creator_transaction_fee_rate_bps,
-        creator_transaction_fee_amount:
-          order.creator_transaction_fee_amount,
         creator_payout_amount: order.creator_payout_amount,
         currency: order.currency,
         creator_accept_deadline: order.creator_accept_deadline,
@@ -696,41 +698,56 @@ export default function CreatorRequestsPage() {
   ).length;
 
   return (
-    <div className="space-y-4 pb-4">
-      <section className="relative overflow-hidden rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
+      <style jsx global>{`
+        @keyframes creatorOrdersFadeUp {
+          from {
+            opacity: 0;
+            transform: translate3d(0, 10px, 0);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+
+        .creator-orders-appear {
+          animation: creatorOrdersFadeUp 380ms cubic-bezier(0.2, 0.8, 0.2, 1)
+            both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .creator-orders-appear {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <section className="creator-orders-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
         <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
 
-        <div className="relative flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-              {copy.title}
-            </h1>
-            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-              {copy.subtitle}
-            </p>
-          </div>
+        <div className="relative">
+          <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+            {copy.title}
+          </h1>
 
-          <div className="shrink-0 text-right">
-            <p className="text-[30px] font-black leading-none tracking-[-0.05em] text-slate-950">
-              {items.length}
-            </p>
-            <p className="mt-1 text-xs font-bold text-slate-400">
-              {copy.total}
-            </p>
-          </div>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+            {copy.subtitle}
+          </p>
+
+          {unreadCount > 0 ? (
+            <div className="mt-4">
+              <SoftPill tone="blue">
+                {copy.newMessage} {unreadCount}
+              </SoftPill>
+            </div>
+          ) : null}
         </div>
-
-        {unreadCount > 0 ? (
-          <div className="relative mt-4">
-            <SoftPill tone="blue">
-              {copy.newMessage} {unreadCount}
-            </SoftPill>
-          </div>
-        ) : null}
       </section>
 
       {error ? (
-        <section className="rounded-[26px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
+        <section className="rounded-[24px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
           <p className="text-sm font-black">{copy.errorTitle}</p>
           <p className="mt-2 text-sm font-semibold leading-7 opacity-75">
             {error}
@@ -738,7 +755,7 @@ export default function CreatorRequestsPage() {
         </section>
       ) : null}
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         {items.map((item) => {
           const unread = isUnreadForUser(item.chat, currentUserId);
           const urgent =
@@ -758,9 +775,9 @@ export default function CreatorRequestsPage() {
         })}
 
         {items.length === 0 && !error ? (
-          <section className="rounded-[30px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-50 text-2xl">
-              ◎
+          <section className="creator-orders-appear rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-slate-50 text-slate-400">
+              <EmptyIcon />
             </div>
 
             <h2 className="mt-5 text-xl font-black tracking-[-0.04em] text-slate-950">
@@ -773,7 +790,7 @@ export default function CreatorRequestsPage() {
 
             <Link
               href="/creator/profile"
-              className="mt-6 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+              className="mt-6 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] transition active:scale-[0.98]"
             >
               {copy.profileCta}
             </Link>
