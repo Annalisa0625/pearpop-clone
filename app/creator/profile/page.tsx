@@ -1,4 +1,4 @@
-// app/creator/profile/page.tsx
+// File: app/creator/profile/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -64,13 +64,13 @@ const CATEGORY_OPTIONS: LocaleOption[] = [
   { value: "ファッション", ja: "ファッション", en: "Fashion" },
   { value: "グルメ", ja: "グルメ", en: "Food" },
   { value: "旅行", ja: "旅行", en: "Travel" },
-  { value: "子育て", ja: "子育て", en: "Parenting" },
   { value: "ライフスタイル", ja: "ライフスタイル", en: "Lifestyle" },
+  { value: "フィットネス", ja: "フィットネス", en: "Fitness" },
+  { value: "子育て", ja: "子育て", en: "Parenting" },
   { value: "ガジェット", ja: "ガジェット", en: "Gadgets" },
   { value: "エンタメ", ja: "エンタメ", en: "Entertainment" },
   { value: "ビジネス", ja: "ビジネス", en: "Business" },
   { value: "教育", ja: "教育", en: "Education" },
-  { value: "フィットネス", ja: "フィットネス", en: "Fitness" },
   { value: "その他", ja: "その他", en: "Other" },
 ];
 
@@ -82,18 +82,83 @@ const LANGUAGE_OPTIONS: LocaleOption[] = [
   { value: "その他", ja: "その他", en: "Other" },
 ];
 
+const COUNTRY_OPTIONS: LocaleOption[] = [
+  { value: "日本", ja: "日本", en: "Japan" },
+  { value: "韓国", ja: "韓国", en: "Korea" },
+  { value: "中国", ja: "中国", en: "China" },
+  { value: "台湾", ja: "台湾", en: "Taiwan" },
+  { value: "香港", ja: "香港", en: "Hong Kong" },
+  { value: "タイ", ja: "タイ", en: "Thailand" },
+  { value: "ベトナム", ja: "ベトナム", en: "Vietnam" },
+  { value: "インドネシア", ja: "インドネシア", en: "Indonesia" },
+  { value: "フィリピン", ja: "フィリピン", en: "Philippines" },
+  { value: "シンガポール", ja: "シンガポール", en: "Singapore" },
+  { value: "アメリカ", ja: "アメリカ", en: "United States" },
+  { value: "その他", ja: "その他", en: "Other" },
+];
+
+const PREFECTURE_OPTIONS = [
+  "北海道",
+  "青森県",
+  "岩手県",
+  "宮城県",
+  "秋田県",
+  "山形県",
+  "福島県",
+  "茨城県",
+  "栃木県",
+  "群馬県",
+  "埼玉県",
+  "千葉県",
+  "東京都",
+  "神奈川県",
+  "新潟県",
+  "富山県",
+  "石川県",
+  "福井県",
+  "山梨県",
+  "長野県",
+  "岐阜県",
+  "静岡県",
+  "愛知県",
+  "三重県",
+  "滋賀県",
+  "京都府",
+  "大阪府",
+  "兵庫県",
+  "奈良県",
+  "和歌山県",
+  "鳥取県",
+  "島根県",
+  "岡山県",
+  "広島県",
+  "山口県",
+  "徳島県",
+  "香川県",
+  "愛媛県",
+  "高知県",
+  "福岡県",
+  "佐賀県",
+  "長崎県",
+  "熊本県",
+  "大分県",
+  "宮崎県",
+  "鹿児島県",
+  "沖縄県",
+];
+
 const PLATFORM_OPTIONS = [
   "Instagram",
   "TikTok",
   "YouTube",
   "X",
-  "Facebook",
   "Lemon8",
+  "Threads",
+  "Facebook",
   "Pinterest",
   "Twitch",
   "Snapchat",
   "LinkedIn",
-  "Threads",
   "小紅書",
   "抖音",
   "Bilibili",
@@ -114,15 +179,11 @@ const AUDIENCE_REGION_OPTIONS: LocaleOption[] = [
   { value: "マレーシア", ja: "マレーシア", en: "Malaysia" },
   { value: "シンガポール", ja: "シンガポール", en: "Singapore" },
   { value: "インド", ja: "インド", en: "India" },
-  { value: "UAE", ja: "UAE", en: "UAE" },
-  { value: "サウジアラビア", ja: "サウジアラビア", en: "Saudi Arabia" },
   { value: "アメリカ", ja: "アメリカ", en: "United States" },
   { value: "カナダ", ja: "カナダ", en: "Canada" },
   { value: "イギリス", ja: "イギリス", en: "United Kingdom" },
   { value: "フランス", ja: "フランス", en: "France" },
   { value: "ドイツ", ja: "ドイツ", en: "Germany" },
-  { value: "イタリア", ja: "イタリア", en: "Italy" },
-  { value: "スペイン", ja: "スペイン", en: "Spain" },
   { value: "オーストラリア", ja: "オーストラリア", en: "Australia" },
   { value: "その他", ja: "その他", en: "Other" },
 ];
@@ -153,40 +214,77 @@ function optionLabel(option: LocaleOption, locale: "ja" | "en") {
   return locale === "ja" ? option.ja : option.en;
 }
 
-function getApprovalStatusLabel(
-  status: string | null,
-  locale: "ja" | "en"
-): string {
-  if (locale === "ja") {
-    if (status === "approved") return "承認済";
-    if (status === "pending") return "審査中";
-    if (status === "rejected") return "却下";
-    return status ?? "未承認";
-  }
-
-  if (status === "approved") return "Approved";
-  if (status === "pending") return "Pending";
-  if (status === "rejected") return "Rejected";
-  return status ?? "Not approved";
-}
-
-function getApprovalTone(status: string | null) {
-  if (status === "approved") return "bg-emerald-100 text-emerald-700";
-  if (status === "pending") return "bg-amber-100 text-amber-800";
-  if (status === "rejected") return "bg-rose-100 text-rose-700";
-  return "bg-slate-100 text-slate-700";
-}
-
 function fileExtension(file: File) {
   const parts = file.name.split(".");
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
+function getPublicStatusLabel(status: string | null, locale: "ja" | "en") {
+  if (locale === "ja") {
+    if (status === "approved") return "公開中";
+    if (status === "pending") return "確認中";
+    if (status === "rejected") return "確認が必要";
+    return "確認中";
+  }
+
+  if (status === "approved") return "Public";
+  if (status === "pending") return "Under review";
+  if (status === "rejected") return "Needs check";
+  return "Under review";
+}
+
+function getPublicStatusTone(status: string | null) {
+  if (status === "approved") return "green";
+  if (status === "rejected") return "rose";
+  return "amber";
+}
+
+function fallbackInitial(name: string) {
+  return (name || "T").slice(0, 1).toUpperCase();
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m8 5 5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SoftBadge({
+  children,
+  tone = "slate",
+}: {
+  children: ReactNode;
+  tone?: "green" | "rose" | "amber" | "slate";
+}) {
+  const className =
+    tone === "green"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+      : tone === "rose"
+        ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
+        : tone === "amber"
+          ? "bg-amber-50 text-amber-800 ring-amber-100"
+          : "bg-slate-50 text-slate-500 ring-slate-100";
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <label className="block text-sm font-black text-slate-800">
-      {children}
-    </label>
+    <label className="block text-sm font-black text-slate-800">{children}</label>
   );
 }
 
@@ -194,18 +292,7 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${
-        props.className ?? ""
-      }`}
-    />
-  );
-}
-
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 ${
+      className={`mt-2 w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${
         props.className ?? ""
       }`}
     />
@@ -216,7 +303,7 @@ function SelectBox(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${
+      className={`mt-2 w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-sm font-bold text-slate-900 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${
         props.className ?? ""
       }`}
     />
@@ -224,29 +311,32 @@ function SelectBox(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 }
 
 function SectionCard({
-  icon,
+  id,
   title,
   body,
   children,
 }: {
-  icon: string;
+  id?: string;
   title: string;
   body?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm md:p-6">
-      <div className="mb-5 flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
-          {icon}
-        </div>
-        <div>
-          <h2 className="text-xl font-black text-slate-950">{title}</h2>
-          {body ? (
-            <p className="mt-1 text-sm leading-6 text-slate-500">{body}</p>
-          ) : null}
-        </div>
+    <section
+      id={id}
+      className="creator-profile-appear rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100"
+    >
+      <div className="mb-5">
+        <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
+          {title}
+        </h2>
+        {body ? (
+          <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
+            {body}
+          </p>
+        ) : null}
       </div>
+
       {children}
     </section>
   );
@@ -254,30 +344,34 @@ function SectionCard({
 
 function SettingLink({
   href,
-  icon,
   title,
   body,
+  icon,
 }: {
   href: string;
-  icon: string;
   title: string;
   body: string;
+  icon: ReactNode;
 }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-md"
+      className="creator-profile-appear flex items-center gap-4 rounded-[24px] bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 transition active:scale-[0.98]"
     >
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
         {icon}
       </span>
+
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-black text-slate-950">{title}</span>
-        <span className="mt-1 block text-xs leading-5 text-slate-500">
+        <span className="mt-1 block text-xs font-semibold leading-5 text-slate-400">
           {body}
         </span>
       </span>
-      <span className="text-slate-300">›</span>
+
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+        <ChevronIcon />
+      </span>
     </Link>
   );
 }
@@ -289,6 +383,7 @@ function ImagePicker({
   noImageLabel,
   buttonLabel,
   onChange,
+  square = false,
 }: {
   label: string;
   currentUrl: string | null;
@@ -296,24 +391,33 @@ function ImagePicker({
   noImageLabel: string;
   buttonLabel: string;
   onChange: (file: File | null) => void;
+  square?: boolean;
 }) {
   const src = previewUrl || currentUrl;
 
   return (
-    <div className="rounded-[24px] border border-slate-100 bg-slate-50 p-4">
-      <p className="text-sm font-black text-slate-800">{label}</p>
+    <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+      <p className="text-sm font-black text-slate-950">{label}</p>
 
-      <div className="mt-4 overflow-hidden rounded-[22px] bg-white">
+      <div
+        className={`mt-4 overflow-hidden rounded-[22px] bg-white ring-1 ring-slate-100 ${
+          square ? "mx-auto h-32 w-32" : "h-36 w-full"
+        }`}
+      >
         {src ? (
-          <img src={src} alt={label} className="h-44 w-full object-cover" />
+          <img
+            src={src}
+            alt={label}
+            className="h-full w-full object-cover"
+          />
         ) : (
-          <div className="flex h-44 items-center justify-center text-sm font-bold text-slate-400">
+          <div className="flex h-full items-center justify-center text-sm font-bold text-slate-300">
             {noImageLabel}
           </div>
         )}
       </div>
 
-      <label className="mt-4 flex cursor-pointer items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition active:scale-[0.98]">
+      <label className="mt-4 flex cursor-pointer items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.98]">
         {buttonLabel}
         <input
           type="file"
@@ -333,23 +437,30 @@ function ImagePicker({
 function PortfolioUploadBox({
   pendingCount,
   buttonLabel,
+  selectedLabel,
   onChange,
 }: {
   pendingCount: number;
   buttonLabel: string;
+  selectedLabel: string;
   onChange: (files: File[]) => void;
 }) {
   return (
-    <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition hover:border-slate-950 active:scale-[0.98]">
-      <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-2xl shadow-sm">
+    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-4 text-center transition active:scale-[0.98]">
+      <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white text-xl font-black text-[#ff5f67] shadow-sm ring-1 ring-slate-100">
         +
       </div>
-      <p className="mt-4 text-sm font-black text-slate-950">{buttonLabel}</p>
+
+      <p className="mt-3 text-xs font-black leading-5 text-slate-700">
+        {buttonLabel}
+      </p>
+
       {pendingCount > 0 ? (
-        <p className="mt-2 text-xs font-semibold text-slate-500">
-          {pendingCount} files selected
+        <p className="mt-1 text-[11px] font-semibold text-slate-400">
+          {selectedLabel}：{pendingCount}
         </p>
       ) : null}
+
       <input
         type="file"
         accept="image/*"
@@ -370,11 +481,13 @@ function PortfolioImage({
   label,
   onDelete,
   deleting,
+  deleteLabel,
 }: {
   src: string;
   label: string;
   onDelete?: () => void;
   deleting?: boolean;
+  deleteLabel: string;
 }) {
   return (
     <div className="group relative overflow-hidden rounded-[22px] bg-slate-100">
@@ -385,12 +498,105 @@ function PortfolioImage({
           type="button"
           onClick={onDelete}
           disabled={deleting}
-          className="absolute right-2 top-2 rounded-full bg-black/70 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition disabled:opacity-60"
+          className="absolute right-2 top-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm backdrop-blur transition active:scale-95 disabled:opacity-60"
         >
-          {deleting ? "..." : "削除"}
+          {deleting ? "..." : deleteLabel}
         </button>
       ) : null}
     </div>
+  );
+}
+
+function CreatorAvatar({
+  name,
+  src,
+}: {
+  name: string;
+  src: string | null | undefined;
+}) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="h-16 w-16 shrink-0 rounded-[24px] object-cover ring-1 ring-slate-100"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-rose-50 text-xl font-black text-[#ff5f67] ring-1 ring-rose-100">
+      {fallbackInitial(name)}
+    </div>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M6 7h12M6 12h12M6 17h7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function PhotoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="14"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="m8 15 2.5-3 2 2.3 1.5-1.8 3 3.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="9" cy="9" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function SnsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M8 12a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 8.5h.01M7.5 21h9A4.5 4.5 0 0 0 21 16.5v-9A4.5 4.5 0 0 0 16.5 3h-9A4.5 4.5 0 0 0 3 7.5v9A4.5 4.5 0 0 0 7.5 21Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function YenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -398,180 +604,148 @@ export default function CreatorProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
-            badge: "Creator Profile",
             title: "プロフィール",
-            subtitle:
-              "企業に見られる基本情報、写真、SNS、メニュー導線を管理します。",
-            approvalStatus: "承認状態",
-            publicName: "公開名（@表示名）",
-            publicNamePlaceholder: "例：yourname / main_account_name",
-            publicNameHelp:
-              "企業や一覧画面で見える名前です。主要SNSアカウント名と揃えるのがおすすめです。",
-            fullName: "氏名（任意）",
-            category: "メインカテゴリ",
+            subtitle: "企業に表示される情報を整えます。",
+            username: "ユーザーネーム",
+            usernamePlaceholder: "例：taiki_pr",
+            usernameHelp: "SNSのアカウント名と揃えると見つけてもらいやすくなります。",
+            category: "メインジャンル",
             country: "国",
-            countryPlaceholder: "例：Japan / 日本",
-            prefecture: "都道府県 / 州",
-            prefecturePlaceholder: "例：京都府 / California",
-            city: "市区町村（任意）",
+            prefecture: "都道府県",
+            area: "活動エリア",
+            city: "市区町村",
             cityPlaceholder: "例：京都市",
             contentLanguage: "発信言語",
             responseLanguage: "対応言語",
-            subCategories: "サブカテゴリ",
-            bio: "短い自己紹介",
-            bioPlaceholder:
-              "企業に伝わるように、発信内容や得意ジャンルを簡潔に書いてください。",
-            accountSection: "アカウント",
-            accountBody: "表示名、カテゴリ、地域、言語を設定します。",
-            imageSection: "写真・ポートフォリオ",
-            imageBody:
-              "プロフィール画像、カバー画像、B側詳細ページに表示するポートフォリオ画像を管理します。",
+            subCategories: "得意・興味のあるジャンル",
+            basicInfo: "プロフィール入力",
+            basicInfoBody: "ユーザーネーム、ジャンル、活動エリアを設定します。",
+            imageSection: "写真",
+            imageBody: "プロフィール画像、カバー画像、ポートフォリオ画像を管理します。",
             avatar: "プロフィール画像",
             cover: "カバー画像",
-            imageChoose: "スマホの写真・アルバムから選択",
-            noImage: "まだ画像はありません",
+            imageChoose: "写真を選択",
+            noImage: "画像なし",
             portfolioTitle: "ポートフォリオ画像",
-            portfolioBody:
-              "B側クリエイター詳細ページのギャラリーに使用する画像です。3枚以上あると見栄えが良くなります。",
-            portfolioUpload: "ポートフォリオ画像を追加",
-            portfolioWarning:
-              "ポートフォリオ画像は3枚以上あると、B側詳細ページで自然なギャラリー表示にできます。",
-            portfolioEmpty:
-              "まだポートフォリオ画像がありません。商品PR・投稿実績・雰囲気が伝わる画像を追加してください。",
-            pendingImages: "保存前の追加予定画像",
-            socialTitle: "SNS連携",
-            socialSubtitle:
-              "SNS媒体は複数登録できます。フォロワー数などは将来的に外部APIで自動取得する想定です。",
-            socialHelp:
-              "今は暫定的にフォロワー帯と主な視聴者地域を入力できます。将来は自動取得に置き換えます。",
+            portfolioBody: "企業に雰囲気が伝わる画像を追加できます。",
+            portfolioUpload: "画像を追加",
+            portfolioEmpty: "投稿実績や雰囲気が伝わる画像を追加してください。",
+            selectedImages: "選択中",
+            socialTitle: "SNSアカウント",
+            socialBody: "企業が確認するSNSアカウントを登録します。",
             socialItem: "SNS",
             remove: "削除",
-            platform: "SNS媒体",
+            platform: "SNS",
             followerRange: "フォロワー帯",
-            url: "SNS URL",
-            audienceRegion: "主な視聴者の国・地域",
+            url: "URL",
+            audienceRegion: "主な視聴者",
             addSocial: "SNSを追加",
             saving: "保存中...",
             save: "保存する",
-            backToDashboard: "ホームへ戻る",
             selectPlease: "選択してください",
             creatorNotFound: "クリエイター情報が見つかりませんでした。",
-            publicNameRequired: "公開名を入力してください",
-            publicNameInvalid:
-              "公開名は英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
-            publicNameDuplicate: "この公開名は既に使われています",
-            categoryRequired: "カテゴリーを選択してください",
-            locationRequired: "国と都道府県 / 州を入力してください",
+            usernameRequired: "ユーザーネームを入力してください",
+            usernameInvalid:
+              "ユーザーネームは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
+            usernameDuplicate: "このユーザーネームは既に使われています",
+            categoryRequired: "メインジャンルを選択してください",
+            countryRequired: "国を選択してください",
             languageRequired: "発信言語と対応言語を選択してください",
-            socialRequired: "活動SNSを少なくとも1件入力してください",
-            socialIncomplete: "活動SNSに未入力の行があります",
+            socialRequired: "SNSを少なくとも1件入力してください",
+            socialIncomplete: "SNSに未入力の項目があります",
             missingCreatorId: "creator_id を取得できませんでした。",
             missingUserId: "user_id を取得できませんでした。",
-            saved: "プロフィールを保存しました。",
+            saved: "保存しました。",
             saveError: "保存中にエラーが発生しました。",
             loading: "読み込み中...",
             uploadFailed: "画像アップロードに失敗しました。",
-            myPage: "マイページ設定",
+            settings: "マイページ",
             menusTitle: "メニュー・投稿価格",
-            menusBody: "公開中メニュー、投稿価格、納期を管理します。",
-            payoutsTitle: "銀行口座・報酬",
-            payoutsBody: "Stripe本人確認、銀行口座、送金履歴を確認します。",
-            analyticsTitle: "SNS分析",
-            analyticsBody: "フォロワー数・平均再生数などは今後自動取得予定です。",
-            portfolioComing: "ポートフォリオ画像",
-            portfolioLinkBody:
-              "B側詳細ページの3枚ギャラリーに使う画像をここで管理します。",
+            menusBody: "投稿形式、価格、納期を管理します。",
+            payoutsTitle: "報酬受け取り",
+            payoutsBody: "受取設定と報酬履歴を確認します。",
+            socialLinkTitle: "SNSアカウント",
+            socialLinkBody: "InstagramやTikTokなどを管理します。",
+            portfolioLinkTitle: "ポートフォリオ",
+            portfolioLinkBody: "企業に見せる画像を管理します。",
+            statusPrefix: "表示状態",
+            japanesePrefectureOnly: "日本を選んだ場合のみ選択できます。",
           }
         : {
-            badge: "Creator Profile",
             title: "Profile",
-            subtitle:
-              "Manage your public info, photos, social accounts, and creator settings.",
-            approvalStatus: "Approval Status",
-            publicName: "Public Name (@display name)",
-            publicNamePlaceholder: "Example: yourname / main_account_name",
-            publicNameHelp:
-              "This is the public-facing name shown to brands and listing pages.",
-            fullName: "Full Name (optional)",
-            category: "Main Category",
+            subtitle: "Update the information shown to brands.",
+            username: "Username",
+            usernamePlaceholder: "Example: taiki_pr",
+            usernameHelp:
+              "Using the same name as your main social account makes you easier to find.",
+            category: "Main genre",
             country: "Country",
-            countryPlaceholder: "Example: Japan",
-            prefecture: "State / Prefecture",
-            prefecturePlaceholder: "Example: Kyoto / California",
-            city: "City (optional)",
-            cityPlaceholder: "Example: Kyoto City",
-            contentLanguage: "Content Language",
-            responseLanguage: "Response Language",
-            subCategories: "Sub-categories",
-            bio: "Short Bio",
-            bioPlaceholder:
-              "Briefly describe what you create and what kind of collaborations fit you.",
-            accountSection: "Account",
-            accountBody: "Set your display name, category, location, and languages.",
-            imageSection: "Photos & Portfolio",
-            imageBody:
-              "Manage your profile image, cover image, and portfolio images shown to brands.",
-            avatar: "Profile Image",
-            cover: "Cover Image",
-            imageChoose: "Choose from photos / album",
-            noImage: "No image yet",
+            prefecture: "State / prefecture",
+            area: "Area",
+            city: "City",
+            cityPlaceholder: "Example: Kyoto",
+            contentLanguage: "Content language",
+            responseLanguage: "Response language",
+            subCategories: "Genres you are good at",
+            basicInfo: "Profile",
+            basicInfoBody: "Set your username, genre, and area.",
+            imageSection: "Photos",
+            imageBody: "Manage your profile, cover, and portfolio images.",
+            avatar: "Profile image",
+            cover: "Cover image",
+            imageChoose: "Choose photo",
+            noImage: "No image",
             portfolioTitle: "Portfolio images",
-            portfolioBody:
-              "Images used for the brand-facing creator detail gallery. Three or more images are recommended.",
-            portfolioUpload: "Add portfolio images",
-            portfolioWarning:
-              "Three or more portfolio images will make the brand-facing gallery look more natural.",
-            portfolioEmpty:
-              "No portfolio images yet. Add images that show your PR work, content style, or visual mood.",
-            pendingImages: "Pending images",
-            socialTitle: "Social Links",
-            socialSubtitle:
-              "Add social platforms. Follower metrics can be automated later through external APIs.",
-            socialHelp:
-              "Follower range and main audience region are temporary manual fields and can be replaced by API data later.",
+            portfolioBody: "Add images that show your style to brands.",
+            portfolioUpload: "Add image",
+            portfolioEmpty: "Add images that show your past posts or style.",
+            selectedImages: "Selected",
+            socialTitle: "Social accounts",
+            socialBody: "Add social accounts for brands to check.",
             socialItem: "SNS",
             remove: "Remove",
-            platform: "Platform",
-            followerRange: "Follower Range",
-            url: "SNS URL",
-            audienceRegion: "Main Audience Region",
+            platform: "SNS",
+            followerRange: "Followers",
+            url: "URL",
+            audienceRegion: "Main audience",
             addSocial: "Add SNS",
             saving: "Saving...",
             save: "Save",
-            backToDashboard: "Back to Home",
             selectPlease: "Please select",
             creatorNotFound: "Creator information was not found.",
-            publicNameRequired: "Please enter your public name",
-            publicNameInvalid:
-              "Public name must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
-            publicNameDuplicate: "This public name is already in use",
-            categoryRequired: "Please select a category",
-            locationRequired: "Please enter your country and state / prefecture",
+            usernameRequired: "Please enter your username",
+            usernameInvalid:
+              "Username must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
+            usernameDuplicate: "This username is already in use",
+            categoryRequired: "Please select a main genre",
+            countryRequired: "Please select a country",
             languageRequired: "Please select content and response languages",
             socialRequired: "Please enter at least one social account",
-            socialIncomplete: "One or more social account rows are incomplete",
+            socialIncomplete: "One or more social account fields are incomplete",
             missingCreatorId: "Could not retrieve creator_id.",
             missingUserId: "Could not retrieve user_id.",
-            saved: "Profile saved successfully.",
+            saved: "Saved.",
             saveError: "An error occurred while saving.",
             loading: "Loading...",
             uploadFailed: "Failed to upload image.",
-            myPage: "My Page Settings",
+            settings: "My page",
             menusTitle: "Menus & rates",
-            menusBody: "Manage public menus, pricing, and delivery days.",
-            payoutsTitle: "Bank account & payouts",
-            payoutsBody: "Check Stripe identity, bank account, and transfer history.",
-            analyticsTitle: "SNS Analytics",
-            analyticsBody: "Follower and view metrics can be automated later.",
-            portfolioComing: "Portfolio images",
-            portfolioLinkBody:
-              "Manage images used for the 3-photo gallery on brand-facing detail pages.",
+            menusBody: "Manage post types, pricing, and delivery days.",
+            payoutsTitle: "Payouts",
+            payoutsBody: "Check payout setup and history.",
+            socialLinkTitle: "Social accounts",
+            socialLinkBody: "Manage Instagram, TikTok, and more.",
+            portfolioLinkTitle: "Portfolio",
+            portfolioLinkBody: "Manage images shown to brands.",
+            statusPrefix: "Status",
+            japanesePrefectureOnly:
+              "Available when Japan is selected.",
           },
     [safeLocale]
   );
@@ -598,10 +772,14 @@ export default function CreatorProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
-  const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAssetRow[]>([]);
+  const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAssetRow[]>(
+    []
+  );
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
-  const [deletingPortfolioId, setDeletingPortfolioId] = useState<string | null>(null);
+  const [deletingPortfolioId, setDeletingPortfolioId] = useState<string | null>(
+    null
+  );
 
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountForm[]>([
     createEmptySocial(),
@@ -614,6 +792,8 @@ export default function CreatorProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
+  const profileName = displayName || "Trendre";
+  const isJapan = country === "日本";
 
   useEffect(() => {
     return () => {
@@ -702,15 +882,11 @@ export default function CreatorProfilePage() {
       setAvatarUrl(creatorRow.avatar_url ?? null);
       setCoverUrl(creatorRow.cover_image_url ?? metadataCover ?? null);
 
-      const [
-        { data: socials, error: socialError },
-      ] = await Promise.all([
-        supabase
-          .from("creator_social_accounts")
-          .select("platform, url, follower_range, audience_country")
-          .eq("creator_id", creatorRow.id)
-          .order("created_at", { ascending: true }),
-      ]);
+      const { data: socials, error: socialError } = await supabase
+        .from("creator_social_accounts")
+        .select("platform, url, follower_range, audience_country")
+        .eq("creator_id", creatorRow.id)
+        .order("created_at", { ascending: true });
 
       if (socialError) {
         setError(socialError.message);
@@ -733,8 +909,6 @@ export default function CreatorProfilePage() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copy.creatorNotFound, router, supabase]);
-
-  const approvalLabel = getApprovalStatusLabel(approvalStatus, safeLocale);
 
   const uploadImageAndGetUrl = async (
     file: File,
@@ -772,10 +946,11 @@ export default function CreatorProfilePage() {
   const validate = () => {
     const normalizedDisplayName = displayName.trim().toLowerCase();
 
-    if (!normalizedDisplayName) return copy.publicNameRequired;
-    if (!isValidPublicName(normalizedDisplayName)) return copy.publicNameInvalid;
+    if (!normalizedDisplayName) return copy.usernameRequired;
+    if (!isValidPublicName(normalizedDisplayName)) return copy.usernameInvalid;
     if (!category.trim()) return copy.categoryRequired;
-    if (!country.trim() || !prefecture.trim()) return copy.locationRequired;
+    if (!country.trim()) return copy.countryRequired;
+
     if (!contentLanguage.trim() || !responseLanguage.trim()) {
       return copy.languageRequired;
     }
@@ -831,6 +1006,7 @@ export default function CreatorProfilePage() {
 
   const removePendingPortfolio = (index: number) => {
     setPortfolioFiles((prev) => prev.filter((_, i) => i !== index));
+
     setPortfolioPreviews((prev) => {
       const target = prev[index];
 
@@ -910,7 +1086,7 @@ export default function CreatorProfilePage() {
       }
 
       if (duplicateProfile && duplicateProfile.id !== creatorUserId) {
-        setError(copy.publicNameDuplicate);
+        setError(copy.usernameDuplicate);
         setSaving(false);
         return;
       }
@@ -976,7 +1152,7 @@ export default function CreatorProfilePage() {
           bio: normalizedBio || null,
           category: normalizedCategory || null,
           country: normalizedCountry,
-          prefecture: normalizedPrefecture,
+          prefecture: normalizedPrefecture || null,
           city: normalizedCity || null,
           content_language: normalizedContentLanguage || null,
           response_language: normalizedResponseLanguage || null,
@@ -1085,7 +1261,7 @@ export default function CreatorProfilePage() {
         data: {
           creator_username: normalizedDisplayName,
           creator_country: normalizedCountry,
-          creator_prefecture: normalizedPrefecture,
+          creator_prefecture: normalizedPrefecture || null,
           creator_city: normalizedCity || null,
           creator_content_language: normalizedContentLanguage,
           creator_response_language: normalizedResponseLanguage,
@@ -1162,86 +1338,115 @@ export default function CreatorProfilePage() {
 
   if (loading) {
     return (
-      <div className="space-y-5">
-        <div className="h-40 animate-pulse rounded-[32px] bg-slate-100" />
-        <div className="h-72 animate-pulse rounded-[28px] bg-slate-100" />
+      <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
+        <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-48 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-64 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-7 pb-4">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-              {copy.badge}
-            </p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
+    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
+      <style jsx global>{`
+        @keyframes creatorProfileFadeUp {
+          from {
+            opacity: 0;
+            transform: translate3d(0, 10px, 0);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+
+        .creator-profile-appear {
+          animation: creatorProfileFadeUp 380ms
+            cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .creator-profile-appear {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <section className="creator-profile-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
+
+        <div className="relative flex items-center gap-4">
+          <CreatorAvatar name={profileName} src={avatarPreview || avatarUrl} />
+
+          <div className="min-w-0 flex-1">
+            <div className="mb-2">
+              <SoftBadge tone={getPublicStatusTone(approvalStatus)}>
+                {copy.statusPrefix}：{getPublicStatusLabel(approvalStatus, safeLocale)}
+              </SoftBadge>
+            </div>
+
+            <h1 className="truncate text-[26px] font-black leading-tight tracking-[-0.06em] text-slate-950">
               {copy.title}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-white/65">
+
+            <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
               {copy.subtitle}
             </p>
           </div>
-
-          <span
-            className={`w-fit rounded-full px-4 py-2 text-sm font-black ${getApprovalTone(
-              approvalStatus
-            )}`}
-          >
-            {copy.approvalStatus}: {approvalLabel}
-          </span>
         </div>
       </section>
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
+        <div className="rounded-[24px] bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-700 ring-1 ring-rose-100">
           {error}
         </div>
       ) : null}
 
       {success ? (
-        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+        <div className="rounded-[24px] bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-700 ring-1 ring-emerald-100">
           {success}
         </div>
       ) : null}
 
-      <section>
-        <h2 className="mb-4 text-2xl font-black text-slate-950">
-          {copy.myPage}
+      <section className="creator-profile-appear rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+        <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
+          {copy.settings}
         </h2>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3">
           <SettingLink
             href="/creator/menus"
-            icon="+"
+            icon={<MenuIcon />}
             title={copy.menusTitle}
             body={copy.menusBody}
           />
+
+          <SettingLink
+            href="#portfolio"
+            icon={<PhotoIcon />}
+            title={copy.portfolioLinkTitle}
+            body={copy.portfolioLinkBody}
+          />
+
+          <SettingLink
+            href="#sns"
+            icon={<SnsIcon />}
+            title={copy.socialLinkTitle}
+            body={copy.socialLinkBody}
+          />
+
           <SettingLink
             href="/creator/payouts"
-            icon="¥"
+            icon={<YenIcon />}
             title={copy.payoutsTitle}
             body={copy.payoutsBody}
-          />
-          <SettingLink
-            href="/creator/profile"
-            icon="▥"
-            title={copy.analyticsTitle}
-            body={copy.analyticsBody}
-          />
-          <SettingLink
-            href="/creator/profile"
-            icon="◎"
-            title={copy.portfolioComing}
-            body={copy.portfolioLinkBody}
           />
         </div>
       </section>
 
-      <SectionCard icon="◯" title={copy.imageSection} body={copy.imageBody}>
-        <div className="grid gap-4 md:grid-cols-2">
+      <SectionCard id="photos" title={copy.imageSection} body={copy.imageBody}>
+        <div className="grid gap-3 sm:grid-cols-2">
           <ImagePicker
             label={copy.avatar}
             currentUrl={avatarUrl}
@@ -1249,7 +1454,9 @@ export default function CreatorProfilePage() {
             noImageLabel={copy.noImage}
             buttonLabel={copy.imageChoose}
             onChange={(file) => handleImageSelect(file, "avatar")}
+            square
           />
+
           <ImagePicker
             label={copy.cover}
             currentUrl={coverUrl}
@@ -1260,41 +1467,30 @@ export default function CreatorProfilePage() {
           />
         </div>
 
-        <div className="mt-6 rounded-[24px] border border-slate-100 bg-slate-50 p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h3 className="text-lg font-black text-slate-950">
+        <div id="portfolio" className="mt-5 rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="text-base font-black tracking-[-0.04em] text-slate-950">
                 {copy.portfolioTitle}
               </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-1.5 text-xs font-semibold leading-5 text-slate-500">
                 {copy.portfolioBody}
               </p>
             </div>
 
-            <span
-              className={`w-fit rounded-full px-3 py-1 text-xs font-black ${
-                portfolioTotalCount >= 3
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-amber-100 text-amber-800"
-              }`}
-            >
+            <SoftBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
               {portfolioTotalCount}/3
-            </span>
+            </SoftBadge>
           </div>
 
-          {portfolioTotalCount < 3 ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-              {copy.portfolioWarning}
-            </div>
-          ) : null}
-
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
             {portfolioAssets.map((asset) => (
               <PortfolioImage
                 key={asset.id}
                 src={asset.asset_url}
                 label={asset.title || copy.portfolioTitle}
                 deleting={deletingPortfolioId === asset.id}
+                deleteLabel={copy.remove}
                 onDelete={() => void deletePortfolioAsset(asset.id)}
               />
             ))}
@@ -1303,7 +1499,8 @@ export default function CreatorProfilePage() {
               <PortfolioImage
                 key={preview}
                 src={preview}
-                label={`${copy.pendingImages} ${index + 1}`}
+                label={`${copy.selectedImages} ${index + 1}`}
+                deleteLabel={copy.remove}
                 onDelete={() => removePendingPortfolio(index)}
               />
             ))}
@@ -1311,38 +1508,31 @@ export default function CreatorProfilePage() {
             <PortfolioUploadBox
               pendingCount={portfolioFiles.length}
               buttonLabel={copy.portfolioUpload}
+              selectedLabel={copy.selectedImages}
               onChange={handlePortfolioSelect}
             />
           </div>
 
           {portfolioAssets.length === 0 && portfolioFiles.length === 0 ? (
-            <p className="mt-4 text-sm leading-6 text-slate-500">
+            <p className="mt-4 text-xs font-semibold leading-6 text-slate-400">
               {copy.portfolioEmpty}
             </p>
           ) : null}
         </div>
       </SectionCard>
 
-      <SectionCard icon="□" title={copy.accountSection} body={copy.accountBody}>
-        <div className="grid gap-5 md:grid-cols-2">
+      <SectionCard title={copy.basicInfo} body={copy.basicInfoBody}>
+        <div className="grid gap-4">
           <div>
-            <FieldLabel>{copy.publicName}</FieldLabel>
+            <FieldLabel>{copy.username}</FieldLabel>
             <TextInput
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={copy.publicNamePlaceholder}
+              placeholder={copy.usernamePlaceholder}
             />
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              {copy.publicNameHelp}
+            <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
+              {copy.usernameHelp}
             </p>
-          </div>
-
-          <div>
-            <FieldLabel>{copy.fullName}</FieldLabel>
-            <TextInput
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
           </div>
 
           <div>
@@ -1361,21 +1551,80 @@ export default function CreatorProfilePage() {
           </div>
 
           <div>
-            <FieldLabel>{copy.country}</FieldLabel>
-            <TextInput
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              placeholder={copy.countryPlaceholder}
-            />
+            <FieldLabel>{copy.subCategories}</FieldLabel>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map((option) => {
+                const active = subCategories.includes(option.value);
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleSubCategoryToggle(option.value)}
+                    className={`rounded-full px-4 py-2 text-xs font-black ring-1 transition active:scale-[0.98] ${
+                      active
+                        ? "bg-slate-950 text-white ring-slate-950"
+                        : "bg-white text-slate-600 ring-slate-200"
+                    }`}
+                  >
+                    {optionLabel(option, safeLocale)}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div>
-            <FieldLabel>{copy.prefecture}</FieldLabel>
-            <TextInput
-              value={prefecture}
-              onChange={(e) => setPrefecture(e.target.value)}
-              placeholder={copy.prefecturePlaceholder}
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel>{copy.country}</FieldLabel>
+              <SelectBox
+                value={country}
+                onChange={(e) => {
+                  const nextCountry = e.target.value;
+                  setCountry(nextCountry);
+
+                  if (nextCountry !== "日本") {
+                    setPrefecture("");
+                  }
+                }}
+              >
+                <option value="">{copy.selectPlease}</option>
+                {COUNTRY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {optionLabel(option, safeLocale)}
+                  </option>
+                ))}
+              </SelectBox>
+            </div>
+
+            <div>
+              <FieldLabel>{copy.prefecture}</FieldLabel>
+
+              {isJapan ? (
+                <SelectBox
+                  value={prefecture}
+                  onChange={(e) => setPrefecture(e.target.value)}
+                >
+                  <option value="">{copy.selectPlease}</option>
+                  {PREFECTURE_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </SelectBox>
+              ) : (
+                <>
+                  <TextInput
+                    value={prefecture}
+                    onChange={(e) => setPrefecture(e.target.value)}
+                    placeholder={copy.area}
+                  />
+                  <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
+                    {copy.japanesePrefectureOnly}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
 
           <div>
@@ -1387,82 +1636,46 @@ export default function CreatorProfilePage() {
             />
           </div>
 
-          <div>
-            <FieldLabel>{copy.contentLanguage}</FieldLabel>
-            <SelectBox
-              value={contentLanguage}
-              onChange={(e) => setContentLanguage(e.target.value)}
-            >
-              <option value="">{copy.selectPlease}</option>
-              {LANGUAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {optionLabel(option, safeLocale)}
-                </option>
-              ))}
-            </SelectBox>
-          </div>
-
-          <div>
-            <FieldLabel>{copy.responseLanguage}</FieldLabel>
-            <SelectBox
-              value={responseLanguage}
-              onChange={(e) => setResponseLanguage(e.target.value)}
-            >
-              <option value="">{copy.selectPlease}</option>
-              {LANGUAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {optionLabel(option, safeLocale)}
-                </option>
-              ))}
-            </SelectBox>
-          </div>
-
-          <div className="md:col-span-2">
-            <FieldLabel>{copy.subCategories}</FieldLabel>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {CATEGORY_OPTIONS.map((option) => {
-                const active = subCategories.includes(option.value);
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleSubCategoryToggle(option.value)}
-                    className={`rounded-full border px-4 py-2 text-sm font-bold transition active:scale-[0.98] ${
-                      active
-                        ? "border-slate-950 bg-slate-950 text-white"
-                        : "border-slate-200 bg-white text-slate-700"
-                    }`}
-                  >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel>{copy.contentLanguage}</FieldLabel>
+              <SelectBox
+                value={contentLanguage}
+                onChange={(e) => setContentLanguage(e.target.value)}
+              >
+                <option value="">{copy.selectPlease}</option>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
                     {optionLabel(option, safeLocale)}
-                  </button>
-                );
-              })}
+                  </option>
+                ))}
+              </SelectBox>
             </div>
-          </div>
 
-          <div className="md:col-span-2">
-            <FieldLabel>{copy.bio}</FieldLabel>
-            <TextArea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder={copy.bioPlaceholder}
-              rows={5}
-            />
+            <div>
+              <FieldLabel>{copy.responseLanguage}</FieldLabel>
+              <SelectBox
+                value={responseLanguage}
+                onChange={(e) => setResponseLanguage(e.target.value)}
+              >
+                <option value="">{copy.selectPlease}</option>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {optionLabel(option, safeLocale)}
+                  </option>
+                ))}
+              </SelectBox>
+            </div>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard icon="◎" title={copy.socialTitle} body={copy.socialSubtitle}>
-        <p className="mb-5 rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-          {copy.socialHelp}
-        </p>
-
-        <div className="space-y-4">
+      <SectionCard id="sns" title={copy.socialTitle} body={copy.socialBody}>
+        <div className="space-y-3">
           {socialAccounts.map((social, index) => (
             <div
               key={index}
-              className="rounded-[24px] border border-slate-100 bg-slate-50 p-4"
+              className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
             >
               <div className="mb-4 flex items-center justify-between gap-4">
                 <p className="text-sm font-black text-slate-950">
@@ -1472,13 +1685,13 @@ export default function CreatorProfilePage() {
                 <button
                   type="button"
                   onClick={() => removeSocial(index)}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600"
+                  className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-500 ring-1 ring-slate-200 transition active:scale-95"
                 >
                   {copy.remove}
                 </button>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 <div>
                   <FieldLabel>{copy.platform}</FieldLabel>
                   <SelectBox
@@ -1505,38 +1718,40 @@ export default function CreatorProfilePage() {
                   />
                 </div>
 
-                <div>
-                  <FieldLabel>{copy.followerRange}</FieldLabel>
-                  <SelectBox
-                    value={social.follower_range}
-                    onChange={(e) =>
-                      updateSocial(index, "follower_range", e.target.value)
-                    }
-                  >
-                    <option value="">{copy.selectPlease}</option>
-                    {FOLLOWER_RANGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {optionLabel(option, safeLocale)}
-                      </option>
-                    ))}
-                  </SelectBox>
-                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <FieldLabel>{copy.followerRange}</FieldLabel>
+                    <SelectBox
+                      value={social.follower_range}
+                      onChange={(e) =>
+                        updateSocial(index, "follower_range", e.target.value)
+                      }
+                    >
+                      <option value="">{copy.selectPlease}</option>
+                      {FOLLOWER_RANGE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {optionLabel(option, safeLocale)}
+                        </option>
+                      ))}
+                    </SelectBox>
+                  </div>
 
-                <div>
-                  <FieldLabel>{copy.audienceRegion}</FieldLabel>
-                  <SelectBox
-                    value={social.audience_country}
-                    onChange={(e) =>
-                      updateSocial(index, "audience_country", e.target.value)
-                    }
-                  >
-                    <option value="">{copy.selectPlease}</option>
-                    {AUDIENCE_REGION_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {optionLabel(option, safeLocale)}
-                      </option>
-                    ))}
-                  </SelectBox>
+                  <div>
+                    <FieldLabel>{copy.audienceRegion}</FieldLabel>
+                    <SelectBox
+                      value={social.audience_country}
+                      onChange={(e) =>
+                        updateSocial(index, "audience_country", e.target.value)
+                      }
+                    >
+                      <option value="">{copy.selectPlease}</option>
+                      {AUDIENCE_REGION_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {optionLabel(option, safeLocale)}
+                        </option>
+                      ))}
+                    </SelectBox>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1546,30 +1761,21 @@ export default function CreatorProfilePage() {
         <button
           type="button"
           onClick={addSocial}
-          className="mt-5 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition active:scale-[0.98]"
+          className="mt-4 w-full rounded-full bg-white px-5 py-3.5 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.98]"
         >
           + {copy.addSocial}
         </button>
       </SectionCard>
 
-      <div className="sticky bottom-24 z-20 rounded-[28px] border border-slate-100 bg-white/95 p-3 shadow-2xl backdrop-blur lg:static lg:shadow-none">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-          <Link
-            href="/creator/dashboard"
-            className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
-          >
-            {copy.backToDashboard}
-          </Link>
-
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center justify-center rounded-2xl bg-slate-950 px-7 py-3 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? copy.saving : copy.save}
-          </button>
-        </div>
+      <div className="sticky bottom-24 z-20 rounded-[28px] bg-white/95 p-3 shadow-[0_18px_55px_rgba(15,23,42,0.14)] ring-1 ring-slate-100 backdrop-blur">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {saving ? copy.saving : copy.save}
+        </button>
       </div>
     </div>
   );
