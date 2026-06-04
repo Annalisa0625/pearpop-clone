@@ -167,50 +167,6 @@ function isUnreadForUser(item: JobItem, userId: string | null) {
   );
 }
 
-function getStatusLabel(status: string, locale: "ja" | "en") {
-  if (locale === "ja") {
-    if (status === "revision_requested") return "修正対応";
-    if (
-      status === "accepted" ||
-      status === "accepted_captured" ||
-      status === "in_progress"
-    ) {
-      return "進行中";
-    }
-    if (status === "delivered") return "確認待ち";
-    if (status === "completed") return "完了";
-    return "注文";
-  }
-
-  if (status === "revision_requested") return "Revision";
-  if (
-    status === "accepted" ||
-    status === "accepted_captured" ||
-    status === "in_progress"
-  ) {
-    return "In progress";
-  }
-  if (status === "delivered") return "Waiting review";
-  if (status === "completed") return "Done";
-  return "Order";
-}
-
-function getStatusTone(status: string): "rose" | "blue" | "green" | "slate" {
-  if (status === "revision_requested") return "rose";
-
-  if (
-    status === "accepted" ||
-    status === "accepted_captured" ||
-    status === "in_progress"
-  ) {
-    return "blue";
-  }
-
-  if (status === "completed") return "green";
-
-  return "slate";
-}
-
 function getActionText(status: string, locale: "ja" | "en") {
   if (locale === "ja") {
     if (status === "revision_requested") return "修正内容を確認してください";
@@ -385,8 +341,8 @@ function JobCard({
       ? `/creator/orders/${item.id}`
       : `/creator/requests/${item.id}`;
 
-  const statusTone = getStatusTone(item.status);
   const isRevision = item.status === "revision_requested";
+  const shouldShowPills = unread || isRevision;
 
   return (
     <Link
@@ -395,22 +351,25 @@ function JobCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="mb-2 flex flex-wrap gap-2">
-            <SoftPill tone={statusTone}>{getStatusLabel(item.status, locale)}</SoftPill>
+          {shouldShowPills ? (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {unread ? (
+                <SoftPill tone="blue">{copy.newMessage}</SoftPill>
+              ) : null}
 
-            {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
-
-            {isRevision ? (
-              <SoftPill tone="rose">{copy.revisionNeeded}</SoftPill>
-            ) : null}
-          </div>
+              {isRevision ? (
+                <SoftPill tone="rose">{copy.revisionNeeded}</SoftPill>
+              ) : null}
+            </div>
+          ) : null}
 
           <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
             {item.product_name || copy.unnamedProduct}
           </h2>
 
           <p className="mt-1.5 text-xs font-bold text-slate-400">
-            {copy.updatedAt}：{formatDate(item.updated_at ?? item.created_at, locale)}
+            {copy.updatedAt}：
+            {formatDate(item.updated_at ?? item.created_at, locale)}
           </p>
         </div>
 
@@ -429,7 +388,11 @@ function JobCard({
           {item.kind === "order" ? (
             <MiniInfo
               label={copy.payoutAmount}
-              value={formatPrice(item.creator_payout_amount, item.currency, locale)}
+              value={formatPrice(
+                item.creator_payout_amount,
+                item.currency,
+                locale
+              )}
               strong
             />
           ) : null}
@@ -773,8 +736,12 @@ export default function CreatorJobsPage() {
   }, [currentUserId, items]);
 
   const todoItems = sortedItems.filter((item) => isActionStatus(item.status));
-  const deliveredItems = sortedItems.filter((item) => item.status === "delivered");
-  const completedItems = sortedItems.filter((item) => item.status === "completed");
+  const deliveredItems = sortedItems.filter(
+    (item) => item.status === "delivered"
+  );
+  const completedItems = sortedItems.filter(
+    (item) => item.status === "completed"
+  );
 
   const filteredItems =
     filter === "todo"
@@ -829,7 +796,10 @@ export default function CreatorJobsPage() {
           </p>
 
           <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <FilterButton active={filter === "todo"} onClick={() => setFilter("todo")}>
+            <FilterButton
+              active={filter === "todo"}
+              onClick={() => setFilter("todo")}
+            >
               {copy.todo} {todoItems.length}
             </FilterButton>
 
@@ -847,7 +817,10 @@ export default function CreatorJobsPage() {
               {copy.completed} {completedItems.length}
             </FilterButton>
 
-            <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
+            <FilterButton
+              active={filter === "all"}
+              onClick={() => setFilter("all")}
+            >
               {copy.all}
             </FilterButton>
           </div>
