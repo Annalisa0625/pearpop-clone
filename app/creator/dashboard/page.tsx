@@ -104,78 +104,6 @@ function getItemHref(item: ActivityItem) {
     : `/creator/requests/${item.id}`;
 }
 
-function getSimpleStatus(status: string | null, locale: "ja" | "en") {
-  const normalized = (status || "").toLowerCase();
-
-  if (locale === "ja") {
-    if (
-      normalized === "pending" ||
-      normalized === "authorized_pending_creator"
-    ) {
-      return "返答待ち";
-    }
-
-    if (
-      normalized === "accepted" ||
-      normalized === "accepted_captured" ||
-      normalized === "in_progress"
-    ) {
-      return "進行中";
-    }
-
-    if (normalized === "delivered") return "確認待ち";
-    if (normalized === "completed") return "完了";
-
-    return "注文";
-  }
-
-  if (normalized === "pending" || normalized === "authorized_pending_creator") {
-    return "New";
-  }
-
-  if (
-    normalized === "accepted" ||
-    normalized === "accepted_captured" ||
-    normalized === "in_progress"
-  ) {
-    return "In progress";
-  }
-
-  if (normalized === "delivered") return "Review";
-  if (normalized === "completed") return "Done";
-
-  return "Order";
-}
-
-function getStatusTone(status: string | null) {
-  const normalized = (status || "").toLowerCase();
-
-  if (
-    normalized === "pending" ||
-    normalized === "authorized_pending_creator"
-  ) {
-    return "bg-rose-50 text-[#ff5f67] ring-rose-100";
-  }
-
-  if (
-    normalized === "accepted" ||
-    normalized === "accepted_captured" ||
-    normalized === "in_progress"
-  ) {
-    return "bg-blue-50 text-blue-700 ring-blue-100";
-  }
-
-  if (normalized === "delivered") {
-    return "bg-amber-50 text-amber-700 ring-amber-100";
-  }
-
-  if (normalized === "completed") {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
-  }
-
-  return "bg-slate-50 text-slate-500 ring-slate-100";
-}
-
 function ArrowIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
@@ -260,7 +188,9 @@ function NoticeCard({
         : "bg-white text-slate-950 ring-slate-100";
 
   return (
-    <section className={`creator-home-appear rounded-[24px] p-4 ring-1 ${toneClass}`}>
+    <section
+      className={`creator-home-appear rounded-[24px] p-4 ring-1 ${toneClass}`}
+    >
       <h2 className="text-[15px] font-black tracking-[-0.03em]">{title}</h2>
       <p className="mt-1.5 text-xs font-semibold leading-6 opacity-75">
         {body}
@@ -284,8 +214,6 @@ function MainActionCard({
   body,
   href,
   cta,
-  count,
-  tone,
 }: {
   title: string;
   body: string;
@@ -294,37 +222,19 @@ function MainActionCard({
   count?: number;
   tone: "rose" | "blue" | "slate";
 }) {
-  const countClass =
-    tone === "blue"
-      ? "bg-blue-50 text-blue-700"
-      : tone === "rose"
-        ? "bg-rose-50 text-[#ff5f67]"
-        : "bg-slate-50 text-slate-500";
-
   return (
     <section className="creator-home-appear creator-home-appear-delay-1 relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
       <div className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-rose-100/45 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-28 -left-24 h-52 w-52 rounded-full bg-emerald-100/35 blur-3xl" />
 
       <div className="relative">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-[20px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-              {title}
-            </h2>
-            <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-              {body}
-            </p>
-          </div>
+        <h2 className="text-[20px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+          {title}
+        </h2>
 
-          {typeof count === "number" ? (
-            <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-lg font-black ${countClass}`}
-            >
-              {count}
-            </div>
-          ) : null}
-        </div>
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+          {body}
+        </p>
 
         <Link
           href={href}
@@ -375,11 +285,18 @@ function ActivityRow({
   item,
   locale,
   productUnset,
+  dateLabel,
 }: {
   item: ActivityItem;
   locale: "ja" | "en";
   productUnset: string;
+  dateLabel: string;
 }) {
+  const dateText =
+    locale === "ja"
+      ? `${dateLabel}：${formatDate(item.date, locale)}`
+      : `${dateLabel}: ${formatDate(item.date, locale)}`;
+
   return (
     <Link
       href={getItemHref(item)}
@@ -389,23 +306,12 @@ function ActivityRow({
         <p className="truncate text-[15px] font-black tracking-[-0.03em] text-slate-950">
           {item.product_name || productUnset}
         </p>
-        <p className="mt-1 text-xs font-bold text-slate-400">
-          {formatDate(item.date, locale)}
-        </p>
+        <p className="mt-1 text-xs font-bold text-slate-400">{dateText}</p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        <span
-          className={`rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${getStatusTone(
-            item.status
-          )}`}
-        >
-          {getSimpleStatus(item.status, locale)}
-        </span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-100 transition group-active:scale-95">
-          <ChevronIcon />
-        </span>
-      </div>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-100 transition group-active:scale-95">
+        <ChevronIcon />
+      </span>
     </Link>
   );
 }
@@ -418,6 +324,7 @@ function RecentActivityCard({
   items,
   locale,
   productUnset,
+  dateLabel,
 }: {
   title: string;
   viewAll: string;
@@ -426,6 +333,7 @@ function RecentActivityCard({
   items: ActivityItem[];
   locale: "ja" | "en";
   productUnset: string;
+  dateLabel: string;
 }) {
   return (
     <section className="creator-home-appear creator-home-appear-delay-3 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
@@ -456,6 +364,7 @@ function RecentActivityCard({
               item={item}
               locale={locale}
               productUnset={productUnset}
+              dateLabel={dateLabel}
             />
           ))}
         </div>
@@ -488,8 +397,7 @@ export default function CreatorDashboardPage() {
             suspendedBody:
               "一部機能を制限しています。確認が完了するまでお待ちください。",
             reviewPendingTitle: "審査中です",
-            reviewPendingBody:
-              "承認後に注文受付や進行機能を利用できます。",
+            reviewPendingBody: "承認後に注文受付や進行機能を利用できます。",
             profilePromptTitle: "プロフィールを整えましょう",
             profilePromptBody:
               "写真・SNS・メニューを整えると、注文を受けやすくなります。",
@@ -499,7 +407,7 @@ export default function CreatorDashboardPage() {
             nextPendingBody: "内容を確認して、受けるか相談できます。",
             nextPendingCta: "確認する",
 
-            nextTodoTitle: "対応が必要です",
+            nextTodoTitle: "実行待ちの案件",
             nextTodoBody: "承認済みの注文を進めましょう。",
             nextTodoCta: "ToDoを見る",
 
@@ -509,10 +417,11 @@ export default function CreatorDashboardPage() {
 
             payoutTitle: "受取予定",
             payoutBody: "報酬ページで詳細を確認",
-            activityTitle: "最近の注文",
+            activityTitle: "注文が届いています",
             viewAll: "すべて",
             noActivity: "まだ表示する注文はありません。",
             productUnset: "商品名未設定",
+            orderDateLabel: "注文日",
           }
         : {
             defaultDisplayName: "Influencer",
@@ -541,7 +450,7 @@ export default function CreatorDashboardPage() {
             nextPendingBody: "Review details and decide whether to accept.",
             nextPendingCta: "Review",
 
-            nextTodoTitle: "Action needed",
+            nextTodoTitle: "Ready to work",
             nextTodoBody: "Continue accepted orders.",
             nextTodoCta: "View ToDo",
 
@@ -552,10 +461,11 @@ export default function CreatorDashboardPage() {
 
             payoutTitle: "Expected payout",
             payoutBody: "Check details on the payout page",
-            activityTitle: "Recent orders",
+            activityTitle: "Orders received",
             viewAll: "All",
             noActivity: "No orders to show yet.",
             productUnset: "No product name",
+            orderDateLabel: "Order date",
           },
     [safeLocale]
   );
@@ -1093,6 +1003,7 @@ export default function CreatorDashboardPage() {
         items={activityItems}
         locale={safeLocale}
         productUnset={copy.productUnset}
+        dateLabel={copy.orderDateLabel}
       />
     </div>
   );
