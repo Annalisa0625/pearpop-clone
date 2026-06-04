@@ -2,7 +2,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 
@@ -42,13 +48,9 @@ type OrderRow = {
   menu_title_snapshot: string | null;
   menu_price_amount: number | null;
   currency: string | null;
-  creator_transaction_fee_rate_bps: number | null;
-  creator_transaction_fee_amount: number | null;
   creator_payout_amount: number | null;
   revision_requested_at: string | null;
   revision_note: string | null;
-  revision_count: number | null;
-  max_revision_count: number | null;
   auto_complete_at: string | null;
 };
 
@@ -70,18 +72,14 @@ type JobItem = {
   menu_title?: string | null;
   menu_price_amount?: number | null;
   currency?: string | null;
-  creator_transaction_fee_rate_bps?: number | null;
-  creator_transaction_fee_amount?: number | null;
   creator_payout_amount?: number | null;
   revision_requested_at?: string | null;
   revision_note?: string | null;
-  revision_count?: number | null;
-  max_revision_count?: number | null;
   auto_complete_at?: string | null;
   chat: ChatRow | null;
 };
 
-type FilterKey = "todo" | "all" | "delivered" | "completed";
+type FilterKey = "todo" | "delivered" | "completed" | "all";
 
 const STATUS_ORDER: Record<string, number> = {
   revision_requested: 0,
@@ -109,20 +107,6 @@ function getTimestamp(value: string | null | undefined) {
 
   const time = new Date(value).getTime();
   return Number.isNaN(time) ? 0 : time;
-}
-
-function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
@@ -193,7 +177,7 @@ function getStatusLabel(status: string, locale: "ja" | "en") {
     ) {
       return "進行中";
     }
-    if (status === "delivered") return "納品済み";
+    if (status === "delivered") return "確認待ち";
     if (status === "completed") return "完了";
     return "注文";
   }
@@ -206,13 +190,14 @@ function getStatusLabel(status: string, locale: "ja" | "en") {
   ) {
     return "In progress";
   }
-  if (status === "delivered") return "Delivered";
+  if (status === "delivered") return "Waiting review";
   if (status === "completed") return "Done";
   return "Order";
 }
 
 function getStatusTone(status: string): "rose" | "blue" | "green" | "slate" {
   if (status === "revision_requested") return "rose";
+
   if (
     status === "accepted" ||
     status === "accepted_captured" ||
@@ -220,15 +205,45 @@ function getStatusTone(status: string): "rose" | "blue" | "green" | "slate" {
   ) {
     return "blue";
   }
+
   if (status === "completed") return "green";
+
   return "slate";
+}
+
+function getActionText(status: string, locale: "ja" | "en") {
+  if (locale === "ja") {
+    if (status === "revision_requested") return "修正内容を確認してください";
+    if (
+      status === "accepted" ||
+      status === "accepted_captured" ||
+      status === "in_progress"
+    ) {
+      return "制作・投稿を進めてください";
+    }
+    if (status === "delivered") return "企業の確認待ちです";
+    if (status === "completed") return "完了しています";
+    return "内容を確認してください";
+  }
+
+  if (status === "revision_requested") return "Check revision request";
+  if (
+    status === "accepted" ||
+    status === "accepted_captured" ||
+    status === "in_progress"
+  ) {
+    return "Continue production";
+  }
+  if (status === "delivered") return "Waiting for brand review";
+  if (status === "completed") return "Completed";
+  return "Check details";
 }
 
 function SoftPill({
   children,
   tone = "slate",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   tone?: "slate" | "rose" | "blue" | "green";
 }) {
   const className =
@@ -242,7 +257,7 @@ function SoftPill({
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${className}`}
     >
       {children}
     </span>
@@ -255,7 +270,7 @@ function FilterButton({
   onClick,
 }: {
   active: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -264,8 +279,8 @@ function FilterButton({
       onClick={onClick}
       className={
         active
-          ? "shrink-0 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-[0_10px_26px_rgba(15,23,42,0.16)]"
-          : "shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-200"
+          ? "shrink-0 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-[0_10px_26px_rgba(15,23,42,0.16)] transition active:scale-95"
+          : "shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-200 transition active:scale-95"
       }
     >
       {children}
@@ -273,41 +288,75 @@ function FilterButton({
   );
 }
 
-function InfoRow({
+function LoadingView() {
+  return (
+    <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
+      <div className="h-24 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+    </div>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m8 5 5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="16"
+        rx="5"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="m8.3 12.2 2.4 2.4 5-5.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MiniInfo({
   label,
   value,
   strong,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-xs font-black text-slate-400">{label}</span>
-      <span
-        className={`max-w-[64%] truncate text-right ${
+    <div className="min-w-0">
+      <p className="text-[11px] font-black text-slate-400">{label}</p>
+      <p
+        className={`mt-1 truncate text-sm ${
           strong
-            ? "text-base font-black tracking-[-0.03em] text-slate-950"
-            : "text-sm font-black text-slate-800"
+            ? "font-black tracking-[-0.03em] text-slate-950"
+            : "font-bold text-slate-700"
         }`}
       >
         {value}
-      </span>
-    </div>
-  );
-}
-
-function LoadingView() {
-  return (
-    <div className="space-y-4">
-      <div className="h-28 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-40 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100"
-        />
-      ))}
+      </p>
     </div>
   );
 }
@@ -324,12 +373,10 @@ function JobCard({
     unnamedProduct: string;
     updatedAt: string;
     menu: string;
-    deadline: string;
     payoutAmount: string;
-    detail: string;
     newMessage: string;
     revisionNeeded: string;
-    deliverySubmitted: string;
+    nextAction: string;
   };
   unread: boolean;
 }) {
@@ -340,74 +387,67 @@ function JobCard({
 
   const statusTone = getStatusTone(item.status);
   const isRevision = item.status === "revision_requested";
-  const isDelivered = item.status === "delivered";
 
   return (
     <Link
       href={detailHref}
-      className="block rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 transition active:scale-[0.98]"
+      className="creator-jobs-appear block rounded-[26px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <SoftPill tone={statusTone}>{getStatusLabel(item.status, locale)}</SoftPill>
-
-        {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
-
-        {isRevision ? (
-          <SoftPill tone="rose">{copy.revisionNeeded}</SoftPill>
-        ) : null}
-
-        {isDelivered || item.delivered_post_url ? (
-          <SoftPill tone="green">{copy.deliverySubmitted}</SoftPill>
-        ) : null}
-      </div>
-
-      <div className="mt-4 flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">
+          <div className="mb-2 flex flex-wrap gap-2">
+            <SoftPill tone={statusTone}>{getStatusLabel(item.status, locale)}</SoftPill>
+
+            {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
+
+            {isRevision ? (
+              <SoftPill tone="rose">{copy.revisionNeeded}</SoftPill>
+            ) : null}
+          </div>
+
+          <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
             {item.product_name || copy.unnamedProduct}
           </h2>
 
-          <p className="mt-2 text-xs font-bold text-slate-400">
-            {copy.updatedAt}:{" "}
-            {formatDateTime(item.updated_at ?? item.created_at, locale)}
+          <p className="mt-1.5 text-xs font-bold text-slate-400">
+            {copy.updatedAt}：{formatDate(item.updated_at ?? item.created_at, locale)}
           </p>
         </div>
 
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-lg font-black text-slate-400">
-          ›
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+          <ChevronIcon />
         </span>
       </div>
 
-      {isRevision && item.revision_note?.trim() ? (
-        <div className="mt-4 rounded-[22px] bg-rose-50 p-4 ring-1 ring-rose-100">
-          <p className="line-clamp-3 text-sm font-semibold leading-6 text-rose-900">
-            {item.revision_note}
-          </p>
-        </div>
-      ) : null}
-
-      <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-        <div className="space-y-3">
-          {item.menu_title ? (
-            <InfoRow label={copy.menu} value={item.menu_title} />
-          ) : null}
-
-          {item.deadline ? (
-            <InfoRow label={copy.deadline} value={formatDate(item.deadline, locale)} />
-          ) : null}
+      <div className="mt-4 rounded-[22px] bg-slate-50 px-4 py-3.5">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
+          <MiniInfo
+            label={copy.nextAction}
+            value={getActionText(item.status, locale)}
+          />
 
           {item.kind === "order" ? (
-            <InfoRow
+            <MiniInfo
               label={copy.payoutAmount}
               value={formatPrice(item.creator_payout_amount, item.currency, locale)}
               strong
             />
           ) : null}
         </div>
-      </div>
 
-      <div className="mt-5 flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white">
-        {copy.detail}
+        {item.menu_title ? (
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <MiniInfo label={copy.menu} value={item.menu_title} />
+          </div>
+        ) : null}
+
+        {isRevision && item.revision_note?.trim() ? (
+          <div className="mt-3 rounded-[18px] bg-white px-3 py-3 ring-1 ring-rose-100">
+            <p className="text-xs font-bold leading-6 text-rose-900">
+              {item.revision_note}
+            </p>
+          </div>
+        ) : null}
       </div>
     </Link>
   );
@@ -415,7 +455,7 @@ function JobCard({
 
 export default function CreatorJobsPage() {
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const copy = useMemo(
@@ -423,47 +463,43 @@ export default function CreatorJobsPage() {
       safeLocale === "ja"
         ? {
             title: "ToDo",
-            subtitle: "進行中の注文と、対応が必要なものを確認できます。",
+            subtitle: "進行中の注文と、今やることを確認できます。",
             fetchError: "ToDoの取得に失敗しました。",
             unnamedProduct: "商品名未設定",
-            deadline: "希望日",
             menu: "メニュー",
             payoutAmount: "受取予定",
-            revisionNeeded: "対応が必要",
-            newMessage: "新着あり",
-            updatedAt: "更新",
-            detail: "開く",
+            revisionNeeded: "要確認",
+            newMessage: "新着メッセージ",
+            updatedAt: "更新日",
             empty: "対応中の注文はありません",
             emptyBody: "受けた注文や対応が必要なものがここに表示されます。",
             checkRequests: "届いた注文を見る",
             all: "すべて",
             todo: "対応中",
-            delivered: "納品済み",
+            delivered: "確認待ち",
             completed: "完了",
-            deliverySubmitted: "納品済み",
             errorTitle: "エラー",
+            nextAction: "次にやること",
           }
         : {
             title: "ToDo",
-            subtitle: "Check active orders and items that need your action.",
+            subtitle: "Check active orders and what to do next.",
             fetchError: "Failed to load ToDo.",
             unnamedProduct: "No product name",
-            deadline: "Preferred date",
             menu: "Menu",
-            payoutAmount: "Expected payout",
-            revisionNeeded: "Action needed",
+            payoutAmount: "Expected",
+            revisionNeeded: "Check",
             newMessage: "New message",
             updatedAt: "Updated",
-            detail: "Open",
             empty: "No active orders",
             emptyBody: "Accepted orders and action items will appear here.",
             checkRequests: "View incoming orders",
             all: "All",
             todo: "Active",
-            delivered: "Delivered",
+            delivered: "Review",
             completed: "Done",
-            deliverySubmitted: "Delivered",
             errorTitle: "Error",
+            nextAction: "Next",
           },
     [safeLocale]
   );
@@ -549,13 +585,9 @@ export default function CreatorJobsPage() {
           menu_title_snapshot,
           menu_price_amount,
           currency,
-          creator_transaction_fee_rate_bps,
-          creator_transaction_fee_amount,
           creator_payout_amount,
           revision_requested_at,
           revision_note,
-          revision_count,
-          max_revision_count,
           auto_complete_at
         `
         )
@@ -636,13 +668,9 @@ export default function CreatorJobsPage() {
       menu_title: order.menu_title_snapshot,
       menu_price_amount: order.menu_price_amount,
       currency: order.currency,
-      creator_transaction_fee_rate_bps: order.creator_transaction_fee_rate_bps,
-      creator_transaction_fee_amount: order.creator_transaction_fee_amount,
       creator_payout_amount: order.creator_payout_amount,
       revision_requested_at: order.revision_requested_at,
       revision_note: order.revision_note,
-      revision_count: order.revision_count,
-      max_revision_count: order.max_revision_count,
       auto_complete_at: order.auto_complete_at,
       chat: orderChatMap.get(order.id) ?? null,
     }));
@@ -748,74 +776,86 @@ export default function CreatorJobsPage() {
   const deliveredItems = sortedItems.filter((item) => item.status === "delivered");
   const completedItems = sortedItems.filter((item) => item.status === "completed");
 
-  const filteredItems = useMemo(() => {
-    if (filter === "todo") return todoItems;
-    if (filter === "delivered") return deliveredItems;
-    if (filter === "completed") return completedItems;
-    return sortedItems;
-  }, [completedItems, deliveredItems, filter, sortedItems, todoItems]);
-
-  useEffect(() => {
-    if (filter !== "todo") return;
-
-    if (todoItems.length === 0 && sortedItems.length > 0) {
-      setFilter("all");
-    }
-  }, [filter, sortedItems.length, todoItems.length]);
+  const filteredItems =
+    filter === "todo"
+      ? todoItems
+      : filter === "delivered"
+        ? deliveredItems
+        : filter === "completed"
+          ? completedItems
+          : sortedItems;
 
   if (loading) {
     return <LoadingView />;
   }
 
   return (
-    <div className="space-y-4 pb-4">
-      <section className="relative overflow-hidden rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
+      <style jsx global>{`
+        @keyframes creatorJobsFadeUp {
+          from {
+            opacity: 0;
+            transform: translate3d(0, 10px, 0);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+
+        .creator-jobs-appear {
+          animation: creatorJobsFadeUp 380ms cubic-bezier(0.2, 0.8, 0.2, 1)
+            both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .creator-jobs-appear {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <section className="creator-jobs-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
         <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
 
-        <div className="relative flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-              {copy.title}
-            </h1>
-            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-              {copy.subtitle}
-            </p>
+        <div className="relative">
+          <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+            {copy.title}
+          </h1>
+
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+            {copy.subtitle}
+          </p>
+
+          <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <FilterButton active={filter === "todo"} onClick={() => setFilter("todo")}>
+              {copy.todo} {todoItems.length}
+            </FilterButton>
+
+            <FilterButton
+              active={filter === "delivered"}
+              onClick={() => setFilter("delivered")}
+            >
+              {copy.delivered} {deliveredItems.length}
+            </FilterButton>
+
+            <FilterButton
+              active={filter === "completed"}
+              onClick={() => setFilter("completed")}
+            >
+              {copy.completed} {completedItems.length}
+            </FilterButton>
+
+            <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
+              {copy.all}
+            </FilterButton>
           </div>
-
-          <div className="shrink-0 text-right">
-            <p className="text-[30px] font-black leading-none tracking-[-0.05em] text-slate-950">
-              {todoItems.length}
-            </p>
-            <p className="mt-1 text-xs font-bold text-slate-400">
-              {copy.todo}
-            </p>
-          </div>
-        </div>
-
-        <div className="relative -mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <FilterButton active={filter === "todo"} onClick={() => setFilter("todo")}>
-            {copy.todo} {todoItems.length}
-          </FilterButton>
-          <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
-            {copy.all} {sortedItems.length}
-          </FilterButton>
-          <FilterButton
-            active={filter === "delivered"}
-            onClick={() => setFilter("delivered")}
-          >
-            {copy.delivered} {deliveredItems.length}
-          </FilterButton>
-          <FilterButton
-            active={filter === "completed"}
-            onClick={() => setFilter("completed")}
-          >
-            {copy.completed} {completedItems.length}
-          </FilterButton>
         </div>
       </section>
 
       {error ? (
-        <section className="rounded-[26px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
+        <section className="rounded-[24px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
           <p className="text-sm font-black">{copy.errorTitle}</p>
           <p className="mt-2 text-sm font-semibold leading-7 opacity-75">
             {error}
@@ -824,9 +864,9 @@ export default function CreatorJobsPage() {
       ) : null}
 
       {filteredItems.length === 0 && !error ? (
-        <section className="rounded-[30px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-50 text-2xl">
-            ✓
+        <section className="creator-jobs-appear rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-slate-50 text-slate-400">
+            <EmptyIcon />
           </div>
 
           <h2 className="mt-5 text-xl font-black tracking-[-0.04em] text-slate-950">
@@ -839,14 +879,14 @@ export default function CreatorJobsPage() {
 
           <Link
             href="/creator/requests"
-            className="mt-6 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+            className="mt-6 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] transition active:scale-[0.98]"
           >
             {copy.checkRequests}
           </Link>
         </section>
       ) : null}
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         {filteredItems.map((item) => (
           <JobCard
             key={`${item.kind}-${item.id}`}
