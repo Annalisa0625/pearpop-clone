@@ -192,12 +192,14 @@ export function CreatorCard({
 }
 
 export function CreatorSection({
+  id,
   title,
   description,
   right,
   children,
   className = "",
 }: {
+  id?: string;
   title: string;
   description?: string;
   right?: ReactNode;
@@ -206,6 +208,7 @@ export function CreatorSection({
 }) {
   return (
     <section
+      id={id}
       className={joinClass(
         "creator-appear p-5",
         creatorTheme.surface,
@@ -278,7 +281,13 @@ export function CreatorMetric({
   className?: string;
 }) {
   return (
-    <div className={joinClass("creator-appear p-4", creatorTheme.surface, className)}>
+    <div
+      className={joinClass(
+        "creator-appear p-4",
+        creatorTheme.surface,
+        className
+      )}
+    >
       <p className="text-xs font-black text-slate-400">{label}</p>
       <p className="mt-2 text-[26px] font-black tracking-[-0.06em] text-slate-950">
         {value}
@@ -399,7 +408,9 @@ export function CreatorListItem({
         {icon ? <div className="shrink-0">{icon}</div> : null}
 
         <div className="min-w-0 flex-1">
-          {badge ? <div className="mb-2 flex flex-wrap gap-2">{badge}</div> : null}
+          {badge ? (
+            <div className="mb-2 flex flex-wrap gap-2">{badge}</div>
+          ) : null}
 
           <p className="truncate text-[16px] font-black tracking-[-0.04em] text-slate-950">
             {title}
@@ -435,7 +446,11 @@ export function CreatorListItem({
   }
 
   return (
-    <button type="button" onClick={onClick} className={joinClass("w-full", itemClass)}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={joinClass("w-full", itemClass)}
+    >
       {content}
     </button>
   );
@@ -498,7 +513,12 @@ export function CreatorNotice({
             : "bg-white text-slate-950 ring-slate-100";
 
   return (
-    <section className={joinClass("creator-appear rounded-[24px] p-4 ring-1", toneClass)}>
+    <section
+      className={joinClass(
+        "creator-appear rounded-[24px] p-4 ring-1",
+        toneClass
+      )}
+    >
       <p className="text-sm font-black tracking-[-0.03em]">{title}</p>
 
       {description ? (
@@ -647,12 +667,7 @@ export function CreatorInput({
   className = "",
   ...props
 }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={joinClass(creatorTheme.input, className)}
-    />
-  );
+  return <input {...props} className={joinClass(creatorTheme.input, className)} />;
 }
 
 export function CreatorTextarea({
@@ -673,20 +688,13 @@ export function CreatorSelect({
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      {...props}
-      className={joinClass(creatorTheme.input, className)}
-    >
+    <select {...props} className={joinClass(creatorTheme.input, className)}>
       {children}
     </select>
   );
 }
 
-export function CreatorStickyFooter({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function CreatorStickyFooter({ children }: { children: ReactNode }) {
   return (
     <div className="sticky bottom-24 z-20 rounded-[28px] bg-white/95 p-3 shadow-[0_18px_55px_rgba(15,23,42,0.14)] ring-1 ring-slate-100 backdrop-blur">
       {children}
@@ -694,11 +702,7 @@ export function CreatorStickyFooter({
   );
 }
 
-export function CreatorSkeleton({
-  className = "",
-}: {
-  className?: string;
-}) {
+export function CreatorSkeleton({ className = "" }: { className?: string }) {
   return (
     <div
       className={joinClass(

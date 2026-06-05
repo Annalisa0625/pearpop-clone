@@ -1,7 +1,6 @@
 // File: app/creator/profile/page.tsx
 "use client";
 
-import Link from "next/link";
 import {
   useEffect,
   useMemo,
@@ -12,6 +11,22 @@ import {
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import {
+  CreatorBadge,
+  CreatorButton,
+  CreatorCard,
+  CreatorEmptyState,
+  CreatorField,
+  CreatorHero,
+  CreatorInput,
+  CreatorListItem,
+  CreatorNotice,
+  CreatorPage,
+  CreatorSection,
+  CreatorSelect,
+  CreatorSkeleton,
+  CreatorStickyFooter,
+} from "@/app/creator/_components/CreatorDesignSystem";
 
 type CreatorRow = {
   id: string;
@@ -221,21 +236,21 @@ function fileExtension(file: File) {
 
 function getPublicStatusLabel(status: string | null, locale: "ja" | "en") {
   if (locale === "ja") {
-    if (status === "approved") return "公開中";
+    if (status === "approved") return "企業に表示中";
     if (status === "pending") return "確認中";
     if (status === "rejected") return "確認が必要";
     return "確認中";
   }
 
-  if (status === "approved") return "Public";
-  if (status === "pending") return "Under review";
+  if (status === "approved") return "Visible";
+  if (status === "pending") return "Reviewing";
   if (status === "rejected") return "Needs check";
-  return "Under review";
+  return "Reviewing";
 }
 
-function getPublicStatusTone(status: string | null) {
+function getPublicStatusTone(status: string | null): "green" | "red" | "amber" {
   if (status === "approved") return "green";
-  if (status === "rejected") return "rose";
+  if (status === "rejected") return "red";
   return "amber";
 }
 
@@ -243,11 +258,66 @@ function fallbackInitial(name: string) {
   return (name || "T").slice(0, 1).toUpperCase();
 }
 
-function ChevronIcon() {
+function ImageIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="14"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
       <path
-        d="m8 5 5 5-5 5"
+        d="m8 15 2.5-3 2 2.3 1.5-1.8 3 3.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="9" cy="9" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M6 7h12M6 12h12M6 17h7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SnsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M8 12a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 8.5h.01M7.5 21h9A4.5 4.5 0 0 0 21 16.5v-9A4.5 4.5 0 0 0 16.5 3h-9A4.5 4.5 0 0 0 3 7.5v9A4.5 4.5 0 0 0 7.5 21Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function YenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
@@ -257,122 +327,63 @@ function ChevronIcon() {
   );
 }
 
-function SoftBadge({
-  children,
-  tone = "slate",
+function UserIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20a7 7 0 0 1 14 0"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyPortfolioIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="14"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="m8 15 2.5-3 2 2.3 1.5-1.8 3 3.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CreatorAvatar({
+  name,
+  src,
 }: {
-  children: ReactNode;
-  tone?: "green" | "rose" | "amber" | "slate";
+  name: string;
+  src: string | null | undefined;
 }) {
-  const className =
-    tone === "green"
-      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-      : tone === "rose"
-        ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
-        : tone === "amber"
-          ? "bg-amber-50 text-amber-800 ring-amber-100"
-          : "bg-slate-50 text-slate-500 ring-slate-100";
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="h-16 w-16 shrink-0 rounded-[24px] object-cover shadow-sm ring-1 ring-slate-100"
+      />
+    );
+  }
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function FieldLabel({ children }: { children: ReactNode }) {
-  return (
-    <label className="block text-sm font-black text-slate-800">{children}</label>
-  );
-}
-
-function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={`mt-2 w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${
-        props.className ?? ""
-      }`}
-    />
-  );
-}
-
-function SelectBox(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={`mt-2 w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-sm font-bold text-slate-900 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${
-        props.className ?? ""
-      }`}
-    />
-  );
-}
-
-function SectionCard({
-  id,
-  title,
-  body,
-  children,
-}: {
-  id?: string;
-  title: string;
-  body?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      className="creator-profile-appear rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100"
-    >
-      <div className="mb-5">
-        <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
-          {title}
-        </h2>
-        {body ? (
-          <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
-            {body}
-          </p>
-        ) : null}
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function SettingLink({
-  href,
-  title,
-  body,
-  icon,
-}: {
-  href: string;
-  title: string;
-  body: string;
-  icon: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="creator-profile-appear flex items-center gap-4 rounded-[24px] bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 transition active:scale-[0.98]"
-    >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
-        {icon}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-black text-slate-950">{title}</span>
-        <span className="mt-1 block text-xs font-semibold leading-5 text-slate-400">
-          {body}
-        </span>
-      </span>
-
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-        <ChevronIcon />
-      </span>
-    </Link>
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-rose-50 text-xl font-black text-[#FF3B5C] ring-1 ring-rose-100">
+      {fallbackInitial(name)}
+    </div>
   );
 }
 
@@ -396,7 +407,7 @@ function ImagePicker({
   const src = previewUrl || currentUrl;
 
   return (
-    <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+    <div className="rounded-[24px] bg-[#F8F9FA] p-4 ring-1 ring-slate-100">
       <p className="text-sm font-black text-slate-950">{label}</p>
 
       <div
@@ -405,11 +416,7 @@ function ImagePicker({
         }`}
       >
         {src ? (
-          <img
-            src={src}
-            alt={label}
-            className="h-full w-full object-cover"
-          />
+          <img src={src} alt={label} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center text-sm font-bold text-slate-300">
             {noImageLabel}
@@ -446,8 +453,8 @@ function PortfolioUploadBox({
   onChange: (files: File[]) => void;
 }) {
   return (
-    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-4 text-center transition active:scale-[0.98]">
-      <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white text-xl font-black text-[#ff5f67] shadow-sm ring-1 ring-slate-100">
+    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-[#F8F9FA] p-4 text-center transition active:scale-[0.98]">
+      <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white text-xl font-black text-[#FF3B5C] shadow-sm ring-1 ring-slate-100">
         +
       </div>
 
@@ -507,99 +514,6 @@ function PortfolioImage({
   );
 }
 
-function CreatorAvatar({
-  name,
-  src,
-}: {
-  name: string;
-  src: string | null | undefined;
-}) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className="h-16 w-16 shrink-0 rounded-[24px] object-cover ring-1 ring-slate-100"
-      />
-    );
-  }
-
-  return (
-    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-rose-50 text-xl font-black text-[#ff5f67] ring-1 ring-rose-100">
-      {fallbackInitial(name)}
-    </div>
-  );
-}
-
-function MenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M6 7h12M6 12h12M6 17h7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function PhotoIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <rect
-        x="4"
-        y="5"
-        width="16"
-        height="14"
-        rx="4"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="m8 15 2.5-3 2 2.3 1.5-1.8 3 3.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="9" cy="9" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function SnsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M8 12a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M16 8.5h.01M7.5 21h9A4.5 4.5 0 0 0 21 16.5v-9A4.5 4.5 0 0 0 16.5 3h-9A4.5 4.5 0 0 0 3 7.5v9A4.5 4.5 0 0 0 7.5 21Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function YenIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function CreatorProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -614,7 +528,8 @@ export default function CreatorProfilePage() {
             subtitle: "企業に表示される情報を整えます。",
             username: "ユーザーネーム",
             usernamePlaceholder: "例：taiki_pr",
-            usernameHelp: "SNSのアカウント名と揃えると見つけてもらいやすくなります。",
+            usernameHelp:
+              "SNSのアカウント名と揃えると見つけてもらいやすくなります。",
             category: "メインジャンル",
             country: "国",
             prefecture: "都道府県",
@@ -624,10 +539,12 @@ export default function CreatorProfilePage() {
             contentLanguage: "発信言語",
             responseLanguage: "対応言語",
             subCategories: "得意・興味のあるジャンル",
+            subCategoriesHelp: "5つまで選択できます。",
             basicInfo: "プロフィール入力",
             basicInfoBody: "ユーザーネーム、ジャンル、活動エリアを設定します。",
             imageSection: "写真",
-            imageBody: "プロフィール画像、カバー画像、ポートフォリオ画像を管理します。",
+            imageBody:
+              "プロフィール画像、カバー画像、ポートフォリオ画像を管理します。",
             avatar: "プロフィール画像",
             cover: "カバー画像",
             imageChoose: "写真を選択",
@@ -641,6 +558,7 @@ export default function CreatorProfilePage() {
             socialBody: "企業が確認するSNSアカウントを登録します。",
             socialItem: "SNS",
             remove: "削除",
+            removeConfirm: "この画像を削除しますか？",
             platform: "SNS",
             followerRange: "フォロワー帯",
             url: "URL",
@@ -663,7 +581,6 @@ export default function CreatorProfilePage() {
             missingUserId: "user_id を取得できませんでした。",
             saved: "保存しました。",
             saveError: "保存中にエラーが発生しました。",
-            loading: "読み込み中...",
             uploadFailed: "画像アップロードに失敗しました。",
             settings: "マイページ",
             menusTitle: "メニュー・投稿価格",
@@ -675,7 +592,7 @@ export default function CreatorProfilePage() {
             portfolioLinkTitle: "ポートフォリオ",
             portfolioLinkBody: "企業に見せる画像を管理します。",
             statusPrefix: "表示状態",
-            japanesePrefectureOnly: "日本を選んだ場合のみ選択できます。",
+            japanesePrefectureOnly: "日本以外の場合は地域名を入力できます。",
           }
         : {
             title: "Profile",
@@ -693,6 +610,7 @@ export default function CreatorProfilePage() {
             contentLanguage: "Content language",
             responseLanguage: "Response language",
             subCategories: "Genres you are good at",
+            subCategoriesHelp: "Choose up to 5.",
             basicInfo: "Profile",
             basicInfoBody: "Set your username, genre, and area.",
             imageSection: "Photos",
@@ -710,6 +628,7 @@ export default function CreatorProfilePage() {
             socialBody: "Add social accounts for brands to check.",
             socialItem: "SNS",
             remove: "Remove",
+            removeConfirm: "Delete this image?",
             platform: "SNS",
             followerRange: "Followers",
             url: "URL",
@@ -732,7 +651,6 @@ export default function CreatorProfilePage() {
             missingUserId: "Could not retrieve user_id.",
             saved: "Saved.",
             saveError: "An error occurred while saving.",
-            loading: "Loading...",
             uploadFailed: "Failed to upload image.",
             settings: "My page",
             menusTitle: "Menus & rates",
@@ -744,8 +662,7 @@ export default function CreatorProfilePage() {
             portfolioLinkTitle: "Portfolio",
             portfolioLinkBody: "Manage images shown to brands.",
             statusPrefix: "Status",
-            japanesePrefectureOnly:
-              "Available when Japan is selected.",
+            japanesePrefectureOnly: "Enter the area name for countries outside Japan.",
           },
     [safeLocale]
   );
@@ -794,14 +711,6 @@ export default function CreatorProfilePage() {
   const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
   const profileName = displayName || "Trendre";
   const isJapan = country === "日本";
-
-  useEffect(() => {
-    return () => {
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-      if (coverPreview) URL.revokeObjectURL(coverPreview);
-      portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [avatarPreview, coverPreview, portfolioPreviews]);
 
   const loadPortfolioAssets = async (creatorIdValue: string) => {
     const { data, error: portfolioError } = await supabase
@@ -876,7 +785,9 @@ export default function CreatorProfilePage() {
       setContentLanguage(creatorRow.content_language ?? "");
       setResponseLanguage(creatorRow.response_language ?? "");
       setSubCategories(
-        Array.isArray(creatorRow.sub_categories) ? creatorRow.sub_categories : []
+        Array.isArray(creatorRow.sub_categories)
+          ? creatorRow.sub_categories
+          : []
       );
       setBio(creatorRow.bio ?? "");
       setAvatarUrl(creatorRow.avatar_url ?? null);
@@ -1019,7 +930,7 @@ export default function CreatorProfilePage() {
   };
 
   const deletePortfolioAsset = async (assetId: string) => {
-    if (!window.confirm(copy.remove)) return;
+    if (!window.confirm(copy.removeConfirm)) return;
 
     setDeletingPortfolioId(assetId);
     setError(null);
@@ -1284,7 +1195,12 @@ export default function CreatorProfilePage() {
       setAvatarFile(null);
       setCoverFile(null);
 
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
       portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
+
+      setAvatarPreview(null);
+      setCoverPreview(null);
       setPortfolioFiles([]);
       setPortfolioPreviews([]);
 
@@ -1301,11 +1217,17 @@ export default function CreatorProfilePage() {
   };
 
   const handleSubCategoryToggle = (value: string) => {
-    setSubCategories((prev) =>
-      prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value]
-    );
+    setSubCategories((prev) => {
+      if (prev.includes(value)) {
+        return prev.filter((item) => item !== value);
+      }
+
+      if (prev.length >= 5) {
+        return prev;
+      }
+
+      return [...prev, value];
+    });
   };
 
   const updateSocial = (
@@ -1338,114 +1260,83 @@ export default function CreatorProfilePage() {
 
   if (loading) {
     return (
-      <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
-        <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-        <div className="h-48 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-        <div className="h-64 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-      </div>
+      <CreatorPage>
+        <CreatorSkeleton className="h-28" />
+        <CreatorSkeleton className="h-48" />
+        <CreatorSkeleton className="h-64" />
+      </CreatorPage>
     );
   }
 
   return (
-    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
-      <style jsx global>{`
-        @keyframes creatorProfileFadeUp {
-          from {
-            opacity: 0;
-            transform: translate3d(0, 10px, 0);
-          }
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-          }
-        }
-
-        .creator-profile-appear {
-          animation: creatorProfileFadeUp 380ms
-            cubic-bezier(0.2, 0.8, 0.2, 1) both;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .creator-profile-appear {
-            animation: none;
-          }
-        }
-      `}</style>
-
-      <section className="creator-profile-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
-
-        <div className="relative flex items-center gap-4">
-          <CreatorAvatar name={profileName} src={avatarPreview || avatarUrl} />
-
-          <div className="min-w-0 flex-1">
-            <div className="mb-2">
-              <SoftBadge tone={getPublicStatusTone(approvalStatus)}>
-                {copy.statusPrefix}：{getPublicStatusLabel(approvalStatus, safeLocale)}
-              </SoftBadge>
-            </div>
-
-            <h1 className="truncate text-[26px] font-black leading-tight tracking-[-0.06em] text-slate-950">
-              {copy.title}
-            </h1>
-
-            <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-              {copy.subtitle}
-            </p>
-          </div>
-        </div>
-      </section>
+    <CreatorPage>
+      <CreatorHero
+        title={copy.title}
+        description={copy.subtitle}
+        right={<CreatorAvatar name={profileName} src={avatarPreview || avatarUrl} />}
+      >
+        <CreatorBadge tone={getPublicStatusTone(approvalStatus)}>
+          {copy.statusPrefix}：{getPublicStatusLabel(approvalStatus, safeLocale)}
+        </CreatorBadge>
+      </CreatorHero>
 
       {error ? (
-        <div className="rounded-[24px] bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-700 ring-1 ring-rose-100">
-          {error}
-        </div>
+        <CreatorNotice tone="red" title="Error" description={error} />
       ) : null}
 
       {success ? (
-        <div className="rounded-[24px] bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-700 ring-1 ring-emerald-100">
-          {success}
-        </div>
+        <CreatorNotice tone="green" title={success} />
       ) : null}
 
-      <section className="creator-profile-appear rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
-          {copy.settings}
-        </h2>
-
-        <div className="mt-4 grid gap-3">
-          <SettingLink
+      <CreatorSection title={copy.settings}>
+        <div className="grid gap-3">
+          <CreatorListItem
             href="/creator/menus"
-            icon={<MenuIcon />}
+            icon={
+              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+                <MenuIcon />
+              </span>
+            }
             title={copy.menusTitle}
-            body={copy.menusBody}
+            description={copy.menusBody}
           />
 
-          <SettingLink
+          <CreatorListItem
             href="#portfolio"
-            icon={<PhotoIcon />}
+            icon={
+              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+                <ImageIcon />
+              </span>
+            }
             title={copy.portfolioLinkTitle}
-            body={copy.portfolioLinkBody}
+            description={copy.portfolioLinkBody}
           />
 
-          <SettingLink
+          <CreatorListItem
             href="#sns"
-            icon={<SnsIcon />}
+            icon={
+              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+                <SnsIcon />
+              </span>
+            }
             title={copy.socialLinkTitle}
-            body={copy.socialLinkBody}
+            description={copy.socialLinkBody}
           />
 
-          <SettingLink
+          <CreatorListItem
             href="/creator/payouts"
-            icon={<YenIcon />}
+            icon={
+              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+                <YenIcon />
+              </span>
+            }
             title={copy.payoutsTitle}
-            body={copy.payoutsBody}
+            description={copy.payoutsBody}
           />
         </div>
-      </section>
+      </CreatorSection>
 
-      <SectionCard id="photos" title={copy.imageSection} body={copy.imageBody}>
+      <CreatorSection title={copy.imageSection} description={copy.imageBody}>
         <div className="grid gap-3 sm:grid-cols-2">
           <ImagePicker
             label={copy.avatar}
@@ -1467,21 +1358,35 @@ export default function CreatorProfilePage() {
           />
         </div>
 
-        <div id="portfolio" className="mt-5 rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+        <div
+          id="portfolio"
+          className="mt-5 rounded-[24px] bg-[#F8F9FA] p-4 ring-1 ring-slate-100"
+        >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h3 className="text-base font-black tracking-[-0.04em] text-slate-950">
                 {copy.portfolioTitle}
               </h3>
+
               <p className="mt-1.5 text-xs font-semibold leading-5 text-slate-500">
                 {copy.portfolioBody}
               </p>
             </div>
 
-            <SoftBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
+            <CreatorBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
               {portfolioTotalCount}/3
-            </SoftBadge>
+            </CreatorBadge>
           </div>
+
+          {portfolioTotalCount === 0 ? (
+            <div className="mt-4">
+              <CreatorEmptyState
+                icon={<EmptyPortfolioIcon />}
+                title={copy.portfolioTitle}
+                description={copy.portfolioEmpty}
+              />
+            </div>
+          ) : null}
 
           <div className="mt-4 grid grid-cols-3 gap-2.5">
             {portfolioAssets.map((asset) => (
@@ -1512,32 +1417,21 @@ export default function CreatorProfilePage() {
               onChange={handlePortfolioSelect}
             />
           </div>
-
-          {portfolioAssets.length === 0 && portfolioFiles.length === 0 ? (
-            <p className="mt-4 text-xs font-semibold leading-6 text-slate-400">
-              {copy.portfolioEmpty}
-            </p>
-          ) : null}
         </div>
-      </SectionCard>
+      </CreatorSection>
 
-      <SectionCard title={copy.basicInfo} body={copy.basicInfoBody}>
+      <CreatorSection title={copy.basicInfo} description={copy.basicInfoBody}>
         <div className="grid gap-4">
-          <div>
-            <FieldLabel>{copy.username}</FieldLabel>
-            <TextInput
+          <CreatorField label={copy.username} help={copy.usernameHelp}>
+            <CreatorInput
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={copy.usernamePlaceholder}
             />
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
-              {copy.usernameHelp}
-            </p>
-          </div>
+          </CreatorField>
 
-          <div>
-            <FieldLabel>{copy.category}</FieldLabel>
-            <SelectBox
+          <CreatorField label={copy.category}>
+            <CreatorSelect
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
@@ -1547,12 +1441,14 @@ export default function CreatorProfilePage() {
                   {optionLabel(option, safeLocale)}
                 </option>
               ))}
-            </SelectBox>
-          </div>
+            </CreatorSelect>
+          </CreatorField>
 
-          <div>
-            <FieldLabel>{copy.subCategories}</FieldLabel>
-            <div className="mt-3 flex flex-wrap gap-2">
+          <CreatorField
+            label={copy.subCategories}
+            help={copy.subCategoriesHelp}
+          >
+            <div className="flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((option) => {
                 const active = subCategories.includes(option.value);
 
@@ -1572,12 +1468,11 @@ export default function CreatorProfilePage() {
                 );
               })}
             </div>
-          </div>
+          </CreatorField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <FieldLabel>{copy.country}</FieldLabel>
-              <SelectBox
+            <CreatorField label={copy.country}>
+              <CreatorSelect
                 value={country}
                 onChange={(e) => {
                   const nextCountry = e.target.value;
@@ -1594,14 +1489,15 @@ export default function CreatorProfilePage() {
                     {optionLabel(option, safeLocale)}
                   </option>
                 ))}
-              </SelectBox>
-            </div>
+              </CreatorSelect>
+            </CreatorField>
 
-            <div>
-              <FieldLabel>{copy.prefecture}</FieldLabel>
-
+            <CreatorField
+              label={copy.prefecture}
+              help={!isJapan ? copy.japanesePrefectureOnly : undefined}
+            >
               {isJapan ? (
-                <SelectBox
+                <CreatorSelect
                   value={prefecture}
                   onChange={(e) => setPrefecture(e.target.value)}
                 >
@@ -1611,35 +1507,28 @@ export default function CreatorProfilePage() {
                       {item}
                     </option>
                   ))}
-                </SelectBox>
+                </CreatorSelect>
               ) : (
-                <>
-                  <TextInput
-                    value={prefecture}
-                    onChange={(e) => setPrefecture(e.target.value)}
-                    placeholder={copy.area}
-                  />
-                  <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
-                    {copy.japanesePrefectureOnly}
-                  </p>
-                </>
+                <CreatorInput
+                  value={prefecture}
+                  onChange={(e) => setPrefecture(e.target.value)}
+                  placeholder={copy.area}
+                />
               )}
-            </div>
+            </CreatorField>
           </div>
 
-          <div>
-            <FieldLabel>{copy.city}</FieldLabel>
-            <TextInput
+          <CreatorField label={copy.city}>
+            <CreatorInput
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder={copy.cityPlaceholder}
             />
-          </div>
+          </CreatorField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <FieldLabel>{copy.contentLanguage}</FieldLabel>
-              <SelectBox
+            <CreatorField label={copy.contentLanguage}>
+              <CreatorSelect
                 value={contentLanguage}
                 onChange={(e) => setContentLanguage(e.target.value)}
               >
@@ -1649,12 +1538,11 @@ export default function CreatorProfilePage() {
                     {optionLabel(option, safeLocale)}
                   </option>
                 ))}
-              </SelectBox>
-            </div>
+              </CreatorSelect>
+            </CreatorField>
 
-            <div>
-              <FieldLabel>{copy.responseLanguage}</FieldLabel>
-              <SelectBox
+            <CreatorField label={copy.responseLanguage}>
+              <CreatorSelect
                 value={responseLanguage}
                 onChange={(e) => setResponseLanguage(e.target.value)}
               >
@@ -1664,23 +1552,26 @@ export default function CreatorProfilePage() {
                     {optionLabel(option, safeLocale)}
                   </option>
                 ))}
-              </SelectBox>
-            </div>
+              </CreatorSelect>
+            </CreatorField>
           </div>
         </div>
-      </SectionCard>
+      </CreatorSection>
 
-      <SectionCard id="sns" title={copy.socialTitle} body={copy.socialBody}>
+      <CreatorSection id="sns" title={copy.socialTitle} description={copy.socialBody}>
         <div className="space-y-3">
           {socialAccounts.map((social, index) => (
-            <div
-              key={index}
-              className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100"
-            >
+            <CreatorCard key={index} tone="soft" className="p-4">
               <div className="mb-4 flex items-center justify-between gap-4">
-                <p className="text-sm font-black text-slate-950">
-                  {copy.socialItem} {index + 1}
-                </p>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-white text-slate-600 ring-1 ring-slate-100">
+                    <UserIcon />
+                  </span>
+
+                  <p className="text-sm font-black text-slate-950">
+                    {copy.socialItem} {index + 1}
+                  </p>
+                </div>
 
                 <button
                   type="button"
@@ -1692,9 +1583,8 @@ export default function CreatorProfilePage() {
               </div>
 
               <div className="grid gap-4">
-                <div>
-                  <FieldLabel>{copy.platform}</FieldLabel>
-                  <SelectBox
+                <CreatorField label={copy.platform}>
+                  <CreatorSelect
                     value={social.platform}
                     onChange={(e) =>
                       updateSocial(index, "platform", e.target.value)
@@ -1706,22 +1596,20 @@ export default function CreatorProfilePage() {
                         {platform}
                       </option>
                     ))}
-                  </SelectBox>
-                </div>
+                  </CreatorSelect>
+                </CreatorField>
 
-                <div>
-                  <FieldLabel>{copy.url}</FieldLabel>
-                  <TextInput
+                <CreatorField label={copy.url}>
+                  <CreatorInput
                     value={social.url}
                     onChange={(e) => updateSocial(index, "url", e.target.value)}
                     placeholder="https://..."
                   />
-                </div>
+                </CreatorField>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <FieldLabel>{copy.followerRange}</FieldLabel>
-                    <SelectBox
+                  <CreatorField label={copy.followerRange}>
+                    <CreatorSelect
                       value={social.follower_range}
                       onChange={(e) =>
                         updateSocial(index, "follower_range", e.target.value)
@@ -1733,12 +1621,11 @@ export default function CreatorProfilePage() {
                           {optionLabel(option, safeLocale)}
                         </option>
                       ))}
-                    </SelectBox>
-                  </div>
+                    </CreatorSelect>
+                  </CreatorField>
 
-                  <div>
-                    <FieldLabel>{copy.audienceRegion}</FieldLabel>
-                    <SelectBox
+                  <CreatorField label={copy.audienceRegion}>
+                    <CreatorSelect
                       value={social.audience_country}
                       onChange={(e) =>
                         updateSocial(index, "audience_country", e.target.value)
@@ -1750,33 +1637,34 @@ export default function CreatorProfilePage() {
                           {optionLabel(option, safeLocale)}
                         </option>
                       ))}
-                    </SelectBox>
-                  </div>
+                    </CreatorSelect>
+                  </CreatorField>
                 </div>
               </div>
-            </div>
+            </CreatorCard>
           ))}
         </div>
 
-        <button
+        <CreatorButton
           type="button"
+          variant="secondary"
           onClick={addSocial}
-          className="mt-4 w-full rounded-full bg-white px-5 py-3.5 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.98]"
+          className="mt-4 w-full"
         >
           + {copy.addSocial}
-        </button>
-      </SectionCard>
+        </CreatorButton>
+      </CreatorSection>
 
-      <div className="sticky bottom-24 z-20 rounded-[28px] bg-white/95 p-3 shadow-[0_18px_55px_rgba(15,23,42,0.14)] ring-1 ring-slate-100 backdrop-blur">
-        <button
+      <CreatorStickyFooter>
+        <CreatorButton
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.25)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full"
         >
           {saving ? copy.saving : copy.save}
-        </button>
-      </div>
-    </div>
+        </CreatorButton>
+      </CreatorStickyFooter>
+    </CreatorPage>
   );
 }
