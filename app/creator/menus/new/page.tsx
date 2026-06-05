@@ -12,88 +12,149 @@ import {
   CreatorField,
   CreatorHero,
   CreatorInput,
-  CreatorNotice,
   CreatorPage,
-  CreatorSelect,
 } from "@/app/creator/_components/CreatorDesignSystem";
 
-type LocaleOption = {
+type MenuOption = {
   value: string;
-  ja: string;
-  en: string;
+  labelJa: string;
+  labelEn: string;
+  helpJa: string;
+  helpEn: string;
 };
 
-const PLATFORM_OPTIONS: LocaleOption[] = [
-  { value: "Instagram", ja: "Instagram", en: "Instagram" },
-  { value: "TikTok", ja: "TikTok", en: "TikTok" },
-  { value: "YouTube", ja: "YouTube", en: "YouTube" },
-  { value: "X", ja: "X", en: "X" },
-  { value: "UGC", ja: "UGC制作", en: "UGC creation" },
+const MENU_OPTIONS: MenuOption[] = [
+  {
+    value: "Instagram投稿",
+    labelJa: "Instagram投稿",
+    labelEn: "Instagram Feed Post",
+    helpJa: "Instagramのフィード投稿として紹介します。",
+    helpEn: "A feed post published on Instagram.",
+  },
+  {
+    value: "Instagramリール",
+    labelJa: "Instagramリール",
+    labelEn: "Instagram Reel",
+    helpJa: "Instagramリール動画として投稿します。",
+    helpEn: "A short-form video published as an Instagram Reel.",
+  },
+  {
+    value: "Instagramストーリーズ",
+    labelJa: "Instagramストーリーズ",
+    labelEn: "Instagram Stories",
+    helpJa: "Instagramストーリーズで紹介します。",
+    helpEn: "A story placement published on Instagram.",
+  },
+  {
+    value: "TikTok投稿",
+    labelJa: "TikTok投稿",
+    labelEn: "TikTok Video",
+    helpJa: "TikTok動画として投稿します。",
+    helpEn: "A video published on TikTok.",
+  },
+  {
+    value: "YouTubeショート",
+    labelJa: "YouTubeショート",
+    labelEn: "YouTube Short",
+    helpJa: "YouTube Shortsとして投稿します。",
+    helpEn: "A short-form video published on YouTube Shorts.",
+  },
+  {
+    value: "YouTube動画",
+    labelJa: "YouTube動画",
+    labelEn: "YouTube Video",
+    helpJa: "YouTube動画として投稿します。",
+    helpEn: "A video published on YouTube.",
+  },
+  {
+    value: "投稿なし・動画素材のみ納品",
+    labelJa: "投稿なし・動画素材のみ納品",
+    labelEn: "Video asset only, no posting",
+    helpJa: "広告やSNSで使える動画素材だけを納品します。",
+    helpEn: "Deliver video assets only. You do not post on your own account.",
+  },
+  {
+    value: "投稿なし・写真素材のみ納品",
+    labelJa: "投稿なし・写真素材のみ納品",
+    labelEn: "Photo asset only, no posting",
+    helpJa: "広告やSNSで使える写真素材だけを納品します。",
+    helpEn: "Deliver photo assets only. You do not post on your own account.",
+  },
+  {
+    value: "イベント訪問",
+    labelJa: "イベント訪問",
+    labelEn: "Event visit",
+    helpJa:
+      "店舗・イベント・展示会などに訪問して投稿または素材制作を行います。",
+    helpEn: "Visit an event, store, or location for content creation.",
+  },
+  {
+    value: "その他",
+    labelJa: "その他",
+    labelEn: "Other",
+    helpJa: "上記以外のメニューです。",
+    helpEn: "Use this for custom services.",
+  },
 ];
 
-const MENU_TYPE_OPTIONS: LocaleOption[] = [
-  { value: "post", ja: "投稿", en: "Post" },
-  { value: "short_video", ja: "ショート動画", en: "Short video" },
-  { value: "story", ja: "ストーリー", en: "Story" },
-  { value: "video", ja: "動画", en: "Video" },
-  { value: "ugc", ja: "UGC制作", en: "UGC creation" },
-  { value: "package", ja: "セット", en: "Package" },
-  { value: "other", ja: "その他", en: "Other" },
-];
-
-const CATEGORY_OPTIONS: LocaleOption[] = [
-  { value: "美容", ja: "美容", en: "Beauty" },
-  { value: "ファッション", ja: "ファッション", en: "Fashion" },
-  { value: "グルメ", ja: "グルメ", en: "Food" },
-  { value: "旅行", ja: "旅行", en: "Travel" },
-  { value: "ライフスタイル", ja: "ライフスタイル", en: "Lifestyle" },
-  { value: "フィットネス", ja: "フィットネス", en: "Fitness" },
-  { value: "子育て", ja: "子育て", en: "Parenting" },
-  { value: "ガジェット", ja: "ガジェット", en: "Gadgets" },
-  { value: "エンタメ", ja: "エンタメ", en: "Entertainment" },
-  { value: "ビジネス", ja: "ビジネス", en: "Business" },
-  { value: "教育", ja: "教育", en: "Education" },
-  { value: "その他", ja: "その他", en: "Other" },
-];
-
-const DELIVERY_OPTIONS = [3, 5, 7, 10, 14, 21, 30];
-
-function optionLabel(option: LocaleOption, locale: "ja" | "en") {
-  return locale === "ja" ? option.ja : option.en;
+function getMenuLabel(option: MenuOption, locale: "ja" | "en") {
+  return locale === "ja" ? option.labelJa : option.labelEn;
 }
 
-function findLabel(
-  options: LocaleOption[],
-  value: string,
-  locale: "ja" | "en"
-) {
-  return (
-    options.find((option) => option.value === value)?.[locale] ||
-    options.find((option) => option.value === value)?.ja ||
-    value
-  );
+function getMenuHelp(option: MenuOption, locale: "ja" | "en") {
+  return locale === "ja" ? option.helpJa : option.helpEn;
 }
 
-function createMenuTitle({
-  platform,
-  menuType,
-  locale,
-}: {
-  platform: string;
-  menuType: string;
-  locale: "ja" | "en";
-}) {
-  if (!platform || !menuType) {
-    return locale === "ja" ? "メニュー名は自動生成されます" : "Menu title";
+function getSelectedMenu(value: string) {
+  return MENU_OPTIONS.find((option) => option.value === value) ?? null;
+}
+
+function derivePlatform(menuValue: string) {
+  if (menuValue.startsWith("Instagram")) return "Instagram";
+  if (menuValue.startsWith("TikTok")) return "TikTok";
+  if (menuValue.startsWith("YouTube")) return "YouTube";
+
+  if (
+    menuValue === "投稿なし・動画素材のみ納品" ||
+    menuValue === "投稿なし・写真素材のみ納品"
+  ) {
+    return "UGC";
   }
 
-  const menuTypeText = findLabel(MENU_TYPE_OPTIONS, menuType, locale);
+  if (menuValue === "イベント訪問") return "イベント訪問";
 
-  if (platform === "UGC") {
-    return locale === "ja" ? "UGC制作" : "UGC creation";
+  return "その他";
+}
+
+function deriveMenuType(menuValue: string) {
+  if (menuValue === "Instagram投稿") return "post";
+  if (menuValue === "Instagramリール") return "short_video";
+  if (menuValue === "Instagramストーリーズ") return "story";
+  if (menuValue === "TikTok投稿") return "short_video";
+  if (menuValue === "YouTubeショート") return "short_video";
+  if (menuValue === "YouTube動画") return "video";
+
+  if (
+    menuValue === "投稿なし・動画素材のみ納品" ||
+    menuValue === "投稿なし・写真素材のみ納品"
+  ) {
+    return "ugc";
   }
 
-  return `${platform}${locale === "ja" ? menuTypeText : ` ${menuTypeText}`}`;
+  return "other";
+}
+
+function deriveCategory(menuValue: string) {
+  if (
+    menuValue === "投稿なし・動画素材のみ納品" ||
+    menuValue === "投稿なし・写真素材のみ納品"
+  ) {
+    return "UGC";
+  }
+
+  if (menuValue === "イベント訪問") return "イベント";
+
+  return null;
 }
 
 function formatPrice(value: string, locale: "ja" | "en") {
@@ -151,20 +212,6 @@ function PriceIcon() {
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="m6 12 4 4 8-8"
-        stroke="currentColor"
-        strokeWidth="2.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function NewMenuPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -177,7 +224,7 @@ export default function NewMenuPage() {
         ? {
             title: "メニュー作成",
             subtitle:
-              "企業が注文できる投稿メニューを作成します。必要な情報だけをシンプルに登録します。",
+              "企業が注文できるメニューを作成します。サインアップ時と同じ項目で、シンプルに登録できます。",
             back: "戻る",
             save: "作成する",
             saving: "作成中...",
@@ -185,44 +232,27 @@ export default function NewMenuPage() {
             creatorNotFound: "クリエイター情報が見つかりません",
             saveFailed: "メニューの保存に失敗しました",
             saveSuccess: "メニューを作成しました",
-            platform: "対応SNS",
-            menuType: "メニュー種別",
-            category: "ジャンル",
+            menu: "メニュー内容",
+            menuHelp: "企業に提供できる内容を1つ選んでください。",
             price: "価格",
-            deliveryDays: "目安",
-            deliveryHelp:
-              "企業には、注文後どれくらいで投稿・納品できるかの目安として表示されます。",
-            secondaryUse: "二次利用",
-            secondaryUseHelp:
-              "企業が投稿内容を広告やLPなどで再利用できるかを選びます。",
-            publicStatus: "公開状態",
-            publicHelp:
-              "公開すると、企業側のクリエイター詳細ページに表示されます。",
-            publicOn: "公開する",
-            publicOff: "下書きにする",
-            allow: "許可する",
-            disallow: "許可しない",
-            selectPlease: "選択してください",
+            priceHelp:
+              "企業が注文する際の基本価格です。あとから編集できます。",
             yenOnly: "JPY / 日本円",
             pricePlaceholder: "例：30000",
-            platformRequired: "対応SNSを選択してください",
-            menuTypeRequired: "メニュー種別を選択してください",
-            categoryRequired: "ジャンルを選択してください",
+            menuRequired: "メニュー内容を選択してください",
             priceRequired: "価格を入力してください",
             priceInvalid: "価格は1以上の数字で入力してください",
-            deliveryDaysRequired: "目安を選択してください",
             preview: "プレビュー",
-            previewBody:
-              "企業側にはこのようなメニューとして表示されます。",
-            menuName: "メニュー名",
+            previewBody: "企業側にはこの内容で表示されます。",
             notSet: "未設定",
             visible: "公開中",
-            draft: "下書き",
+            autoPublic:
+              "作成したメニューは公開中として保存されます。非公開にしたい場合は、一覧から切り替えできます。",
           }
         : {
             title: "Create menu",
             subtitle:
-              "Create a simple orderable menu for brands with only the necessary details.",
+              "Create an orderable menu using the same fields as creator signup.",
             back: "Back",
             save: "Create",
             saving: "Creating...",
@@ -230,61 +260,36 @@ export default function NewMenuPage() {
             creatorNotFound: "Creator information was not found",
             saveFailed: "Failed to save the menu",
             saveSuccess: "Menu created successfully",
-            platform: "Platform",
-            menuType: "Menu type",
-            category: "Genre",
+            menu: "Menu",
+            menuHelp: "Choose one service you can offer to brands.",
             price: "Price",
-            deliveryDays: "Delivery estimate",
-            deliveryHelp:
-              "Shown to brands as an estimate for posting or delivery after ordering.",
-            secondaryUse: "Secondary use",
-            secondaryUseHelp:
-              "Choose whether brands can reuse delivered content in ads or landing pages.",
-            publicStatus: "Visibility",
-            publicHelp:
-              "Public menus are shown on the brand-facing creator detail page.",
-            publicOn: "Publish",
-            publicOff: "Save as draft",
-            allow: "Allow",
-            disallow: "Do not allow",
-            selectPlease: "Please select",
+            priceHelp: "Base price brands will pay when ordering.",
             yenOnly: "JPY / Japanese yen",
             pricePlaceholder: "Example: 30000",
-            platformRequired: "Please select a platform",
-            menuTypeRequired: "Please select a menu type",
-            categoryRequired: "Please select a genre",
+            menuRequired: "Please select a menu",
             priceRequired: "Please enter a price",
             priceInvalid: "Price must be a number greater than 0",
-            deliveryDaysRequired: "Please select a delivery estimate",
             preview: "Preview",
             previewBody: "This is how the menu will appear to brands.",
-            menuName: "Menu name",
             notSet: "Not set",
             visible: "Public",
-            draft: "Draft",
+            autoPublic:
+              "The menu will be saved as public. You can make it private from the menu list.",
           },
     [safeLocale]
   );
 
-  const [platform, setPlatform] = useState("");
-  const [menuType, setMenuType] = useState("");
-  const [category, setCategory] = useState("");
+  const [menuValue, setMenuValue] = useState("");
   const [price, setPrice] = useState("");
-  const [deliveryDays, setDeliveryDays] = useState("");
-  const [allowSecondaryUse, setAllowSecondaryUse] = useState(false);
-  const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const menuTitle = createMenuTitle({
-    platform,
-    menuType,
-    locale: safeLocale,
-  });
+  const selectedMenu = getSelectedMenu(menuValue);
+  const platform = selectedMenu ? derivePlatform(selectedMenu.value) : "";
+  const menuType = selectedMenu ? deriveMenuType(selectedMenu.value) : "";
+  const category = selectedMenu ? deriveCategory(selectedMenu.value) : null;
 
   const validate = () => {
-    if (!platform) return copy.platformRequired;
-    if (!menuType) return copy.menuTypeRequired;
-    if (!category) return copy.categoryRequired;
+    if (!selectedMenu) return copy.menuRequired;
     if (!price.trim()) return copy.priceRequired;
 
     const priceNumber = Number(price);
@@ -292,8 +297,6 @@ export default function NewMenuPage() {
     if (!Number.isFinite(priceNumber) || priceNumber <= 0) {
       return copy.priceInvalid;
     }
-
-    if (!deliveryDays) return copy.deliveryDaysRequired;
 
     return null;
   };
@@ -307,6 +310,8 @@ export default function NewMenuPage() {
       window.alert(validationMessage);
       return;
     }
+
+    if (!selectedMenu) return;
 
     setSaving(true);
 
@@ -335,31 +340,25 @@ export default function NewMenuPage() {
     }
 
     const priceNumber = Number(price);
-    const deliveryNumber = Number(deliveryDays);
     const now = new Date().toISOString();
-    const title = createMenuTitle({
-      platform,
-      menuType,
-      locale: "ja",
-    });
 
     const payload = {
       creator_id: creator.id,
-      title,
-      description: null,
+      title: selectedMenu.labelJa,
+      description: selectedMenu.helpJa,
       platform,
       sns: platform,
       price: priceNumber,
       currency: "JPY",
-      deliverables: title,
-      delivery_days: deliveryNumber,
-      is_active: isActive,
+      deliverables: selectedMenu.labelJa,
+      delivery_days: null,
+      is_active: true,
       category,
       tags: null,
       notes: null,
       account_url: null,
       reference_price_text: null,
-      allow_secondary_use: allowSecondaryUse,
+      allow_secondary_use: false,
       menu_type: menuType,
       updated_at: now,
     };
@@ -403,63 +402,52 @@ export default function NewMenuPage() {
 
             <div className="min-w-0">
               <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
-                {copy.menuName}
+                {copy.menu}
               </h2>
               <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                {menuTitle}
+                {copy.menuHelp}
               </p>
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <CreatorField label={copy.platform}>
-              <CreatorSelect
-                value={platform}
-                onChange={(event) => {
-                  const nextPlatform = event.target.value;
-                  setPlatform(nextPlatform);
+          <div className="grid gap-2.5">
+            {MENU_OPTIONS.map((option) => {
+              const active = menuValue === option.value;
 
-                  if (nextPlatform === "UGC") {
-                    setMenuType("ugc");
-                  }
-                }}
-              >
-                <option value="">{copy.selectPlease}</option>
-                {PLATFORM_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {optionLabel(option, safeLocale)}
-                  </option>
-                ))}
-              </CreatorSelect>
-            </CreatorField>
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setMenuValue(option.value)}
+                  className={`rounded-[22px] p-4 text-left ring-1 transition active:scale-[0.98] ${
+                    active
+                      ? "bg-slate-950 text-white ring-slate-950"
+                      : "bg-white text-slate-700 ring-slate-200"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-black">
+                        {getMenuLabel(option, safeLocale)}
+                      </p>
+                      <p
+                        className={`mt-1 text-xs font-semibold leading-5 ${
+                          active ? "text-white/65" : "text-slate-400"
+                        }`}
+                      >
+                        {getMenuHelp(option, safeLocale)}
+                      </p>
+                    </div>
 
-            <CreatorField label={copy.menuType}>
-              <CreatorSelect
-                value={menuType}
-                onChange={(event) => setMenuType(event.target.value)}
-              >
-                <option value="">{copy.selectPlease}</option>
-                {MENU_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {optionLabel(option, safeLocale)}
-                  </option>
-                ))}
-              </CreatorSelect>
-            </CreatorField>
-
-            <CreatorField label={copy.category}>
-              <CreatorSelect
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-              >
-                <option value="">{copy.selectPlease}</option>
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {optionLabel(option, safeLocale)}
-                  </option>
-                ))}
-              </CreatorSelect>
-            </CreatorField>
+                    {active ? (
+                      <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-[11px] font-black text-white">
+                        SELECT
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </CreatorCard>
 
@@ -474,135 +462,21 @@ export default function NewMenuPage() {
                 {copy.price}
               </h2>
               <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                {copy.yenOnly}
+                {copy.priceHelp}
               </p>
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <CreatorField label={copy.price}>
-              <CreatorInput
-                type="number"
-                min={1}
-                step={1}
-                inputMode="numeric"
-                value={price}
-                onChange={(event) => setPrice(event.target.value)}
-                placeholder={copy.pricePlaceholder}
-              />
-            </CreatorField>
-
-            <CreatorField label={copy.deliveryDays} help={copy.deliveryHelp}>
-              <CreatorSelect
-                value={deliveryDays}
-                onChange={(event) => setDeliveryDays(event.target.value)}
-              >
-                <option value="">{copy.selectPlease}</option>
-                {DELIVERY_OPTIONS.map((day) => (
-                  <option key={day} value={String(day)}>
-                    {safeLocale === "ja" ? `${day}日` : `${day} days`}
-                  </option>
-                ))}
-              </CreatorSelect>
-            </CreatorField>
-          </div>
-        </CreatorCard>
-
-        <CreatorCard className="p-5">
-          <div className="grid gap-3">
-            <button
-              type="button"
-              onClick={() => setAllowSecondaryUse(false)}
-              className={`rounded-[22px] px-4 py-4 text-left ring-1 transition active:scale-[0.98] ${
-                !allowSecondaryUse
-                  ? "bg-slate-950 text-white ring-slate-950"
-                  : "bg-white text-slate-700 ring-slate-200"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-full ${
-                    !allowSecondaryUse
-                      ? "bg-white/15 text-white"
-                      : "bg-slate-50 text-slate-400"
-                  }`}
-                >
-                  <CheckIcon />
-                </span>
-                <div>
-                  <p className="text-sm font-black">{copy.disallow}</p>
-                  <p
-                    className={`mt-1 text-xs font-semibold leading-5 ${
-                      !allowSecondaryUse ? "text-white/65" : "text-slate-400"
-                    }`}
-                  >
-                    {copy.secondaryUseHelp}
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAllowSecondaryUse(true)}
-              className={`rounded-[22px] px-4 py-4 text-left ring-1 transition active:scale-[0.98] ${
-                allowSecondaryUse
-                  ? "bg-slate-950 text-white ring-slate-950"
-                  : "bg-white text-slate-700 ring-slate-200"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-full ${
-                    allowSecondaryUse
-                      ? "bg-white/15 text-white"
-                      : "bg-slate-50 text-slate-400"
-                  }`}
-                >
-                  <CheckIcon />
-                </span>
-                <div>
-                  <p className="text-sm font-black">{copy.allow}</p>
-                  <p
-                    className={`mt-1 text-xs font-semibold leading-5 ${
-                      allowSecondaryUse ? "text-white/65" : "text-slate-400"
-                    }`}
-                  >
-                    {copy.secondaryUseHelp}
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-        </CreatorCard>
-
-        <CreatorCard className="p-5">
-          <CreatorField label={copy.publicStatus} help={copy.publicHelp}>
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsActive(true)}
-                className={`rounded-full px-4 py-3 text-sm font-black ring-1 transition active:scale-[0.98] ${
-                  isActive
-                    ? "bg-[#FF3B5C] text-white ring-[#FF3B5C]"
-                    : "bg-white text-slate-600 ring-slate-200"
-                }`}
-              >
-                {copy.publicOn}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsActive(false)}
-                className={`rounded-full px-4 py-3 text-sm font-black ring-1 transition active:scale-[0.98] ${
-                  !isActive
-                    ? "bg-slate-950 text-white ring-slate-950"
-                    : "bg-white text-slate-600 ring-slate-200"
-                }`}
-              >
-                {copy.publicOff}
-              </button>
-            </div>
+          <CreatorField label={copy.price} help={copy.yenOnly}>
+            <CreatorInput
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={price}
+              onChange={(event) => setPrice(event.target.value)}
+              placeholder={copy.pricePlaceholder}
+            />
           </CreatorField>
         </CreatorCard>
 
@@ -614,41 +488,43 @@ export default function NewMenuPage() {
               </p>
 
               <h2 className="mt-2 text-[22px] font-black tracking-[-0.06em] text-slate-950">
-                {menuTitle}
+                {selectedMenu
+                  ? getMenuLabel(selectedMenu, safeLocale)
+                  : copy.notSet}
               </h2>
 
               <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                {copy.previewBody}
+                {selectedMenu
+                  ? getMenuHelp(selectedMenu, safeLocale)
+                  : copy.previewBody}
               </p>
             </div>
 
-            <CreatorBadge tone={isActive ? "green" : "slate"}>
-              {isActive ? copy.visible : copy.draft}
-            </CreatorBadge>
+            <CreatorBadge tone="green">{copy.visible}</CreatorBadge>
           </div>
 
           <div className="grid gap-2.5 rounded-[24px] bg-[#F8F9FA] p-4 ring-1 ring-slate-100">
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
               <span className="text-xs font-black text-slate-400">
-                {copy.platform}
+                {copy.menu}
+              </span>
+              <span className="text-right text-sm font-black text-slate-950">
+                {selectedMenu
+                  ? getMenuLabel(selectedMenu, safeLocale)
+                  : copy.notSet}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3">
+              <span className="text-xs font-black text-slate-400">
+                Platform
               </span>
               <span className="text-sm font-black text-slate-950">
                 {platform || copy.notSet}
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3">
-              <span className="text-xs font-black text-slate-400">
-                {copy.menuType}
-              </span>
-              <span className="text-sm font-black text-slate-950">
-                {menuType
-                  ? findLabel(MENU_TYPE_OPTIONS, menuType, safeLocale)
-                  : copy.notSet}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3">
+            <div className="flex items-center justify-between gap-4 pt-3">
               <span className="text-xs font-black text-slate-400">
                 {copy.price}
               </span>
@@ -656,20 +532,11 @@ export default function NewMenuPage() {
                 {formatPrice(price, safeLocale)}
               </span>
             </div>
-
-            <div className="flex items-center justify-between gap-4 pt-3">
-              <span className="text-xs font-black text-slate-400">
-                {copy.deliveryDays}
-              </span>
-              <span className="text-sm font-black text-slate-950">
-                {deliveryDays
-                  ? safeLocale === "ja"
-                    ? `${deliveryDays}日`
-                    : `${deliveryDays} days`
-                  : copy.notSet}
-              </span>
-            </div>
           </div>
+
+          <p className="mt-4 text-xs font-semibold leading-6 text-slate-400">
+            {copy.autoPublic}
+          </p>
         </CreatorCard>
 
         <CreatorButton type="submit" disabled={saving} className="w-full">
