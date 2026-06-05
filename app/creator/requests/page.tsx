@@ -1,10 +1,21 @@
 // File: app/creator/requests/page.tsx
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import {
+  CreatorBadge,
+  CreatorCard,
+  CreatorChevron,
+  CreatorEmptyState,
+  CreatorHero,
+  CreatorLinkButton,
+  CreatorMiniInfo,
+  CreatorNotice,
+  CreatorPage,
+  CreatorSkeleton,
+} from "@/app/creator/_components/CreatorDesignSystem";
 
 type ChatReadRow = {
   user_id: string;
@@ -210,26 +221,12 @@ function getItemHref(item: PendingItem) {
 
 function LoadingView() {
   return (
-    <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
-      <div className="h-24 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-    </div>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m8 5 5 5-5 5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <CreatorPage>
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-28" />
+    </CreatorPage>
   );
 }
 
@@ -253,53 +250,23 @@ function EmptyIcon() {
   );
 }
 
-function SoftPill({
-  children,
-  tone = "slate",
-}: {
-  children: React.ReactNode;
-  tone?: "slate" | "rose" | "blue" | "amber";
-}) {
-  const className =
-    tone === "rose"
-      ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
-      : tone === "blue"
-        ? "bg-blue-50 text-blue-700 ring-blue-100"
-        : tone === "amber"
-          ? "bg-amber-50 text-amber-800 ring-amber-100"
-          : "bg-slate-50 text-slate-500 ring-slate-100";
-
+function OrderIcon() {
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function MiniInfo({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: React.ReactNode;
-  strong?: boolean;
-}) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-black text-slate-400">{label}</p>
-      <p
-        className={`mt-1 truncate text-sm ${
-          strong
-            ? "font-black tracking-[-0.03em] text-slate-950"
-            : "font-bold text-slate-700"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -317,9 +284,9 @@ function OrderCard({
     orderDate: string;
     menu: string;
     payout: string;
-    detail: string;
     newMessage: string;
-    oldRequest: string;
+    deadlineAlert: string;
+    checkDetail: string;
   };
   unread: boolean;
   urgent: boolean;
@@ -330,56 +297,73 @@ function OrderCard({
       ? getAcceptDeadlineLabel(item.creator_accept_deadline, locale)
       : null;
 
+  const hasBadges = unread || (urgent && acceptDeadline);
+
   return (
-    <Link
-      href={href}
-      className="creator-orders-appear block rounded-[26px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex flex-wrap gap-2">
-            {unread ? <SoftPill tone="blue">{copy.newMessage}</SoftPill> : null}
-            {urgent && acceptDeadline ? (
-              <SoftPill tone="amber">{acceptDeadline}</SoftPill>
-            ) : null}
-            {item.kind === "legacy_request" ? (
-              <SoftPill tone="slate">{copy.oldRequest}</SoftPill>
-            ) : null}
+    <a href={href} className="block">
+      <CreatorCard className="p-4 transition active:scale-[0.98]">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-[#FF3B5C] ring-1 ring-rose-100">
+            <OrderIcon />
           </div>
 
-          <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
-            {item.product_name || copy.unnamedProduct}
-          </h2>
+          <div className="min-w-0 flex-1">
+            {hasBadges ? (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {unread ? (
+                  <CreatorBadge tone="blue">{copy.newMessage}</CreatorBadge>
+                ) : null}
 
-          <p className="mt-1.5 text-xs font-bold text-slate-400">
-            {copy.orderDate}：{formatDate(item.created_at, locale)}
-          </p>
-        </div>
+                {urgent && acceptDeadline ? (
+                  <CreatorBadge tone="amber">{acceptDeadline}</CreatorBadge>
+                ) : null}
+              </div>
+            ) : null}
 
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-          <ChevronIcon />
-        </span>
-      </div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
+                  {item.product_name || copy.unnamedProduct}
+                </h2>
 
-      {item.kind === "order" ? (
-        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[22px] bg-slate-50 px-4 py-3.5">
-          <MiniInfo
-            label={copy.menu}
-            value={item.menu_title || "-"}
-          />
+                <p className="mt-1.5 text-xs font-bold text-slate-400">
+                  {copy.orderDate}：{formatDate(item.created_at, locale)}
+                </p>
+              </div>
 
-          <MiniInfo
-            label={copy.payout}
-            value={formatPrice(
-              item.creator_payout_amount,
-              item.currency,
-              locale
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+                <CreatorChevron />
+              </span>
+            </div>
+
+            {item.kind === "order" ? (
+              <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
+                <CreatorMiniInfo
+                  label={copy.menu}
+                  value={item.menu_title || "-"}
+                />
+
+                <CreatorMiniInfo
+                  label={copy.payout}
+                  value={formatPrice(
+                    item.creator_payout_amount,
+                    item.currency,
+                    locale
+                  )}
+                  strong
+                />
+              </div>
+            ) : (
+              <div className="mt-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
+                <p className="text-sm font-bold text-slate-600">
+                  {copy.checkDetail}
+                </p>
+              </div>
             )}
-            strong
-          />
+          </div>
         </div>
-      ) : null}
-    </Link>
+      </CreatorCard>
+    </a>
   );
 }
 
@@ -399,13 +383,16 @@ export default function CreatorRequestsPage() {
             orderDate: "注文日",
             menu: "メニュー",
             payout: "受取予定",
-            detail: "内容を確認する",
             empty: "届いている注文はありません",
             emptyBody: "新しい注文が届くとここに表示されます。",
             profileCta: "プロフィールを整える",
             newMessage: "新着メッセージ",
-            oldRequest: "依頼",
+            deadlineAlert: "返答期限",
+            checkDetail: "内容を確認してください",
             errorTitle: "エラー",
+            unreadLabel: "新着",
+            unreadSuffix: "件",
+            totalLabel: "届いている注文",
           }
         : {
             title: "Orders",
@@ -415,13 +402,16 @@ export default function CreatorRequestsPage() {
             orderDate: "Order date",
             menu: "Menu",
             payout: "Expected",
-            detail: "View details",
             empty: "No incoming orders",
             emptyBody: "New orders will appear here.",
             profileCta: "Update profile",
             newMessage: "New message",
-            oldRequest: "Request",
+            deadlineAlert: "Reply by",
+            checkDetail: "Check details",
             errorTitle: "Error",
+            unreadLabel: "New",
+            unreadSuffix: "",
+            totalLabel: "Incoming orders",
           },
     [safeLocale]
   );
@@ -698,61 +688,48 @@ export default function CreatorRequestsPage() {
   ).length;
 
   return (
-    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
-      <style jsx global>{`
-        @keyframes creatorOrdersFadeUp {
-          from {
-            opacity: 0;
-            transform: translate3d(0, 10px, 0);
-          }
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-          }
+    <CreatorPage>
+      <CreatorHero
+        title={copy.title}
+        description={copy.subtitle}
+        right={
+          unreadCount > 0 ? (
+            <CreatorBadge tone="blue">
+              {copy.unreadLabel} {unreadCount}
+              {safeLocale === "ja" ? copy.unreadSuffix : ""}
+            </CreatorBadge>
+          ) : null
         }
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
+            <p className="text-xs font-black text-slate-400">
+              {copy.totalLabel}
+            </p>
+            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
+              {items.length}
+              {safeLocale === "ja" ? "件" : ""}
+            </p>
+          </div>
 
-        .creator-orders-appear {
-          animation: creatorOrdersFadeUp 380ms cubic-bezier(0.2, 0.8, 0.2, 1)
-            both;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .creator-orders-appear {
-            animation: none;
-          }
-        }
-      `}</style>
-
-      <section className="creator-orders-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
-
-        <div className="relative">
-          <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-            {copy.title}
-          </h1>
-
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-            {copy.subtitle}
-          </p>
-
-          {unreadCount > 0 ? (
-            <div className="mt-4">
-              <SoftPill tone="blue">
-                {copy.newMessage} {unreadCount}
-              </SoftPill>
-            </div>
-          ) : null}
+          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
+            <p className="text-xs font-black text-slate-400">
+              {copy.unreadLabel}
+            </p>
+            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
+              {unreadCount}
+              {safeLocale === "ja" ? "件" : ""}
+            </p>
+          </div>
         </div>
-      </section>
+      </CreatorHero>
 
       {error ? (
-        <section className="rounded-[24px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
-          <p className="text-sm font-black">{copy.errorTitle}</p>
-          <p className="mt-2 text-sm font-semibold leading-7 opacity-75">
-            {error}
-          </p>
-        </section>
+        <CreatorNotice
+          tone="red"
+          title={copy.errorTitle}
+          description={error}
+        />
       ) : null}
 
       <section className="space-y-3">
@@ -775,28 +752,20 @@ export default function CreatorRequestsPage() {
         })}
 
         {items.length === 0 && !error ? (
-          <section className="creator-orders-appear rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-slate-50 text-slate-400">
-              <EmptyIcon />
-            </div>
-
-            <h2 className="mt-5 text-xl font-black tracking-[-0.04em] text-slate-950">
-              {copy.empty}
-            </h2>
-
-            <p className="mx-auto mt-3 max-w-sm text-sm font-semibold leading-7 text-slate-500">
-              {copy.emptyBody}
-            </p>
-
-            <Link
-              href="/creator/profile"
-              className="mt-6 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] transition active:scale-[0.98]"
-            >
-              {copy.profileCta}
-            </Link>
-          </section>
+          <CreatorCard className="p-5">
+            <CreatorEmptyState
+              icon={<EmptyIcon />}
+              title={copy.empty}
+              description={copy.emptyBody}
+              action={
+                <CreatorLinkButton href="/creator/profile">
+                  {copy.profileCta}
+                </CreatorLinkButton>
+              }
+            />
+          </CreatorCard>
         ) : null}
       </section>
-    </div>
+    </CreatorPage>
   );
 }
