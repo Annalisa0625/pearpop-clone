@@ -2,10 +2,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import {
+  CreatorBadge,
+  CreatorButton,
+  CreatorCard,
+  CreatorChevron,
+  CreatorEmptyState,
+  CreatorHero,
+  CreatorLinkButton,
+  CreatorMetric,
+  CreatorMiniInfo,
+  CreatorNotice,
+  CreatorPage,
+  CreatorSkeleton,
+} from "@/app/creator/_components/CreatorDesignSystem";
 
 type CreatorMenu = {
   id: string;
@@ -35,20 +49,6 @@ type SocialAccount = {
   platform: string;
   url: string;
 };
-
-function formatDateTime(value: string | null, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function formatPrice(
   value: number | null,
@@ -89,18 +89,6 @@ function normalizePlatform(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
-function getPlatformIcon(value: string | null | undefined) {
-  const normalized = normalizePlatform(value);
-
-  if (normalized.includes("instagram")) return "◎";
-  if (normalized.includes("tiktok")) return "♪";
-  if (normalized.includes("youtube")) return "▶";
-  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
-  if (normalized.includes("ugc")) return "▣";
-
-  return "●";
-}
-
 function menuTypeLabel(
   value: string | null,
   locale: "ja" | "en",
@@ -114,123 +102,276 @@ function menuTypeLabel(
     story: { ja: "ストーリー", en: "Story" },
     video: { ja: "動画", en: "Video" },
     ugc: { ja: "UGC制作", en: "UGC creation" },
-    package: { ja: "セットメニュー", en: "Package" },
+    package: { ja: "セット", en: "Package" },
     other: { ja: "その他", en: "Other" },
   };
 
   return labels[key]?.[locale] || fallback;
 }
 
-function StatCard({
-  label,
-  value,
-  helper,
-  tone = "default",
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M6 7h12M6 12h12M6 17h7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyMenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <path
+        d="M6 7h12M6 12h12M6 17h7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 12s3-5.5 8.5-5.5S20.5 12 20.5 12s-3 5.5-8.5 5.5S3.5 12 3.5 12Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function HiddenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M4 4l16 16M9.2 5.4A9.4 9.4 0 0 1 12 5c5.5 0 8.5 7 8.5 7a13.3 13.3 0 0 1-2.1 3.1M6.4 7.4C4.5 9 3.5 12 3.5 12s3 7 8.5 7a8.9 8.9 0 0 0 3.7-.8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PlatformIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="16"
+        rx="5"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M16.8 7.2h.01"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function LoadingView() {
+  return (
+    <CreatorPage>
+      <CreatorSkeleton className="h-32" />
+      <div className="grid grid-cols-2 gap-3">
+        <CreatorSkeleton className="h-24" />
+        <CreatorSkeleton className="h-24" />
+      </div>
+      <CreatorSkeleton className="h-44" />
+      <CreatorSkeleton className="h-44" />
+    </CreatorPage>
+  );
+}
+
+function MenuCard({
+  menu,
+  locale,
+  copy,
+  accountUrl,
+  isLoading,
+  onToggle,
+  onDelete,
 }: {
-  label: string;
-  value: number;
-  helper?: string;
-  tone?: "default" | "dark" | "green" | "gray";
-}) {
-  const styles = {
-    default: "border-slate-100 bg-white text-slate-950",
-    dark: "border-slate-950 bg-slate-950 text-white",
-    green: "border-emerald-100 bg-emerald-50 text-slate-950",
-    gray: "border-slate-100 bg-slate-50 text-slate-950",
+  menu: CreatorMenu;
+  locale: "ja" | "en";
+  copy: {
+    platformUnset: string;
+    price: string;
+    deliveryDays: string;
+    accountUrl: string;
+    viewAccount: string;
+    notSet: string;
+    public: string;
+    private: string;
+    visibleToCompanies: string;
+    hiddenFromCompanies: string;
+    makePrivate: string;
+    makePublic: string;
+    edit: string;
+    delete: string;
+    deleting: string;
+    updating: string;
+    legacyPriceNotice: string;
+    menuType: string;
+    secondaryUse: string;
+    allow: string;
+    disallow: string;
   };
+  accountUrl: string | null;
+  isLoading: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const isPublic = !!menu.is_active;
+  const platformLabel = menu.platform || menu.sns || copy.platformUnset;
+  const hasLegacyReferenceOnly =
+    menu.price == null && !!menu.reference_price_text?.trim();
 
   return (
-    <div className={`rounded-[26px] border p-5 shadow-sm ${styles[tone]}`}>
-      <p
-        className={`text-xs font-black uppercase tracking-[0.2em] ${
-          tone === "dark" ? "text-white/60" : "text-slate-400"
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`mt-3 text-3xl font-black ${
-          tone === "dark" ? "text-white" : "text-slate-950"
-        }`}
-      >
-        {value}
-      </p>
-      {helper ? (
-        <p
-          className={`mt-2 text-xs leading-5 ${
-            tone === "dark" ? "text-white/70" : "text-slate-500"
+    <CreatorCard className="p-4">
+      <div className="flex items-start gap-4">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] ring-1 ${
+            isPublic
+              ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+              : "bg-slate-50 text-slate-500 ring-slate-100"
           }`}
         >
-          {helper}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+          {isPublic ? <EyeIcon /> : <HiddenIcon />}
+        </div>
 
-function Chip({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex flex-wrap gap-2">
+            <CreatorBadge tone={isPublic ? "green" : "slate"}>
+              {isPublic ? copy.public : copy.private}
+            </CreatorBadge>
 
-function DetailRow({
-  label,
-  value,
-  strong,
-  danger,
-}: {
-  label: string;
-  value: ReactNode;
-  strong?: boolean;
-  danger?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-xs font-black uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
-      <span
-        className={`text-right ${
-          strong
-            ? "text-lg font-black text-slate-950"
-            : danger
-            ? "text-sm font-black text-rose-600"
-            : "text-sm font-bold text-slate-800"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
+            <CreatorBadge tone="slate">{platformLabel}</CreatorBadge>
 
-function SectionPreview({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-[20px] border border-slate-100 bg-white p-4">
-      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-      <p className="mt-2 line-clamp-3 whitespace-pre-line text-sm leading-6 text-slate-700">
-        {value}
-      </p>
-    </div>
+            {menu.menu_type ? (
+              <CreatorBadge tone="blue">
+                {menuTypeLabel(menu.menu_type, locale, copy.notSet)}
+              </CreatorBadge>
+            ) : null}
+          </div>
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-[18px] font-black leading-tight tracking-[-0.045em] text-slate-950">
+                {menu.title}
+              </h2>
+
+              <p className="mt-1.5 text-xs font-bold text-slate-400">
+                {isPublic ? copy.visibleToCompanies : copy.hiddenFromCompanies}
+              </p>
+            </div>
+
+            <Link
+              href={`/creator/menus/${menu.id}/edit`}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100 transition active:scale-95"
+              aria-label={copy.edit}
+            >
+              <CreatorChevron />
+            </Link>
+          </div>
+
+          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
+            <CreatorMiniInfo
+              label={copy.price}
+              value={formatPrice(
+                menu.price,
+                menu.currency,
+                menu.reference_price_text,
+                locale
+              )}
+              strong
+            />
+
+            <CreatorMiniInfo
+              label={copy.deliveryDays}
+              value={formatDeliveryDays(
+                menu.delivery_days,
+                locale,
+                copy.notSet
+              )}
+            />
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
+            <CreatorMiniInfo
+              label={copy.menuType}
+              value={menuTypeLabel(menu.menu_type, locale, copy.notSet)}
+            />
+
+            <CreatorMiniInfo
+              label={copy.secondaryUse}
+              value={menu.allow_secondary_use ? copy.allow : copy.disallow}
+            />
+          </div>
+
+          {accountUrl ? (
+            <a
+              href={accountUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.98]"
+            >
+              <PlatformIcon />
+              {copy.viewAccount}
+            </a>
+          ) : null}
+
+          {hasLegacyReferenceOnly ? (
+            <CreatorNotice
+              tone="amber"
+              title={copy.legacyPriceNotice}
+            />
+          ) : null}
+
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
+            <CreatorButton
+              type="button"
+              variant={isPublic ? "soft" : "primary"}
+              onClick={onToggle}
+              disabled={isLoading}
+              className="col-span-2 px-3 py-3 text-xs"
+            >
+              {isLoading
+                ? copy.updating
+                : isPublic
+                  ? copy.makePrivate
+                  : copy.makePublic}
+            </CreatorButton>
+
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isLoading}
+              className="rounded-full bg-rose-50 px-3 py-3 text-xs font-black text-[#FF3B5C] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? copy.deleting : copy.delete}
+            </button>
+          </div>
+        </div>
+      </div>
+    </CreatorCard>
   );
 }
 
@@ -245,16 +386,14 @@ export default function CreatorMenusPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
-            badge: "Creator Menus",
-            title: "メニュー・投稿価格",
-            subtitle:
-              "企業が購入できるメニュー、価格、納期、公開状態を管理します。",
+            title: "メニュー",
+            subtitle: "企業が注文できる投稿メニューと価格を管理します。",
             loginRequired: "ログインしてください",
             creatorNotFound: "クリエイター情報が見つかりません",
             toggleFailed: "公開状態の切り替えに失敗しました",
@@ -262,103 +401,81 @@ export default function CreatorMenusPage() {
               "このメニューを削除しますか？企業側からも表示されなくなります。",
             deleteFailed: "削除に失敗しました",
             loadFailed: "メニューの取得に失敗しました",
-            loading: "読み込み中...",
-            createNew: "新しいメニューを作成",
+            createNew: "メニューを作成",
             emptyTitle: "まだメニューがありません",
             empty:
-              "企業が購入できるメニューを作成しましょう。Instagram投稿、TikTok動画、UGC制作などを登録できます。",
+              "Instagram投稿、TikTok動画、UGC制作など、企業が注文できるメニューを作成しましょう。",
             platformUnset: "SNS未設定",
             accountUrl: "アカウント",
             price: "価格",
-            deliveryDays: "納期",
+            deliveryDays: "目安",
             secondaryUse: "二次利用",
-            deliverables: "納品物",
-            notes: "注意事項",
-            description: "説明",
-            menuType: "種別",
+            menuType: "形式",
             notSet: "未設定",
-            none: "なし",
-            allow: "許可",
+            allow: "可",
             disallow: "不可",
             public: "公開中",
             private: "非公開",
-            lastUpdated: "更新",
             makePrivate: "非公開にする",
             makePublic: "公開する",
             edit: "編集",
             delete: "削除",
-            deleting: "削除中...",
-            updating: "更新中...",
-            totalMenus: "全メニュー",
+            deleting: "削除中",
+            updating: "更新中",
+            totalMenus: "メニュー",
             publicMenus: "公開中",
             privateMenus: "非公開",
-            visibleToCompanies: "企業側に表示されます",
-            hiddenFromCompanies: "企業側には表示されません",
+            visibleToCompanies: "企業に表示されています",
+            hiddenFromCompanies: "企業には表示されていません",
             legacyPriceNotice:
-              "旧形式の参考価格が残っています。編集画面で固定価格を設定すると、B側が注文しやすくなります。",
-            viewAccount: "アカウントを開く",
-            noDescription: "説明は未設定です。",
-            noDeliverables: "納品物は未設定です。",
-            noNotes: "注意事項はありません。",
-            openPublic: "企業に表示中",
-            hiddenPublic: "企業には非表示",
+              "旧形式の参考価格です。編集画面で固定価格にすると注文されやすくなります。",
+            viewAccount: "SNSを開く",
             quickHint:
-              "公開中のメニューはB側のクリエイター詳細ページに表示され、注文できます。",
+              "公開中のメニューだけが企業側のクリエイター詳細ページに表示されます。",
+            errorTitle: "エラー",
           }
         : {
-            badge: "Creator Menus",
-            title: "Menus & Rates",
-            subtitle:
-              "Manage the menus companies can purchase, including pricing, delivery timing, and visibility.",
+            title: "Menus",
+            subtitle: "Manage post menus and prices that brands can order.",
             loginRequired: "Please log in",
             creatorNotFound: "Creator information was not found",
-            toggleFailed: "Failed to change the visibility status",
+            toggleFailed: "Failed to change visibility",
             confirmDelete:
               "Delete this menu? It will no longer be visible to companies.",
             deleteFailed: "Failed to delete the menu",
             loadFailed: "Failed to load menus",
-            loading: "Loading...",
-            createNew: "Create New Menu",
+            createNew: "Create menu",
             emptyTitle: "No menus yet",
             empty:
-              "Create menus companies can purchase, such as Instagram posts, TikTok videos, or UGC creation.",
+              "Create menus companies can order, such as Instagram posts, TikTok videos, or UGC creation.",
             platformUnset: "SNS not set",
             accountUrl: "Account",
             price: "Price",
             deliveryDays: "Delivery",
-            secondaryUse: "Secondary Use",
-            deliverables: "Deliverables",
-            notes: "Notes",
-            description: "Description",
+            secondaryUse: "Secondary use",
             menuType: "Type",
             notSet: "Not set",
-            none: "None",
             allow: "Allowed",
             disallow: "Not allowed",
             public: "Public",
             private: "Private",
-            lastUpdated: "Updated",
-            makePrivate: "Make Private",
-            makePublic: "Make Public",
+            makePrivate: "Make private",
+            makePublic: "Make public",
             edit: "Edit",
             delete: "Delete",
-            deleting: "Deleting...",
-            updating: "Updating...",
-            totalMenus: "Total Menus",
+            deleting: "Deleting",
+            updating: "Updating",
+            totalMenus: "Menus",
             publicMenus: "Public",
             privateMenus: "Private",
-            visibleToCompanies: "Visible to companies",
-            hiddenFromCompanies: "Hidden from companies",
+            visibleToCompanies: "Visible to brands",
+            hiddenFromCompanies: "Hidden from brands",
             legacyPriceNotice:
-              "This menu still has a legacy reference price. Set a fixed price from the edit page so companies can order more easily.",
-            viewAccount: "Open account",
-            noDescription: "Description is not set.",
-            noDeliverables: "Deliverables are not set.",
-            noNotes: "No notes.",
-            openPublic: "Visible to companies",
-            hiddenPublic: "Hidden from companies",
+              "This menu uses a legacy reference price. Set a fixed price from the edit page.",
+            viewAccount: "Open SNS",
             quickHint:
-              "Public menus are shown on the brand-facing creator detail page and can be ordered.",
+              "Only public menus are shown on the brand-facing creator detail page.",
+            errorTitle: "Error",
           },
     [safeLocale]
   );
@@ -382,7 +499,7 @@ export default function CreatorMenusPage() {
       .from("creators")
       .select("id")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (creatorError || !creator) {
       console.error("creator load error:", creatorError);
@@ -514,268 +631,89 @@ export default function CreatorMenusPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-5">
-        <div className="h-36 animate-pulse rounded-[32px] bg-slate-100" />
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-52 animate-pulse rounded-[28px] bg-slate-100"
-          />
-        ))}
-      </div>
-    );
+    return <LoadingView />;
   }
 
   return (
-    <div className="space-y-6 pb-4">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          {copy.badge}
-        </p>
-
-        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-              {copy.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
-              {copy.subtitle}
+    <CreatorPage>
+      <CreatorHero
+        title={copy.title}
+        description={copy.subtitle}
+        right={
+          <CreatorLinkButton href="/creator/menus/new" className="px-4 py-2.5">
+            + 作成
+          </CreatorLinkButton>
+        }
+      >
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-[22px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
+            <p className="text-[11px] font-black text-slate-400">
+              {copy.totalMenus}
+            </p>
+            <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
+              {menus.length}
             </p>
           </div>
 
-          <Link
-            href="/creator/menus/new"
-            className="w-fit rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950 transition active:scale-[0.98] md:hover:-translate-y-0.5"
-          >
-            + {copy.createNew}
-          </Link>
+          <div className="rounded-[22px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
+            <p className="text-[11px] font-black text-slate-400">
+              {copy.publicMenus}
+            </p>
+            <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
+              {publicCount}
+            </p>
+          </div>
+
+          <div className="rounded-[22px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
+            <p className="text-[11px] font-black text-slate-400">
+              {copy.privateMenus}
+            </p>
+            <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
+              {privateCount}
+            </p>
+          </div>
         </div>
-      </section>
+      </CreatorHero>
 
-      <section className="grid grid-cols-3 gap-3">
-        <StatCard label={copy.totalMenus} value={menus.length} tone="dark" />
-        <StatCard
-          label={copy.publicMenus}
-          value={publicCount}
-          helper={copy.visibleToCompanies}
-          tone={publicCount > 0 ? "green" : "default"}
-        />
-        <StatCard
-          label={copy.privateMenus}
-          value={privateCount}
-          helper={copy.hiddenFromCompanies}
-          tone={privateCount > 0 ? "gray" : "default"}
-        />
-      </section>
-
-      <div className="rounded-[24px] border border-blue-100 bg-blue-50 p-4 text-sm font-semibold leading-6 text-blue-800">
-        {copy.quickHint}
-      </div>
+      <CreatorNotice tone="blue" title={copy.quickHint} />
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
-          {error}
-        </div>
+        <CreatorNotice
+          tone="red"
+          title={copy.errorTitle}
+          description={error}
+        />
       ) : null}
 
       {menus.length === 0 ? (
-        <div className="rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
-            +
-          </div>
-          <h2 className="mt-5 text-xl font-black text-slate-950">
-            {copy.emptyTitle}
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
-            {copy.empty}
-          </p>
-          <Link
-            href="/creator/menus/new"
-            className="mt-6 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-          >
-            + {copy.createNew}
-          </Link>
-        </div>
+        <CreatorCard className="p-5">
+          <CreatorEmptyState
+            icon={<EmptyMenuIcon />}
+            title={copy.emptyTitle}
+            description={copy.empty}
+            action={
+              <CreatorLinkButton href="/creator/menus/new">
+                + {copy.createNew}
+              </CreatorLinkButton>
+            }
+          />
+        </CreatorCard>
       ) : (
-        <section className="space-y-4">
-          {menus.map((menu) => {
-            const accountUrl = resolveAccountUrl(menu);
-            const isPublic = !!menu.is_active;
-            const isLoading = actionLoadingId === menu.id;
-            const badgeLabel = isPublic ? copy.public : copy.private;
-            const badgeClass = isPublic
-              ? "bg-emerald-100 text-emerald-700"
-              : "bg-slate-100 text-slate-700";
-
-            const platformLabel = menu.platform || menu.sns || copy.platformUnset;
-            const hasLegacyReferenceOnly =
-              menu.price == null && !!menu.reference_price_text?.trim();
-
-            return (
-              <article
-                key={menu.id}
-                className={`rounded-[30px] border bg-white p-5 shadow-sm transition ${
-                  isPublic
-                    ? "border-emerald-100"
-                    : "border-slate-100"
-                }`}
-              >
-                <div className="mb-4 flex flex-wrap items-center gap-2">
-                  <Chip className={badgeClass}>{badgeLabel}</Chip>
-
-                  <Chip className="bg-slate-950 text-white">
-                    <span className="mr-1">{getPlatformIcon(platformLabel)}</span>
-                    {platformLabel}
-                  </Chip>
-
-                  <Chip className="bg-purple-100 text-purple-700">
-                    {menuTypeLabel(menu.menu_type, safeLocale, copy.notSet)}
-                  </Chip>
-
-                  {menu.category?.trim() ? (
-                    <Chip className="bg-slate-100 text-slate-700">
-                      {menu.category.trim()}
-                    </Chip>
-                  ) : null}
-                </div>
-
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h2 className="truncate text-xl font-black text-slate-950">
-                      {menu.title}
-                    </h2>
-                    <p className="mt-2 text-xs font-semibold text-slate-400">
-                      {copy.lastUpdated}:{" "}
-                      {formatDateTime(menu.updated_at || menu.created_at, safeLocale)}
-                    </p>
-                  </div>
-
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                    ›
-                  </span>
-                </div>
-
-                <div className="mt-5 rounded-[24px] bg-slate-50 p-4">
-                  <div className="grid gap-3">
-                    <DetailRow
-                      label={copy.price}
-                      value={formatPrice(
-                        menu.price,
-                        menu.currency,
-                        menu.reference_price_text,
-                        safeLocale
-                      )}
-                      strong
-                    />
-                    <DetailRow
-                      label={copy.deliveryDays}
-                      value={formatDeliveryDays(
-                        menu.delivery_days,
-                        safeLocale,
-                        copy.notSet
-                      )}
-                    />
-                    <DetailRow
-                      label={copy.secondaryUse}
-                      value={menu.allow_secondary_use ? copy.allow : copy.disallow}
-                    />
-                    <DetailRow
-                      label={copy.accountUrl}
-                      value={
-                        accountUrl ? (
-                          <a
-                            href={accountUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 underline underline-offset-4"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {copy.viewAccount}
-                          </a>
-                        ) : (
-                          copy.notSet
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                {hasLegacyReferenceOnly ? (
-                  <div className="mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                    {copy.legacyPriceNotice}
-                  </div>
-                ) : null}
-
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <SectionPreview
-                    label={copy.description}
-                    value={menu.description?.trim() || copy.noDescription}
-                  />
-                  <SectionPreview
-                    label={copy.deliverables}
-                    value={menu.deliverables?.trim() || copy.noDeliverables}
-                  />
-                </div>
-
-                <SectionPreview
-                  label={copy.notes}
-                  value={menu.notes?.trim() || copy.noNotes}
-                />
-
-                {menu.tags?.trim() ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {menu.tags
-                      .split(",")
-                      .map((tag) => tag.trim())
-                      .filter(Boolean)
-                      .map((tag) => (
-                        <Chip key={tag} className="bg-slate-100 text-slate-700">
-                          #{tag}
-                        </Chip>
-                      ))}
-                  </div>
-                ) : null}
-
-                <div className="mt-5 grid gap-3 md:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleActive(menu.id, menu.is_active)}
-                    disabled={isLoading}
-                    className={`rounded-2xl px-4 py-3 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
-                      isPublic
-                        ? "bg-amber-500 hover:bg-amber-600"
-                        : "bg-emerald-600 hover:bg-emerald-700"
-                    }`}
-                  >
-                    {isLoading
-                      ? copy.updating
-                      : isPublic
-                      ? copy.makePrivate
-                      : copy.makePublic}
-                  </button>
-
-                  <Link
-                    href={`/creator/menus/${menu.id}/edit`}
-                    className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white transition active:scale-[0.98]"
-                  >
-                    {copy.edit}
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(menu.id)}
-                    disabled={isLoading}
-                    className="rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-600 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isLoading ? copy.deleting : copy.delete}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+        <section className="space-y-3">
+          {menus.map((menu) => (
+            <MenuCard
+              key={menu.id}
+              menu={menu}
+              locale={safeLocale}
+              copy={copy}
+              accountUrl={resolveAccountUrl(menu)}
+              isLoading={actionLoadingId === menu.id}
+              onToggle={() => toggleActive(menu.id, menu.is_active)}
+              onDelete={() => handleDelete(menu.id)}
+            />
+          ))}
         </section>
       )}
-    </div>
+    </CreatorPage>
   );
 }
