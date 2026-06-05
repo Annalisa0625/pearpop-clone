@@ -1,10 +1,24 @@
 // File: app/creator/dashboard/page.tsx
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import {
+  CreatorBadge,
+  CreatorCard,
+  CreatorChevron,
+  CreatorEmptyState,
+  CreatorHero,
+  CreatorLinkButton,
+  CreatorListItem,
+  CreatorMetric,
+  CreatorMiniInfo,
+  CreatorNotice,
+  CreatorPage,
+  CreatorSection,
+  CreatorSkeleton,
+} from "@/app/creator/_components/CreatorDesignSystem";
 
 type DashboardCounts = {
   pendingRequests: number;
@@ -104,34 +118,6 @@ function getItemHref(item: ActivityItem) {
     : `/creator/requests/${item.id}`;
 }
 
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="M4 10h10.5M10.5 5.5 15 10l-4.5 4.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m8 5 5 5-5 5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function CreatorAvatar({
   name,
   src,
@@ -144,68 +130,96 @@ function CreatorAvatar({
       <img
         src={src}
         alt={name}
-        className="h-12 w-12 shrink-0 rounded-[18px] object-cover ring-1 ring-slate-100"
+        className="h-14 w-14 shrink-0 rounded-[22px] object-cover shadow-sm ring-1 ring-slate-100"
       />
     );
   }
 
   return (
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-base font-black text-[#ff5f67] ring-1 ring-rose-100">
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-rose-50 text-lg font-black text-[#FF3B5C] ring-1 ring-rose-100">
       {fallbackInitial(name)}
     </div>
   );
 }
 
-function LoadingView() {
+function HomeIcon() {
   return (
-    <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
-      <div className="h-24 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-      <div className="h-36 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-      <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-      <div className="h-40 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-    </div>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M4 11.2 12 4l8 7.2V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.8Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-function NoticeCard({
-  title,
-  body,
-  href,
-  cta,
-  tone = "soft",
-}: {
-  title: string;
-  body: string;
-  href?: string;
-  cta?: string;
-  tone?: "soft" | "warning" | "danger";
-}) {
-  const toneClass =
-    tone === "danger"
-      ? "bg-rose-50 text-rose-900 ring-rose-100"
-      : tone === "warning"
-        ? "bg-amber-50 text-amber-950 ring-amber-100"
-        : "bg-white text-slate-950 ring-slate-100";
-
+function OrderIcon() {
   return (
-    <section
-      className={`creator-home-appear rounded-[24px] p-4 ring-1 ${toneClass}`}
-    >
-      <h2 className="text-[15px] font-black tracking-[-0.03em]">{title}</h2>
-      <p className="mt-1.5 text-xs font-semibold leading-6 opacity-75">
-        {body}
-      </p>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
-      {href && cta ? (
-        <Link
-          href={href}
-          className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#ff5f67] px-4 py-2.5 text-xs font-black text-white shadow-[0_14px_30px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
-        >
-          {cta}
-          <ArrowIcon />
-        </Link>
-      ) : null}
-    </section>
+function PayoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyOrderIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function LoadingView() {
+  return (
+    <CreatorPage>
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-36" />
+      <div className="grid grid-cols-2 gap-3">
+        <CreatorSkeleton className="h-24" />
+        <CreatorSkeleton className="h-24" />
+      </div>
+      <CreatorSkeleton className="h-44" />
+    </CreatorPage>
   );
 }
 
@@ -214,41 +228,51 @@ function MainActionCard({
   body,
   href,
   cta,
+  tone,
 }: {
   title: string;
   body: string;
   href: string;
   cta: string;
-  count?: number;
-  tone: "rose" | "blue" | "slate";
+  tone: "red" | "blue" | "slate";
 }) {
+  const iconTone = tone === "red" ? "red" : tone === "blue" ? "blue" : "slate";
+
   return (
-    <section className="creator-home-appear creator-home-appear-delay-1 relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-      <div className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-rose-100/45 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 -left-24 h-52 w-52 rounded-full bg-emerald-100/35 blur-3xl" />
-
-      <div className="relative">
-        <h2 className="text-[20px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-          {title}
-        </h2>
-
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-          {body}
-        </p>
-
-        <Link
-          href={href}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] transition active:scale-[0.98]"
+    <CreatorCard className="creator-appear-delay-1 p-5">
+      <div className="flex items-start gap-4">
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] ring-1 ${
+            iconTone === "red"
+              ? "bg-rose-50 text-[#FF3B5C] ring-rose-100"
+              : iconTone === "blue"
+                ? "bg-blue-50 text-blue-700 ring-blue-100"
+                : "bg-slate-50 text-slate-500 ring-slate-100"
+          }`}
         >
-          {cta}
-          <ArrowIcon />
-        </Link>
+          <OrderIcon />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[21px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+            {title}
+          </h2>
+
+          <p className="mt-2 text-[15px] font-semibold leading-7 text-slate-500">
+            {body}
+          </p>
+
+          <CreatorLinkButton href={href} className="mt-5 w-full">
+            {cta}
+            <CreatorChevron />
+          </CreatorLinkButton>
+        </div>
       </div>
-    </section>
+    </CreatorCard>
   );
 }
 
-function CompactPayout({
+function PayoutCard({
   title,
   body,
   amount,
@@ -260,24 +284,21 @@ function CompactPayout({
   href: string;
 }) {
   return (
-    <Link
+    <CreatorListItem
       href={href}
-      className="creator-home-appear creator-home-appear-delay-2 flex items-center justify-between gap-4 rounded-[24px] bg-white px-5 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 transition active:scale-[0.98]"
-    >
-      <div className="min-w-0">
-        <p className="text-sm font-black text-slate-950">{title}</p>
-        <p className="mt-1 text-xs font-semibold text-slate-400">{body}</p>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-3">
-        <p className="text-[22px] font-black tracking-[-0.055em] text-slate-950">
+      title={title}
+      description={body}
+      icon={
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-[#FF3B5C] ring-1 ring-rose-100">
+          <PayoutIcon />
+        </span>
+      }
+      meta={
+        <p className="text-[26px] font-black leading-none tracking-[-0.065em] text-slate-950">
           {amount}
         </p>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400">
-          <ChevronIcon />
-        </span>
-      </div>
-    </Link>
+      }
+    />
   );
 }
 
@@ -298,78 +319,18 @@ function ActivityRow({
       : `${dateLabel}: ${formatDate(item.date, locale)}`;
 
   return (
-    <Link
+    <CreatorListItem
       href={getItemHref(item)}
-      className="group flex items-center justify-between gap-3 rounded-[20px] bg-slate-50 px-4 py-3.5 transition active:scale-[0.98]"
-    >
-      <div className="min-w-0">
-        <p className="truncate text-[15px] font-black tracking-[-0.03em] text-slate-950">
-          {item.product_name || productUnset}
-        </p>
-        <p className="mt-1 text-xs font-bold text-slate-400">{dateText}</p>
-      </div>
-
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-100 transition group-active:scale-95">
-        <ChevronIcon />
-      </span>
-    </Link>
-  );
-}
-
-function RecentActivityCard({
-  title,
-  viewAll,
-  viewAllHref,
-  emptyText,
-  items,
-  locale,
-  productUnset,
-  dateLabel,
-}: {
-  title: string;
-  viewAll: string;
-  viewAllHref: string;
-  emptyText: string;
-  items: ActivityItem[];
-  locale: "ja" | "en";
-  productUnset: string;
-  dateLabel: string;
-}) {
-  return (
-    <section className="creator-home-appear creator-home-appear-delay-3 rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
-          {title}
-        </h2>
-
-        <Link
-          href={viewAllHref}
-          className="text-xs font-black text-slate-400 transition active:scale-95"
-        >
-          {viewAll}
-        </Link>
-      </div>
-
-      {items.length === 0 ? (
-        <div className="rounded-[22px] bg-slate-50 px-4 py-5">
-          <p className="text-sm font-semibold leading-7 text-slate-500">
-            {emptyText}
-          </p>
+      title={item.product_name || productUnset}
+      meta={
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <CreatorMiniInfo label={dateLabel} value={dateText.replace(`${dateLabel}：`, "").replace(`${dateLabel}: `, "")} />
+          <span className="text-xs font-black text-slate-300">
+            {item.kind === "order" ? "Trendre" : ""}
+          </span>
         </div>
-      ) : (
-        <div className="space-y-2.5">
-          {items.map((item) => (
-            <ActivityRow
-              key={`${item.kind}-${item.id}`}
-              item={item}
-              locale={locale}
-              productUnset={productUnset}
-              dateLabel={dateLabel}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+      }
+    />
   );
 }
 
@@ -392,6 +353,8 @@ export default function CreatorDashboardPage() {
               "このページはインフルエンサーアカウントのみ利用できます。",
 
             greeting: "こんにちは",
+            pageTitle: "ホーム",
+            pageDescription: "今日の注文・やること・報酬を確認できます。",
 
             suspendedTitle: "アカウント確認中です",
             suspendedBody:
@@ -417,9 +380,14 @@ export default function CreatorDashboardPage() {
 
             payoutTitle: "受取予定",
             payoutBody: "報酬ページで詳細を確認",
+            transferredTitle: "送金済み",
+            completedTitle: "完了件数",
+            countSuffix: "件",
+
             activityTitle: "注文が届いています",
             viewAll: "すべて",
-            noActivity: "まだ表示する注文はありません。",
+            noActivityTitle: "まだ注文はありません",
+            noActivityBody: "新しい注文が届くと、ここに表示されます。",
             productUnset: "商品名未設定",
             orderDateLabel: "注文日",
           }
@@ -434,6 +402,8 @@ export default function CreatorDashboardPage() {
               "This page is available only for influencer accounts.",
 
             greeting: "Hi",
+            pageTitle: "Home",
+            pageDescription: "Check orders, tasks, and payouts.",
 
             suspendedTitle: "Account under review",
             suspendedBody:
@@ -461,9 +431,14 @@ export default function CreatorDashboardPage() {
 
             payoutTitle: "Expected payout",
             payoutBody: "Check details on the payout page",
+            transferredTitle: "Transferred",
+            completedTitle: "Completed",
+            countSuffix: "",
+
             activityTitle: "Orders received",
             viewAll: "All",
-            noActivity: "No orders to show yet.",
+            noActivityTitle: "No orders yet",
+            noActivityBody: "New orders will appear here.",
             productUnset: "No product name",
             orderDateLabel: "Order date",
           },
@@ -547,10 +522,16 @@ export default function CreatorDashboardPage() {
           return;
         }
 
-        const isCreator = (roles ?? []).some((item) => item.role === "creator");
+        const roleRows = (roles ?? []) as Array<{ role: string }>;
+        const isCreator = roleRows.some((item) => item.role === "creator");
         const isSuspended = (activeSuspensions ?? []).length > 0;
-        const creatorProfileCompleted = !!userState?.creator_profile_completed;
-        const creatorApprovalStatus = creatorRow?.approval_status ?? null;
+        const typedUserState = userState as
+          | { creator_profile_completed?: boolean | null }
+          | null;
+        const typedCreatorRow = creatorRow as CreatorProfile | null;
+        const creatorProfileCompleted =
+          !!typedUserState?.creator_profile_completed;
+        const creatorApprovalStatus = typedCreatorRow?.approval_status ?? null;
 
         setGate({
           isCreator,
@@ -559,22 +540,21 @@ export default function CreatorDashboardPage() {
           creatorApprovalStatus,
         });
 
-        if (!creatorRow) {
+        if (!typedCreatorRow) {
           setCreator(null);
           setLoading(false);
           return;
         }
 
-        if (!creatorRow.stripe_onboarding_completed) {
+        if (!typedCreatorRow.stripe_onboarding_completed) {
           window.location.href = "/creator/payouts?required=connect";
           return;
         }
 
-        const typedCreator = creatorRow as CreatorProfile;
-        setCreator(typedCreator);
+        setCreator(typedCreatorRow);
 
-        const legacyCreatorKeys = uniqueStrings([typedCreator.id, user.id]);
-        const menuCreatorKeys = uniqueStrings([typedCreator.id, user.id]);
+        const legacyCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
+        const menuCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
 
         const [
           { count: legacyPendingCount, error: legacyPendingError },
@@ -831,17 +811,24 @@ export default function CreatorDashboardPage() {
 
   if (errorMsg) {
     return (
-      <NoticeCard
-        tone="danger"
-        title={copy.genericErrorTitle}
-        body={errorMsg}
-      />
+      <CreatorPage>
+        <CreatorNotice
+          tone="red"
+          title={copy.genericErrorTitle}
+          description={errorMsg}
+        />
+      </CreatorPage>
     );
   }
 
   if (!gate.isCreator) {
     return (
-      <NoticeCard title={copy.creatorOnlyTitle} body={copy.creatorOnlyBody} />
+      <CreatorPage>
+        <CreatorNotice
+          title={copy.creatorOnlyTitle}
+          description={copy.creatorOnlyBody}
+        />
+      </CreatorPage>
     );
   }
 
@@ -856,17 +843,15 @@ export default function CreatorDashboardPage() {
         body: copy.profilePromptBody,
         href: "/creator/profile",
         cta: copy.goToProfile,
-        count: undefined,
         tone: "slate" as const,
       }
     : counts.pendingRequests > 0
       ? {
           title: copy.nextPendingTitle,
           body: copy.nextPendingBody,
-          href: "/creator/orders",
+          href: "/creator/requests",
           cta: copy.nextPendingCta,
-          count: counts.pendingRequests,
-          tone: "rose" as const,
+          tone: "red" as const,
         }
       : activeTodoCount > 0
         ? {
@@ -874,18 +859,13 @@ export default function CreatorDashboardPage() {
             body: copy.nextTodoBody,
             href: "/creator/jobs",
             cta: copy.nextTodoCta,
-            count: activeTodoCount,
             tone: "blue" as const,
           }
         : {
             title: copy.nextReadyTitle,
-            body:
-              counts.activeMenus > 0
-                ? copy.nextReadyBody
-                : copy.profilePromptBody,
-            href: counts.activeMenus > 0 ? "/creator/menus" : "/creator/profile",
-            cta: counts.activeMenus > 0 ? copy.nextReadyCta : copy.goToProfile,
-            count: undefined,
+            body: copy.nextReadyBody,
+            href: "/creator/profile",
+            cta: copy.nextReadyCta,
             tone: "slate" as const,
           };
 
@@ -913,98 +893,98 @@ export default function CreatorDashboardPage() {
     .slice(0, 3);
 
   return (
-    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
-      <style jsx global>{`
-        @keyframes creatorHomeFadeUp {
-          from {
-            opacity: 0;
-            transform: translate3d(0, 12px, 0);
-          }
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-          }
-        }
-
-        .creator-home-appear {
-          animation: creatorHomeFadeUp 420ms cubic-bezier(0.2, 0.8, 0.2, 1)
-            both;
-        }
-
-        .creator-home-appear-delay-1 {
-          animation-delay: 50ms;
-        }
-
-        .creator-home-appear-delay-2 {
-          animation-delay: 95ms;
-        }
-
-        .creator-home-appear-delay-3 {
-          animation-delay: 140ms;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .creator-home-appear,
-          .creator-home-appear-delay-1,
-          .creator-home-appear-delay-2,
-          .creator-home-appear-delay-3 {
-            animation: none;
-          }
-        }
-      `}</style>
-
-      <section className="creator-home-appear relative overflow-hidden rounded-[28px] bg-white px-5 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-rose-100/35 blur-3xl" />
-
-        <div className="relative flex items-center gap-4">
-          <CreatorAvatar name={displayName} src={creator?.avatar_url} />
-
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-400">
-              {copy.greeting}
+    <CreatorPage>
+      <CreatorHero
+        title={copy.pageTitle}
+        description={copy.pageDescription}
+        eyebrow={copy.greeting}
+        right={<CreatorAvatar name={displayName} src={creator?.avatar_url} />}
+      >
+        <div className="flex items-center justify-between gap-3 rounded-[24px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
+          <div className="min-w-0">
+            <p className="text-xs font-black text-slate-400">
+              Creator
             </p>
-            <h1 className="mt-0.5 truncate text-[23px] font-black leading-tight tracking-[-0.06em] text-slate-950">
+            <p className="mt-0.5 truncate text-[20px] font-black tracking-[-0.055em] text-slate-950">
               {displayName}
-            </h1>
+            </p>
           </div>
+
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+            <HomeIcon />
+          </span>
         </div>
-      </section>
+      </CreatorHero>
 
       {gate.isSuspended ? (
-        <NoticeCard
-          tone="danger"
+        <CreatorNotice
+          tone="red"
           title={copy.suspendedTitle}
-          body={copy.suspendedBody}
+          description={copy.suspendedBody}
         />
       ) : null}
 
       {gate.creatorApprovalStatus === "pending" ? (
-        <NoticeCard
-          tone="warning"
+        <CreatorNotice
+          tone="amber"
           title={copy.reviewPendingTitle}
-          body={copy.reviewPendingBody}
+          description={copy.reviewPendingBody}
         />
       ) : null}
 
       <MainActionCard {...nextAction} />
 
-      <CompactPayout
+      <div className="grid grid-cols-2 gap-3">
+        <CreatorMetric
+          label={copy.transferredTitle}
+          value={formatMoney(payoutSummary.transferredAmount, safeLocale)}
+        />
+
+        <CreatorMetric
+          label={copy.completedTitle}
+          value={`${counts.completedJobs}${safeLocale === "ja" ? copy.countSuffix : ""}`}
+        />
+      </div>
+
+      <PayoutCard
         title={copy.payoutTitle}
         body={copy.payoutBody}
         amount={formatMoney(payoutSummary.pendingAmount, safeLocale)}
         href="/creator/payouts"
       />
 
-      <RecentActivityCard
+      <CreatorSection
         title={copy.activityTitle}
-        viewAll={copy.viewAll}
-        viewAllHref="/creator/orders"
-        emptyText={copy.noActivity}
-        items={activityItems}
-        locale={safeLocale}
-        productUnset={copy.productUnset}
-        dateLabel={copy.orderDateLabel}
-      />
-    </div>
+        right={
+          <CreatorLinkButton
+            href="/creator/requests"
+            variant="ghost"
+            className="px-0 py-0 text-xs text-slate-400 shadow-none"
+          >
+            {copy.viewAll}
+          </CreatorLinkButton>
+        }
+      >
+        {activityItems.length === 0 ? (
+          <CreatorEmptyState
+            icon={<EmptyOrderIcon />}
+            title={copy.noActivityTitle}
+            description={copy.noActivityBody}
+          />
+        ) : (
+          <div className="space-y-2.5">
+            {activityItems.map((item) => (
+              <ActivityRow
+                key={`${item.kind}-${item.id}`}
+                item={item}
+                locale={safeLocale}
+                productUnset={copy.productUnset}
+                dateLabel={copy.orderDateLabel}
+              />
+            ))}
+          </div>
+        )}
+      </CreatorSection>
+    </CreatorPage>
   );
 }
