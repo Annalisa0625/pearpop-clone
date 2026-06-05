@@ -1,51 +1,102 @@
 // File: app/creator/menus/new/page.tsx
 "use client";
 
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import {
+  CreatorBadge,
+  CreatorButton,
+  CreatorCard,
+  CreatorField,
+  CreatorHero,
+  CreatorInput,
+  CreatorNotice,
+  CreatorPage,
+  CreatorSelect,
+} from "@/app/creator/_components/CreatorDesignSystem";
 
-const PLATFORM_OPTIONS = ["Instagram", "TikTok", "YouTube", "X", "UGC"];
+type LocaleOption = {
+  value: string;
+  ja: string;
+  en: string;
+};
 
-const MENU_TYPE_OPTIONS = [
+const PLATFORM_OPTIONS: LocaleOption[] = [
+  { value: "Instagram", ja: "Instagram", en: "Instagram" },
+  { value: "TikTok", ja: "TikTok", en: "TikTok" },
+  { value: "YouTube", ja: "YouTube", en: "YouTube" },
+  { value: "X", ja: "X", en: "X" },
+  { value: "UGC", ja: "UGC制作", en: "UGC creation" },
+];
+
+const MENU_TYPE_OPTIONS: LocaleOption[] = [
   { value: "post", ja: "投稿", en: "Post" },
   { value: "short_video", ja: "ショート動画", en: "Short video" },
   { value: "story", ja: "ストーリー", en: "Story" },
   { value: "video", ja: "動画", en: "Video" },
   { value: "ugc", ja: "UGC制作", en: "UGC creation" },
-  { value: "package", ja: "セットメニュー", en: "Package" },
+  { value: "package", ja: "セット", en: "Package" },
   { value: "other", ja: "その他", en: "Other" },
 ];
 
-const CATEGORY_OPTIONS = [
-  "美容",
-  "ファッション",
-  "グルメ",
-  "旅行",
-  "子育て",
-  "ライフスタイル",
-  "ガジェット",
-  "エンタメ",
-  "ビジネス",
-  "教育",
-  "フィットネス",
-  "その他",
+const CATEGORY_OPTIONS: LocaleOption[] = [
+  { value: "美容", ja: "美容", en: "Beauty" },
+  { value: "ファッション", ja: "ファッション", en: "Fashion" },
+  { value: "グルメ", ja: "グルメ", en: "Food" },
+  { value: "旅行", ja: "旅行", en: "Travel" },
+  { value: "ライフスタイル", ja: "ライフスタイル", en: "Lifestyle" },
+  { value: "フィットネス", ja: "フィットネス", en: "Fitness" },
+  { value: "子育て", ja: "子育て", en: "Parenting" },
+  { value: "ガジェット", ja: "ガジェット", en: "Gadgets" },
+  { value: "エンタメ", ja: "エンタメ", en: "Entertainment" },
+  { value: "ビジネス", ja: "ビジネス", en: "Business" },
+  { value: "教育", ja: "教育", en: "Education" },
+  { value: "その他", ja: "その他", en: "Other" },
 ];
 
-function getPlatformIcon(value: string) {
-  const normalized = value.trim().toLowerCase();
+const DELIVERY_OPTIONS = [3, 5, 7, 10, 14, 21, 30];
 
-  if (normalized.includes("instagram")) return "◎";
-  if (normalized.includes("tiktok")) return "♪";
-  if (normalized.includes("youtube")) return "▶";
-  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
-  if (normalized.includes("ugc")) return "▣";
-
-  return "●";
+function optionLabel(option: LocaleOption, locale: "ja" | "en") {
+  return locale === "ja" ? option.ja : option.en;
 }
 
-function formatPreviewPrice(value: string, locale: "ja" | "en") {
+function findLabel(
+  options: LocaleOption[],
+  value: string,
+  locale: "ja" | "en"
+) {
+  return (
+    options.find((option) => option.value === value)?.[locale] ||
+    options.find((option) => option.value === value)?.ja ||
+    value
+  );
+}
+
+function createMenuTitle({
+  platform,
+  menuType,
+  locale,
+}: {
+  platform: string;
+  menuType: string;
+  locale: "ja" | "en";
+}) {
+  if (!platform || !menuType) {
+    return locale === "ja" ? "メニュー名は自動生成されます" : "Menu title";
+  }
+
+  const menuTypeText = findLabel(MENU_TYPE_OPTIONS, menuType, locale);
+
+  if (platform === "UGC") {
+    return locale === "ja" ? "UGC制作" : "UGC creation";
+  }
+
+  return `${platform}${locale === "ja" ? menuTypeText : ` ${menuTypeText}`}`;
+}
+
+function formatPrice(value: string, locale: "ja" | "en") {
   const amount = Number(value);
 
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -63,291 +114,195 @@ function formatPreviewPrice(value: string, locale: "ja" | "en") {
   }
 }
 
-function FieldLabel({ children }: { children: ReactNode }) {
+function PlatformIcon() {
   return (
-    <label className="block text-sm font-black text-slate-800">
-      {children}
-    </label>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="16"
+        rx="5"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M16.8 7.2h.01"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
-function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+function PriceIcon() {
   return (
-    <input
-      {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
-    />
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function CheckIcon() {
   return (
-    <textarea
-      {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
-    />
-  );
-}
-
-function SelectBox(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-950 ${props.className ?? ""}`}
-    />
-  );
-}
-
-function SectionCard({
-  icon,
-  title,
-  body,
-  children,
-}: {
-  icon: string;
-  title: string;
-  body?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm md:p-6">
-      <div className="mb-5 flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-950">
-          {icon}
-        </div>
-        <div>
-          <h2 className="text-xl font-black text-slate-950">{title}</h2>
-          {body ? (
-            <p className="mt-1 text-sm leading-6 text-slate-500">{body}</p>
-          ) : null}
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: ReactNode;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
-      <span className="text-sm font-bold text-slate-500">{label}</span>
-      <span
-        className={`text-right text-sm ${
-          strong ? "font-black text-slate-950" : "font-bold text-slate-800"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="m6 12 4 4 8-8"
+        stroke="currentColor"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
 export default function NewMenuPage() {
   const router = useRouter();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
-            badge: "Creator Menu",
-            title: "新しいメニューを作成",
+            title: "メニュー作成",
             subtitle:
-              "企業が購入できる投稿メニューを作成します。価格、納期、納品物を分かりやすく設定してください。",
+              "企業が注文できる投稿メニューを作成します。必要な情報だけをシンプルに登録します。",
+            back: "戻る",
+            save: "作成する",
+            saving: "作成中...",
             loginRequired: "ログインしてください",
             creatorNotFound: "クリエイター情報が見つかりません",
-            titleRequired: "メニュー名を入力してください",
-            platformRequired: "対応SNSを選択してください",
-            accountUrlRequired: "アカウントURLを入力してください",
-            priceRequired: "価格を入力してください",
-            priceInvalid: "価格は1以上の数字で入力してください",
-            deliveryDaysRequired: "納期を入力してください",
-            deliveryDaysInvalid: "納期は1日以上の数字で入力してください",
-            descriptionRequired: "メニュー説明を入力してください",
-            deliverablesRequired: "納品物を入力してください",
             saveFailed: "メニューの保存に失敗しました",
             saveSuccess: "メニューを作成しました",
-            basicInfo: "基本情報",
-            basicInfoBody:
-              "企業が一覧で見た時に分かりやすいタイトルとSNSを設定します。",
-            salesInfo: "価格・納期",
-            salesInfoBody:
-              "初期MVPではJPY固定です。B側にはこの価格にTrendre手数料が加算されます。",
-            details: "納品内容",
-            detailsBody:
-              "何を納品するのか、どこまで対応するのかを明確に書くと注文されやすくなります。",
-            preview: "プレビュー",
-            previewBody: "B側に表示される内容の簡易確認です。",
-            titleLabel: "メニュー名",
-            titlePlaceholder: "例：Instagramリール動画 1本制作・投稿",
             platform: "対応SNS",
-            selectPlease: "選択してください",
             menuType: "メニュー種別",
-            accountUrl: "対象アカウントURL",
-            accountUrlPlaceholder:
-              "例：https://www.instagram.com/your_account",
-            category: "カテゴリー",
-            categoryPlaceholder: "例：美容、旅行、グルメ、ファッション",
+            category: "ジャンル",
             price: "価格",
-            currency: "通貨",
-            deliveryDays: "納期（日数）",
-            deliveryDaysPlaceholder: "例：7",
-            description: "メニュー説明",
-            descriptionPlaceholder:
-              "例：商品の魅力をInstagramリールで紹介します。撮影・編集・投稿まで対応します。",
-            deliverables: "納品物",
-            deliverablesPlaceholder:
-              "例：Instagramリール1本、キャプション作成、投稿後URL共有",
-            tags: "タグ（任意）",
-            tagsPlaceholder: "例：美容, コスメ, UGC, リール",
-            secondaryUse: "二次利用を許可する",
+            deliveryDays: "目安",
+            deliveryHelp:
+              "企業には、注文後どれくらいで投稿・納品できるかの目安として表示されます。",
+            secondaryUse: "二次利用",
             secondaryUseHelp:
-              "企業が納品コンテンツを広告・LP・SNS投稿などで再利用できる条件です。",
-            notes: "注意事項・補足（任意）",
-            notesPlaceholder:
-              "例：商品提供が必要です / 撮影内容は事前相談 / 長尺動画は別料金 など",
-            visible: "作成後は公開中になります",
-            visibleBody:
-              "作成したメニューはB側のクリエイター詳細ページに表示され、注文できるようになります。",
-            saving: "保存中...",
-            save: "メニューを作成",
-            cancel: "戻る",
-            notSet: "未設定",
+              "企業が投稿内容を広告やLPなどで再利用できるかを選びます。",
+            publicStatus: "公開状態",
+            publicHelp:
+              "公開すると、企業側のクリエイター詳細ページに表示されます。",
+            publicOn: "公開する",
+            publicOff: "下書きにする",
+            allow: "許可する",
+            disallow: "許可しない",
+            selectPlease: "選択してください",
             yenOnly: "JPY / 日本円",
-            secondaryUseAllowed: "許可",
-            secondaryUseNotAllowed: "不可",
+            pricePlaceholder: "例：30000",
+            platformRequired: "対応SNSを選択してください",
+            menuTypeRequired: "メニュー種別を選択してください",
+            categoryRequired: "ジャンルを選択してください",
+            priceRequired: "価格を入力してください",
+            priceInvalid: "価格は1以上の数字で入力してください",
+            deliveryDaysRequired: "目安を選択してください",
+            preview: "プレビュー",
+            previewBody:
+              "企業側にはこのようなメニューとして表示されます。",
+            menuName: "メニュー名",
+            notSet: "未設定",
+            visible: "公開中",
+            draft: "下書き",
           }
         : {
-            badge: "Creator Menu",
-            title: "Create New Menu",
+            title: "Create menu",
             subtitle:
-              "Create a menu that companies can purchase. Set clear pricing, delivery timing, and deliverables.",
+              "Create a simple orderable menu for brands with only the necessary details.",
+            back: "Back",
+            save: "Create",
+            saving: "Creating...",
             loginRequired: "Please log in",
             creatorNotFound: "Creator information was not found",
-            titleRequired: "Please enter a menu title",
-            platformRequired: "Please select a platform",
-            accountUrlRequired: "Please enter your account URL",
-            priceRequired: "Please enter a price",
-            priceInvalid: "Price must be a number greater than 0",
-            deliveryDaysRequired: "Please enter delivery days",
-            deliveryDaysInvalid: "Delivery days must be at least 1",
-            descriptionRequired: "Please enter a menu description",
-            deliverablesRequired: "Please enter deliverables",
             saveFailed: "Failed to save the menu",
             saveSuccess: "Menu created successfully",
-            basicInfo: "Basic Information",
-            basicInfoBody:
-              "Set a clear title and platform so companies understand the menu quickly.",
-            salesInfo: "Pricing & Delivery",
-            salesInfoBody:
-              "Initial MVP is JPY-only. Trendre marketplace fee is added on the buyer side.",
-            details: "Deliverables",
-            detailsBody:
-              "Clearly describe what you will deliver and what is included.",
-            preview: "Preview",
-            previewBody: "A simple preview of how this menu may appear to brands.",
-            titleLabel: "Menu Title",
-            titlePlaceholder: "Example: 1 Instagram Reel video creation and post",
             platform: "Platform",
-            selectPlease: "Please select",
-            menuType: "Menu Type",
-            accountUrl: "Account URL",
-            accountUrlPlaceholder:
-              "Example: https://www.instagram.com/your_account",
-            category: "Category",
-            categoryPlaceholder: "Example: Beauty, Travel, Food, Fashion",
+            menuType: "Menu type",
+            category: "Genre",
             price: "Price",
-            currency: "Currency",
-            deliveryDays: "Delivery Days",
-            deliveryDaysPlaceholder: "Example: 7",
-            description: "Menu Description",
-            descriptionPlaceholder:
-              "Example: I will create and publish an Instagram Reel introducing your product.",
-            deliverables: "Deliverables",
-            deliverablesPlaceholder:
-              "Example: 1 Instagram Reel, caption writing, published post URL",
-            tags: "Tags (optional)",
-            tagsPlaceholder: "Example: beauty, cosmetics, UGC, reels",
-            secondaryUse: "Allow secondary use",
+            deliveryDays: "Delivery estimate",
+            deliveryHelp:
+              "Shown to brands as an estimate for posting or delivery after ordering.",
+            secondaryUse: "Secondary use",
             secondaryUseHelp:
-              "Secondary use means the company can reuse your delivered content in ads, landing pages, social posts, and other marketing materials.",
-            notes: "Notes / Conditions (optional)",
-            notesPlaceholder:
-              "Example: Product shipment required / Content details must be discussed in advance / Long-form videos require additional fees",
-            visible: "This menu will be public after creation",
-            visibleBody:
-              "Public menus are shown on the brand-facing creator detail page and can be ordered.",
-            saving: "Saving...",
-            save: "Create Menu",
-            cancel: "Back",
-            notSet: "Not set",
+              "Choose whether brands can reuse delivered content in ads or landing pages.",
+            publicStatus: "Visibility",
+            publicHelp:
+              "Public menus are shown on the brand-facing creator detail page.",
+            publicOn: "Publish",
+            publicOff: "Save as draft",
+            allow: "Allow",
+            disallow: "Do not allow",
+            selectPlease: "Please select",
             yenOnly: "JPY / Japanese yen",
-            secondaryUseAllowed: "Allowed",
-            secondaryUseNotAllowed: "Not allowed",
+            pricePlaceholder: "Example: 30000",
+            platformRequired: "Please select a platform",
+            menuTypeRequired: "Please select a menu type",
+            categoryRequired: "Please select a genre",
+            priceRequired: "Please enter a price",
+            priceInvalid: "Price must be a number greater than 0",
+            deliveryDaysRequired: "Please select a delivery estimate",
+            preview: "Preview",
+            previewBody: "This is how the menu will appear to brands.",
+            menuName: "Menu name",
+            notSet: "Not set",
+            visible: "Public",
+            draft: "Draft",
           },
     [safeLocale]
   );
 
-  const [title, setTitle] = useState("");
   const [platform, setPlatform] = useState("");
-  const [menuType, setMenuType] = useState("post");
-  const [accountUrl, setAccountUrl] = useState("");
+  const [menuType, setMenuType] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [deliveryDays, setDeliveryDays] = useState("");
-  const [description, setDescription] = useState("");
-  const [deliverables, setDeliverables] = useState("");
-  const [tags, setTags] = useState("");
   const [allowSecondaryUse, setAllowSecondaryUse] = useState(false);
-  const [notes, setNotes] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const selectedMenuTypeLabel =
-    MENU_TYPE_OPTIONS.find((item) => item.value === menuType)?.[safeLocale] ||
-    copy.notSet;
+  const menuTitle = createMenuTitle({
+    platform,
+    menuType,
+    locale: safeLocale,
+  });
 
   const validate = () => {
-    if (!title.trim()) return copy.titleRequired;
     if (!platform) return copy.platformRequired;
-    if (!accountUrl.trim()) return copy.accountUrlRequired;
-
+    if (!menuType) return copy.menuTypeRequired;
+    if (!category) return copy.categoryRequired;
     if (!price.trim()) return copy.priceRequired;
 
     const priceNumber = Number(price);
+
     if (!Number.isFinite(priceNumber) || priceNumber <= 0) {
       return copy.priceInvalid;
     }
 
-    if (!deliveryDays.trim()) return copy.deliveryDaysRequired;
-
-    const deliveryNumber = Number(deliveryDays);
-    if (
-      !Number.isFinite(deliveryNumber) ||
-      !Number.isInteger(deliveryNumber) ||
-      deliveryNumber < 1
-    ) {
-      return copy.deliveryDaysInvalid;
-    }
-
-    if (!description.trim()) return copy.descriptionRequired;
-    if (!deliverables.trim()) return copy.deliverablesRequired;
+    if (!deliveryDays) return copy.deliveryDaysRequired;
 
     return null;
   };
 
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const validationMessage = validate();
+
     if (validationMessage) {
       window.alert(validationMessage);
       return;
@@ -370,7 +325,7 @@ export default function NewMenuPage() {
       .from("creators")
       .select("id")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (creatorError || !creator) {
       console.error("creator load error:", creatorError);
@@ -382,22 +337,27 @@ export default function NewMenuPage() {
     const priceNumber = Number(price);
     const deliveryNumber = Number(deliveryDays);
     const now = new Date().toISOString();
+    const title = createMenuTitle({
+      platform,
+      menuType,
+      locale: "ja",
+    });
 
     const payload = {
       creator_id: creator.id,
-      title: title.trim(),
-      description: description.trim(),
+      title,
+      description: null,
       platform,
       sns: platform,
       price: priceNumber,
       currency: "JPY",
-      deliverables: deliverables.trim(),
+      deliverables: title,
       delivery_days: deliveryNumber,
-      is_active: true,
-      category: category.trim() || null,
-      tags: tags.trim() || null,
-      notes: notes.trim() || null,
-      account_url: accountUrl.trim(),
+      is_active: isActive,
+      category,
+      tags: null,
+      notes: null,
+      account_url: null,
       reference_price_text: null,
       allow_secondary_use: allowSecondaryUse,
       menu_type: menuType,
@@ -418,308 +378,304 @@ export default function NewMenuPage() {
   };
 
   return (
-    <div className="space-y-6 pb-4">
-      <section className="rounded-[32px] bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">
-          {copy.badge}
-        </p>
+    <CreatorPage>
+      <CreatorHero
+        title={copy.title}
+        description={copy.subtitle}
+        right={
+          <CreatorButton
+            type="button"
+            variant="secondary"
+            onClick={() => router.push("/creator/menus")}
+            className="px-4 py-2.5"
+          >
+            {copy.back}
+          </CreatorButton>
+        }
+      />
 
-        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-              {copy.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
-              {copy.subtitle}
-            </p>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <CreatorCard className="p-5">
+          <div className="mb-5 flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-[#FF3B5C] ring-1 ring-rose-100">
+              <PlatformIcon />
+            </div>
+
+            <div className="min-w-0">
+              <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
+                {copy.menuName}
+              </h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                {menuTitle}
+              </p>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => router.push("/creator/menus")}
-            className="w-fit rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
-          >
-            {copy.cancel}
-          </button>
-        </div>
-      </section>
+          <div className="grid gap-4">
+            <CreatorField label={copy.platform}>
+              <CreatorSelect
+                value={platform}
+                onChange={(event) => {
+                  const nextPlatform = event.target.value;
+                  setPlatform(nextPlatform);
 
-      <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <main className="space-y-5">
-          <SectionCard
-            icon="□"
-            title={copy.basicInfo}
-            body={copy.basicInfoBody}
-          >
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <FieldLabel>{copy.titleLabel}</FieldLabel>
-                <TextInput
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder={copy.titlePlaceholder}
-                  required
-                />
-              </div>
-
-              <div>
-                <FieldLabel>{copy.platform}</FieldLabel>
-                <SelectBox
-                  value={platform}
-                  onChange={(event) => setPlatform(event.target.value)}
-                  required
-                >
-                  <option value="">{copy.selectPlease}</option>
-                  {PLATFORM_OPTIONS.map((item) => (
-                    <option key={item} value={item}>
-                      {getPlatformIcon(item)} {item}
-                    </option>
-                  ))}
-                </SelectBox>
-              </div>
-
-              <div>
-                <FieldLabel>{copy.menuType}</FieldLabel>
-                <SelectBox
-                  value={menuType}
-                  onChange={(event) => setMenuType(event.target.value)}
-                >
-                  {MENU_TYPE_OPTIONS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item[safeLocale]}
-                    </option>
-                  ))}
-                </SelectBox>
-              </div>
-
-              <div className="md:col-span-2">
-                <FieldLabel>{copy.accountUrl}</FieldLabel>
-                <TextInput
-                  type="url"
-                  value={accountUrl}
-                  onChange={(event) => setAccountUrl(event.target.value)}
-                  placeholder={copy.accountUrlPlaceholder}
-                  required
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <FieldLabel>{copy.category}</FieldLabel>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {CATEGORY_OPTIONS.map((item) => {
-                    const active = category === item;
-
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => setCategory(active ? "" : item)}
-                        className={`rounded-full border px-4 py-2 text-sm font-bold transition active:scale-[0.98] ${
-                          active
-                            ? "border-slate-950 bg-slate-950 text-white"
-                            : "border-slate-200 bg-white text-slate-700"
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
-                </div>
-                <TextInput
-                  value={category}
-                  onChange={(event) => setCategory(event.target.value)}
-                  placeholder={copy.categoryPlaceholder}
-                />
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            icon="¥"
-            title={copy.salesInfo}
-            body={copy.salesInfoBody}
-          >
-            <div className="grid gap-5 md:grid-cols-3">
-              <div>
-                <FieldLabel>{copy.currency}</FieldLabel>
-                <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
-                  {copy.yenOnly}
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel>{copy.price}</FieldLabel>
-                <TextInput
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={price}
-                  onChange={(event) => setPrice(event.target.value)}
-                  placeholder="10000"
-                  required
-                />
-              </div>
-
-              <div>
-                <FieldLabel>{copy.deliveryDays}</FieldLabel>
-                <TextInput
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={deliveryDays}
-                  onChange={(event) => setDeliveryDays(event.target.value)}
-                  placeholder={copy.deliveryDaysPlaceholder}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-[24px] border border-slate-100 bg-slate-50 p-4">
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={allowSecondaryUse}
-                  onChange={(event) => setAllowSecondaryUse(event.target.checked)}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block text-sm font-black text-slate-800">
-                    {copy.secondaryUse}
-                  </span>
-                  <span className="mt-1 block text-sm leading-6 text-slate-500">
-                    {copy.secondaryUseHelp}
-                  </span>
-                </span>
-              </label>
-            </div>
-          </SectionCard>
-
-          <SectionCard icon="▣" title={copy.details} body={copy.detailsBody}>
-            <div className="space-y-5">
-              <div>
-                <FieldLabel>{copy.description}</FieldLabel>
-                <TextArea
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  rows={5}
-                  placeholder={copy.descriptionPlaceholder}
-                  required
-                />
-              </div>
-
-              <div>
-                <FieldLabel>{copy.deliverables}</FieldLabel>
-                <TextArea
-                  value={deliverables}
-                  onChange={(event) => setDeliverables(event.target.value)}
-                  rows={4}
-                  placeholder={copy.deliverablesPlaceholder}
-                  required
-                />
-              </div>
-
-              <div>
-                <FieldLabel>{copy.tags}</FieldLabel>
-                <TextInput
-                  value={tags}
-                  onChange={(event) => setTags(event.target.value)}
-                  placeholder={copy.tagsPlaceholder}
-                />
-              </div>
-
-              <div>
-                <FieldLabel>{copy.notes}</FieldLabel>
-                <TextArea
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  rows={4}
-                  placeholder={copy.notesPlaceholder}
-                />
-              </div>
-            </div>
-          </SectionCard>
-        </main>
-
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-              {copy.preview}
-            </p>
-            <h2 className="mt-3 text-2xl font-black text-slate-950">
-              {title || copy.titleLabel}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              {copy.previewBody}
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {platform ? (
-                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">
-                  {getPlatformIcon(platform)} {platform}
-                </span>
-              ) : null}
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
-                {selectedMenuTypeLabel}
-              </span>
-              {category ? (
-                <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-black text-purple-700">
-                  {category}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-              <SummaryRow
-                label={copy.price}
-                value={formatPreviewPrice(price, safeLocale)}
-                strong
-              />
-              <SummaryRow
-                label={copy.deliveryDays}
-                value={
-                  deliveryDays
-                    ? safeLocale === "ja"
-                      ? `${deliveryDays}日`
-                      : `${deliveryDays} days`
-                    : copy.notSet
-                }
-              />
-              <SummaryRow
-                label={copy.secondaryUse}
-                value={
-                  allowSecondaryUse
-                    ? copy.secondaryUseAllowed
-                    : copy.secondaryUseNotAllowed
-                }
-              />
-            </div>
-
-            <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-              {copy.visible}
-              <br />
-              {copy.visibleBody}
-            </div>
-
-            <div className="mt-5 grid gap-3">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  if (nextPlatform === "UGC") {
+                    setMenuType("ugc");
+                  }
+                }}
               >
-                {saving ? copy.saving : copy.save}
+                <option value="">{copy.selectPlease}</option>
+                {PLATFORM_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {optionLabel(option, safeLocale)}
+                  </option>
+                ))}
+              </CreatorSelect>
+            </CreatorField>
+
+            <CreatorField label={copy.menuType}>
+              <CreatorSelect
+                value={menuType}
+                onChange={(event) => setMenuType(event.target.value)}
+              >
+                <option value="">{copy.selectPlease}</option>
+                {MENU_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {optionLabel(option, safeLocale)}
+                  </option>
+                ))}
+              </CreatorSelect>
+            </CreatorField>
+
+            <CreatorField label={copy.category}>
+              <CreatorSelect
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+              >
+                <option value="">{copy.selectPlease}</option>
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {optionLabel(option, safeLocale)}
+                  </option>
+                ))}
+              </CreatorSelect>
+            </CreatorField>
+          </div>
+        </CreatorCard>
+
+        <CreatorCard className="p-5">
+          <div className="mb-5 flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+              <PriceIcon />
+            </div>
+
+            <div className="min-w-0">
+              <h2 className="text-[20px] font-black tracking-[-0.055em] text-slate-950">
+                {copy.price}
+              </h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                {copy.yenOnly}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <CreatorField label={copy.price}>
+              <CreatorInput
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+                placeholder={copy.pricePlaceholder}
+              />
+            </CreatorField>
+
+            <CreatorField label={copy.deliveryDays} help={copy.deliveryHelp}>
+              <CreatorSelect
+                value={deliveryDays}
+                onChange={(event) => setDeliveryDays(event.target.value)}
+              >
+                <option value="">{copy.selectPlease}</option>
+                {DELIVERY_OPTIONS.map((day) => (
+                  <option key={day} value={String(day)}>
+                    {safeLocale === "ja" ? `${day}日` : `${day} days`}
+                  </option>
+                ))}
+              </CreatorSelect>
+            </CreatorField>
+          </div>
+        </CreatorCard>
+
+        <CreatorCard className="p-5">
+          <div className="grid gap-3">
+            <button
+              type="button"
+              onClick={() => setAllowSecondaryUse(false)}
+              className={`rounded-[22px] px-4 py-4 text-left ring-1 transition active:scale-[0.98] ${
+                !allowSecondaryUse
+                  ? "bg-slate-950 text-white ring-slate-950"
+                  : "bg-white text-slate-700 ring-slate-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                    !allowSecondaryUse
+                      ? "bg-white/15 text-white"
+                      : "bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  <CheckIcon />
+                </span>
+                <div>
+                  <p className="text-sm font-black">{copy.disallow}</p>
+                  <p
+                    className={`mt-1 text-xs font-semibold leading-5 ${
+                      !allowSecondaryUse ? "text-white/65" : "text-slate-400"
+                    }`}
+                  >
+                    {copy.secondaryUseHelp}
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAllowSecondaryUse(true)}
+              className={`rounded-[22px] px-4 py-4 text-left ring-1 transition active:scale-[0.98] ${
+                allowSecondaryUse
+                  ? "bg-slate-950 text-white ring-slate-950"
+                  : "bg-white text-slate-700 ring-slate-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                    allowSecondaryUse
+                      ? "bg-white/15 text-white"
+                      : "bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  <CheckIcon />
+                </span>
+                <div>
+                  <p className="text-sm font-black">{copy.allow}</p>
+                  <p
+                    className={`mt-1 text-xs font-semibold leading-5 ${
+                      allowSecondaryUse ? "text-white/65" : "text-slate-400"
+                    }`}
+                  >
+                    {copy.secondaryUseHelp}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </CreatorCard>
+
+        <CreatorCard className="p-5">
+          <CreatorField label={copy.publicStatus} help={copy.publicHelp}>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsActive(true)}
+                className={`rounded-full px-4 py-3 text-sm font-black ring-1 transition active:scale-[0.98] ${
+                  isActive
+                    ? "bg-[#FF3B5C] text-white ring-[#FF3B5C]"
+                    : "bg-white text-slate-600 ring-slate-200"
+                }`}
+              >
+                {copy.publicOn}
               </button>
 
               <button
                 type="button"
-                onClick={() => router.push("/creator/menus")}
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
+                onClick={() => setIsActive(false)}
+                className={`rounded-full px-4 py-3 text-sm font-black ring-1 transition active:scale-[0.98] ${
+                  !isActive
+                    ? "bg-slate-950 text-white ring-slate-950"
+                    : "bg-white text-slate-600 ring-slate-200"
+                }`}
               >
-                {copy.cancel}
+                {copy.publicOff}
               </button>
             </div>
+          </CreatorField>
+        </CreatorCard>
+
+        <CreatorCard className="p-5">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FF3B5C]">
+                {copy.preview}
+              </p>
+
+              <h2 className="mt-2 text-[22px] font-black tracking-[-0.06em] text-slate-950">
+                {menuTitle}
+              </h2>
+
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                {copy.previewBody}
+              </p>
+            </div>
+
+            <CreatorBadge tone={isActive ? "green" : "slate"}>
+              {isActive ? copy.visible : copy.draft}
+            </CreatorBadge>
           </div>
-        </aside>
+
+          <div className="grid gap-2.5 rounded-[24px] bg-[#F8F9FA] p-4 ring-1 ring-slate-100">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
+              <span className="text-xs font-black text-slate-400">
+                {copy.platform}
+              </span>
+              <span className="text-sm font-black text-slate-950">
+                {platform || copy.notSet}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3">
+              <span className="text-xs font-black text-slate-400">
+                {copy.menuType}
+              </span>
+              <span className="text-sm font-black text-slate-950">
+                {menuType
+                  ? findLabel(MENU_TYPE_OPTIONS, menuType, safeLocale)
+                  : copy.notSet}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3">
+              <span className="text-xs font-black text-slate-400">
+                {copy.price}
+              </span>
+              <span className="text-sm font-black text-slate-950">
+                {formatPrice(price, safeLocale)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 pt-3">
+              <span className="text-xs font-black text-slate-400">
+                {copy.deliveryDays}
+              </span>
+              <span className="text-sm font-black text-slate-950">
+                {deliveryDays
+                  ? safeLocale === "ja"
+                    ? `${deliveryDays}日`
+                    : `${deliveryDays} days`
+                  : copy.notSet}
+              </span>
+            </div>
+          </div>
+        </CreatorCard>
+
+        <CreatorButton type="submit" disabled={saving} className="w-full">
+          {saving ? copy.saving : copy.save}
+        </CreatorButton>
       </form>
-    </div>
+    </CreatorPage>
   );
 }
