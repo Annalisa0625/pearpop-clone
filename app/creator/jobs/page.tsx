@@ -11,6 +11,20 @@ import {
 } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import {
+  CreatorBadge,
+  CreatorCard,
+  CreatorChevron,
+  CreatorEmptyState,
+  CreatorHero,
+  CreatorLinkButton,
+  CreatorMiniInfo,
+  CreatorNotice,
+  CreatorPage,
+  CreatorSkeleton,
+  CreatorTabButton,
+  CreatorTabs,
+} from "@/app/creator/_components/CreatorDesignSystem";
 
 type ChatReadRow = {
   user_id: string;
@@ -195,77 +209,14 @@ function getActionText(status: string, locale: "ja" | "en") {
   return "Check details";
 }
 
-function SoftPill({
-  children,
-  tone = "slate",
-}: {
-  children: ReactNode;
-  tone?: "slate" | "rose" | "blue" | "green";
-}) {
-  const className =
-    tone === "rose"
-      ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
-      : tone === "blue"
-        ? "bg-blue-50 text-blue-700 ring-blue-100"
-        : tone === "green"
-          ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-          : "bg-slate-50 text-slate-600 ring-slate-100";
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function FilterButton({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        active
-          ? "shrink-0 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-[0_10px_26px_rgba(15,23,42,0.16)] transition active:scale-95"
-          : "shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-200 transition active:scale-95"
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
 function LoadingView() {
   return (
-    <div className="max-w-full space-y-3 overflow-x-hidden pb-4">
-      <div className="h-24 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-      <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-    </div>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m8 5 5 5-5 5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <CreatorPage>
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-28" />
+    </CreatorPage>
   );
 }
 
@@ -292,28 +243,26 @@ function EmptyIcon() {
   );
 }
 
-function MiniInfo({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: ReactNode;
-  strong?: boolean;
-}) {
+function TodoIcon() {
   return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-black text-slate-400">{label}</p>
-      <p
-        className={`mt-1 truncate text-sm ${
-          strong
-            ? "font-black tracking-[-0.03em] text-slate-950"
-            : "font-bold text-slate-700"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="16"
+        rx="5"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="m8.4 12.2 2.4 2.4 5-5.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -342,76 +291,89 @@ function JobCard({
       : `/creator/requests/${item.id}`;
 
   const isRevision = item.status === "revision_requested";
-  const shouldShowPills = unread || isRevision;
+  const shouldShowBadges = unread || isRevision;
 
   return (
-    <Link
-      href={detailHref}
-      className="creator-jobs-appear block rounded-[26px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          {shouldShowPills ? (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {unread ? (
-                <SoftPill tone="blue">{copy.newMessage}</SoftPill>
+    <Link href={detailHref} className="block">
+      <CreatorCard className="p-4 transition active:scale-[0.98]">
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] ring-1 ${
+              isRevision
+                ? "bg-rose-50 text-[#FF3B5C] ring-rose-100"
+                : "bg-slate-50 text-slate-500 ring-slate-100"
+            }`}
+          >
+            <TodoIcon />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {shouldShowBadges ? (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {unread ? (
+                  <CreatorBadge tone="blue">{copy.newMessage}</CreatorBadge>
+                ) : null}
+
+                {isRevision ? (
+                  <CreatorBadge tone="red">{copy.revisionNeeded}</CreatorBadge>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
+                  {item.product_name || copy.unnamedProduct}
+                </h2>
+
+                <p className="mt-1.5 text-xs font-bold text-slate-400">
+                  {copy.updatedAt}：
+                  {formatDate(item.updated_at ?? item.created_at, locale)}
+                </p>
+              </div>
+
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+                <CreatorChevron />
+              </span>
+            </div>
+
+            <div className="mt-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
+                <CreatorMiniInfo
+                  label={copy.nextAction}
+                  value={getActionText(item.status, locale)}
+                />
+
+                {item.kind === "order" ? (
+                  <CreatorMiniInfo
+                    label={copy.payoutAmount}
+                    value={formatPrice(
+                      item.creator_payout_amount,
+                      item.currency,
+                      locale
+                    )}
+                    strong
+                  />
+                ) : null}
+              </div>
+
+              {item.menu_title ? (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <CreatorMiniInfo label={copy.menu} value={item.menu_title} />
+                </div>
               ) : null}
 
-              {isRevision ? (
-                <SoftPill tone="rose">{copy.revisionNeeded}</SoftPill>
+              {isRevision && item.revision_note?.trim() ? (
+                <div className="mt-3 rounded-[18px] bg-white px-3 py-3 ring-1 ring-rose-100">
+                  <p className="text-xs font-bold leading-6 text-rose-900">
+                    {item.revision_note}
+                  </p>
+                </div>
               ) : null}
             </div>
-          ) : null}
-
-          <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
-            {item.product_name || copy.unnamedProduct}
-          </h2>
-
-          <p className="mt-1.5 text-xs font-bold text-slate-400">
-            {copy.updatedAt}：
-            {formatDate(item.updated_at ?? item.created_at, locale)}
-          </p>
-        </div>
-
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-          <ChevronIcon />
-        </span>
-      </div>
-
-      <div className="mt-4 rounded-[22px] bg-slate-50 px-4 py-3.5">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
-          <MiniInfo
-            label={copy.nextAction}
-            value={getActionText(item.status, locale)}
-          />
-
-          {item.kind === "order" ? (
-            <MiniInfo
-              label={copy.payoutAmount}
-              value={formatPrice(
-                item.creator_payout_amount,
-                item.currency,
-                locale
-              )}
-              strong
-            />
-          ) : null}
-        </div>
-
-        {item.menu_title ? (
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            <MiniInfo label={copy.menu} value={item.menu_title} />
           </div>
-        ) : null}
-
-        {isRevision && item.revision_note?.trim() ? (
-          <div className="mt-3 rounded-[18px] bg-white px-3 py-3 ring-1 ring-rose-100">
-            <p className="text-xs font-bold leading-6 text-rose-900">
-              {item.revision_note}
-            </p>
-          </div>
-        ) : null}
-      </div>
+        </div>
+      </CreatorCard>
     </Link>
   );
 }
@@ -443,6 +405,8 @@ export default function CreatorJobsPage() {
             completed: "完了",
             errorTitle: "エラー",
             nextAction: "次にやること",
+            activeLabel: "対応中",
+            reviewLabel: "確認待ち",
           }
         : {
             title: "ToDo",
@@ -463,6 +427,8 @@ export default function CreatorJobsPage() {
             completed: "Done",
             errorTitle: "Error",
             nextAction: "Next",
+            activeLabel: "Active",
+            reviewLabel: "Review",
           },
     [safeLocale]
   );
@@ -757,106 +723,84 @@ export default function CreatorJobsPage() {
   }
 
   return (
-    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4">
-      <style jsx global>{`
-        @keyframes creatorJobsFadeUp {
-          from {
-            opacity: 0;
-            transform: translate3d(0, 10px, 0);
-          }
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-          }
-        }
+    <CreatorPage>
+      <CreatorHero title={copy.title} description={copy.subtitle}>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
+            <p className="text-xs font-black text-slate-400">
+              {copy.activeLabel}
+            </p>
+            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
+              {todoItems.length}
+              {safeLocale === "ja" ? "件" : ""}
+            </p>
+          </div>
 
-        .creator-jobs-appear {
-          animation: creatorJobsFadeUp 380ms cubic-bezier(0.2, 0.8, 0.2, 1)
-            both;
-        }
+          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
+            <p className="text-xs font-black text-slate-400">
+              {copy.reviewLabel}
+            </p>
+            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
+              {deliveredItems.length}
+              {safeLocale === "ja" ? "件" : ""}
+            </p>
+          </div>
+        </div>
 
-        @media (prefers-reduced-motion: reduce) {
-          .creator-jobs-appear {
-            animation: none;
-          }
-        }
-      `}</style>
-
-      <section className="creator-jobs-appear relative overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
-
-        <div className="relative">
-          <h1 className="text-[28px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-            {copy.title}
-          </h1>
-
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-            {copy.subtitle}
-          </p>
-
-          <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <FilterButton
+        <div className="mt-4">
+          <CreatorTabs>
+            <CreatorTabButton
               active={filter === "todo"}
               onClick={() => setFilter("todo")}
             >
               {copy.todo} {todoItems.length}
-            </FilterButton>
+            </CreatorTabButton>
 
-            <FilterButton
+            <CreatorTabButton
               active={filter === "delivered"}
               onClick={() => setFilter("delivered")}
             >
               {copy.delivered} {deliveredItems.length}
-            </FilterButton>
+            </CreatorTabButton>
 
-            <FilterButton
+            <CreatorTabButton
               active={filter === "completed"}
               onClick={() => setFilter("completed")}
             >
               {copy.completed} {completedItems.length}
-            </FilterButton>
+            </CreatorTabButton>
 
-            <FilterButton
+            <CreatorTabButton
               active={filter === "all"}
               onClick={() => setFilter("all")}
             >
               {copy.all}
-            </FilterButton>
-          </div>
+            </CreatorTabButton>
+          </CreatorTabs>
         </div>
-      </section>
+      </CreatorHero>
 
       {error ? (
-        <section className="rounded-[24px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
-          <p className="text-sm font-black">{copy.errorTitle}</p>
-          <p className="mt-2 text-sm font-semibold leading-7 opacity-75">
-            {error}
-          </p>
-        </section>
+        <CreatorNotice
+          tone="red"
+          title={copy.errorTitle}
+          description={error}
+        />
       ) : null}
 
       {filteredItems.length === 0 && !error ? (
-        <section className="creator-jobs-appear rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-slate-50 text-slate-400">
-            <EmptyIcon />
-          </div>
-
-          <h2 className="mt-5 text-xl font-black tracking-[-0.04em] text-slate-950">
-            {copy.empty}
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-sm text-sm font-semibold leading-7 text-slate-500">
-            {copy.emptyBody}
-          </p>
-
-          <Link
-            href="/creator/requests"
-            className="mt-6 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.2)] transition active:scale-[0.98]"
-          >
-            {copy.checkRequests}
-          </Link>
-        </section>
+        <CreatorCard className="p-5">
+          <CreatorEmptyState
+            icon={<EmptyIcon />}
+            title={copy.empty}
+            description={copy.emptyBody}
+            action={
+              <CreatorLinkButton href="/creator/requests">
+                {copy.checkRequests}
+              </CreatorLinkButton>
+            }
+          />
+        </CreatorCard>
       ) : null}
 
       <section className="space-y-3">
@@ -870,6 +814,6 @@ export default function CreatorJobsPage() {
           />
         ))}
       </section>
-    </div>
+    </CreatorPage>
   );
 }
