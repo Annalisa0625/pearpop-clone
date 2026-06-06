@@ -125,6 +125,18 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
+function formatDateOnly(value: string | null | undefined, locale: "ja" | "en") {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+  });
+}
+
 function formatPrice(
   value: number | null | undefined,
   currency: string | null | undefined,
@@ -317,6 +329,64 @@ function firstLine(value: string | null | undefined) {
   );
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={`h-5 w-5 text-slate-400 transition ${open ? "rotate-180" : ""}`}
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 7.5 10 12.5 15 7.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M7 7.5A2.5 2.5 0 0 1 9.5 5h5A2.5 2.5 0 0 1 17 7.5v5A2.5 2.5 0 0 1 14.5 15h-5A2.5 2.5 0 0 1 7 12.5v-5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M4.5 12H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M8 12a3 3 0 0 1 0-4l2-2a3 3 0 1 1 4 4l-1 1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 8a3 3 0 0 1 0 4l-2 2a3 3 0 1 1-4-4l1-1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function SoftPill({
   children,
   tone = "slate",
@@ -344,31 +414,38 @@ function SoftPill({
   );
 }
 
-function Card({
-  title,
-  body,
+function Surface({
   children,
+  className = "",
 }: {
-  title: string;
-  body?: string;
-  children?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="rounded-[26px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-      <h2 className="text-[18px] font-black leading-tight tracking-[-0.04em] text-slate-950">
-        {title}
-      </h2>
-      {body ? (
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-          {body}
-        </p>
-      ) : null}
-      {children ? <div className="mt-5">{children}</div> : null}
+    <section
+      className={`rounded-[30px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 ${className}`}
+    >
+      {children}
     </section>
   );
 }
 
-function InfoRow({
+function MiniStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-slate-50/75 px-4 py-3">
+      <p className="text-[11px] font-black text-slate-400">{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function DetailRow({
   label,
   value,
   strong,
@@ -378,22 +455,22 @@ function InfoRow({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+    <div className="flex items-start justify-between gap-4 py-3">
       <span className="shrink-0 text-xs font-black text-slate-400">
         {label}
       </span>
-      <span
-        className={`min-w-0 max-w-[68%] break-words text-right text-sm ${
-          strong ? "font-black text-slate-950" : "font-bold text-slate-700"
+      <div
+        className={`min-w-0 text-right text-sm ${
+          strong ? "font-black text-slate-950" : "font-semibold text-slate-700"
         }`}
       >
         {value}
-      </span>
+      </div>
     </div>
   );
 }
 
-function TextBlock({
+function PlainTextBox({
   value,
   emptyLabel,
 }: {
@@ -401,7 +478,7 @@ function TextBlock({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-[22px] bg-slate-50 p-4">
+    <div className="rounded-[20px] border border-slate-100 bg-slate-50/65 p-4">
       <p className="whitespace-pre-line break-words text-sm font-semibold leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
       </p>
@@ -409,16 +486,16 @@ function TextBlock({
   );
 }
 
-function ActionButton({
+function PrimaryButton({
   children,
   onClick,
   disabled,
-  variant = "primary",
+  variant = "solid",
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  variant?: "primary" | "danger";
+  variant?: "solid" | "soft";
 }) {
   return (
     <button
@@ -426,7 +503,7 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={
-        variant === "danger"
+        variant === "soft"
           ? "w-full rounded-full bg-rose-50 px-5 py-4 text-sm font-black text-[#ff5f67] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           : "w-full rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       }
@@ -436,68 +513,153 @@ function ActionButton({
   );
 }
 
-function CopyIcon() {
+function AccordionItem({
+  title,
+  subtitle,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="M7 7.5A2.5 2.5 0 0 1 9.5 5h5A2.5 2.5 0 0 1 17 7.5v5A2.5 2.5 0 0 1 14.5 15h-5A2.5 2.5 0 0 1 7 12.5v-5Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M4.5 12H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v.5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
+    <div className="border-b border-slate-100 last:border-b-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+      >
+        <div className="min-w-0">
+          <p className="text-[15px] font-black text-slate-950">{title}</p>
+          {subtitle ? (
+            <p className="mt-1 line-clamp-2 text-xs font-semibold leading-6 text-slate-400">
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+
+        <ChevronIcon open={open} />
+      </button>
+
+      {open ? <div className="px-5 pb-5">{children}</div> : null}
+    </div>
   );
 }
 
-function ReferenceAssetsMiniStrip({
+function ReferenceGallery({
   assets,
   loading,
+  selectedIndex,
+  onSelect,
+  openLabel,
+  fileLabel,
 }: {
   assets: ReferenceAsset[];
   loading: boolean;
+  selectedIndex: number;
+  onSelect: (index: number) => void;
+  openLabel: string;
+  fileLabel: string;
 }) {
-  if (loading || assets.length === 0) return null;
+  if (loading) {
+    return (
+      <div className="overflow-hidden rounded-[26px] border border-slate-100 bg-slate-50">
+        <div className="aspect-[4/3] animate-pulse bg-slate-100" />
+      </div>
+    );
+  }
+
+  if (assets.length === 0) return null;
+
+  const safeIndex = Math.min(selectedIndex, Math.max(assets.length - 1, 0));
+  const selected = assets[safeIndex];
+  const isImage = selected?.file_type === "image";
 
   return (
-    <div className="mt-5 flex items-center gap-2 overflow-x-auto pb-1">
-      {assets.map((asset) => {
-        const isImage = asset.file_type === "image" && asset.signed_url;
-
-        return (
-          <a
-            key={asset.id}
-            href={asset.signed_url ?? "#"}
-            target="_blank"
-            rel="noreferrer"
-            aria-disabled={!asset.signed_url}
-            onClick={(event) => {
-              if (!asset.signed_url) event.preventDefault();
-            }}
-            className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-slate-50 ring-1 ring-slate-100 transition active:scale-[0.96] ${
-              asset.signed_url ? "" : "pointer-events-none opacity-50"
-            }`}
-            title={asset.file_name}
-          >
-            {isImage ? (
+    <div className="space-y-3">
+      <div className="overflow-hidden rounded-[26px] border border-slate-100 bg-slate-50">
+        {selected ? (
+          isImage ? (
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
               <img
-                src={asset.signed_url!}
+                src={selected.signed_url ?? ""}
                 alt=""
-                loading="lazy"
                 className="h-full w-full object-cover"
               />
-            ) : (
-              <span className="text-[11px] font-black text-[#ff5f67]">
+
+              {selected.signed_url ? (
+                <a
+                  href={selected.signed_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-200 backdrop-blur"
+                >
+                  <LinkIcon />
+                  {openLabel}
+                </a>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-50 to-slate-100 px-6 text-center">
+              <div className="rounded-[18px] bg-white px-4 py-2 text-sm font-black text-[#ff5f67] ring-1 ring-slate-200">
                 PDF
-              </span>
-            )}
-          </a>
-        );
-      })}
+              </div>
+              <p className="max-w-[260px] text-sm font-semibold leading-6 text-slate-500">
+                {fileLabel}
+              </p>
+              {selected.signed_url ? (
+                <a
+                  href={selected.signed_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white"
+                >
+                  <LinkIcon />
+                  {openLabel}
+                </a>
+              ) : null}
+            </div>
+          )
+        ) : null}
+      </div>
+
+      {assets.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {assets.map((asset, index) => {
+            const active = index === safeIndex;
+            const thumbIsImage = asset.file_type === "image";
+
+            return (
+              <button
+                key={asset.id}
+                type="button"
+                onClick={() => onSelect(index)}
+                className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-[18px] border transition ${
+                  active
+                    ? "border-[#ff5f67] ring-2 ring-rose-100"
+                    : "border-slate-100"
+                }`}
+              >
+                {thumbIsImage ? (
+                  <img
+                    src={asset.signed_url ?? ""}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[11px] font-black text-[#ff5f67]">
+                    PDF
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -654,7 +816,7 @@ export default function CreatorOrderDetailPage() {
             yes: "あり",
             no: "なし",
             requestNote: "依頼内容",
-            postInstructionTitle: "投稿に入れる内容",
+            postInstructionTitle: "投稿の最後に貼り付ける内容",
             postInstructionBody:
               "投稿の最後に貼り付けるアカウント表記とハッシュタグです。",
             copyPostText: "コピーする",
@@ -675,6 +837,15 @@ export default function CreatorOrderDetailPage() {
               "支払い確認が完了すると、注文チャットで詳細を相談できます。",
             referenceLoadFailed:
               "参考画像の読み込みに時間がかかっています。後でもう一度開いてください。",
+            referenceOpen: "開く",
+            referenceFile: "参考ファイル",
+            summaryDate: "注文日",
+            summaryMenu: "メニュー",
+            summaryPayout: "受取予定",
+            summaryStatus: "状態",
+            detailSheetTitle: "注文の詳細",
+            detailSheetBody: "必要な情報だけ確認できるようにまとめています。",
+            openExternal: "リンクを開く",
           }
         : {
             loading: "Loading...",
@@ -719,7 +890,7 @@ export default function CreatorOrderDetailPage() {
             yes: "Yes",
             no: "No",
             requestNote: "Request note",
-            postInstructionTitle: "Post text",
+            postInstructionTitle: "Text to paste at the end",
             postInstructionBody:
               "Account mention and hashtags to paste at the end of the post.",
             copyPostText: "Copy",
@@ -735,11 +906,22 @@ export default function CreatorOrderDetailPage() {
             revisionTitle: "Revision request",
             notSet: "Not set",
             noPostInstruction: "No post text was specified.",
-            chatUnavailableTitle: "Chat will be available after payment confirmation",
+            chatUnavailableTitle:
+              "Chat will be available after payment confirmation",
             chatUnavailableBody:
               "Once payment is confirmed, you can discuss details in order chat.",
             referenceLoadFailed:
               "Reference images are taking too long to load. Please try again later.",
+            referenceOpen: "Open",
+            referenceFile: "Reference file",
+            summaryDate: "Ordered",
+            summaryMenu: "Menu",
+            summaryPayout: "Payout",
+            summaryStatus: "Status",
+            detailSheetTitle: "Order details",
+            detailSheetBody:
+              "Everything important is organized in one place.",
+            openExternal: "Open link",
           },
     [safeLocale]
   );
@@ -755,6 +937,14 @@ export default function CreatorOrderDetailPage() {
   const [deliveryUrl, setDeliveryUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [selectedAssetIndex, setSelectedAssetIndex] = useState(0);
+  const [openPanels, setOpenPanels] = useState({
+    postText: false,
+    notes: false,
+    revision: true,
+    order: true,
+    payout: false,
+  });
 
   const loadReferenceAssets = useCallback(
     async (targetOrderId: string, token: string) => {
@@ -783,7 +973,9 @@ export default function CreatorOrderDetailPage() {
           return;
         }
 
-        setReferenceAssets(Array.isArray(json?.assets) ? json.assets : []);
+        const assets = Array.isArray(json?.assets) ? json.assets : [];
+        setReferenceAssets(assets);
+        setSelectedAssetIndex(0);
       } catch (error) {
         console.error("reference assets load error:", error);
 
@@ -1059,9 +1251,9 @@ export default function CreatorOrderDetailPage() {
   if (loading) {
     return (
       <div className="space-y-4 overflow-x-hidden pb-28">
-        <div className="h-28 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
-        <div className="h-[360px] animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
-        <div className="h-48 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[420px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[340px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[280px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
       </div>
     );
   }
@@ -1069,14 +1261,18 @@ export default function CreatorOrderDetailPage() {
   if (!order) {
     return (
       <div className="overflow-x-hidden pb-28">
-        <Card title={error || copy.notFound}>
+        <Surface className="p-5">
+          <p className="text-sm font-semibold leading-7 text-slate-600">
+            {error || copy.notFound}
+          </p>
+
           <Link
             href="/creator/requests"
-            className="inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white"
+            className="mt-4 inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white"
           >
             {copy.back}
           </Link>
-        </Card>
+        </Surface>
       </div>
     );
   }
@@ -1108,262 +1304,387 @@ export default function CreatorOrderDetailPage() {
   const timingText = extractRequirementSection(order.requirements, "実施タイミング");
   const requestNote = extractRequirementSection(order.requirements, "依頼内容");
 
+  const mediaAssets = referenceAssets.filter((asset) => Boolean(asset.signed_url));
+  const safeSelectedIndex = Math.min(
+    selectedAssetIndex,
+    Math.max(mediaAssets.length - 1, 0)
+  );
+
   return (
     <div className="max-w-full touch-pan-y space-y-4 overflow-x-hidden overscroll-y-contain pb-28">
-      <section className="relative overflow-hidden rounded-[26px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/45 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-52 w-52 rounded-full bg-emerald-100/40 blur-3xl" />
-
-        <div className="relative">
-          <div className="flex flex-wrap items-center gap-2">
-            <SoftPill tone={statusTone(order)}>
-              {statusLabel(order, safeLocale)}
-            </SoftPill>
-
-            {order.creator_accept_deadline && isWaitingForCreator(order) ? (
-              <SoftPill tone="amber">
-                {formatDateTime(order.creator_accept_deadline, safeLocale)}
+      <Surface className="overflow-hidden">
+        <div className="p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <SoftPill tone={statusTone(order)}>
+                {statusLabel(order, safeLocale)}
               </SoftPill>
-            ) : null}
+
+              {order.creator_accept_deadline && isWaitingForCreator(order) ? (
+                <SoftPill tone="amber">
+                  {formatDateTime(order.creator_accept_deadline, safeLocale)}
+                </SoftPill>
+              ) : null}
+            </div>
+
+            <Link
+              href={backHref}
+              className="shrink-0 rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
+            >
+              {copy.back}
+            </Link>
           </div>
 
-          <h1 className="mt-4 break-words text-[24px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-            {order.product_name || nextAction.title}
-          </h1>
+          <div className="space-y-4">
+            {mediaAssets.length > 0 ? (
+              <ReferenceGallery
+                assets={mediaAssets}
+                loading={referenceAssetsLoading}
+                selectedIndex={safeSelectedIndex}
+                onSelect={setSelectedAssetIndex}
+                openLabel={copy.referenceOpen}
+                fileLabel={copy.referenceFile}
+              />
+            ) : null}
 
+            <div>
+              <h1 className="break-words text-[26px] font-black leading-tight tracking-[-0.055em] text-slate-950">
+                {order.product_name || nextAction.title}
+              </h1>
+
+              <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                {nextAction.body}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MiniStat
+                label={copy.summaryDate}
+                value={formatDateOnly(order.created_at, safeLocale)}
+              />
+              <MiniStat
+                label={copy.summaryMenu}
+                value={order.menu_title_snapshot || copy.notSet}
+              />
+              <MiniStat
+                label={copy.summaryPayout}
+                value={formatPrice(
+                  order.creator_payout_amount,
+                  order.currency,
+                  safeLocale
+                )}
+              />
+              <MiniStat
+                label={copy.summaryStatus}
+                value={statusLabel(order, safeLocale)}
+              />
+            </div>
+          </div>
+        </div>
+      </Surface>
+
+      {error ? (
+        <Surface className="p-4">
+          <p className="text-sm font-semibold leading-7 text-rose-600">
+            {error}
+          </p>
+        </Surface>
+      ) : null}
+
+      {canAct ? (
+        <Surface className="p-4 sm:p-5">
+          <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
+            {copy.nextAction}
+          </p>
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
             {nextAction.body}
           </p>
 
-          <ReferenceAssetsMiniStrip
-            assets={referenceAssets}
-            loading={referenceAssetsLoading}
-          />
-
-          <Link
-            href={backHref}
-            className="mt-5 inline-flex rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
-          >
-            {copy.back}
-          </Link>
-        </div>
-      </section>
-
-      {error ? (
-        <section className="rounded-[24px] bg-rose-50 p-5 text-rose-900 ring-1 ring-rose-100">
-          <p className="text-sm font-semibold leading-7">{error}</p>
-        </section>
-      ) : null}
-
-      {canAct ? (
-        <Card title={copy.nextAction} body={nextAction.body}>
-          <div className="grid gap-3">
-            <ActionButton
+          <div className="mt-4 grid gap-3">
+            <PrimaryButton
               onClick={() => void runAction("accept")}
               disabled={actionLoading !== null}
             >
               {actionLoading === "accept" ? copy.accepting : copy.accept}
-            </ActionButton>
+            </PrimaryButton>
 
-            <ActionButton
+            <PrimaryButton
               onClick={() => void runAction("decline")}
               disabled={actionLoading !== null}
-              variant="danger"
+              variant="soft"
             >
               {actionLoading === "decline" ? copy.declining : copy.decline}
-            </ActionButton>
+            </PrimaryButton>
           </div>
-        </Card>
+        </Surface>
       ) : null}
 
       {canUseChat(order) ? (
-        <div className="max-w-full overflow-hidden rounded-[26px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 [&>div>div:nth-child(2)]:!h-[300px] md:[&>div>div:nth-child(2)]:!h-[340px]">
+        <Surface className="overflow-hidden p-0 [&>div>div:nth-child(2)]:!h-[280px] md:[&>div>div:nth-child(2)]:!h-[340px]">
           <ChatEmbed orderId={order.id} title={copy.chatTitle} />
-        </div>
+        </Surface>
       ) : (
-        <Card title={copy.chatUnavailableTitle} body={copy.chatUnavailableBody}>
-          <div className="rounded-[22px] bg-slate-50 p-4">
-            <p className="text-sm font-semibold leading-7 text-slate-500">
-              {copy.chatUnavailableBody}
-            </p>
-          </div>
-        </Card>
+        <Surface className="p-4 sm:p-5">
+          <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
+            {copy.chatUnavailableTitle}
+          </p>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            {copy.chatUnavailableBody}
+          </p>
+        </Surface>
       )}
 
       {canDeliver ? (
-        <Card
-          title={isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
-          body={copy.deliveryBody}
-        >
-          <input
-            type="url"
-            value={deliveryUrl}
-            onChange={(e) => setDeliveryUrl(e.target.value)}
-            placeholder={copy.deliveredPostUrlPlaceholder}
-            className="w-full rounded-[22px] border border-slate-200 px-4 py-4 text-base outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
-          />
+        <Surface className="p-4 sm:p-5">
+          <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
+            {isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
+          </p>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            {copy.deliveryBody}
+          </p>
 
-          {order.delivered_post_url ? (
-            <a
-              href={order.delivered_post_url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex max-w-full rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 underline-offset-4 ring-1 ring-slate-100 hover:underline"
+          <div className="mt-4 space-y-3">
+            <input
+              type="url"
+              value={deliveryUrl}
+              onChange={(e) => setDeliveryUrl(e.target.value)}
+              placeholder={copy.deliveredPostUrlPlaceholder}
+              className="w-full rounded-[20px] border border-slate-200 px-4 py-4 text-base outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+            />
+
+            {order.delivered_post_url ? (
+              <a
+                href={order.delivered_post_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
+              >
+                <LinkIcon />
+                {copy.openDeliveredUrl}
+              </a>
+            ) : null}
+
+            <PrimaryButton
+              onClick={() => void runDeliver()}
+              disabled={actionLoading !== null}
             >
-              <span className="truncate">{copy.openDeliveredUrl}</span>
-            </a>
+              {actionLoading === "deliver"
+                ? copy.delivering
+                : isRevisionRequested
+                  ? copy.redeliver
+                  : order.delivered_post_url
+                    ? copy.updateDelivery
+                    : copy.deliver}
+            </PrimaryButton>
+          </div>
+        </Surface>
+      ) : null}
+
+      <Surface className="overflow-hidden">
+        <div className="px-5 pt-5">
+          <p className="text-[20px] font-black tracking-[-0.04em] text-slate-950">
+            {copy.detailSheetTitle}
+          </p>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            {copy.detailSheetBody}
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <AccordionItem
+            title={copy.postInstructionTitle}
+            subtitle={
+              prCopyText
+                ? prCopyText.split("\n")[0]
+                : copy.noPostInstruction
+            }
+            open={openPanels.postText}
+            onToggle={() =>
+              setOpenPanels((prev) => ({
+                ...prev,
+                postText: !prev.postText,
+              }))
+            }
+          >
+            <p className="mb-3 text-sm font-semibold leading-7 text-slate-500">
+              {copy.postInstructionBody}
+            </p>
+
+            <PlainTextBox
+              value={prCopyText || copy.noPostInstruction}
+              emptyLabel={copy.notSet}
+            />
+
+            {prCopyText ? (
+              <button
+                type="button"
+                onClick={() => void handleCopyPostText()}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
+              >
+                <CopyIcon />
+                {copied ? copy.copied : copy.copyPostText}
+              </button>
+            ) : null}
+          </AccordionItem>
+
+          <AccordionItem
+            title={copy.postNotes}
+            subtitle={postNotes ? firstLine(postNotes) : copy.notSet}
+            open={openPanels.notes}
+            onToggle={() =>
+              setOpenPanels((prev) => ({
+                ...prev,
+                notes: !prev.notes,
+              }))
+            }
+          >
+            <PlainTextBox value={postNotes} emptyLabel={copy.notSet} />
+          </AccordionItem>
+
+          {isRevisionRequested && order.revision_note ? (
+            <AccordionItem
+              title={copy.revisionTitle}
+              subtitle={firstLine(order.revision_note) || copy.notSet}
+              open={openPanels.revision}
+              onToggle={() =>
+                setOpenPanels((prev) => ({
+                  ...prev,
+                  revision: !prev.revision,
+                }))
+              }
+            >
+              <PlainTextBox value={order.revision_note} emptyLabel={copy.notSet} />
+            </AccordionItem>
           ) : null}
 
-          <button
-            type="button"
-            onClick={() => void runDeliver()}
-            disabled={actionLoading !== null}
-            className="mt-5 w-full rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {actionLoading === "deliver"
-              ? copy.delivering
-              : isRevisionRequested
-                ? copy.redeliver
-                : order.delivered_post_url
-                  ? copy.updateDelivery
-                  : copy.deliver}
-          </button>
-        </Card>
-      ) : null}
-
-      <Card title={copy.postInstructionTitle} body={copy.postInstructionBody}>
-        <div className="rounded-[22px] bg-slate-50 p-4">
-          {prCopyText ? (
-            <pre className="whitespace-pre-wrap break-words font-sans text-[15px] font-black leading-7 text-slate-950">
-              {prCopyText}
-            </pre>
-          ) : (
-            <p className="text-sm font-semibold leading-7 text-slate-500">
-              {copy.noPostInstruction}
-            </p>
-          )}
-        </div>
-
-        {prCopyText ? (
-          <button
-            type="button"
-            onClick={() => void handleCopyPostText()}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
-          >
-            <CopyIcon />
-            {copied ? copy.copied : copy.copyPostText}
-          </button>
-        ) : null}
-      </Card>
-
-      {postNotes ? (
-        <Card title={copy.postNotes}>
-          <TextBlock value={postNotes} emptyLabel={copy.notSet} />
-        </Card>
-      ) : null}
-
-      {isRevisionRequested && order.revision_note ? (
-        <Card title={copy.revisionTitle}>
-          <TextBlock value={order.revision_note} emptyLabel={copy.notSet} />
-        </Card>
-      ) : null}
-
-      <Card title={copy.orderContent} body={copy.orderContentBody}>
-        <div className="rounded-[22px] bg-slate-50 p-4">
-          <InfoRow
-            label={copy.productName}
-            value={order.product_name || copy.notSet}
-            strong
-          />
-
-          <InfoRow
-            label={copy.productUrl}
-            value={
-              order.product_url ? (
-                <a
-                  href={order.product_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="break-all text-blue-600 underline underline-offset-4"
-                >
-                  {order.product_url}
-                </a>
-              ) : (
-                copy.notSet
-              )
+          <AccordionItem
+            title={copy.orderContent}
+            subtitle={order.product_name || copy.notSet}
+            open={openPanels.order}
+            onToggle={() =>
+              setOpenPanels((prev) => ({
+                ...prev,
+                order: !prev.order,
+              }))
             }
-          />
+          >
+            <div className="divide-y divide-slate-100 rounded-[20px] border border-slate-100 bg-slate-50/55 px-4">
+              <DetailRow
+                label={copy.productName}
+                value={order.product_name || copy.notSet}
+                strong
+              />
 
-          <InfoRow
-            label={copy.projectType}
-            value={projectTypeText || copy.notSet}
-          />
+              <DetailRow
+                label={copy.productUrl}
+                value={
+                  order.product_url ? (
+                    <a
+                      href={order.product_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="break-all text-blue-600 underline underline-offset-4"
+                    >
+                      {order.product_url}
+                    </a>
+                  ) : (
+                    copy.notSet
+                  )
+                }
+              />
 
-          <InfoRow label={copy.timing} value={timingText || copy.notSet} />
+              <DetailRow
+                label={copy.projectType}
+                value={projectTypeText || copy.notSet}
+              />
 
-          <InfoRow
-            label={copy.freeOffer}
-            value={order.has_free_offer ? copy.yes : copy.no}
-          />
+              <DetailRow
+                label={copy.timing}
+                value={timingText || copy.notSet}
+              />
 
-          <InfoRow
-            label={copy.secondaryUse}
-            value={order.wants_secondary_use ? copy.yes : copy.no}
-          />
-        </div>
+              <DetailRow
+                label={copy.freeOffer}
+                value={order.has_free_offer ? copy.yes : copy.no}
+              />
 
-        {requestNote ? (
-          <div className="mt-4">
-            <TextBlock value={requestNote} emptyLabel={copy.notSet} />
-          </div>
-        ) : null}
-      </Card>
+              <DetailRow
+                label={copy.secondaryUse}
+                value={order.wants_secondary_use ? copy.yes : copy.no}
+              />
+            </div>
 
-      <Card title={copy.menuAndPayout}>
-        <div className="rounded-[22px] bg-slate-50 p-4">
-          <InfoRow
-            label={copy.menuTitle}
-            value={order.menu_title_snapshot || copy.notSet}
-            strong
-          />
+            {requestNote ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-black text-slate-400">
+                  {copy.requestNote}
+                </p>
+                <PlainTextBox value={requestNote} emptyLabel={copy.notSet} />
+              </div>
+            ) : null}
+          </AccordionItem>
 
-          <InfoRow
-            label={copy.deliverables}
-            value={order.menu_deliverables_snapshot || copy.notSet}
-          />
-
-          <InfoRow
-            label={copy.price}
-            value={formatPrice(
-              order.menu_price_amount,
-              order.currency,
-              safeLocale
-            )}
-          />
-
-          <InfoRow
-            label={copy.payout}
-            value={formatPrice(
+          <AccordionItem
+            title={copy.menuAndPayout}
+            subtitle={`${order.menu_title_snapshot || copy.notSet} / ${formatPrice(
               order.creator_payout_amount,
               order.currency,
               safeLocale
-            )}
-            strong
-          />
+            )}`}
+            open={openPanels.payout}
+            onToggle={() =>
+              setOpenPanels((prev) => ({
+                ...prev,
+                payout: !prev.payout,
+              }))
+            }
+          >
+            <div className="divide-y divide-slate-100 rounded-[20px] border border-slate-100 bg-slate-50/55 px-4">
+              <DetailRow
+                label={copy.menuTitle}
+                value={order.menu_title_snapshot || copy.notSet}
+                strong
+              />
 
-          <InfoRow
-            label={copy.transfer}
-            value={transferLabel(order.transfer_status, safeLocale)}
-          />
+              <DetailRow
+                label={copy.deliverables}
+                value={order.menu_deliverables_snapshot || copy.notSet}
+              />
+
+              <DetailRow
+                label={copy.price}
+                value={formatPrice(
+                  order.menu_price_amount,
+                  order.currency,
+                  safeLocale
+                )}
+              />
+
+              <DetailRow
+                label={copy.payout}
+                value={formatPrice(
+                  order.creator_payout_amount,
+                  order.currency,
+                  safeLocale
+                )}
+                strong
+              />
+
+              <DetailRow
+                label={copy.transfer}
+                value={transferLabel(order.transfer_status, safeLocale)}
+              />
+            </div>
+
+            <Link
+              href="/creator/payouts"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white"
+            >
+              {copy.payoutPage}
+            </Link>
+          </AccordionItem>
         </div>
-
-        <Link
-          href="/creator/payouts"
-          className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white"
-        >
-          {copy.payoutPage}
-        </Link>
-      </Card>
+      </Surface>
     </div>
   );
 }
