@@ -200,8 +200,8 @@ export default function CreatorOrderChatPage() {
 
   if (loading) {
     return (
-      <div className="h-[calc(100dvh-190px)] overflow-hidden bg-[#F8F9FA] px-3 py-3 sm:px-4">
-        <div className="mx-auto flex h-full min-h-0 max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white ring-1 ring-slate-100">
+      <div className="fixed inset-x-0 top-[72px] z-[80] h-[calc(100dvh-72px)] overflow-hidden overscroll-none bg-[#F8F9FA] md:static md:h-[calc(100dvh-112px)] md:px-4 md:py-4">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col overflow-hidden bg-white md:rounded-[28px] md:ring-1 md:ring-slate-100">
           <div className="h-16 shrink-0 animate-pulse border-b border-slate-100 bg-white" />
           <div className="min-h-0 flex-1 animate-pulse bg-slate-50" />
         </div>
@@ -254,8 +254,8 @@ export default function CreatorOrderChatPage() {
   const title = order.product_name || copy.titleFallback;
 
   return (
-    <div className="h-[calc(100dvh-190px)] overflow-hidden bg-[#F8F9FA] px-3 py-3 sm:px-4">
-      <div className="mx-auto flex h-full min-h-0 max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+    <div className="fixed inset-x-0 top-[72px] z-[80] h-[calc(100dvh-72px)] overflow-hidden overscroll-none bg-[#F8F9FA] md:static md:h-[calc(100dvh-112px)] md:px-4 md:py-4">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col overflow-hidden bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] md:rounded-[28px] md:ring-1 md:ring-slate-100">
         <header className="z-10 shrink-0 border-b border-slate-100 bg-white px-4 py-3">
           <div className="flex items-center gap-3">
             <Link

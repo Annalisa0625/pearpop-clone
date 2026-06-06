@@ -252,12 +252,18 @@ export default function ChatEmbed({
     userId ?? null
   );
 
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior });
+      const el = messageScrollRef.current;
+      if (!el) return;
+
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior,
+      });
     });
   };
 
@@ -520,7 +526,6 @@ export default function ChatEmbed({
 
       setText("");
       scrollToBottom();
-      inputRef.current?.focus();
     } catch (e: any) {
       setError(e?.message ?? copy.sendError);
     } finally {
@@ -529,12 +534,12 @@ export default function ChatEmbed({
   };
 
   const shellClass = isPage
-    ? "flex h-full min-h-0 flex-col overflow-hidden bg-white"
+    ? "flex h-full min-h-0 w-full flex-col overflow-hidden bg-white overscroll-none"
     : "flex h-full flex-col overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm";
 
   const messageAreaClass = isPage
-    ? "min-h-0 flex-1 overflow-y-auto bg-[#F8F9FA] px-3 py-4 sm:px-5"
-    : "h-[420px] overflow-y-auto bg-[#F8F9FA] px-3 py-4 sm:px-5";
+    ? "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F8F9FA] px-3 py-4 sm:px-5"
+    : "h-[420px] overflow-y-auto overscroll-contain bg-[#F8F9FA] px-3 py-4 sm:px-5";
 
   return (
     <div className={shellClass}>
@@ -558,7 +563,7 @@ export default function ChatEmbed({
       ) : null}
 
       {loading ? (
-        <div className={messageAreaClass}>
+        <div ref={messageScrollRef} className={messageAreaClass}>
           <div className="flex h-full items-center justify-center">
             <div className="rounded-full bg-white px-4 py-2 text-xs font-black text-slate-400 ring-1 ring-slate-100">
               {copy.loading}
@@ -566,18 +571,18 @@ export default function ChatEmbed({
           </div>
         </div>
       ) : error ? (
-        <div className={messageAreaClass}>
+        <div ref={messageScrollRef} className={messageAreaClass}>
           <div className="mx-auto mt-4 max-w-md rounded-[22px] border border-rose-100 bg-rose-50 p-4 text-sm font-semibold leading-7 text-rose-700">
             {error}
           </div>
         </div>
       ) : !chat ? (
-        <div className={messageAreaClass}>
+        <div ref={messageScrollRef} className={messageAreaClass}>
           <EmptyState title={copy.noChat} body={copy.emptyBody} compact={isPage} />
         </div>
       ) : (
         <>
-          <div className={messageAreaClass}>
+          <div ref={messageScrollRef} className={messageAreaClass}>
             {messages.length === 0 ? (
               <EmptyState title={copy.empty} body={copy.emptyBody} compact={isPage} />
             ) : (
@@ -630,8 +635,6 @@ export default function ChatEmbed({
                     </div>
                   );
                 })}
-
-                <div ref={bottomRef} />
               </div>
             )}
           </div>
@@ -644,7 +647,7 @@ export default function ChatEmbed({
                 onChange={(e) => setText(e.target.value)}
                 placeholder={copy.placeholder}
                 rows={1}
-                className="max-h-28 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-3 text-sm leading-6 outline-none placeholder:text-slate-400"
+                className="max-h-28 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-3 text-[16px] leading-6 outline-none placeholder:text-slate-400 sm:text-sm"
                 onKeyDown={(e) => {
                   if (
                     e.key === "Enter" &&
