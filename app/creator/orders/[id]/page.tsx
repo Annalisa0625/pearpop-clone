@@ -44,6 +44,18 @@ type OrderDetail = {
   transfer_status: string | null;
 };
 
+type ReferenceAsset = {
+  id: string;
+  order_id: string;
+  file_name: string;
+  file_type: "image" | "pdf";
+  mime_type: string;
+  size_bytes: number;
+  sort_order: number;
+  created_at: string;
+  signed_url: string | null;
+};
+
 function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
@@ -78,6 +90,18 @@ function formatPrice(
       ? `$${value.toLocaleString()}`
       : `¥${value.toLocaleString()}`;
   }
+}
+
+function formatFileSize(bytes: number | null | undefined) {
+  const value = Number(bytes);
+
+  if (!Number.isFinite(value) || value <= 0) return "";
+
+  if (value >= 1024 * 1024) {
+    return `${(value / 1024 / 1024).toFixed(1)}MB`;
+  }
+
+  return `${Math.ceil(value / 1024)}KB`;
 }
 
 function menuTypeLabel(
@@ -417,6 +441,71 @@ function CopyIcon() {
   );
 }
 
+function ReferenceAssetsCard({
+  title,
+  body,
+  assets,
+  emptyLabel,
+  openLabel,
+}: {
+  title: string;
+  body: string;
+  assets: ReferenceAsset[];
+  emptyLabel: string;
+  openLabel: string;
+}) {
+  if (assets.length === 0) return null;
+
+  return (
+    <Card title={title} body={body}>
+      <div className="grid gap-3">
+        {assets.map((asset) => (
+          <a
+            key={asset.id}
+            href={asset.signed_url ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={!asset.signed_url}
+            onClick={(event) => {
+              if (!asset.signed_url) event.preventDefault();
+            }}
+            className={`group flex items-center gap-3 rounded-[22px] bg-slate-50 p-3 ring-1 ring-slate-100 transition ${
+              asset.signed_url
+                ? "active:scale-[0.98]"
+                : "pointer-events-none opacity-60"
+            }`}
+          >
+            {asset.file_type === "image" && asset.signed_url ? (
+              <img
+                src={asset.signed_url}
+                alt={asset.file_name}
+                className="h-16 w-16 shrink-0 rounded-[18px] object-cover ring-1 ring-slate-100"
+              />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100">
+                PDF
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-black text-slate-950">
+                {asset.file_name || emptyLabel}
+              </p>
+              <p className="mt-1 text-xs font-bold text-slate-400">
+                {asset.file_type.toUpperCase()} / {formatFileSize(asset.size_bytes)}
+              </p>
+            </div>
+
+            <span className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-100 group-active:scale-[0.98]">
+              {openLabel}
+            </span>
+          </a>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
   if (locale === "ja") {
     if (isCheckoutPending(order)) {
@@ -534,6 +623,10 @@ export default function CreatorOrderDetailPage() {
             nextAction: "対応",
             orderContent: "注文内容",
             orderContentBody: "商品・URL・実施タイミングを確認できます。",
+            referenceAssets: "参考資料",
+            referenceAssetsBody:
+              "企業から共有された商品画像、サービス資料、投稿イメージです。",
+            referenceAssetsOpen: "開く",
             deliveryTitle: "納品URLを提出",
             redeliveryTitle: "修正版の納品URLを提出",
             deliveryBody:
@@ -595,11 +688,16 @@ export default function CreatorOrderDetailPage() {
             chatTitle: "Order chat",
             nextAction: "Action",
             orderContent: "Order details",
-            orderContentBody: "Check the product, URL, and timing.",
+            orderContentBody:
+              "Review the product, URL, and preferred timing.",
+            referenceAssets: "Reference materials",
+            referenceAssetsBody:
+              "Product images, service documents, or post examples shared by the brand.",
+            referenceAssetsOpen: "Open",
             deliveryTitle: "Submit delivery URL",
-            redeliveryTitle: "Submit revised URL",
+            redeliveryTitle: "Submit revised delivery URL",
             deliveryBody:
-              "Enter a URL the company can review, such as a post URL, deliverable URL, or Google Drive URL.",
+              "Enter a URL such as a post URL, asset URL, or Google Drive URL.",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "Open submitted URL",
             deliver: "Submit delivery URL",
@@ -616,7 +714,7 @@ export default function CreatorOrderDetailPage() {
               "Accept this order? Payment will be captured and the order will start.",
             confirmDecline:
               "Decline this order? The charge will not be finalized.",
-            confirmDeliver: "Submit this URL?",
+            confirmDeliver: "Submit this URL as delivery?",
             confirmRedeliver: "Submit this revised URL?",
             acceptFailed: "Failed to accept this order.",
             declineFailed: "Failed to decline this order.",
@@ -654,6 +752,7 @@ export default function CreatorOrderDetailPage() {
   );
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [referenceAssets, setReferenceAssets] = useState<ReferenceAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<
     "accept" | "decline" | "deliver" | null
@@ -662,16 +761,46 @@ export default function CreatorOrderDetailPage() {
   const [deliveryUrl, setDeliveryUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
+  const loadReferenceAssets = useCallback(
+    async (targetOrderId: string, accessToken: string) => {
+      try {
+        const res = await fetch(`/api/orders/${targetOrderId}/reference-assets`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          console.error("reference assets load error:", json);
+          setReferenceAssets([]);
+          return;
+        }
+
+        setReferenceAssets(Array.isArray(json?.assets) ? json.assets : []);
+      } catch (error) {
+        console.error("reference assets load error:", error);
+        setReferenceAssets([]);
+      }
+    },
+    []
+  );
+
   const loadOrder = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    if (userError || !user) {
+    const user = session?.user ?? null;
+    const accessToken = session?.access_token ?? null;
+
+    if (sessionError || !user || !accessToken) {
       setError(copy.authFailed);
       setLoading(false);
       return;
@@ -719,6 +848,7 @@ export default function CreatorOrderDetailPage() {
       console.error("creator order detail load error:", orderError);
       setError(copy.notFound);
       setOrder(null);
+      setReferenceAssets([]);
       setLoading(false);
       return;
     }
@@ -727,8 +857,15 @@ export default function CreatorOrderDetailPage() {
 
     setOrder(nextOrder);
     setDeliveryUrl(nextOrder?.delivered_post_url ?? "");
+
+    if (nextOrder?.id) {
+      await loadReferenceAssets(nextOrder.id, accessToken);
+    } else {
+      setReferenceAssets([]);
+    }
+
     setLoading(false);
-  }, [copy.authFailed, copy.notFound, orderId, supabase]);
+  }, [copy.authFailed, copy.notFound, loadReferenceAssets, orderId, supabase]);
 
   useEffect(() => {
     void loadOrder();
@@ -991,6 +1128,14 @@ export default function CreatorOrderDetailPage() {
           </div>
         </Card>
       )}
+
+      <ReferenceAssetsCard
+        title={copy.referenceAssets}
+        body={copy.referenceAssetsBody}
+        assets={referenceAssets}
+        emptyLabel={copy.notSet}
+        openLabel={copy.referenceAssetsOpen}
+      />
 
       {canDeliver ? (
         <Card
