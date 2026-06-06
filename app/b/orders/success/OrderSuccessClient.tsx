@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -17,6 +17,29 @@ type SyncResult = {
   message?: string;
   error?: string;
 };
+
+const SESSION_TIMEOUT_MS = 8000;
+const SYNC_TIMEOUT_MS = 30000;
+
+function withTimeout<T = any>(
+  promiseLike: PromiseLike<T> | T,
+  ms: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const promise = Promise.resolve(promiseLike);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 
 function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return null;
@@ -36,7 +59,7 @@ function StatusPill({
   children,
   tone = "slate",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   tone?: "slate" | "rose" | "green" | "amber";
 }) {
   const className =
@@ -63,7 +86,7 @@ function ActionLink({
   primary,
 }: {
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
   primary?: boolean;
 }) {
   return (
@@ -123,15 +146,19 @@ export default function OrderSuccessClient() {
             successBody:
               "支払い方法の確認が完了しました。インフルエンサーが返答すると、注文が開始されます。",
 
-            pendingTitle: "注文を確認しています",
+            pendingTitle: "注文は作成されています",
             pendingBody:
-              "注文の反映に少し時間がかかっています。注文一覧から状況を確認できます。",
+              "反映に少し時間がかかっています。注文一覧から状況を確認できます。",
 
             errorTitle: "注文確認に失敗しました",
             noSession:
               "注文情報が見つかりませんでした。もう一度、注文画面からお試しください。",
             loginError: "ログイン情報を取得できませんでした。",
             genericError: "注文確認に失敗しました。",
+            sessionTimeout:
+              "ログイン情報の取得に時間がかかっています。注文一覧から状況を確認してください。",
+            syncTimeout:
+              "注文の反映に時間がかかっています。注文一覧から状況を確認してください。",
 
             paymentReady: "支払い方法確認済み",
             waitingInfluencer: "インフルエンサーの返答待ち",
@@ -163,7 +190,7 @@ export default function OrderSuccessClient() {
             successBody:
               "Your payment method has been confirmed. The order will start once the influencer accepts.",
 
-            pendingTitle: "Checking your order",
+            pendingTitle: "Order created",
             pendingBody:
               "It may take a moment to reflect the order. You can check the status from your orders.",
 
@@ -172,6 +199,10 @@ export default function OrderSuccessClient() {
               "Order information was not found. Please try again from the order page.",
             loginError: "Could not retrieve your login session.",
             genericError: "Failed to confirm order.",
+            sessionTimeout:
+              "Loading your login session is taking too long. Please check your orders.",
+            syncTimeout:
+              "Order sync is taking too long. Please check your orders.",
 
             paymentReady: "Payment method confirmed",
             waitingInfluencer: "Waiting for influencer",
@@ -200,11 +231,15 @@ export default function OrderSuccessClient() {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<SyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const sync = async () => {
       setLoading(true);
       setError(null);
+      setTimedOut(false);
 
       if (!sessionId) {
         setError(copy.noSession);
@@ -212,49 +247,99 @@ export default function OrderSuccessClient() {
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const accessToken = session?.access_token ?? null;
-
-      if (!accessToken) {
-        setError(copy.loginError);
-        setLoading(false);
-        return;
-      }
-
       try {
-        const res = await fetch("/api/orders/sync-checkout-session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-          }),
-        });
+        const {
+          data: { session },
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          SESSION_TIMEOUT_MS,
+          copy.sessionTimeout
+        );
 
-        const json = (await res.json().catch(() => ({}))) as SyncResult;
+        const accessToken = session?.access_token ?? null;
 
-        if (!res.ok) {
-          setError(json?.error ?? copy.genericError);
-          setResult(json);
+        if (!accessToken) {
+          if (!isMounted) return;
+          setError(copy.loginError);
           setLoading(false);
           return;
         }
 
-        setResult(json);
-        setLoading(false);
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => {
+          controller.abort();
+        }, SYNC_TIMEOUT_MS);
+
+        try {
+          const res = await fetch("/api/orders/sync-checkout-session", {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+            }),
+          });
+
+          const json = (await res.json().catch(() => ({}))) as SyncResult;
+
+          if (!isMounted) return;
+
+          if (!res.ok) {
+            setError(json?.error ?? copy.genericError);
+            setResult(json);
+            setLoading(false);
+            return;
+          }
+
+          setResult(json);
+          setLoading(false);
+        } finally {
+          window.clearTimeout(timer);
+        }
       } catch (e: unknown) {
+        if (!isMounted) return;
+
+        const isAbort =
+          e instanceof DOMException && e.name === "AbortError"
+            ? true
+            : e instanceof Error &&
+              e.message.toLowerCase().includes("abort");
+
+        if (isAbort) {
+          setTimedOut(true);
+          setResult({
+            ok: true,
+            status: "sync_pending",
+            payment_status: "sync_pending",
+            message: copy.syncTimeout,
+          });
+          setError(null);
+          setLoading(false);
+          return;
+        }
+
         setError(e instanceof Error ? e.message : copy.genericError);
         setLoading(false);
       }
     };
 
     void sync();
-  }, [copy.genericError, copy.loginError, copy.noSession, sessionId, supabase]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    copy.genericError,
+    copy.loginError,
+    copy.noSession,
+    copy.sessionTimeout,
+    copy.syncTimeout,
+    sessionId,
+    supabase,
+  ]);
 
   const isAuthorized =
     result?.status === "authorized_pending_creator" ||
@@ -307,9 +392,7 @@ export default function OrderSuccessClient() {
             <ActionLink href="/b/orders" primary>
               {copy.retry}
             </ActionLink>
-            <ActionLink href="/b/creators">
-              {copy.searchInfluencer}
-            </ActionLink>
+            <ActionLink href="/b/creators">{copy.searchInfluencer}</ActionLink>
           </div>
         </section>
       </div>
@@ -330,7 +413,9 @@ export default function OrderSuccessClient() {
                 <StatusPill tone="amber">{copy.waitingInfluencer}</StatusPill>
               </>
             ) : (
-              <StatusPill tone="amber">{copy.reflectedSoon}</StatusPill>
+              <StatusPill tone="amber">
+                {timedOut ? copy.reflectedSoon : copy.reflectedSoon}
+              </StatusPill>
             )}
 
             {deadlineText ? (
@@ -345,46 +430,28 @@ export default function OrderSuccessClient() {
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-            {isAuthorized
-              ? copy.successBody
-              : result?.message || copy.pendingBody}
+            {isAuthorized ? copy.successBody : result?.message || copy.pendingBody}
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
             <ActionLink href="/b/orders" primary>
               {copy.orderList}
             </ActionLink>
-            <ActionLink href="/b/creators">
-              {copy.searchInfluencer}
-            </ActionLink>
-            <ActionLink href="/b/dashboard">
-              {copy.dashboard}
-            </ActionLink>
+            <ActionLink href="/b/creators">{copy.searchInfluencer}</ActionLink>
+            <ActionLink href="/b/dashboard">{copy.dashboard}</ActionLink>
           </div>
         </div>
       </section>
 
-      <section className="rounded-[30px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+      <section className="rounded-[30px] bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
         <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
           {copy.nextTitle}
         </h2>
 
-        <div className="mt-4 grid gap-3">
-          <NextStepRow
-            number="1"
-            title={copy.step1Title}
-            body={copy.step1Body}
-          />
-          <NextStepRow
-            number="2"
-            title={copy.step2Title}
-            body={copy.step2Body}
-          />
-          <NextStepRow
-            number="3"
-            title={copy.step3Title}
-            body={copy.step3Body}
-          />
+        <div className="mt-5 grid gap-3">
+          <NextStepRow number="1" title={copy.step1Title} body={copy.step1Body} />
+          <NextStepRow number="2" title={copy.step2Title} body={copy.step2Body} />
+          <NextStepRow number="3" title={copy.step3Title} body={copy.step3Body} />
         </div>
       </section>
     </div>

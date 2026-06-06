@@ -1,26 +1,75 @@
 // File: app/api/orders/sync-checkout-session/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getStripe } from "@/lib/stripe";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 60;
 
-async function getAuthenticatedUser(req: NextRequest) {
+const AUTH_TIMEOUT_MS = 8000;
+const DB_TIMEOUT_MS = 10000;
+const DB_OPTIONAL_TIMEOUT_MS = 3000;
+const STRIPE_TIMEOUT_MS = 15000;
+
+type ServerDeps = {
+  supabaseAdmin: any;
+  getStripe: () => any;
+};
+
+function withTimeout<T = any>(
+  promiseLike: PromiseLike<T> | T,
+  ms: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const promise = Promise.resolve(promiseLike);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+async function loadServerDeps(): Promise<ServerDeps> {
+  const [supabaseModule, stripeModule] = await Promise.all([
+    import("@/lib/supabaseAdmin"),
+    import("@/lib/stripe"),
+  ]);
+
+  return {
+    supabaseAdmin: (supabaseModule as any).supabaseAdmin,
+    getStripe: (stripeModule as any).getStripe,
+  };
+}
+
+function getBearerToken(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : null;
 
-  if (!token) {
-    return { user: null, error: "認証トークンがありません" };
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
   }
 
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.getUser(token);
+  return authHeader.slice("Bearer ".length);
+}
+
+async function getAuthenticatedUser(args: {
+  supabaseAdmin: any;
+  token: string;
+}) {
+  const authResult: any = await withTimeout(
+    args.supabaseAdmin.auth.getUser(args.token),
+    AUTH_TIMEOUT_MS,
+    "認証情報の確認に時間がかかっています"
+  );
+
+  const user = authResult?.data?.user ?? null;
+  const error = authResult?.error ?? null;
 
   if (error || !user) {
     return { user: null, error: "認証に失敗しました" };
@@ -29,8 +78,8 @@ async function getAuthenticatedUser(req: NextRequest) {
   return { user, error: null };
 }
 
-function getPaymentIntentFromSession(session: Stripe.Checkout.Session) {
-  const paymentIntent = session.payment_intent;
+function getPaymentIntentFromSession(session: any) {
+  const paymentIntent = session?.payment_intent;
 
   if (!paymentIntent) {
     return null;
@@ -39,13 +88,13 @@ function getPaymentIntentFromSession(session: Stripe.Checkout.Session) {
   if (typeof paymentIntent === "string") {
     return {
       id: paymentIntent,
-      status: null as Stripe.PaymentIntent.Status | null,
+      status: null as string | null,
     };
   }
 
   return {
     id: paymentIntent.id,
-    status: paymentIntent.status,
+    status: paymentIntent.status ?? null,
   };
 }
 
@@ -53,12 +102,57 @@ function addHoursIso(hours: number) {
   return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 }
 
-export async function POST(req: NextRequest) {
+async function safeInsertOrderEvent(args: {
+  supabaseAdmin: any;
+  orderId: string;
+  actorUserId: string | null;
+  eventType: string;
+  eventData: Record<string, unknown>;
+}) {
   try {
-    const { user, error: authError } = await getAuthenticatedUser(req);
+    const eventRow = {
+      order_id: args.orderId,
+      actor_user_id: args.actorUserId,
+      event_type: args.eventType,
+      event_data: args.eventData,
+    } as never;
 
-    if (authError || !user) {
-      return NextResponse.json({ error: authError }, { status: 401 });
+    await withTimeout(
+      args.supabaseAdmin.from("order_events").insert(eventRow),
+      DB_OPTIONAL_TIMEOUT_MS,
+      "order event insert timeout"
+    );
+  } catch (error) {
+    console.warn("order event insert skipped", error);
+  }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    route: "/api/orders/sync-checkout-session",
+    methods: ["POST"],
+    message: "sync checkout session route is alive",
+  });
+}
+
+export async function HEAD() {
+  return new NextResponse(null, { status: 200 });
+}
+
+export async function POST(req: NextRequest) {
+  let deps: ServerDeps | null = null;
+  let actorUserId: string | null = null;
+  let orderIdForError: string | null = null;
+
+  try {
+    const token = getBearerToken(req);
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "認証トークンがありません" },
+        { status: 401 }
+      );
     }
 
     const body = await req.json().catch(() => null);
@@ -72,15 +166,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const stripe = getStripe();
+    deps = await loadServerDeps();
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent"],
+    const { supabaseAdmin, getStripe } = deps;
+
+    const { user, error: authError } = await getAuthenticatedUser({
+      supabaseAdmin,
+      token,
     });
 
+    if (authError || !user) {
+      return NextResponse.json({ error: authError }, { status: 401 });
+    }
+
+    actorUserId = user.id;
+
+    const stripe = getStripe();
+
+    const session: any = await withTimeout(
+      stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ["payment_intent"],
+      }),
+      STRIPE_TIMEOUT_MS,
+      "Stripe Checkout Session の取得に時間がかかっています"
+    );
+
     const orderId =
-      session.metadata?.order_id ||
-      (typeof session.client_reference_id === "string"
+      session?.metadata?.order_id ||
+      (typeof session?.client_reference_id === "string"
         ? session.client_reference_id
         : null);
 
@@ -91,24 +204,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from("orders")
-      .select(
-        `
-        id,
-        b_user_id,
-        status,
-        payment_status,
-        stripe_checkout_session_id,
-        stripe_payment_intent_id
-      `
-      )
-      .eq("id", orderId)
-      .maybeSingle();
+    orderIdForError = orderId;
 
-    if (orderError) {
-      throw orderError;
+    const orderResult: any = await withTimeout(
+      supabaseAdmin
+        .from("orders")
+        .select(
+          `
+          id,
+          b_user_id,
+          status,
+          payment_status,
+          stripe_checkout_session_id,
+          stripe_payment_intent_id
+        `
+        )
+        .eq("id", orderId)
+        .maybeSingle(),
+      DB_TIMEOUT_MS,
+      "注文情報の取得に時間がかかっています"
+    );
+
+    if (orderResult?.error) {
+      throw orderResult.error;
     }
+
+    const order = orderResult?.data ?? null;
 
     if (!order) {
       return NextResponse.json(
@@ -146,10 +267,20 @@ export async function POST(req: NextRequest) {
     let paymentIntentStatus = paymentIntentInfo.status;
 
     if (!paymentIntentStatus) {
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentIntentInfo.id
+      const paymentIntent: any = await withTimeout(
+        stripe.paymentIntents.retrieve(paymentIntentInfo.id),
+        STRIPE_TIMEOUT_MS,
+        "Stripe PaymentIntent の取得に時間がかかっています"
       );
-      paymentIntentStatus = paymentIntent.status;
+
+      paymentIntentStatus = paymentIntent?.status ?? null;
+    }
+
+    if (!paymentIntentStatus) {
+      return NextResponse.json(
+        { error: "PaymentIntent の状態を取得できませんでした" },
+        { status: 400 }
+      );
     }
 
     const nowIso = new Date().toISOString();
@@ -175,20 +306,22 @@ export async function POST(req: NextRequest) {
         patch.creator_accept_deadline = creatorAcceptDeadline;
       }
 
-      const { error: updateError } = await supabaseAdmin
-        .from("orders")
-        .update(patch)
-        .eq("id", order.id);
+      const updateResult: any = await withTimeout(
+        supabaseAdmin.from("orders").update(patch as never).eq("id", order.id),
+        DB_TIMEOUT_MS,
+        "注文ステータスの更新に時間がかかっています"
+      );
 
-      if (updateError) {
-        throw updateError;
+      if (updateResult?.error) {
+        throw updateResult.error;
       }
 
-      await supabaseAdmin.from("order_events").insert({
-        order_id: order.id,
-        actor_user_id: user.id,
-        event_type: "stripe_authorized_requires_capture",
-        event_data: {
+      await safeInsertOrderEvent({
+        supabaseAdmin,
+        orderId: order.id,
+        actorUserId: user.id,
+        eventType: "stripe_authorized_requires_capture",
+        eventData: {
           stripe_checkout_session_id: session.id,
           stripe_payment_intent_id: paymentIntentInfo.id,
           stripe_payment_intent_status: paymentIntentStatus,
@@ -208,28 +341,33 @@ export async function POST(req: NextRequest) {
     }
 
     if (paymentIntentStatus === "succeeded") {
-      const { error: updateError } = await supabaseAdmin
-        .from("orders")
-        .update({
-          status: "accepted_captured",
-          payment_status: "captured",
-          stripe_checkout_session_id: session.id,
-          stripe_payment_intent_id: paymentIntentInfo.id,
-          stripe_payment_status: paymentIntentStatus,
-          captured_at: nowIso,
-          updated_at: nowIso,
-        })
-        .eq("id", order.id);
+      const updateResult: any = await withTimeout(
+        supabaseAdmin
+          .from("orders")
+          .update({
+            status: "accepted_captured",
+            payment_status: "captured",
+            stripe_checkout_session_id: session.id,
+            stripe_payment_intent_id: paymentIntentInfo.id,
+            stripe_payment_status: paymentIntentStatus,
+            captured_at: nowIso,
+            updated_at: nowIso,
+          } as never)
+          .eq("id", order.id),
+        DB_TIMEOUT_MS,
+        "注文ステータスの更新に時間がかかっています"
+      );
 
-      if (updateError) {
-        throw updateError;
+      if (updateResult?.error) {
+        throw updateResult.error;
       }
 
-      await supabaseAdmin.from("order_events").insert({
-        order_id: order.id,
-        actor_user_id: user.id,
-        event_type: "stripe_payment_succeeded_unexpected",
-        event_data: {
+      await safeInsertOrderEvent({
+        supabaseAdmin,
+        orderId: order.id,
+        actorUserId: user.id,
+        eventType: "stripe_payment_succeeded_unexpected",
+        eventData: {
           stripe_checkout_session_id: session.id,
           stripe_payment_intent_id: paymentIntentInfo.id,
           stripe_payment_intent_status: paymentIntentStatus,
@@ -246,28 +384,33 @@ export async function POST(req: NextRequest) {
     }
 
     if (paymentIntentStatus === "canceled") {
-      const { error: updateError } = await supabaseAdmin
-        .from("orders")
-        .update({
-          status: "declined_canceled",
-          payment_status: "canceled",
-          stripe_checkout_session_id: session.id,
-          stripe_payment_intent_id: paymentIntentInfo.id,
-          stripe_payment_status: paymentIntentStatus,
-          canceled_at: nowIso,
-          updated_at: nowIso,
-        })
-        .eq("id", order.id);
+      const updateResult: any = await withTimeout(
+        supabaseAdmin
+          .from("orders")
+          .update({
+            status: "declined_canceled",
+            payment_status: "canceled",
+            stripe_checkout_session_id: session.id,
+            stripe_payment_intent_id: paymentIntentInfo.id,
+            stripe_payment_status: paymentIntentStatus,
+            canceled_at: nowIso,
+            updated_at: nowIso,
+          } as never)
+          .eq("id", order.id),
+        DB_TIMEOUT_MS,
+        "注文ステータスの更新に時間がかかっています"
+      );
 
-      if (updateError) {
-        throw updateError;
+      if (updateResult?.error) {
+        throw updateResult.error;
       }
 
-      await supabaseAdmin.from("order_events").insert({
-        order_id: order.id,
-        actor_user_id: user.id,
-        event_type: "stripe_payment_intent_canceled",
-        event_data: {
+      await safeInsertOrderEvent({
+        supabaseAdmin,
+        orderId: order.id,
+        actorUserId: user.id,
+        eventType: "stripe_payment_intent_canceled",
+        eventData: {
           stripe_checkout_session_id: session.id,
           stripe_payment_intent_id: paymentIntentInfo.id,
           stripe_payment_intent_status: paymentIntentStatus,
@@ -283,11 +426,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    await supabaseAdmin.from("order_events").insert({
-      order_id: order.id,
-      actor_user_id: user.id,
-      event_type: "stripe_checkout_synced_without_state_change",
-      event_data: {
+    await safeInsertOrderEvent({
+      supabaseAdmin,
+      orderId: order.id,
+      actorUserId: user.id,
+      eventType: "stripe_checkout_synced_without_state_change",
+      eventData: {
         stripe_checkout_session_id: session.id,
         stripe_payment_intent_id: paymentIntentInfo.id,
         stripe_payment_intent_status: paymentIntentStatus,
@@ -306,8 +450,28 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("orders sync checkout session error", error);
 
+    if (deps?.supabaseAdmin && orderIdForError) {
+      await safeInsertOrderEvent({
+        supabaseAdmin: deps.supabaseAdmin,
+        orderId: orderIdForError,
+        actorUserId,
+        eventType: "orders_sync_checkout_session_error",
+        eventData: {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unknown sync checkout session error",
+        },
+      });
+    }
+
     return NextResponse.json(
-      { error: "Checkout結果の同期に失敗しました" },
+      {
+        error:
+          error instanceof Error && error.message
+            ? error.message
+            : "Checkout結果の同期に失敗しました",
+      },
       { status: 500 }
     );
   }
