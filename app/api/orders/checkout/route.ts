@@ -51,9 +51,16 @@ type CheckoutBody = {
 };
 
 const ORDER_REFERENCE_ASSETS_BUCKET = "order-reference-assets";
+
 const MAX_REFERENCE_ASSETS = 3;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+const AUTH_TIMEOUT_MS = 8000;
+const DB_TIMEOUT_MS = 10000;
+const DB_OPTIONAL_TIMEOUT_MS = 3000;
+const STRIPE_TIMEOUT_MS = 12000;
+const STRIPE_SESSION_TIMEOUT_MS = 20000;
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
@@ -82,6 +89,24 @@ const ZERO_DECIMAL_CURRENCIES = new Set([
   "XPF",
 ]);
 
+function withTimeout<T>(
+  promise: PromiseLike<T>,
+  ms: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 async function getAuthenticatedUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ")
@@ -95,7 +120,11 @@ async function getAuthenticatedUser(req: NextRequest) {
   const {
     data: { user },
     error,
-  } = await supabaseAdmin.auth.getUser(token);
+  } = await withTimeout(
+    supabaseAdmin.auth.getUser(token),
+    AUTH_TIMEOUT_MS,
+    "認証情報の確認に時間がかかっています"
+  );
 
   if (error || !user) {
     return { user: null, error: "認証に失敗しました" };
@@ -105,12 +134,16 @@ async function getAuthenticatedUser(req: NextRequest) {
 }
 
 async function ensureCompanyUser(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "company")
-    .maybeSingle();
+  const { data, error } = await withTimeout(
+    supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "company")
+      .maybeSingle(),
+    DB_TIMEOUT_MS,
+    "企業ロールの確認に時間がかかっています"
+  );
 
   if (error || !data) {
     return false;
@@ -120,12 +153,16 @@ async function ensureCompanyUser(userId: string) {
 }
 
 async function ensureNoActiveSuspension(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_suspensions")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .limit(1);
+  const { data, error } = await withTimeout(
+    supabaseAdmin
+      .from("user_suspensions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .limit(1),
+    DB_TIMEOUT_MS,
+    "アカウント状態の確認に時間がかかっています"
+  );
 
   if (error) {
     throw error;
@@ -135,11 +172,15 @@ async function ensureNoActiveSuspension(userId: string) {
 }
 
 async function getCompany(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("companies")
-    .select("company_name, contact_email, approval_status")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const { data, error } = await withTimeout(
+    supabaseAdmin
+      .from("companies")
+      .select("company_name, contact_email, approval_status")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    DB_TIMEOUT_MS,
+    "企業情報の取得に時間がかかっています"
+  );
 
   if (error) {
     throw error;
@@ -149,23 +190,27 @@ async function getCompany(userId: string) {
 }
 
 async function getUserState(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_states")
-    .select(
+  const { data, error } = await withTimeout(
+    supabaseAdmin
+      .from("user_states")
+      .select(
+        `
+        user_id,
+        company_profile_completed,
+        company_access_status,
+        company_plan_code,
+        company_subscription_status,
+        monthly_request_limit,
+        monthly_request_used,
+        request_usage_reset_at,
+        stripe_customer_id
       `
-      user_id,
-      company_profile_completed,
-      company_access_status,
-      company_plan_code,
-      company_subscription_status,
-      monthly_request_limit,
-      monthly_request_used,
-      request_usage_reset_at,
-      stripe_customer_id
-    `
-    )
-    .eq("user_id", userId)
-    .maybeSingle();
+      )
+      .eq("user_id", userId)
+      .maybeSingle(),
+    DB_TIMEOUT_MS,
+    "利用状態の取得に時間がかかっています"
+  );
 
   if (error) {
     throw error;
@@ -178,9 +223,8 @@ async function upsertUserState(
   userId: string,
   patch: Record<string, string | number | boolean | null>
 ) {
-  const { error } = await supabaseAdmin
-    .from("user_states")
-    .upsert(
+  const { error } = await withTimeout(
+    supabaseAdmin.from("user_states").upsert(
       {
         user_id: userId,
         ...patch,
@@ -188,7 +232,10 @@ async function upsertUserState(
       {
         onConflict: "user_id",
       }
-    );
+    ),
+    DB_TIMEOUT_MS,
+    "利用状態の更新に時間がかかっています"
+  );
 
   if (error) {
     throw error;
@@ -205,8 +252,10 @@ async function findOrCreateStripeCustomer(args: {
 
   if (args.existingCustomerId) {
     try {
-      const existingCustomer = await stripe.customers.retrieve(
-        args.existingCustomerId
+      const existingCustomer = await withTimeout(
+        stripe.customers.retrieve(args.existingCustomerId),
+        STRIPE_TIMEOUT_MS,
+        "Stripe顧客情報の確認に時間がかかっています"
       );
 
       if (!("deleted" in existingCustomer)) {
@@ -217,32 +266,44 @@ async function findOrCreateStripeCustomer(args: {
           return existingCustomer;
         }
       }
-    } catch {
-      // 壊れた customer id は無視して、email + metadata で探し直す
+    } catch (error) {
+      console.warn("stripe existing customer lookup skipped", error);
     }
   }
 
-  const byEmail = await stripe.customers.list({
-    email: args.email,
-    limit: 20,
-  });
+  try {
+    const byEmail = await withTimeout(
+      stripe.customers.list({
+        email: args.email,
+        limit: 20,
+      }),
+      STRIPE_TIMEOUT_MS,
+      "Stripe顧客情報の検索に時間がかかっています"
+    );
 
-  const matchedByMetadata =
-    byEmail.data.find(
-      (customer) => customer.metadata?.supabase_user_id === args.userId
-    ) ?? null;
+    const matchedByMetadata =
+      byEmail.data.find(
+        (customer) => customer.metadata?.supabase_user_id === args.userId
+      ) ?? null;
 
-  if (matchedByMetadata) {
-    return matchedByMetadata;
+    if (matchedByMetadata) {
+      return matchedByMetadata;
+    }
+  } catch (error) {
+    console.warn("stripe customer email lookup skipped", error);
   }
 
-  return stripe.customers.create({
-    email: args.email,
-    name: args.companyName ?? args.email,
-    metadata: {
-      supabase_user_id: args.userId,
-    },
-  });
+  return withTimeout(
+    stripe.customers.create({
+      email: args.email,
+      name: args.companyName ?? args.email,
+      metadata: {
+        supabase_user_id: args.userId,
+      },
+    }),
+    STRIPE_TIMEOUT_MS,
+    "Stripe顧客情報の作成に時間がかかっています"
+  );
 }
 
 function normalizeCurrency(value: string | null | undefined) {
@@ -352,7 +413,6 @@ function normalizeHashtag(value: unknown) {
 
   const lower = text.toLowerCase();
 
-  // Bが間違ってPR系を入れても重複・誤解を避けるため保存しない
   if (lower === "pr" || lower === "ad" || lower === "sponsored") {
     return null;
   }
@@ -493,14 +553,89 @@ function normalizeReferenceAssets(value: unknown, userId: string) {
       mime_type: mimeType,
       size_bytes: sizeBytes,
       sort_order: sortOrder,
-    } as NormalizedReferenceAsset);
+    });
   }
 
   return { assets: result, error: null };
 }
 
+async function safeInsertOrderEvent(args: {
+  orderId: string;
+  actorUserId: string | null;
+  eventType: string;
+  eventData: Record<string, unknown>;
+}) {
+  try {
+    const eventRow = {
+      order_id: args.orderId,
+      actor_user_id: args.actorUserId,
+      event_type: args.eventType,
+      event_data: args.eventData,
+    } as never;
+
+    await withTimeout(
+      supabaseAdmin.from("order_events").insert(eventRow),
+      DB_OPTIONAL_TIMEOUT_MS,
+      "order event insert timeout"
+    );
+  } catch (error) {
+    console.warn("order event insert skipped", error);
+  }
+}
+
+async function safePersistReferenceAssets(args: {
+  orderId: string;
+  bUserId: string;
+  creatorUserId: string;
+  referenceAssets: NormalizedReferenceAsset[];
+}) {
+  if (args.referenceAssets.length === 0) return;
+
+  try {
+    const assetRows = args.referenceAssets.map((asset) => ({
+      order_id: args.orderId,
+      b_user_id: args.bUserId,
+      creator_user_id: args.creatorUserId,
+      uploaded_by_user_id: args.bUserId,
+      storage_bucket: ORDER_REFERENCE_ASSETS_BUCKET,
+      storage_path: asset.storage_path,
+      file_name: asset.file_name,
+      file_type: asset.file_type,
+      mime_type: asset.mime_type,
+      size_bytes: asset.size_bytes,
+      sort_order: asset.sort_order,
+    }));
+
+    const { error } = await withTimeout(
+      supabaseAdmin.from("order_reference_assets").insert(assetRows as never),
+      DB_OPTIONAL_TIMEOUT_MS,
+      "reference assets insert timeout"
+    );
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.warn("reference assets insert skipped", error);
+
+    await safeInsertOrderEvent({
+      orderId: args.orderId,
+      actorUserId: args.bUserId,
+      eventType: "order_reference_assets_insert_skipped",
+      eventData: {
+        message:
+          error instanceof Error
+            ? error.message
+            : "reference assets insert skipped",
+        reference_assets_count: args.referenceAssets.length,
+      },
+    });
+  }
+}
+
 export async function POST(req: NextRequest) {
   let createdOrderId: string | null = null;
+  let actorUserId: string | null = null;
 
   try {
     const { user, error: authError } = await getAuthenticatedUser(req);
@@ -508,6 +643,8 @@ export async function POST(req: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: authError }, { status: 401 });
     }
+
+    actorUserId = user.id;
 
     const isCompany = await ensureCompanyUser(user.id);
 
@@ -669,24 +806,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: creator, error: creatorError } = await supabaseAdmin
-      .from("creators")
-      .select(
+    const { data: creator, error: creatorError } = await withTimeout(
+      supabaseAdmin
+        .from("creators")
+        .select(
+          `
+          id,
+          user_id,
+          display_name,
+          approval_status,
+          is_public,
+          stripe_account_id,
+          stripe_onboarding_completed
         `
-        id,
-        user_id,
-        display_name,
-        approval_status,
-        is_public,
-        stripe_account_id,
-        stripe_onboarding_completed
-      `
-      )
-      .eq("id", creatorId)
-      .eq("approval_status", "approved")
-      .eq("is_public", true)
-      .eq("stripe_onboarding_completed", true)
-      .maybeSingle();
+        )
+        .eq("id", creatorId)
+        .eq("approval_status", "approved")
+        .eq("is_public", true)
+        .eq("stripe_onboarding_completed", true)
+        .maybeSingle(),
+      DB_TIMEOUT_MS,
+      "クリエイター情報の取得に時間がかかっています"
+    );
 
     if (creatorError) {
       throw creatorError;
@@ -712,33 +853,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: menu, error: menuError } = await supabaseAdmin
-      .from("creator_menus")
-      .select(
+    const { data: menu, error: menuError } = await withTimeout(
+      supabaseAdmin
+        .from("creator_menus")
+        .select(
+          `
+          id,
+          creator_id,
+          title,
+          description,
+          platform,
+          sns,
+          menu_type,
+          category,
+          price,
+          currency,
+          deliverables,
+          delivery_days,
+          account_url,
+          reference_price_text,
+          allow_secondary_use,
+          notes,
+          is_active
         `
-        id,
-        creator_id,
-        title,
-        description,
-        platform,
-        sns,
-        menu_type,
-        category,
-        price,
-        currency,
-        deliverables,
-        delivery_days,
-        account_url,
-        reference_price_text,
-        allow_secondary_use,
-        notes,
-        is_active
-      `
-      )
-      .eq("id", creatorMenuId)
-      .eq("creator_id", creator.id)
-      .eq("is_active", true)
-      .maybeSingle();
+        )
+        .eq("id", creatorMenuId)
+        .eq("creator_id", creator.id)
+        .eq("is_active", true)
+        .maybeSingle(),
+      DB_TIMEOUT_MS,
+      "メニュー情報の取得に時間がかかっています"
+    );
 
     if (menuError) {
       throw menuError;
@@ -874,7 +1019,7 @@ export async function POST(req: NextRequest) {
       stripe_payment_status: "checkout_pending",
 
       metadata: {
-        source: "orders_checkout_api_v2_collabstr_like_fees",
+        source: "orders_checkout_api_v3_non_blocking_reference_assets",
         plan_code: planCode,
         plan_public_name: fees.buyerPlanPublicNameSnapshot,
         payment_flow: "manual_capture",
@@ -887,65 +1032,21 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from("orders")
-      .insert(orderInsert as never)
-      .select("id")
-      .single();
+    const { data: order, error: orderError } = await withTimeout(
+      supabaseAdmin
+        .from("orders")
+        .insert(orderInsert as never)
+        .select("id")
+        .single(),
+      DB_TIMEOUT_MS,
+      "注文情報の作成に時間がかかっています"
+    );
 
     if (orderError || !order) {
       throw orderError ?? new Error("Order creation failed");
     }
 
     createdOrderId = order.id;
-
-    if (referenceAssets.length > 0) {
-      const assetRows = referenceAssets.map((asset) => ({
-        order_id: order.id,
-        b_user_id: user.id,
-        creator_user_id: creator.user_id,
-        uploaded_by_user_id: user.id,
-        storage_bucket: ORDER_REFERENCE_ASSETS_BUCKET,
-        storage_path: asset.storage_path,
-        file_name: asset.file_name,
-        file_type: asset.file_type,
-        mime_type: asset.mime_type,
-        size_bytes: asset.size_bytes,
-        sort_order: asset.sort_order,
-      }));
-
-      const { error: assetError } = await supabaseAdmin
-        .from("order_reference_assets")
-        .insert(assetRows as never);
-
-      if (assetError) {
-        throw assetError;
-      }
-    }
-
-    await supabaseAdmin.from("order_events").insert({
-      order_id: order.id,
-      actor_user_id: user.id,
-      event_type: "order_checkout_pending_created",
-      event_data: {
-        creator_id: creator.id,
-        creator_user_id: creator.user_id,
-        creator_menu_id: menu.id,
-        currency,
-        menu_price_amount: fees.menuPriceAmount,
-        buyer_marketplace_fee_amount: fees.buyerMarketplaceFeeAmount,
-        buyer_total_amount: fees.buyerTotalAmount,
-        creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
-        creator_payout_amount: fees.creatorPayoutAmount,
-        platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
-        stripe_amount: stripeAmount,
-        payment_flow: "manual_capture",
-        project_type: projectType,
-        pr_account: prAccount,
-        pr_hashtags: prHashtags,
-        reference_assets_count: referenceAssets.length,
-      },
-    });
 
     const successUrl = `${baseUrl}/b/orders/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/b/creators/${creator.id}/request?menuId=${menu.id}&checkout=cancelled`;
@@ -993,14 +1094,38 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer: customer.id,
-      client_reference_id: order.id,
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      payment_intent_data: {
-        capture_method: "manual",
+    const session = await withTimeout(
+      stripe.checkout.sessions.create({
+        mode: "payment",
+        customer: customer.id,
+        client_reference_id: order.id,
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        payment_intent_data: {
+          capture_method: "manual",
+          metadata: {
+            order_id: order.id,
+            supabase_user_id: user.id,
+            b_user_id: user.id,
+            creator_id: creator.id,
+            creator_user_id: creator.user_id,
+            creator_menu_id: menu.id,
+            payment_flow: "manual_capture",
+            project_type: projectType,
+            menu_price_amount: String(fees.menuPriceAmount),
+            buyer_marketplace_fee_amount: String(
+              fees.buyerMarketplaceFeeAmount
+            ),
+            buyer_total_amount: String(fees.buyerTotalAmount),
+            creator_transaction_fee_amount: String(
+              fees.creatorTransactionFeeAmount
+            ),
+            creator_payout_amount: String(fees.creatorPayoutAmount),
+            platform_gross_revenue_amount: String(
+              fees.platformGrossRevenueAmount
+            ),
+          },
+        },
         metadata: {
           order_id: order.id,
           supabase_user_id: user.id,
@@ -1010,52 +1135,51 @@ export async function POST(req: NextRequest) {
           creator_menu_id: menu.id,
           payment_flow: "manual_capture",
           project_type: projectType,
-          menu_price_amount: String(fees.menuPriceAmount),
-          buyer_marketplace_fee_amount: String(
-            fees.buyerMarketplaceFeeAmount
-          ),
-          buyer_total_amount: String(fees.buyerTotalAmount),
-          creator_transaction_fee_amount: String(
-            fees.creatorTransactionFeeAmount
-          ),
-          creator_payout_amount: String(fees.creatorPayoutAmount),
-          platform_gross_revenue_amount: String(
-            fees.platformGrossRevenueAmount
-          ),
         },
-      },
-      metadata: {
-        order_id: order.id,
-        supabase_user_id: user.id,
-        b_user_id: user.id,
-        creator_id: creator.id,
-        creator_user_id: creator.user_id,
-        creator_menu_id: menu.id,
-        payment_flow: "manual_capture",
-        project_type: projectType,
-      },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      allow_promotion_codes: false,
-    });
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        allow_promotion_codes: false,
+      }),
+      STRIPE_SESSION_TIMEOUT_MS,
+      "Stripe Checkoutの作成に時間がかかっています"
+    );
 
     if (!session.url) {
       throw new Error("Checkout URL was not created");
     }
 
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        stripe_checkout_session_id: session.id,
-        updated_at: new Date().toISOString(),
-      } as never)
-      .eq("id", order.id);
+    try {
+      const { error: updateOrderError } = await withTimeout(
+        supabaseAdmin
+          .from("orders")
+          .update({
+            stripe_checkout_session_id: session.id,
+            updated_at: new Date().toISOString(),
+          } as never)
+          .eq("id", order.id),
+        DB_OPTIONAL_TIMEOUT_MS,
+        "checkout session id update timeout"
+      );
 
-    await supabaseAdmin.from("order_events").insert({
-      order_id: order.id,
-      actor_user_id: user.id,
-      event_type: "stripe_checkout_session_created",
-      event_data: {
+      if (updateOrderError) {
+        console.warn("checkout session id update error", updateOrderError);
+      }
+    } catch (error) {
+      console.warn("checkout session id update skipped", error);
+    }
+
+    await safePersistReferenceAssets({
+      orderId: order.id,
+      bUserId: user.id,
+      creatorUserId: creator.user_id,
+      referenceAssets,
+    });
+
+    await safeInsertOrderEvent({
+      orderId: order.id,
+      actorUserId: user.id,
+      eventType: "stripe_checkout_session_created",
+      eventData: {
         stripe_checkout_session_id: session.id,
         checkout_amount: stripeAmount,
         menu_price_amount: fees.menuPriceAmount,
@@ -1088,11 +1212,11 @@ export async function POST(req: NextRequest) {
     console.error("orders checkout error", error);
 
     if (createdOrderId) {
-      await supabaseAdmin.from("order_events").insert({
-        order_id: createdOrderId,
-        actor_user_id: null,
-        event_type: "orders_checkout_error",
-        event_data: {
+      await safeInsertOrderEvent({
+        orderId: createdOrderId,
+        actorUserId,
+        eventType: "orders_checkout_error",
+        eventData: {
           message:
             error instanceof Error
               ? error.message
@@ -1102,7 +1226,12 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "注文用Checkoutの作成に失敗しました" },
+      {
+        error:
+          error instanceof Error && error.message
+            ? error.message
+            : "注文用Checkoutの作成に失敗しました",
+      },
       { status: 500 }
     );
   }
