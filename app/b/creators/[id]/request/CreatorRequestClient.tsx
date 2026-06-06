@@ -1,7 +1,7 @@
 // File: app/b/creators/[id]/request/CreatorRequestClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -102,12 +102,34 @@ const MAX_REFERENCE_ASSETS = 3;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
+const SESSION_TIMEOUT_MS = 8000;
+const CHECKOUT_TIMEOUT_MS = 45000;
+const UPLOAD_TIMEOUT_MS = 45000;
+
 const ALLOWED_REFERENCE_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "application/pdf",
 ]);
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 
 function normalizePlanCode(
   value: string | null | undefined
@@ -573,7 +595,9 @@ function AccountInput({
         <span className="shrink-0 text-base font-black text-slate-400">@</span>
         <input
           value={value}
-          onChange={(event) => onChange(normalizePrAccountInput(event.target.value))}
+          onChange={(event) =>
+            onChange(normalizePrAccountInput(event.target.value))
+          }
           placeholder={placeholder}
           className="min-w-0 flex-1 bg-transparent px-1 py-4 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-300"
         />
@@ -593,6 +617,7 @@ export default function CreatorRequestClient() {
   const initialMenuId = searchParams.get("menuId") ?? "";
   const startParam = searchParams.get("start") ?? "";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
   const orderSteps: OrderStep[] = [
     "project_type",
@@ -665,6 +690,8 @@ export default function CreatorRequestClient() {
             referenceAssetsPdfSizeError: "PDFは1ファイル10MBまでです。",
             referenceAssetsUploadError:
               "参考資料のアップロードに失敗しました。",
+            referenceAssetsUploadTimeout:
+              "参考資料のアップロードに時間がかかっています。通信環境を確認して再度お試しください。",
             referenceAssetsUploading: "アップロード中...",
             referenceAssetsEmpty: "添付なし",
             remove: "削除",
@@ -708,12 +735,18 @@ export default function CreatorRequestClient() {
             latestTemplateEmpty: "前回の注文内容はまだありません。",
             latestTemplateApplied: "前回の注文内容を反映しました。",
             latestTemplateError: "前回の注文内容を取得できませんでした。",
+            latestTemplateTimeout:
+              "前回の注文内容の取得に時間がかかっています。",
             menuRequired: "注文するメニューを選択してください。",
             freeLimitReached:
               "Basicでは月5件まで注文できます。上限に達したため、プラン変更をご検討ください。",
             submitError: "Checkoutの作成に失敗しました。",
             networkError: "通信エラーが発生しました。",
             authError: "ログイン情報を取得できませんでした。",
+            authTimeout:
+              "ログイン情報の取得に時間がかかっています。ページを再読み込みしてから再度お試しください。",
+            checkoutTimeout:
+              "支払い画面の作成に時間がかかっています。少し時間をおいて再度お試しください。",
             checkoutUrlMissing: "Checkout URLを取得できませんでした。",
             submitting: "作成中...",
             limitReachedButton: "上限に達しています",
@@ -796,6 +829,8 @@ export default function CreatorRequestClient() {
             referenceAssetsImageSizeError: "Images must be 5MB or smaller.",
             referenceAssetsPdfSizeError: "PDF files must be 10MB or smaller.",
             referenceAssetsUploadError: "Failed to upload reference materials.",
+            referenceAssetsUploadTimeout:
+              "Reference material upload is taking too long. Please check your connection and try again.",
             referenceAssetsUploading: "Uploading...",
             referenceAssetsEmpty: "No files attached",
             remove: "Remove",
@@ -839,12 +874,18 @@ export default function CreatorRequestClient() {
             latestTemplateEmpty: "No previous order settings yet.",
             latestTemplateApplied: "Previous order settings applied.",
             latestTemplateError: "Could not load previous order settings.",
+            latestTemplateTimeout:
+              "Loading previous settings is taking too long.",
             menuRequired: "Please select a menu to order.",
             freeLimitReached:
               "Basic allows up to 5 orders per month. You have reached the limit, so please consider upgrading.",
             submitError: "Failed to create Checkout for this order.",
             networkError: "A network error occurred.",
             authError: "Could not retrieve your login session.",
+            authTimeout:
+              "Loading your login session is taking too long. Please reload the page and try again.",
+            checkoutTimeout:
+              "Creating the payment page is taking too long. Please try again later.",
             checkoutUrlMissing: "Checkout URL was not returned.",
             submitting: "Creating...",
             limitReachedButton: "Limit reached",
@@ -979,11 +1020,10 @@ export default function CreatorRequestClient() {
 
   useEffect(() => {
     return () => {
-      referenceAssets.forEach((asset) => {
-        if (asset.preview_url) URL.revokeObjectURL(asset.preview_url);
-      });
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.clear();
     };
-  }, [referenceAssets]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -1344,20 +1384,24 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setReferenceAssetError(copy.authError);
-      return;
-    }
-
     const nextAssets: ReferenceAssetDraft[] = [];
 
     setReferenceAssetUploading(true);
 
     try {
+      const {
+        data: { user },
+      } = await withTimeout(
+        supabase.auth.getUser(),
+        SESSION_TIMEOUT_MS,
+        copy.authTimeout
+      );
+
+      if (!user) {
+        setReferenceAssetError(copy.authError);
+        return;
+      }
+
       for (const file of incomingFiles) {
         const fileType = getReferenceFileType(file);
 
@@ -1378,18 +1422,27 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
 
         const storagePath = buildReferenceStoragePath(user.id, file);
 
-        const { error: uploadError } = await supabase.storage
-          .from(ORDER_REFERENCE_ASSETS_BUCKET)
-          .upload(storagePath, file, {
-            cacheControl: "3600",
-            contentType: file.type,
-            upsert: false,
-          });
+        await withTimeout(
+          supabase.storage
+            .from(ORDER_REFERENCE_ASSETS_BUCKET)
+            .upload(storagePath, file, {
+              cacheControl: "3600",
+              contentType: file.type,
+              upsert: false,
+            })
+            .then((result) => {
+              if (result.error) throw result.error;
+              return result;
+            }),
+          UPLOAD_TIMEOUT_MS,
+          copy.referenceAssetsUploadTimeout
+        );
 
-        if (uploadError) {
-          console.error("reference asset upload error:", uploadError);
-          setReferenceAssetError(copy.referenceAssetsUploadError);
-          return;
+        const previewUrl =
+          fileType === "image" ? URL.createObjectURL(file) : null;
+
+        if (previewUrl) {
+          previewUrlsRef.current.add(previewUrl);
         }
 
         nextAssets.push({
@@ -1399,11 +1452,16 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
           mime_type: file.type,
           size_bytes: file.size,
           sort_order: referenceAssets.length + nextAssets.length,
-          preview_url: fileType === "image" ? URL.createObjectURL(file) : null,
+          preview_url: previewUrl,
         });
       }
 
       setReferenceAssets((prev) => [...prev, ...nextAssets]);
+    } catch (error: any) {
+      console.error("reference asset upload error:", error);
+      setReferenceAssetError(
+        error?.message || copy.referenceAssetsUploadError
+      );
     } finally {
       setReferenceAssetUploading(false);
     }
@@ -1417,6 +1475,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
 
       if (target?.preview_url) {
         URL.revokeObjectURL(target.preview_url);
+        previewUrlsRef.current.delete(target.preview_url);
       }
 
       return prev
@@ -1438,7 +1497,11 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
     try {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        SESSION_TIMEOUT_MS,
+        copy.authTimeout
+      );
 
       const accessToken = session?.access_token ?? null;
 
@@ -1448,12 +1511,16 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
         return;
       }
 
-      const res = await fetch("/api/company/order-pr-template/latest", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const res = await withTimeout(
+        fetch("/api/company/order-pr-template/latest", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }),
+        CHECKOUT_TIMEOUT_MS,
+        copy.latestTemplateTimeout
+      );
 
       const json = await res.json().catch(() => ({}));
 
@@ -1495,8 +1562,8 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
       }));
 
       setTemplateMessage(copy.latestTemplateApplied);
-    } catch {
-      setTemplateMessage(copy.latestTemplateError);
+    } catch (error: any) {
+      setTemplateMessage(error?.message ?? copy.latestTemplateError);
     } finally {
       setTemplateLoading(false);
     }
@@ -1578,6 +1645,8 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
   };
 
   const handleCheckout = async () => {
+    if (submitting) return;
+
     if (!creator || !gate.canSendRequests || reachedLimit) {
       return;
     }
@@ -1599,7 +1668,11 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
     try {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        SESSION_TIMEOUT_MS,
+        copy.authTimeout
+      );
 
       const accessToken = session?.access_token ?? null;
 
@@ -1610,37 +1683,49 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
         return;
       }
 
-      const res = await fetch("/api/orders/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          creator_id: creator.id,
-          creator_menu_id: selectedMenu.id,
-          project_type: form.project_type,
-          product_name: form.product_name.trim() || selectedMenu.title,
-          product_url: form.product_url.trim() || null,
-          deadline: null,
-          requirements: buildFinalRequirements(),
-          pr_account: form.pr_account,
-          pr_hashtags: cleanHashtags,
-          post_notes: form.note.trim() || null,
-          reference_assets: referenceAssets.map((asset, index) => ({
-            storage_path: asset.storage_path,
-            file_name: asset.file_name,
-            file_type: asset.file_type,
-            mime_type: asset.mime_type,
-            size_bytes: asset.size_bytes,
-            sort_order: index,
-          })),
-          has_free_offer:
-            form.project_type === "visit_experience" ||
-            form.project_type === "product_delivery",
-          wants_secondary_use: selectedMenuIsUgc,
-        }),
-      });
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => {
+        controller.abort();
+      }, CHECKOUT_TIMEOUT_MS);
+
+      let res: Response;
+
+      try {
+        res = await fetch("/api/orders/checkout", {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            creator_id: creator.id,
+            creator_menu_id: selectedMenu.id,
+            project_type: form.project_type,
+            product_name: form.product_name.trim() || selectedMenu.title,
+            product_url: form.product_url.trim() || null,
+            deadline: null,
+            requirements: buildFinalRequirements(),
+            pr_account: form.pr_account,
+            pr_hashtags: cleanHashtags,
+            post_notes: form.note.trim() || null,
+            reference_assets: referenceAssets.map((asset, index) => ({
+              storage_path: asset.storage_path,
+              file_name: asset.file_name,
+              file_type: asset.file_type,
+              mime_type: asset.mime_type,
+              size_bytes: asset.size_bytes,
+              sort_order: index,
+            })),
+            has_free_offer:
+              form.project_type === "visit_experience" ||
+              form.project_type === "product_delivery",
+            wants_secondary_use: selectedMenuIsUgc,
+          }),
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
 
       const json = await res.json().catch(() => ({}));
 
@@ -1658,7 +1743,11 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
 
       window.location.href = json.url;
     } catch (error: any) {
-      setErrorMsg(error?.message ?? copy.networkError);
+      const isAbort =
+        error?.name === "AbortError" ||
+        String(error?.message ?? "").toLowerCase().includes("abort");
+
+      setErrorMsg(isAbort ? copy.checkoutTimeout : error?.message ?? copy.networkError);
       setSubmitting(false);
     }
   };
