@@ -68,6 +68,18 @@ type FormState = {
   creator_menu_id: string;
 };
 
+type ReferenceFileType = "image" | "pdf";
+
+type ReferenceAssetDraft = {
+  storage_path: string;
+  file_name: string;
+  file_type: ReferenceFileType;
+  mime_type: string;
+  size_bytes: number;
+  sort_order: number;
+  preview_url: string | null;
+};
+
 type GateState = {
   isLoggedIn: boolean;
   isCompany: boolean;
@@ -84,6 +96,18 @@ type GateState = {
 
 const MAX_HASHTAGS = 8;
 const MIN_VISIBLE_HASHTAG_INPUTS = 3;
+
+const ORDER_REFERENCE_ASSETS_BUCKET = "order-reference-assets";
+const MAX_REFERENCE_ASSETS = 3;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+const ALLOWED_REFERENCE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
 
 function normalizePlanCode(
   value: string | null | undefined
@@ -298,6 +322,53 @@ function buildPrCopyText(prAccount: string, hashtags: string[]) {
   }
 
   return lines.join("\n");
+}
+
+function getReferenceFileType(file: File): ReferenceFileType | null {
+  if (
+    file.type === "image/jpeg" ||
+    file.type === "image/png" ||
+    file.type === "image/webp"
+  ) {
+    return "image";
+  }
+
+  if (file.type === "application/pdf") {
+    return "pdf";
+  }
+
+  return null;
+}
+
+function formatFileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  }
+
+  return `${Math.ceil(bytes / 1024)}KB`;
+}
+
+function getFileExtension(file: File, fileType: ReferenceFileType) {
+  const raw = file.name.split(".").pop()?.toLowerCase();
+
+  if (raw && /^[a-z0-9]+$/.test(raw)) {
+    return raw;
+  }
+
+  return fileType === "pdf" ? "pdf" : "jpg";
+}
+
+function buildReferenceStoragePath(userId: string, file: File) {
+  const fileType = getReferenceFileType(file);
+  const extension = fileType ? getFileExtension(file, fileType) : "bin";
+  const random =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  return `order-drafts/${userId}/${Date.now()}-${random}.${extension}`;
 }
 
 function PlatformIcon({ platform }: { platform: string | null | undefined }) {
@@ -582,6 +653,21 @@ export default function CreatorRequestClient() {
             productNameStepBody:
               "あとでチャットでも相談できます。未入力の場合はメニュー名で進みます。",
             productNamePlaceholder: "例：新作美容液PR / 新店舗オープン告知",
+            referenceAssets: "参考資料",
+            referenceAssetsStepBody:
+              "商品画像、店舗写真、サービス資料、投稿イメージ資料などを添付できます。任意です。",
+            referenceAssetsHelp: "JPG / PNG / WebP / PDF、最大3ファイル",
+            referenceAssetsButton: "ファイルを追加",
+            referenceAssetsLimit: "参考資料は最大3ファイルまでです。",
+            referenceAssetsTypeError:
+              "対応形式はJPG、PNG、WebP、PDFのみです。",
+            referenceAssetsImageSizeError: "画像は1ファイル5MBまでです。",
+            referenceAssetsPdfSizeError: "PDFは1ファイル10MBまでです。",
+            referenceAssetsUploadError:
+              "参考資料のアップロードに失敗しました。",
+            referenceAssetsUploading: "アップロード中...",
+            referenceAssetsEmpty: "添付なし",
+            remove: "削除",
             productUrl: "商品URL・サービスURL",
             productUrlStepTitle: "URLがあれば入力",
             productUrlStepBody:
@@ -619,9 +705,9 @@ export default function CreatorRequestClient() {
               "例：部屋から海が見えること、朝食、アクセスの良さに触れてください。老朽化や水道の出の悪さなどには触れないでください。",
             prCopyPreview: "投稿の最後に貼り付ける内容",
             latestTemplateButton: "前回の内容をコピー",
-            latestTemplateEmpty: "前回の投稿設定はまだありません。",
-            latestTemplateApplied: "前回の投稿設定を反映しました。",
-            latestTemplateError: "前回の投稿設定を取得できませんでした。",
+            latestTemplateEmpty: "前回の注文内容はまだありません。",
+            latestTemplateApplied: "前回の注文内容を反映しました。",
+            latestTemplateError: "前回の注文内容を取得できませんでした。",
             menuRequired: "注文するメニューを選択してください。",
             freeLimitReached:
               "Basicでは月5件まで注文できます。上限に達したため、プラン変更をご検討ください。",
@@ -699,6 +785,20 @@ export default function CreatorRequestClient() {
             productNameStepBody:
               "You can also discuss details later in chat. If skipped, the menu title will be used.",
             productNamePlaceholder: "Example: New skincare serum PR",
+            referenceAssets: "Reference materials",
+            referenceAssetsStepBody:
+              "Attach product images, store photos, service documents, or post examples. Optional.",
+            referenceAssetsHelp: "JPG / PNG / WebP / PDF, up to 3 files",
+            referenceAssetsButton: "Add files",
+            referenceAssetsLimit: "You can attach up to 3 files.",
+            referenceAssetsTypeError:
+              "Only JPG, PNG, WebP, and PDF files are supported.",
+            referenceAssetsImageSizeError: "Images must be 5MB or smaller.",
+            referenceAssetsPdfSizeError: "PDF files must be 10MB or smaller.",
+            referenceAssetsUploadError: "Failed to upload reference materials.",
+            referenceAssetsUploading: "Uploading...",
+            referenceAssetsEmpty: "No files attached",
+            remove: "Remove",
             productUrl: "Product or service URL",
             productUrlStepTitle: "Add a URL if available",
             productUrlStepBody:
@@ -736,9 +836,9 @@ export default function CreatorRequestClient() {
               "Example: Please mention the ocean view, breakfast, and access. Please avoid mentioning old facilities or weak water pressure.",
             prCopyPreview: "Text to paste at the end of the post",
             latestTemplateButton: "Copy previous settings",
-            latestTemplateEmpty: "No previous post settings yet.",
-            latestTemplateApplied: "Previous post settings applied.",
-            latestTemplateError: "Could not load previous post settings.",
+            latestTemplateEmpty: "No previous order settings yet.",
+            latestTemplateApplied: "Previous order settings applied.",
+            latestTemplateError: "Could not load previous order settings.",
             menuRequired: "Please select a menu to order.",
             freeLimitReached:
               "Basic allows up to 5 orders per month. You have reached the limit, so please consider upgrading.",
@@ -808,6 +908,14 @@ export default function CreatorRequestClient() {
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [referenceAssets, setReferenceAssets] = useState<ReferenceAssetDraft[]>(
+    []
+  );
+  const [referenceAssetUploading, setReferenceAssetUploading] = useState(false);
+  const [referenceAssetError, setReferenceAssetError] = useState<string | null>(
+    null
+  );
+
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [autoOpened, setAutoOpened] = useState(false);
@@ -841,7 +949,6 @@ export default function CreatorRequestClient() {
     menus.find((menu) => menu.id === form.creator_menu_id) ?? null;
 
   const selectedMenuIsUgc = isUgcMenu(selectedMenu);
-
   const currentStep = orderSteps[stepIndex];
 
   const menuPriceAmount =
@@ -869,6 +976,14 @@ export default function CreatorRequestClient() {
       document.body.style.overflow = originalOverflow;
     };
   }, [orderModalOpen]);
+
+  useEffect(() => {
+    return () => {
+      referenceAssets.forEach((asset) => {
+        if (asset.preview_url) URL.revokeObjectURL(asset.preview_url);
+      });
+    };
+  }, [referenceAssets]);
 
   useEffect(() => {
     let isMounted = true;
@@ -952,8 +1067,8 @@ export default function CreatorRequestClient() {
         .from("creators")
         .select("id, user_id, display_name, stripe_onboarding_completed")
         .eq("id", creatorId)
-        .eq("is_public", true)
         .eq("approval_status", "approved")
+        .eq("is_public", true)
         .eq("stripe_onboarding_completed", true)
         .maybeSingle();
 
@@ -961,21 +1076,6 @@ export default function CreatorRequestClient() {
 
       if (!creatorData) {
         setCreator(null);
-        setMenus([]);
-        setSocialAccounts([]);
-        setGate({
-          isLoggedIn: true,
-          isCompany,
-          isSuspended,
-          companyProfileCompleted,
-          companyAccessStatus,
-          companySubscriptionStatus,
-          companyPlanCode,
-          monthlyRequestLimit,
-          monthlyRequestUsed,
-          canSendRequests: false,
-          needsBilling,
-        });
         setLoading(false);
         return;
       }
@@ -1230,6 +1330,104 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
     });
   };
 
+  const handleReferenceAssetUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (referenceAssetUploading) return;
+
+    setReferenceAssetError(null);
+    setErrorMsg(null);
+
+    const incomingFiles = Array.from(files);
+
+    if (referenceAssets.length + incomingFiles.length > MAX_REFERENCE_ASSETS) {
+      setReferenceAssetError(copy.referenceAssetsLimit);
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setReferenceAssetError(copy.authError);
+      return;
+    }
+
+    const nextAssets: ReferenceAssetDraft[] = [];
+
+    setReferenceAssetUploading(true);
+
+    try {
+      for (const file of incomingFiles) {
+        const fileType = getReferenceFileType(file);
+
+        if (!fileType || !ALLOWED_REFERENCE_MIME_TYPES.has(file.type)) {
+          setReferenceAssetError(copy.referenceAssetsTypeError);
+          return;
+        }
+
+        if (fileType === "image" && file.size > MAX_IMAGE_BYTES) {
+          setReferenceAssetError(copy.referenceAssetsImageSizeError);
+          return;
+        }
+
+        if (fileType === "pdf" && file.size > MAX_PDF_BYTES) {
+          setReferenceAssetError(copy.referenceAssetsPdfSizeError);
+          return;
+        }
+
+        const storagePath = buildReferenceStoragePath(user.id, file);
+
+        const { error: uploadError } = await supabase.storage
+          .from(ORDER_REFERENCE_ASSETS_BUCKET)
+          .upload(storagePath, file, {
+            cacheControl: "3600",
+            contentType: file.type,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("reference asset upload error:", uploadError);
+          setReferenceAssetError(copy.referenceAssetsUploadError);
+          return;
+        }
+
+        nextAssets.push({
+          storage_path: storagePath,
+          file_name: file.name,
+          file_type: fileType,
+          mime_type: file.type,
+          size_bytes: file.size,
+          sort_order: referenceAssets.length + nextAssets.length,
+          preview_url: fileType === "image" ? URL.createObjectURL(file) : null,
+        });
+      }
+
+      setReferenceAssets((prev) => [...prev, ...nextAssets]);
+    } finally {
+      setReferenceAssetUploading(false);
+    }
+  };
+
+  const removeReferenceAsset = (storagePath: string) => {
+    setReferenceAssetError(null);
+
+    setReferenceAssets((prev) => {
+      const target = prev.find((asset) => asset.storage_path === storagePath);
+
+      if (target?.preview_url) {
+        URL.revokeObjectURL(target.preview_url);
+      }
+
+      return prev
+        .filter((asset) => asset.storage_path !== storagePath)
+        .map((asset, index) => ({
+          ...asset,
+          sort_order: index,
+        }));
+    });
+  };
+
   const applyLatestTemplate = async () => {
     if (templateLoading) return;
 
@@ -1275,6 +1473,20 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
 
       setForm((prev) => ({
         ...prev,
+        project_type:
+          template.project_type === "visit_experience" ||
+          template.project_type === "product_delivery" ||
+          template.project_type === "provided_assets"
+            ? template.project_type
+            : prev.project_type,
+        product_name: template.product_name ?? prev.product_name,
+        product_url: template.product_url ?? prev.product_url,
+        deadline:
+          template.deadline === "within_3_days" ||
+          template.deadline === "within_1_week" ||
+          template.deadline === "no_preference"
+            ? template.deadline
+            : prev.deadline,
         pr_account: normalizePrAccountInput(template.pr_account ?? ""),
         pr_hashtags: normalizeHashtagsForForm(
           Array.isArray(template.pr_hashtags) ? template.pr_hashtags : []
@@ -1415,6 +1627,14 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
           pr_account: form.pr_account,
           pr_hashtags: cleanHashtags,
           post_notes: form.note.trim() || null,
+          reference_assets: referenceAssets.map((asset, index) => ({
+            storage_path: asset.storage_path,
+            file_name: asset.file_name,
+            file_type: asset.file_type,
+            mime_type: asset.mime_type,
+            size_bytes: asset.size_bytes,
+            sort_order: index,
+          })),
           has_free_offer:
             form.project_type === "visit_experience" ||
             form.project_type === "product_delivery",
@@ -1548,6 +1768,64 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
     );
   }
 
+  const renderReferenceAssetList = (compact = false) => {
+    if (referenceAssets.length === 0) {
+      return (
+        <div className="rounded-2xl bg-white px-4 py-4 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
+          {copy.referenceAssetsEmpty}
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid gap-3">
+        {referenceAssets.map((asset) => (
+          <div
+            key={asset.storage_path}
+            className="flex items-center gap-3 rounded-2xl bg-white p-3 ring-1 ring-slate-100"
+          >
+            {asset.file_type === "image" && asset.preview_url ? (
+              <img
+                src={asset.preview_url}
+                alt={asset.file_name}
+                className={`shrink-0 object-cover ring-1 ring-slate-100 ${
+                  compact ? "h-12 w-12 rounded-xl" : "h-14 w-14 rounded-2xl"
+                }`}
+              />
+            ) : (
+              <div
+                className={`flex shrink-0 items-center justify-center bg-rose-50 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100 ${
+                  compact ? "h-12 w-12 rounded-xl" : "h-14 w-14 rounded-2xl"
+                }`}
+              >
+                PDF
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-black text-slate-950">
+                {asset.file_name}
+              </p>
+              <p className="mt-1 text-xs font-bold text-slate-400">
+                {asset.file_type.toUpperCase()} / {formatFileSize(asset.size_bytes)}
+              </p>
+            </div>
+
+            {!compact ? (
+              <button
+                type="button"
+                onClick={() => removeReferenceAsset(asset.storage_path)}
+                className="shrink-0 rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-800"
+              >
+                {copy.remove}
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const renderStepContent = () => {
     if (currentStep === "project_type") {
       return (
@@ -1627,6 +1905,57 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
               }
               placeholder={copy.productNamePlaceholder}
             />
+          </div>
+
+          <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-black text-slate-800">
+                  {copy.referenceAssets}
+                </p>
+                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                  {copy.referenceAssetsStepBody}
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-400">
+                  {copy.referenceAssetsHelp}
+                </p>
+              </div>
+
+              <label
+                className={`inline-flex w-fit cursor-pointer items-center justify-center rounded-full px-4 py-2.5 text-xs font-black transition ${
+                  referenceAssetUploading ||
+                  referenceAssets.length >= MAX_REFERENCE_ASSETS
+                    ? "cursor-not-allowed bg-slate-200 text-slate-400"
+                    : "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                {referenceAssetUploading
+                  ? copy.referenceAssetsUploading
+                  : copy.referenceAssetsButton}
+                <input
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  disabled={
+                    referenceAssetUploading ||
+                    referenceAssets.length >= MAX_REFERENCE_ASSETS
+                  }
+                  onChange={(event) => {
+                    void handleReferenceAssetUpload(event.target.files);
+                    event.currentTarget.value = "";
+                  }}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {referenceAssetError ? (
+              <div className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-xs font-bold leading-6 text-rose-700">
+                {referenceAssetError}
+              </div>
+            ) : null}
+
+            <div className="mt-4">{renderReferenceAssetList(false)}</div>
           </div>
         </div>
       );
@@ -1871,6 +2200,22 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
             <p className="mt-2 text-base font-black text-slate-950">
               {displayProductName}
             </p>
+          </div>
+
+          <div className="rounded-[24px] bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                {copy.referenceAssets}
+              </p>
+              <button
+                type="button"
+                onClick={() => goToStep("product_name")}
+                className="text-xs font-black text-[#ff5f67]"
+              >
+                {copy.edit}
+              </button>
+            </div>
+            <div className="mt-3">{renderReferenceAssetList(true)}</div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">

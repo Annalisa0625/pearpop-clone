@@ -5,9 +5,12 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type LatestPrTemplateRow = {
+type LatestOrderTemplateRow = {
   id: string;
+  project_type: string | null;
   product_name: string | null;
+  product_url: string | null;
+  deadline: string | null;
   pr_account: string | null;
   pr_hashtags: string[] | null;
   pr_copy_text: string | null;
@@ -52,14 +55,26 @@ async function ensureCompanyUser(userId: string) {
   return true;
 }
 
-function hasTemplateValue(row: LatestPrTemplateRow) {
+function hasTemplateValue(row: LatestOrderTemplateRow) {
+  const hasProjectType = !!row.project_type?.trim();
+  const hasProductName = !!row.product_name?.trim();
+  const hasProductUrl = !!row.product_url?.trim();
+  const hasDeadline = !!row.deadline?.trim();
   const hasAccount = !!row.pr_account?.trim();
   const hasHashtags =
     Array.isArray(row.pr_hashtags) &&
     row.pr_hashtags.some((tag) => !!tag?.trim());
   const hasNotes = !!row.post_notes?.trim();
 
-  return hasAccount || hasHashtags || hasNotes;
+  return (
+    hasProjectType ||
+    hasProductName ||
+    hasProductUrl ||
+    hasDeadline ||
+    hasAccount ||
+    hasHashtags ||
+    hasNotes
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -84,7 +99,10 @@ export async function GET(req: NextRequest) {
       .select(
         `
         id,
+        project_type,
         product_name,
+        product_url,
+        deadline,
         pr_account,
         pr_hashtags,
         pr_copy_text,
@@ -100,14 +118,17 @@ export async function GET(req: NextRequest) {
       throw error;
     }
 
-    const rows = (data ?? []) as LatestPrTemplateRow[];
+    const rows = (data ?? []) as LatestOrderTemplateRow[];
     const latest = rows.find(hasTemplateValue) ?? null;
 
     return NextResponse.json({
       template: latest
         ? {
             order_id: latest.id,
-            product_name: latest.product_name,
+            project_type: latest.project_type ?? "",
+            product_name: latest.product_name ?? "",
+            product_url: latest.product_url ?? "",
+            deadline: latest.deadline ?? "",
             pr_account: latest.pr_account ?? "",
             pr_hashtags: Array.isArray(latest.pr_hashtags)
               ? latest.pr_hashtags
@@ -119,10 +140,10 @@ export async function GET(req: NextRequest) {
         : null,
     });
   } catch (error) {
-    console.error("latest company order pr template error", error);
+    console.error("latest company order template error", error);
 
     return NextResponse.json(
-      { error: "前回の投稿設定を取得できませんでした" },
+      { error: "前回の注文内容を取得できませんでした" },
       { status: 500 }
     );
   }

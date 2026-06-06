@@ -626,6 +626,62 @@ export type Database = {
           },
         ]
       }
+      order_reference_assets: {
+        Row: {
+          b_user_id: string
+          created_at: string
+          creator_user_id: string
+          file_name: string
+          file_type: string
+          id: string
+          mime_type: string
+          order_id: string
+          size_bytes: number
+          sort_order: number
+          storage_bucket: string
+          storage_path: string
+          uploaded_by_user_id: string
+        }
+        Insert: {
+          b_user_id: string
+          created_at?: string
+          creator_user_id: string
+          file_name: string
+          file_type: string
+          id?: string
+          mime_type: string
+          order_id: string
+          size_bytes: number
+          sort_order?: number
+          storage_bucket?: string
+          storage_path: string
+          uploaded_by_user_id: string
+        }
+        Update: {
+          b_user_id?: string
+          created_at?: string
+          creator_user_id?: string
+          file_name?: string
+          file_type?: string
+          id?: string
+          mime_type?: string
+          order_id?: string
+          size_bytes?: number
+          sort_order?: number
+          storage_bucket?: string
+          storage_path?: string
+          uploaded_by_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_reference_assets_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           accepted_at: string | null

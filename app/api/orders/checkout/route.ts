@@ -13,6 +13,24 @@ export const revalidate = 0;
 
 type ProjectType = "visit_experience" | "product_delivery" | "provided_assets";
 
+type ReferenceAssetInput = {
+  storage_path?: unknown;
+  file_name?: unknown;
+  file_type?: unknown;
+  mime_type?: unknown;
+  size_bytes?: unknown;
+  sort_order?: unknown;
+};
+
+type NormalizedReferenceAsset = {
+  storage_path: string;
+  file_name: string;
+  file_type: "image" | "pdf";
+  mime_type: string;
+  size_bytes: number;
+  sort_order: number;
+};
+
 type CheckoutBody = {
   creator_id?: string;
   creator_menu_id?: string;
@@ -28,7 +46,22 @@ type CheckoutBody = {
   pr_account?: string;
   pr_hashtags?: string[];
   post_notes?: string;
+
+  reference_assets?: ReferenceAssetInput[];
 };
+
+const ORDER_REFERENCE_ASSETS_BUCKET = "order-reference-assets";
+const MAX_REFERENCE_ASSETS = 3;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const ALLOWED_PDF_MIME_TYPES = new Set(["application/pdf"]);
 
 const ZERO_DECIMAL_CURRENCIES = new Set([
   "BIF",
@@ -247,6 +280,16 @@ function getBoolean(value: unknown) {
   return value === true;
 }
 
+function getInteger(value: unknown) {
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+
+  return null;
+}
+
 function normalizeProjectType(value: unknown): ProjectType | null {
   if (value === "visit_experience") return "visit_experience";
   if (value === "product_delivery") return "product_delivery";
@@ -354,6 +397,106 @@ function buildPrCopyText(args: {
   }
 
   return lines.join("\n");
+}
+
+function normalizeReferenceAssets(value: unknown, userId: string) {
+  if (!Array.isArray(value)) return { assets: [], error: null };
+
+  if (value.length > MAX_REFERENCE_ASSETS) {
+    return {
+      assets: [],
+      error: `参考資料は最大${MAX_REFERENCE_ASSETS}ファイルまで添付できます`,
+    };
+  }
+
+  const result: NormalizedReferenceAsset[] = [];
+  const seenPaths = new Set<string>();
+
+  for (let index = 0; index < value.length; index += 1) {
+    const item = value[index] as ReferenceAssetInput;
+
+    const storagePath = getString(item?.storage_path);
+    const fileName = getString(item?.file_name);
+    const fileType = getString(item?.file_type);
+    const mimeType = getString(item?.mime_type).toLowerCase();
+    const sizeBytes = getInteger(item?.size_bytes);
+    const sortOrder = getInteger(item?.sort_order) ?? index;
+
+    if (!storagePath || !fileName || !fileType || !mimeType || !sizeBytes) {
+      return {
+        assets: [],
+        error: "参考資料の情報が不足しています",
+      };
+    }
+
+    const expectedPrefix = `order-drafts/${userId}/`;
+
+    if (!storagePath.startsWith(expectedPrefix)) {
+      return {
+        assets: [],
+        error: "参考資料の保存場所が正しくありません",
+      };
+    }
+
+    if (seenPaths.has(storagePath)) {
+      return {
+        assets: [],
+        error: "同じ参考資料が重複しています",
+      };
+    }
+
+    seenPaths.add(storagePath);
+
+    if (fileType !== "image" && fileType !== "pdf") {
+      return {
+        assets: [],
+        error: "参考資料は画像またはPDFのみ添付できます",
+      };
+    }
+
+    if (fileType === "image") {
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+        return {
+          assets: [],
+          error: "画像はJPG、PNG、WebPのみ添付できます",
+        };
+      }
+
+      if (sizeBytes > MAX_IMAGE_BYTES) {
+        return {
+          assets: [],
+          error: "画像は1ファイル5MBまでです",
+        };
+      }
+    }
+
+    if (fileType === "pdf") {
+      if (!ALLOWED_PDF_MIME_TYPES.has(mimeType)) {
+        return {
+          assets: [],
+          error: "PDFファイルのみ添付できます",
+        };
+      }
+
+      if (sizeBytes > MAX_PDF_BYTES) {
+        return {
+          assets: [],
+          error: "PDFは1ファイル10MBまでです",
+        };
+      }
+    }
+
+    result.push({
+      storage_path: storagePath,
+      file_name: fileName.slice(0, 180),
+      file_type: fileType,
+      mime_type: mimeType,
+      size_bytes: sizeBytes,
+      sort_order: sortOrder,
+    } as NormalizedReferenceAsset);
+  }
+
+  return { assets: result, error: null };
 }
 
 export async function POST(req: NextRequest) {
@@ -473,6 +616,16 @@ export async function POST(req: NextRequest) {
       prAccount,
       prHashtags,
     });
+
+    const { assets: referenceAssets, error: referenceAssetsError } =
+      normalizeReferenceAssets(body.reference_assets, user.id);
+
+    if (referenceAssetsError) {
+      return NextResponse.json(
+        { error: referenceAssetsError },
+        { status: 400 }
+      );
+    }
 
     if (!creatorId) {
       return NextResponse.json(
@@ -730,6 +883,7 @@ export async function POST(req: NextRequest) {
         creator_transaction_fee_rate_bps: fees.creatorTransactionFeeRateBps,
         pr_account: prAccount,
         pr_hashtags: prHashtags,
+        reference_assets_count: referenceAssets.length,
       },
     };
 
@@ -744,6 +898,30 @@ export async function POST(req: NextRequest) {
     }
 
     createdOrderId = order.id;
+
+    if (referenceAssets.length > 0) {
+      const assetRows = referenceAssets.map((asset) => ({
+        order_id: order.id,
+        b_user_id: user.id,
+        creator_user_id: creator.user_id,
+        uploaded_by_user_id: user.id,
+        storage_bucket: ORDER_REFERENCE_ASSETS_BUCKET,
+        storage_path: asset.storage_path,
+        file_name: asset.file_name,
+        file_type: asset.file_type,
+        mime_type: asset.mime_type,
+        size_bytes: asset.size_bytes,
+        sort_order: asset.sort_order,
+      }));
+
+      const { error: assetError } = await supabaseAdmin
+        .from("order_reference_assets")
+        .insert(assetRows as never);
+
+      if (assetError) {
+        throw assetError;
+      }
+    }
 
     await supabaseAdmin.from("order_events").insert({
       order_id: order.id,
@@ -765,6 +943,7 @@ export async function POST(req: NextRequest) {
         project_type: projectType,
         pr_account: prAccount,
         pr_hashtags: prHashtags,
+        reference_assets_count: referenceAssets.length,
       },
     });
 
@@ -801,9 +980,9 @@ export async function POST(req: NextRequest) {
           )!,
           product_data: {
             name: "Trendre marketplace fee",
-            description: `Buyer marketplace fee (${
+            description: `Buyer marketplace fee ${
               fees.buyerMarketplaceFeeRateBps / 100
-            }%)`,
+            }%`,
             metadata: {
               order_id: order.id,
               item_type: "buyer_marketplace_fee",
@@ -886,6 +1065,7 @@ export async function POST(req: NextRequest) {
         creator_payout_amount: fees.creatorPayoutAmount,
         platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
         project_type: projectType,
+        reference_assets_count: referenceAssets.length,
       },
     });
 
@@ -893,6 +1073,7 @@ export async function POST(req: NextRequest) {
       url: session.url,
       order_id: order.id,
       checkout_session_id: session.id,
+      reference_assets_count: referenceAssets.length,
       amount: {
         currency,
         menu_price_amount: fees.menuPriceAmount,
