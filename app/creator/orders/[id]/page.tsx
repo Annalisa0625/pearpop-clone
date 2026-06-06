@@ -2,7 +2,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -391,7 +398,7 @@ function SoftPill({
   children,
   tone = "slate",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   tone?: "rose" | "blue" | "amber" | "green" | "slate";
 }) {
   const className =
@@ -418,7 +425,7 @@ function Surface({
   children,
   className = "",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
@@ -430,28 +437,13 @@ function Surface({
   );
 }
 
-function MiniStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-[20px] border border-slate-100 bg-slate-50/75 px-4 py-3">
-      <p className="text-[11px] font-black text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-black text-slate-950">{value}</p>
-    </div>
-  );
-}
-
 function DetailRow({
   label,
   value,
   strong,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
   strong?: boolean;
 }) {
   return (
@@ -492,7 +484,7 @@ function PrimaryButton({
   disabled,
   variant = "solid",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   onClick: () => void;
   disabled?: boolean;
   variant?: "solid" | "soft";
@@ -504,7 +496,7 @@ function PrimaryButton({
       disabled={disabled}
       className={
         variant === "soft"
-          ? "w-full rounded-full bg-rose-50 px-5 py-4 text-sm font-black text-[#ff5f67] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          ? "w-full rounded-full bg-white px-5 py-4 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           : "w-full rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       }
     >
@@ -524,7 +516,7 @@ function AccordionItem({
   subtitle?: string;
   open: boolean;
   onToggle: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="border-b border-slate-100 last:border-b-0">
@@ -568,7 +560,7 @@ function ReferenceGallery({
   if (loading) {
     return (
       <div className="overflow-hidden rounded-[26px] border border-slate-100 bg-slate-50">
-        <div className="aspect-[4/3] animate-pulse bg-slate-100" />
+        <div className="aspect-[4/3] animate-pulse bg-slate-100 sm:aspect-[16/10]" />
       </div>
     );
   }
@@ -581,10 +573,10 @@ function ReferenceGallery({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-[26px] border border-slate-100 bg-slate-50">
+      <div className="overflow-hidden rounded-[28px] border border-slate-100 bg-slate-50">
         {selected ? (
           isImage ? (
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 sm:aspect-[16/10]">
               <img
                 src={selected.signed_url ?? ""}
                 alt=""
@@ -602,9 +594,27 @@ function ReferenceGallery({
                   {openLabel}
                 </a>
               ) : null}
+
+              {assets.length > 1 ? (
+                <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
+                  {assets.map((asset, index) => (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onClick={() => onSelect(index)}
+                      aria-label={`image ${index + 1}`}
+                      className={`h-2.5 rounded-full transition ${
+                        index === safeIndex
+                          ? "w-5 bg-[#ff5f67]"
+                          : "w-2.5 bg-white/80"
+                      }`}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : (
-            <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-50 to-slate-100 px-6 text-center">
+            <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-50 to-slate-100 px-6 text-center sm:aspect-[16/10]">
               <div className="rounded-[18px] bg-white px-4 py-2 text-sm font-black text-[#ff5f67] ring-1 ring-slate-200">
                 PDF
               </div>
@@ -660,6 +670,110 @@ function ReferenceGallery({
           })}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function OrderSummaryBox({
+  order,
+  locale,
+  copy,
+}: {
+  order: OrderDetail;
+  locale: "ja" | "en";
+  copy: {
+    summaryMenu: string;
+    summaryPayout: string;
+    summaryDeadline: string;
+    notSet: string;
+  };
+}) {
+  return (
+    <div className="rounded-[24px] bg-slate-50/80 px-4 py-4 ring-1 ring-slate-100">
+      <div className="grid gap-3">
+        <div>
+          <p className="text-xs font-black text-slate-400">
+            {copy.summaryMenu}
+          </p>
+          <p className="mt-1 text-[15px] font-black text-slate-950">
+            {order.menu_title_snapshot || copy.notSet}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs font-black text-slate-400">
+              {copy.summaryPayout}
+            </p>
+            <p className="mt-1 text-[15px] font-black text-slate-950">
+              {formatPrice(
+                order.creator_payout_amount,
+                order.currency,
+                locale
+              )}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-black text-slate-400">
+              {copy.summaryDeadline}
+            </p>
+            <p className="mt-1 text-[15px] font-black text-slate-950">
+              {order.creator_accept_deadline
+                ? formatDateTime(order.creator_accept_deadline, locale)
+                : copy.notSet}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResponseActionBox({
+  order,
+  copy,
+  actionLoading,
+  onAccept,
+  onDecline,
+}: {
+  order: OrderDetail;
+  copy: {
+    responseTitle: string;
+    responseBody: string;
+    accept: string;
+    decline: string;
+    accepting: string;
+    declining: string;
+  };
+  actionLoading: "accept" | "decline" | "deliver" | null;
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  if (!isWaitingForCreator(order)) return null;
+
+  return (
+    <div className="rounded-[26px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-4 ring-1 ring-rose-100/70">
+      <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
+        {copy.responseTitle}
+      </p>
+      <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+        {copy.responseBody}
+      </p>
+
+      <div className="mt-4 grid gap-3">
+        <PrimaryButton onClick={onAccept} disabled={actionLoading !== null}>
+          {actionLoading === "accept" ? copy.accepting : copy.accept}
+        </PrimaryButton>
+
+        <PrimaryButton
+          onClick={onDecline}
+          disabled={actionLoading !== null}
+          variant="soft"
+        >
+          {actionLoading === "decline" ? copy.declining : copy.decline}
+        </PrimaryButton>
+      </div>
     </div>
   );
 }
@@ -795,7 +909,7 @@ export default function CreatorOrderDetailPage() {
             deliveryRequired: "納品URLを入力してください。",
             deliveryFailed: "納品処理に失敗しました。",
             accept: "注文を受ける",
-            decline: "辞退する",
+            decline: "今回は辞退する",
             accepting: "承認中...",
             declining: "辞退中...",
             confirmAccept:
@@ -839,13 +953,16 @@ export default function CreatorOrderDetailPage() {
               "参考画像の読み込みに時間がかかっています。後でもう一度開いてください。",
             referenceOpen: "開く",
             referenceFile: "参考ファイル",
-            summaryDate: "注文日",
             summaryMenu: "メニュー",
             summaryPayout: "受取予定",
+            summaryDeadline: "返答期限",
             summaryStatus: "状態",
             detailSheetTitle: "注文の詳細",
             detailSheetBody: "必要な情報だけ確認できるようにまとめています。",
             openExternal: "リンクを開く",
+            responseTitle: "この注文に返答してください",
+            responseBody:
+              "内容を確認して、対応できる場合は注文を受けてください。難しい場合は辞退できます。",
           }
         : {
             loading: "Loading...",
@@ -869,7 +986,7 @@ export default function CreatorOrderDetailPage() {
             deliveryRequired: "Please enter a delivery URL.",
             deliveryFailed: "Failed to submit delivery.",
             accept: "Accept order",
-            decline: "Decline",
+            decline: "Decline this time",
             accepting: "Accepting...",
             declining: "Declining...",
             confirmAccept:
@@ -900,7 +1017,7 @@ export default function CreatorOrderDetailPage() {
             menuTitle: "Menu",
             deliverables: "Deliverable",
             price: "Menu price",
-            payout: "Expected payout",
+            payout: "Expected",
             transfer: "Transfer",
             payoutPage: "View payouts",
             revisionTitle: "Revision request",
@@ -914,14 +1031,17 @@ export default function CreatorOrderDetailPage() {
               "Reference images are taking too long to load. Please try again later.",
             referenceOpen: "Open",
             referenceFile: "Reference file",
-            summaryDate: "Ordered",
             summaryMenu: "Menu",
-            summaryPayout: "Payout",
+            summaryPayout: "Expected",
+            summaryDeadline: "Reply by",
             summaryStatus: "Status",
             detailSheetTitle: "Order details",
             detailSheetBody:
               "Everything important is organized in one place.",
             openExternal: "Open link",
+            responseTitle: "Respond to this order",
+            responseBody:
+              "Review the details and accept the order if you can handle it. You can decline if it is not a fit.",
           },
     [safeLocale]
   );
@@ -1252,7 +1372,7 @@ export default function CreatorOrderDetailPage() {
     return (
       <div className="space-y-4 overflow-x-hidden pb-28">
         <div className="h-[420px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-        <div className="h-[340px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[260px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
         <div className="h-[280px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
       </div>
     );
@@ -1277,7 +1397,6 @@ export default function CreatorOrderDetailPage() {
     );
   }
 
-  const canAct = isWaitingForCreator(order);
   const canDeliver =
     [
       "accepted_captured",
@@ -1304,7 +1423,9 @@ export default function CreatorOrderDetailPage() {
   const timingText = extractRequirementSection(order.requirements, "実施タイミング");
   const requestNote = extractRequirementSection(order.requirements, "依頼内容");
 
-  const mediaAssets = referenceAssets.filter((asset) => Boolean(asset.signed_url));
+  const mediaAssets = referenceAssets.filter((asset) =>
+    Boolean(asset.signed_url)
+  );
   const safeSelectedIndex = Math.min(
     selectedAssetIndex,
     Math.max(mediaAssets.length - 1, 0)
@@ -1357,28 +1478,19 @@ export default function CreatorOrderDetailPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <MiniStat
-                label={copy.summaryDate}
-                value={formatDateOnly(order.created_at, safeLocale)}
-              />
-              <MiniStat
-                label={copy.summaryMenu}
-                value={order.menu_title_snapshot || copy.notSet}
-              />
-              <MiniStat
-                label={copy.summaryPayout}
-                value={formatPrice(
-                  order.creator_payout_amount,
-                  order.currency,
-                  safeLocale
-                )}
-              />
-              <MiniStat
-                label={copy.summaryStatus}
-                value={statusLabel(order, safeLocale)}
-              />
-            </div>
+            <OrderSummaryBox
+              order={order}
+              locale={safeLocale}
+              copy={copy}
+            />
+
+            <ResponseActionBox
+              order={order}
+              copy={copy}
+              actionLoading={actionLoading}
+              onAccept={() => void runAction("accept")}
+              onDecline={() => void runAction("decline")}
+            />
           </div>
         </div>
       </Surface>
@@ -1388,34 +1500,6 @@ export default function CreatorOrderDetailPage() {
           <p className="text-sm font-semibold leading-7 text-rose-600">
             {error}
           </p>
-        </Surface>
-      ) : null}
-
-      {canAct ? (
-        <Surface className="p-4 sm:p-5">
-          <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
-            {copy.nextAction}
-          </p>
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            {nextAction.body}
-          </p>
-
-          <div className="mt-4 grid gap-3">
-            <PrimaryButton
-              onClick={() => void runAction("accept")}
-              disabled={actionLoading !== null}
-            >
-              {actionLoading === "accept" ? copy.accepting : copy.accept}
-            </PrimaryButton>
-
-            <PrimaryButton
-              onClick={() => void runAction("decline")}
-              disabled={actionLoading !== null}
-              variant="soft"
-            >
-              {actionLoading === "decline" ? copy.declining : copy.decline}
-            </PrimaryButton>
-          </div>
         </Surface>
       ) : null}
 
