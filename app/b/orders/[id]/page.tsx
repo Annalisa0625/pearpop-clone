@@ -12,7 +12,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-import ChatEmbed from "@/app/components/ChatEmbed";
 import DeadlineBadge from "@/app/components/DeadlineBadge";
 
 type OrderDetail = {
@@ -85,6 +84,60 @@ type InfluencerLite = {
   avatar_url: string | null;
   category: string | null;
 };
+
+const AUTH_TIMEOUT_MS = 8000;
+const DB_TIMEOUT_MS = 12000;
+const ACTION_TIMEOUT_MS = 30000;
+
+function withTimeout<T = any>(
+  promiseLike: PromiseLike<T> | T,
+  ms: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const promise = Promise.resolve(promiseLike);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  ms: number,
+  timeoutMessage: string
+) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => {
+    controller.abort();
+  }, ms);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    const isAbort =
+      error instanceof DOMException && error.name === "AbortError";
+
+    if (isAbort) {
+      throw new Error(timeoutMessage);
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
@@ -204,174 +257,6 @@ function getPlatformIcon(value: string | null | undefined) {
   return null;
 }
 
-function getStatusMeta(status: string, locale: "ja" | "en") {
-  const ja: Record<
-    string,
-    {
-      label: string;
-      className: string;
-      title: string;
-      body: string;
-      actionLabel: string;
-    }
-  > = {
-    checkout_pending: {
-      label: "支払い確認中",
-      className: "bg-slate-100 text-slate-700 ring-slate-200",
-      title: "支払い確認中です",
-      body: "支払い確認が完了すると、インフルエンサーへの返答待ちに進みます。",
-      actionLabel: "確認中",
-    },
-    authorized_pending_creator: {
-      label: "返答待ち",
-      className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "インフルエンサーの返答待ちです",
-      body:
-        "承認されると注文が開始されます。辞退または期限切れの場合、請求は確定しません。",
-      actionLabel: "返答待ち",
-    },
-    accepted_captured: {
-      label: "進行中",
-      className: "bg-slate-950 text-white ring-slate-950",
-      title: "注文は進行中です",
-      body:
-        "必要な確認や連絡はチャットで行えます。納品URLが届いたら内容を確認してください。",
-      actionLabel: "チャットで確認",
-    },
-    in_progress: {
-      label: "進行中",
-      className: "bg-slate-950 text-white ring-slate-950",
-      title: "注文は進行中です",
-      body:
-        "必要な確認や連絡はチャットで行えます。納品URLが届いたら内容を確認してください。",
-      actionLabel: "チャットで確認",
-    },
-    delivered: {
-      label: "確認する",
-      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
-      title: "納品内容を確認してください",
-      body:
-        "問題なければ注文を完了できます。修正依頼は元の注文内容に沿う範囲でのみ行えます。",
-      actionLabel: "納品確認",
-    },
-    revision_requested: {
-      label: "修正依頼中",
-      className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "修正依頼を送信済みです",
-      body:
-        "インフルエンサーから再納品されるまでお待ちください。必要な確認はチャットで行えます。",
-      actionLabel: "再納品待ち",
-    },
-    completed: {
-      label: "完了",
-      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-      title: "この注文は完了しています",
-      body:
-        "完了後は原則として修正依頼・返金はできません。追加依頼は新しい注文として相談してください。",
-      actionLabel: "完了",
-    },
-    declined_canceled: {
-      label: "終了",
-      className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "この注文は終了しています",
-      body: "インフルエンサーの辞退により、請求は確定していません。",
-      actionLabel: "終了",
-    },
-    expired_canceled: {
-      label: "期限切れ",
-      className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "この注文は期限切れです",
-      body: "返答期限を過ぎたため、請求は確定していません。",
-      actionLabel: "期限切れ",
-    },
-  };
-
-  const en: typeof ja = {
-    checkout_pending: {
-      label: "Payment pending",
-      className: "bg-slate-100 text-slate-700 ring-slate-200",
-      title: "Payment is being confirmed",
-      body: "Once payment is confirmed, the order will wait for influencer approval.",
-      actionLabel: "Pending",
-    },
-    authorized_pending_creator: {
-      label: "Waiting",
-      className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "Waiting for influencer reply",
-      body:
-        "The order begins once accepted. If declined or expired, the charge is not captured.",
-      actionLabel: "Waiting",
-    },
-    accepted_captured: {
-      label: "In progress",
-      className: "bg-slate-950 text-white ring-slate-950",
-      title: "Order is in progress",
-      body:
-        "Use chat for necessary confirmation. Review the delivery once the URL is submitted.",
-      actionLabel: "Use chat",
-    },
-    in_progress: {
-      label: "In progress",
-      className: "bg-slate-950 text-white ring-slate-950",
-      title: "Order is in progress",
-      body:
-        "Use chat for necessary confirmation. Review the delivery once the URL is submitted.",
-      actionLabel: "Use chat",
-    },
-    delivered: {
-      label: "Review",
-      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
-      title: "Review the delivery",
-      body:
-        "Complete the order if everything is okay. Revisions should stay within the original requirements.",
-      actionLabel: "Review",
-    },
-    revision_requested: {
-      label: "Revision",
-      className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "Revision request sent",
-      body:
-        "Please wait for the influencer to submit the updated delivery. Use chat for any confirmation.",
-      actionLabel: "Waiting",
-    },
-    completed: {
-      label: "Completed",
-      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-      title: "This order is completed",
-      body:
-        "Revisions and refunds are generally unavailable after completion. Please place a new order for additional work.",
-      actionLabel: "Completed",
-    },
-    declined_canceled: {
-      label: "Ended",
-      className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "This order has ended",
-      body: "The influencer declined, so the charge was not captured.",
-      actionLabel: "Ended",
-    },
-    expired_canceled: {
-      label: "Expired",
-      className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "This order expired",
-      body: "The reply deadline passed, so the charge was not captured.",
-      actionLabel: "Expired",
-    },
-  };
-
-  return (
-    (locale === "ja" ? ja[status] : en[status]) ?? {
-      label: status,
-      className: "bg-slate-100 text-slate-700 ring-slate-200",
-      title: locale === "ja" ? "注文状態を確認してください" : "Check order status",
-      body:
-        locale === "ja"
-          ? "注文内容とチャットを確認できます。"
-          : "You can review the order and chat here.",
-      actionLabel: locale === "ja" ? "確認" : "Check",
-    }
-  );
-}
-
 function isWaitingStatus(status: string) {
   return status === "authorized_pending_creator" || status === "checkout_pending";
 }
@@ -392,6 +277,30 @@ function isCompletedStatus(status: string) {
   return status === "completed";
 }
 
+function isTerminalStatus(status: string) {
+  return [
+    "completed",
+    "declined_canceled",
+    "expired_canceled",
+    "canceled",
+    "cancelled",
+  ].includes(status);
+}
+
+function canOpenChat(order: OrderDetail) {
+  if (order.status === "checkout_pending") return false;
+  if (order.status === "authorized_pending_creator") return false;
+  if (isTerminalStatus(order.status)) return false;
+
+  return (
+    order.payment_status === "captured" ||
+    order.status === "accepted_captured" ||
+    order.status === "in_progress" ||
+    order.status === "delivered" ||
+    order.status === "revision_requested"
+  );
+}
+
 function getBackHref(status: string) {
   if (isWaitingStatus(status)) {
     return "/b/orders?tab=waiting";
@@ -406,6 +315,154 @@ function getBackHref(status: string) {
   }
 
   return "/b/orders";
+}
+
+function getStatusMeta(status: string, locale: "ja" | "en") {
+  const ja: Record<
+    string,
+    {
+      label: string;
+      className: string;
+      title: string;
+      body: string;
+    }
+  > = {
+    checkout_pending: {
+      label: "支払い確認中",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+      title: "支払い確認中です",
+      body: "支払い確認が完了すると、インフルエンサーへの返答待ちに進みます。",
+    },
+    authorized_pending_creator: {
+      label: "返答待ち",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      title: "インフルエンサーの返答待ちです",
+      body:
+        "承認されると注文が開始されます。辞退または期限切れの場合、請求は確定しません。",
+    },
+    accepted_captured: {
+      label: "進行中",
+      className: "bg-slate-950 text-white ring-slate-950",
+      title: "注文は進行中です",
+      body:
+        "必要な確認や連絡は専用チャットで行えます。納品URLが届いたら内容を確認してください。",
+    },
+    in_progress: {
+      label: "進行中",
+      className: "bg-slate-950 text-white ring-slate-950",
+      title: "注文は進行中です",
+      body:
+        "必要な確認や連絡は専用チャットで行えます。納品URLが届いたら内容を確認してください。",
+    },
+    delivered: {
+      label: "確認する",
+      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
+      title: "納品内容を確認してください",
+      body:
+        "問題なければ注文を完了できます。修正依頼は元の注文内容に沿う範囲でのみ行えます。",
+    },
+    revision_requested: {
+      label: "修正依頼中",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      title: "修正依頼を送信済みです",
+      body:
+        "インフルエンサーから再納品されるまでお待ちください。必要な確認は専用チャットで行えます。",
+    },
+    completed: {
+      label: "完了",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      title: "この注文は完了しています",
+      body:
+        "完了後は原則として修正依頼・返金はできません。追加依頼は新しい注文として相談してください。",
+    },
+    declined_canceled: {
+      label: "終了",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      title: "この注文は終了しています",
+      body: "インフルエンサーの辞退により、請求は確定していません。",
+    },
+    expired_canceled: {
+      label: "期限切れ",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      title: "この注文は期限切れです",
+      body: "返答期限を過ぎたため、請求は確定していません。",
+    },
+  };
+
+  const en: typeof ja = {
+    checkout_pending: {
+      label: "Payment pending",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+      title: "Payment is being confirmed",
+      body: "Once payment is confirmed, the order will wait for influencer approval.",
+    },
+    authorized_pending_creator: {
+      label: "Waiting",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      title: "Waiting for influencer reply",
+      body:
+        "The order begins once accepted. If declined or expired, the charge is not captured.",
+    },
+    accepted_captured: {
+      label: "In progress",
+      className: "bg-slate-950 text-white ring-slate-950",
+      title: "Order is in progress",
+      body:
+        "Use the dedicated chat page for necessary confirmation. Review the delivery once the URL is submitted.",
+    },
+    in_progress: {
+      label: "In progress",
+      className: "bg-slate-950 text-white ring-slate-950",
+      title: "Order is in progress",
+      body:
+        "Use the dedicated chat page for necessary confirmation. Review the delivery once the URL is submitted.",
+    },
+    delivered: {
+      label: "Review",
+      className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
+      title: "Review the delivery",
+      body:
+        "Complete the order if everything is okay. Revisions should stay within the original requirements.",
+    },
+    revision_requested: {
+      label: "Revision",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      title: "Revision request sent",
+      body:
+        "Please wait for the influencer to submit the updated delivery. Use the dedicated chat page for any confirmation.",
+    },
+    completed: {
+      label: "Completed",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      title: "This order is completed",
+      body:
+        "Revisions and refunds are generally unavailable after completion. Place a new order for additional work.",
+    },
+    declined_canceled: {
+      label: "Ended",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      title: "This order has ended",
+      body: "The influencer declined, so the charge was not captured.",
+    },
+    expired_canceled: {
+      label: "Expired",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      title: "This order expired",
+      body: "The reply deadline passed, so the charge was not captured.",
+    },
+  };
+
+  return (
+    (locale === "ja" ? ja[status] : en[status]) ?? {
+      label: status,
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+      title: locale === "ja" ? "注文状態を確認してください" : "Check order status",
+      body:
+        locale === "ja"
+          ? "注文内容を確認できます。"
+          : "You can review the order here.",
+    }
+  );
 }
 
 function Pill({
@@ -444,6 +501,20 @@ function DetailRow({
         {value}
       </span>
     </div>
+  );
+}
+
+function MessageIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v4A2.5 2.5 0 0 1 13.5 12H10l-4 3v-3.1A2.5 2.5 0 0 1 4 9.5v-4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -506,6 +577,37 @@ function CompactCard({
         {title}
       </h2>
       <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function ChatCtaCard({
+  title,
+  body,
+  buttonLabel,
+  href,
+}: {
+  title: string;
+  body: string;
+  buttonLabel: string;
+  href: string;
+}) {
+  return (
+    <section className="rounded-[28px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-7">
+      <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
+        {title}
+      </h2>
+      <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+        {body}
+      </p>
+
+      <Link
+        href={href}
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 active:scale-[0.98]"
+      >
+        <MessageIcon />
+        {buttonLabel}
+      </Link>
     </section>
   );
 }
@@ -594,9 +696,10 @@ export default function CompanyOrderDetailPage() {
             influencerProfile: "インフルエンサー詳細を見る",
             payment: "支払い金額",
             nextAction: "次にやること",
-            chatTitle: "注文チャット",
-            chatBody:
-              "この注文に関する確認や連絡はここで行えます。",
+            chatCtaTitle: "クリエイターとやり取りできます",
+            chatCtaBody:
+              "注文開始後の確認や連絡は、専用チャットページで行えます。",
+            chatCtaButton: "クリエイターとやり取りする",
             waitingSummaryTitle: "注文内容の要約",
             waitingSummaryBody:
               "インフルエンサーの承認後にチャットが利用できます。",
@@ -671,9 +774,10 @@ export default function CompanyOrderDetailPage() {
             influencerProfile: "View influencer profile",
             payment: "Payment",
             nextAction: "Next action",
-            chatTitle: "Order chat",
-            chatBody:
-              "Use this chat for confirmations and messages about this order.",
+            chatCtaTitle: "You can message the creator",
+            chatCtaBody:
+              "Use the dedicated chat page for progress checks and communication.",
+            chatCtaButton: "Message the creator",
             waitingSummaryTitle: "Order summary",
             waitingSummaryBody:
               "Chat becomes available after the influencer accepts.",
@@ -753,115 +857,135 @@ export default function CompanyOrderDetailPage() {
     setLoading(true);
     setError(null);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    try {
+      const authResult: any = await withTimeout(
+        supabase.auth.getUser(),
+        AUTH_TIMEOUT_MS,
+        copy.authFailed
+      );
 
-    if (userError || !user) {
-      setError(copy.authFailed);
+      const user = authResult?.data?.user ?? null;
+      const userError = authResult?.error ?? null;
+
+      if (userError || !user) {
+        setError(copy.authFailed);
+        setOrder(null);
+        setInfluencer(null);
+        setLoading(false);
+        return;
+      }
+
+      const orderResult: any = await withTimeout(
+        supabase
+          .from("orders")
+          .select(
+            `
+            id,
+            b_user_id,
+            creator_id,
+            creator_user_id,
+            status,
+            payment_status,
+            stripe_payment_status,
+            created_at,
+            updated_at,
+            product_name,
+            product_url,
+            requirements,
+            deadline,
+            has_free_offer,
+            wants_secondary_use,
+            menu_title_snapshot,
+            menu_description_snapshot,
+            menu_platform_snapshot,
+            menu_type_snapshot,
+            menu_category_snapshot,
+            menu_deliverables_snapshot,
+            menu_delivery_days_snapshot,
+            menu_allow_secondary_use_snapshot,
+            currency,
+            menu_price_amount,
+            stripe_amount,
+            platform_fee_amount,
+            creator_payout_amount,
+            buyer_plan_code_snapshot,
+            buyer_plan_public_name_snapshot,
+            buyer_marketplace_fee_rate_bps,
+            buyer_marketplace_fee_amount,
+            buyer_total_amount,
+            creator_transaction_fee_rate_bps,
+            creator_transaction_fee_amount,
+            platform_gross_revenue_amount,
+            creator_accept_deadline,
+            authorized_at,
+            accepted_at,
+            declined_at,
+            expired_at,
+            captured_at,
+            canceled_at,
+            delivered_at,
+            delivered_post_url,
+            completed_at,
+            disputed_at,
+            revision_requested_at,
+            revision_note,
+            revision_count,
+            max_revision_count,
+            auto_complete_at,
+            completed_reason
+          `
+          )
+          .eq("id", orderId)
+          .eq("b_user_id", user.id)
+          .maybeSingle(),
+        DB_TIMEOUT_MS,
+        copy.notFound
+      );
+
+      if (orderResult?.error) {
+        console.error("company order detail load error:", orderResult.error);
+        setError(copy.notFound);
+        setOrder(null);
+        setInfluencer(null);
+        setLoading(false);
+        return;
+      }
+
+      const nextOrder = (orderResult?.data as OrderDetail | null) ?? null;
+
+      setOrder(nextOrder);
+
+      if (!nextOrder) {
+        setInfluencer(null);
+        setLoading(false);
+        return;
+      }
+
+      const influencerResult: any = await withTimeout(
+        supabase
+          .from("creators")
+          .select("id, display_name, avatar_url, category")
+          .eq("id", nextOrder.creator_id)
+          .maybeSingle(),
+        DB_TIMEOUT_MS,
+        copy.notFound
+      );
+
+      if (influencerResult?.error) {
+        console.error("company order influencer load error:", influencerResult.error);
+        setInfluencer(null);
+      } else {
+        setInfluencer((influencerResult?.data as InfluencerLite | null) ?? null);
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error("company order detail load error:", error);
+      setError(error instanceof Error ? error.message : copy.notFound);
       setOrder(null);
       setInfluencer(null);
       setLoading(false);
-      return;
     }
-
-    const { data, error: orderError } = await supabase
-      .from("orders")
-      .select(
-        `
-        id,
-        b_user_id,
-        creator_id,
-        creator_user_id,
-        status,
-        payment_status,
-        stripe_payment_status,
-        created_at,
-        updated_at,
-        product_name,
-        product_url,
-        requirements,
-        deadline,
-        has_free_offer,
-        wants_secondary_use,
-        menu_title_snapshot,
-        menu_description_snapshot,
-        menu_platform_snapshot,
-        menu_type_snapshot,
-        menu_category_snapshot,
-        menu_deliverables_snapshot,
-        menu_delivery_days_snapshot,
-        menu_allow_secondary_use_snapshot,
-        currency,
-        menu_price_amount,
-        stripe_amount,
-        platform_fee_amount,
-        creator_payout_amount,
-        buyer_plan_code_snapshot,
-        buyer_plan_public_name_snapshot,
-        buyer_marketplace_fee_rate_bps,
-        buyer_marketplace_fee_amount,
-        buyer_total_amount,
-        creator_transaction_fee_rate_bps,
-        creator_transaction_fee_amount,
-        platform_gross_revenue_amount,
-        creator_accept_deadline,
-        authorized_at,
-        accepted_at,
-        declined_at,
-        expired_at,
-        captured_at,
-        canceled_at,
-        delivered_at,
-        delivered_post_url,
-        completed_at,
-        disputed_at,
-        revision_requested_at,
-        revision_note,
-        revision_count,
-        max_revision_count,
-        auto_complete_at,
-        completed_reason
-      `
-      )
-      .eq("id", orderId)
-      .eq("b_user_id", user.id)
-      .maybeSingle();
-
-    if (orderError) {
-      console.error("company order detail load error:", orderError);
-      setError(copy.notFound);
-      setOrder(null);
-      setInfluencer(null);
-      setLoading(false);
-      return;
-    }
-
-    const nextOrder = (data as OrderDetail | null) ?? null;
-
-    setOrder(nextOrder);
-
-    if (!nextOrder) {
-      setInfluencer(null);
-      setLoading(false);
-      return;
-    }
-
-    const { data: influencerData, error: influencerError } = await supabase
-      .from("creators")
-      .select("id, display_name, avatar_url, category")
-      .eq("id", nextOrder.creator_id)
-      .maybeSingle();
-
-    if (influencerError) {
-      console.error("company order influencer load error:", influencerError);
-      setInfluencer(null);
-    } else {
-      setInfluencer((influencerData as InfluencerLite | null) ?? null);
-    }
-
-    setLoading(false);
   }, [copy.authFailed, copy.notFound, orderId, supabase]);
 
   useEffect(() => {
@@ -876,25 +1000,32 @@ export default function CompanyOrderDetailPage() {
     setActionLoading("complete");
     setError(null);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const accessToken = session?.access_token ?? null;
-
-    if (!accessToken) {
-      setError(copy.authFailed);
-      setActionLoading(null);
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/b/orders/${order.id}/complete`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
+      const sessionResult: any = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        copy.authFailed
+      );
+
+      const accessToken = sessionResult?.data?.session?.access_token ?? null;
+
+      if (!accessToken) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/b/orders/${order.id}/complete`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         },
-      });
+        ACTION_TIMEOUT_MS,
+        copy.completeFailed
+      );
 
       const json = await res.json().catch(() => ({}));
 
@@ -927,29 +1058,36 @@ export default function CompanyOrderDetailPage() {
     setActionLoading("revision");
     setError(null);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const accessToken = session?.access_token ?? null;
-
-    if (!accessToken) {
-      setError(copy.authFailed);
-      setActionLoading(null);
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/b/orders/${order.id}/request-revision`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+      const sessionResult: any = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        copy.authFailed
+      );
+
+      const accessToken = sessionResult?.data?.session?.access_token ?? null;
+
+      if (!accessToken) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/b/orders/${order.id}/request-revision`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            revision_note: note,
+          }),
         },
-        body: JSON.stringify({
-          revision_note: note,
-        }),
-      });
+        ACTION_TIMEOUT_MS,
+        copy.revisionFailed
+      );
 
       const json = await res.json().catch(() => ({}));
 
@@ -1022,6 +1160,7 @@ export default function CompanyOrderDetailPage() {
     (order.revision_count ?? 0) >= (order.max_revision_count ?? 1);
 
   const canRequestRevision = canReviewDelivery && !revisionLimitReached;
+  const canChat = canOpenChat(order);
 
   return (
     <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
@@ -1125,10 +1264,13 @@ export default function CompanyOrderDetailPage() {
               </ActionCard>
             ) : null}
 
-            {isActiveStatus(order.status) ? (
-              <ActionCard title={meta.title} body={meta.body}>
-                <ChatEmbed orderId={order.id} title={copy.chatTitle} />
-              </ActionCard>
+            {canChat && !isDeliveredStatus(order.status) ? (
+              <ChatCtaCard
+                title={copy.chatCtaTitle}
+                body={copy.chatCtaBody}
+                buttonLabel={copy.chatCtaButton}
+                href={`/b/orders/${order.id}/chat`}
+              />
             ) : null}
 
             {isDeliveredStatus(order.status) ? (
@@ -1187,13 +1329,23 @@ export default function CompanyOrderDetailPage() {
                             : copy.requestRevision}
                         </button>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="rounded-[24px] bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-500">
+                        {copy.revisionLimitReached}
+                      </div>
+                    )}
                   </div>
                 ) : null}
 
-                <div className="mt-5">
-                  <ChatEmbed orderId={order.id} title={copy.chatTitle} />
-                </div>
+                {canChat ? (
+                  <Link
+                    href={`/b/orders/${order.id}/chat`}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-4 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
+                  >
+                    <MessageIcon />
+                    {copy.chatCtaButton}
+                  </Link>
+                ) : null}
               </ActionCard>
             ) : null}
 
@@ -1211,10 +1363,6 @@ export default function CompanyOrderDetailPage() {
                     {copy.openDelivery}
                   </a>
                 ) : null}
-
-                <div className="mt-5">
-                  <ChatEmbed orderId={order.id} title={copy.chatTitle} />
-                </div>
               </ActionCard>
             ) : null}
 
@@ -1281,41 +1429,31 @@ export default function CompanyOrderDetailPage() {
                 title={copy.menuContent}
                 subtitle={copy.menuContentSub}
               >
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {order.menu_platform_snapshot ? (
-                    <Pill className="bg-slate-950 text-white ring-slate-950">
-                      {getPlatformIcon(order.menu_platform_snapshot)}
-                      {order.menu_platform_snapshot}
-                    </Pill>
-                  ) : null}
-
-                  <Pill className="bg-slate-100 text-slate-700 ring-slate-200">
-                    {getMenuTypeLabel(
-                      order.menu_type_snapshot,
-                      safeLocale,
-                      order.menu_category_snapshot || copy.notSet
-                    )}
-                  </Pill>
-
-                  {order.menu_category_snapshot ? (
-                    <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
-                      {order.menu_category_snapshot}
-                    </Pill>
-                  ) : null}
-                </div>
-
                 <DetailRow
                   label={copy.menuTitle}
                   value={order.menu_title_snapshot || copy.notSet}
                   strong
                 />
                 <DetailRow
-                  label={copy.price}
-                  value={formatPrice(
-                    order.menu_price_amount,
-                    order.currency,
-                    safeLocale
+                  label={copy.platform}
+                  value={
+                    <span className="inline-flex items-center justify-end gap-2">
+                      {getPlatformIcon(order.menu_platform_snapshot)}
+                      {order.menu_platform_snapshot || copy.notSet}
+                    </span>
+                  }
+                />
+                <DetailRow
+                  label={copy.menuType}
+                  value={getMenuTypeLabel(
+                    order.menu_type_snapshot,
+                    safeLocale,
+                    copy.notSet
                   )}
+                />
+                <DetailRow
+                  label={copy.category}
+                  value={order.menu_category_snapshot || copy.notSet}
                 />
                 <DetailRow
                   label={copy.deliveryDays}
@@ -1334,15 +1472,15 @@ export default function CompanyOrderDetailPage() {
                   }
                 />
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <TextBlock
-                    label={copy.menuDescription}
-                    value={order.menu_description_snapshot}
-                    emptyLabel={copy.notSet}
-                  />
+                <div className="mt-4 grid gap-3">
                   <TextBlock
                     label={copy.deliverables}
                     value={order.menu_deliverables_snapshot}
+                    emptyLabel={copy.notSet}
+                  />
+                  <TextBlock
+                    label={copy.menuDescription}
+                    value={order.menu_description_snapshot}
                     emptyLabel={copy.notSet}
                   />
                 </div>
@@ -1352,7 +1490,7 @@ export default function CompanyOrderDetailPage() {
                 title={copy.paymentContent}
                 subtitle={copy.paymentContentSub}
               >
-                <DetailRow label={copy.plan} value={planName} />
+                <DetailRow label={copy.plan} value={planName || copy.notSet} />
                 <DetailRow
                   label={copy.menuPrice}
                   value={formatPrice(
@@ -1374,18 +1512,7 @@ export default function CompanyOrderDetailPage() {
             </div>
           </main>
 
-          <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
-            <CompactCard title={copy.nextAction}>
-              <div className="rounded-[22px] bg-slate-50 p-4">
-                <p className="text-xs font-black text-slate-400">
-                  {meta.actionLabel}
-                </p>
-                <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
-                  {meta.body}
-                </p>
-              </div>
-            </CompactCard>
-
+          <aside className="space-y-5">
             <CompactCard title={copy.influencer}>
               <div className="flex items-center gap-4">
                 <InfluencerAvatar influencer={influencer} />
@@ -1402,7 +1529,7 @@ export default function CompanyOrderDetailPage() {
               {influencer?.id ? (
                 <Link
                   href={`/b/creators/${influencer.id}`}
-                  className="mt-5 flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition active:scale-[0.98]"
+                  className="mt-5 inline-flex w-full justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
                 >
                   {copy.influencerProfile}
                 </Link>
@@ -1410,17 +1537,23 @@ export default function CompanyOrderDetailPage() {
             </CompactCard>
 
             <CompactCard title={copy.payment}>
-              <div className="rounded-[22px] bg-slate-50 p-4">
-                <DetailRow
-                  label={copy.total}
-                  value={formatPrice(buyerTotal, order.currency, safeLocale)}
-                  strong
-                />
-                <DetailRow
-                  label={copy.menuTitle}
-                  value={order.menu_title_snapshot || copy.notSet}
-                />
-              </div>
+              <DetailRow
+                label={copy.menuPrice}
+                value={formatPrice(
+                  order.menu_price_amount,
+                  order.currency,
+                  safeLocale
+                )}
+              />
+              <DetailRow
+                label={copy.serviceFee}
+                value={formatPrice(buyerFee, order.currency, safeLocale)}
+              />
+              <DetailRow
+                label={copy.total}
+                value={formatPrice(buyerTotal, order.currency, safeLocale)}
+                strong
+              />
             </CompactCard>
           </aside>
         </section>
