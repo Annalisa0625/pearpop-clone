@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -56,6 +56,61 @@ type ReferenceAsset = {
   signed_url: string | null;
 };
 
+const AUTH_TIMEOUT_MS = 8000;
+const ORDER_TIMEOUT_MS = 10000;
+const REFERENCE_ASSET_TIMEOUT_MS = 8000;
+const ACTION_TIMEOUT_MS = 30000;
+
+function withTimeout<T = any>(
+  promiseLike: PromiseLike<T> | T,
+  ms: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const promise = Promise.resolve(promiseLike);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  ms: number,
+  timeoutMessage: string
+) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => {
+    controller.abort();
+  }, ms);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    const isAbort =
+      error instanceof DOMException && error.name === "AbortError";
+
+    if (isAbort) {
+      throw new Error(timeoutMessage);
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
@@ -102,24 +157,6 @@ function formatFileSize(bytes: number | null | undefined) {
   }
 
   return `${Math.ceil(value / 1024)}KB`;
-}
-
-function menuTypeLabel(
-  value: string | null | undefined,
-  locale: "ja" | "en",
-  fallback: string
-) {
-  const labels: Record<string, { ja: string; en: string }> = {
-    post: { ja: "投稿", en: "Post" },
-    short_video: { ja: "ショート動画", en: "Short video" },
-    story: { ja: "ストーリー", en: "Story" },
-    video: { ja: "動画", en: "Video" },
-    ugc: { ja: "UGC制作", en: "UGC creation" },
-    package: { ja: "セットメニュー", en: "Package" },
-    other: { ja: "その他", en: "Other" },
-  };
-
-  return labels[value || ""]?.[locale] || fallback;
 }
 
 function isTerminalStatus(status: string) {
@@ -217,18 +254,6 @@ function transferLabel(value: string | null, locale: "ja" | "en") {
   if (status === "pending") return "Processing";
   if (status === "failed") return "Checking";
   return "After completion";
-}
-
-function getPlatformIcon(value: string | null | undefined) {
-  const normalized = (value ?? "").trim().toLowerCase();
-
-  if (normalized.includes("instagram")) return "◎";
-  if (normalized.includes("tiktok")) return "♪";
-  if (normalized.includes("youtube")) return "▶";
-  if (normalized === "x" || normalized.includes("twitter")) return "𝕏";
-  if (normalized.includes("ugc")) return "▣";
-
-  return "●";
 }
 
 function normalizePrAccountInput(value: string | null | undefined) {
@@ -338,7 +363,7 @@ function Card({
 }: {
   title: string;
   body?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <section className="rounded-[26px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
@@ -350,7 +375,7 @@ function Card({
           {body}
         </p>
       ) : null}
-      <div className="mt-5">{children}</div>
+      {children ? <div className="mt-5">{children}</div> : null}
     </section>
   );
 }
@@ -447,13 +472,25 @@ function ReferenceAssetsCard({
   assets,
   emptyLabel,
   openLabel,
+  loading,
 }: {
   title: string;
   body: string;
   assets: ReferenceAsset[];
   emptyLabel: string;
   openLabel: string;
+  loading: boolean;
 }) {
+  if (loading) {
+    return (
+      <Card title={title} body={body}>
+        <div className="rounded-[22px] bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-400">読み込み中...</p>
+        </div>
+      </Card>
+    );
+  }
+
   if (assets.length === 0) return null;
 
   return (
@@ -479,6 +516,7 @@ function ReferenceAssetsCard({
               <img
                 src={asset.signed_url}
                 alt={asset.file_name}
+                loading="lazy"
                 className="h-16 w-16 shrink-0 rounded-[18px] object-cover ring-1 ring-slate-100"
               />
             ) : (
@@ -611,6 +649,7 @@ export default function CreatorOrderDetailPage() {
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const mountedRef = useRef(true);
 
   const copy = useMemo(
     () =>
@@ -680,6 +719,8 @@ export default function CreatorOrderDetailPage() {
             chatUnavailableTitle: "チャットは支払い確認後に使えます",
             chatUnavailableBody:
               "支払い確認が完了すると、注文チャットで詳細を相談できます。",
+            referenceLoadFailed:
+              "参考資料の読み込みに時間がかかっています。後でもう一度開いてください。",
           }
         : {
             loading: "Loading...",
@@ -747,12 +788,18 @@ export default function CreatorOrderDetailPage() {
             chatUnavailableTitle: "Chat will be available after payment confirmation",
             chatUnavailableBody:
               "Once payment is confirmed, you can discuss details in order chat.",
+            referenceLoadFailed:
+              "Reference materials are taking too long to load. Please try again later.",
           },
     [safeLocale]
   );
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [referenceAssets, setReferenceAssets] = useState<ReferenceAsset[]>([]);
+  const [referenceAssetsLoading, setReferenceAssetsLoading] = useState(false);
+  const [referenceAssetsError, setReferenceAssetsError] = useState<string | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<
     "accept" | "decline" | "deliver" | null
@@ -760,115 +807,166 @@ export default function CreatorOrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [deliveryUrl, setDeliveryUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const loadReferenceAssets = useCallback(
-    async (targetOrderId: string, accessToken: string) => {
+    async (targetOrderId: string, token: string) => {
+      setReferenceAssetsLoading(true);
+      setReferenceAssetsError(null);
+
       try {
-        const res = await fetch(`/api/orders/${targetOrderId}/reference-assets`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
+        const res = await fetchWithTimeout(
+          `/api/orders/${targetOrderId}/reference-assets`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           },
-        });
+          REFERENCE_ASSET_TIMEOUT_MS,
+          copy.referenceLoadFailed
+        );
 
         const json = await res.json().catch(() => ({}));
+
+        if (!mountedRef.current) return;
 
         if (!res.ok) {
           console.error("reference assets load error:", json);
           setReferenceAssets([]);
+          setReferenceAssetsError(json?.error ?? copy.referenceLoadFailed);
           return;
         }
 
         setReferenceAssets(Array.isArray(json?.assets) ? json.assets : []);
       } catch (error) {
         console.error("reference assets load error:", error);
+
+        if (!mountedRef.current) return;
+
         setReferenceAssets([]);
+        setReferenceAssetsError(
+          error instanceof Error ? error.message : copy.referenceLoadFailed
+        );
+      } finally {
+        if (mountedRef.current) {
+          setReferenceAssetsLoading(false);
+        }
       }
     },
-    []
+    [copy.referenceLoadFailed]
   );
 
   const loadOrder = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    try {
+      const authResult: any = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        copy.authFailed
+      );
 
-    const user = session?.user ?? null;
-    const accessToken = session?.access_token ?? null;
+      const session = authResult?.data?.session ?? null;
+      const user = session?.user ?? null;
+      const token = session?.access_token ?? null;
 
-    if (sessionError || !user || !accessToken) {
-      setError(copy.authFailed);
+      if (authResult?.error || !user || !token) {
+        setError(copy.authFailed);
+        setOrder(null);
+        setReferenceAssets([]);
+        setLoading(false);
+        return;
+      }
+
+      setAccessToken(token);
+
+      const orderResult: any = await withTimeout(
+        supabase
+          .from("orders")
+          .select(
+            `
+            id,
+            status,
+            payment_status,
+            created_at,
+            updated_at,
+            product_name,
+            product_url,
+            requirements,
+            deadline,
+            has_free_offer,
+            wants_secondary_use,
+            pr_account,
+            pr_hashtags,
+            pr_copy_text,
+            post_notes,
+            menu_title_snapshot,
+            menu_platform_snapshot,
+            menu_type_snapshot,
+            menu_category_snapshot,
+            menu_deliverables_snapshot,
+            menu_delivery_days_snapshot,
+            currency,
+            menu_price_amount,
+            creator_payout_amount,
+            creator_accept_deadline,
+            delivered_post_url,
+            revision_note,
+            transfer_status
+          `
+          )
+          .eq("id", orderId)
+          .eq("creator_user_id", user.id)
+          .maybeSingle(),
+        ORDER_TIMEOUT_MS,
+        copy.notFound
+      );
+
+      if (orderResult?.error) {
+        console.error("creator order detail load error:", orderResult.error);
+        setError(copy.notFound);
+        setOrder(null);
+        setReferenceAssets([]);
+        setLoading(false);
+        return;
+      }
+
+      const nextOrder = (orderResult?.data as OrderDetail | null) ?? null;
+
+      setOrder(nextOrder);
+      setDeliveryUrl(nextOrder?.delivered_post_url ?? "");
       setLoading(false);
-      return;
-    }
 
-    const { data, error: orderError } = await supabase
-      .from("orders")
-      .select(
-        `
-        id,
-        status,
-        payment_status,
-        created_at,
-        updated_at,
-        product_name,
-        product_url,
-        requirements,
-        deadline,
-        has_free_offer,
-        wants_secondary_use,
-        pr_account,
-        pr_hashtags,
-        pr_copy_text,
-        post_notes,
-        menu_title_snapshot,
-        menu_platform_snapshot,
-        menu_type_snapshot,
-        menu_category_snapshot,
-        menu_deliverables_snapshot,
-        menu_delivery_days_snapshot,
-        currency,
-        menu_price_amount,
-        creator_payout_amount,
-        creator_accept_deadline,
-        delivered_post_url,
-        revision_note,
-        transfer_status
-      `
-      )
-      .eq("id", orderId)
-      .eq("creator_user_id", user.id)
-      .maybeSingle();
+      if (nextOrder?.id) {
+        void loadReferenceAssets(nextOrder.id, token);
+      } else {
+        setReferenceAssets([]);
+      }
+    } catch (error) {
+      console.error("creator order detail load error:", error);
 
-    if (orderError) {
-      console.error("creator order detail load error:", orderError);
-      setError(copy.notFound);
+      setError(error instanceof Error ? error.message : copy.notFound);
       setOrder(null);
       setReferenceAssets([]);
       setLoading(false);
-      return;
     }
-
-    const nextOrder = (data as OrderDetail | null) ?? null;
-
-    setOrder(nextOrder);
-    setDeliveryUrl(nextOrder?.delivered_post_url ?? "");
-
-    if (nextOrder?.id) {
-      await loadReferenceAssets(nextOrder.id, accessToken);
-    } else {
-      setReferenceAssets([]);
-    }
-
-    setLoading(false);
-  }, [copy.authFailed, copy.notFound, loadReferenceAssets, orderId, supabase]);
+  }, [
+    copy.authFailed,
+    copy.notFound,
+    loadReferenceAssets,
+    orderId,
+    supabase,
+  ]);
 
   useEffect(() => {
+    mountedRef.current = true;
     void loadOrder();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadOrder]);
 
   const runAction = async (type: "accept" | "decline") => {
@@ -882,25 +980,30 @@ export default function CreatorOrderDetailPage() {
     setActionLoading(type);
     setError(null);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const accessToken = session?.access_token ?? null;
-
-    if (!accessToken) {
-      setError(copy.authFailed);
-      setActionLoading(null);
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/creator/orders/${order.id}/${type}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
+      const token =
+        accessToken ??
+        (await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS, copy.authFailed))
+          ?.data?.session?.access_token ??
+        null;
+
+      if (!token) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/creator/orders/${order.id}/${type}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+        ACTION_TIMEOUT_MS,
+        type === "accept" ? copy.acceptFailed : copy.declineFailed
+      );
 
       const json = await res.json().catch(() => ({}));
 
@@ -944,29 +1047,34 @@ export default function CreatorOrderDetailPage() {
     setActionLoading("deliver");
     setError(null);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const accessToken = session?.access_token ?? null;
-
-    if (!accessToken) {
-      setError(copy.authFailed);
-      setActionLoading(null);
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/creator/orders/${order.id}/deliver`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+      const token =
+        accessToken ??
+        (await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS, copy.authFailed))
+          ?.data?.session?.access_token ??
+        null;
+
+      if (!token) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/creator/orders/${order.id}/deliver`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            delivered_post_url: cleanUrl,
+          }),
         },
-        body: JSON.stringify({
-          delivered_post_url: cleanUrl,
-        }),
-      });
+        ACTION_TIMEOUT_MS,
+        copy.deliveryFailed
+      );
 
       const json = await res.json().catch(() => ({}));
 
@@ -1013,7 +1121,7 @@ export default function CreatorOrderDetailPage() {
   if (!order) {
     return (
       <div className="overflow-x-hidden pb-28">
-        <Card title={copy.notFound}>
+        <Card title={error || copy.notFound}>
           <Link
             href="/creator/requests"
             className="inline-flex rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white"
@@ -1135,7 +1243,14 @@ export default function CreatorOrderDetailPage() {
         assets={referenceAssets}
         emptyLabel={copy.notSet}
         openLabel={copy.referenceAssetsOpen}
+        loading={referenceAssetsLoading}
       />
+
+      {referenceAssetsError ? (
+        <section className="rounded-[24px] bg-amber-50 p-5 text-amber-900 ring-1 ring-amber-100">
+          <p className="text-sm font-semibold leading-7">{referenceAssetsError}</p>
+        </section>
+      ) : null}
 
       {canDeliver ? (
         <Card
@@ -1261,38 +1376,12 @@ export default function CreatorOrderDetailPage() {
 
         {requestNote ? (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-black text-slate-400">
-              {copy.requestNote}
-            </p>
             <TextBlock value={requestNote} emptyLabel={copy.notSet} />
           </div>
         ) : null}
       </Card>
 
       <Card title={copy.menuAndPayout}>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {order.menu_platform_snapshot ? (
-            <SoftPill tone="slate">
-              <span className="mr-1">
-                {getPlatformIcon(order.menu_platform_snapshot)}
-              </span>
-              {order.menu_platform_snapshot}
-            </SoftPill>
-          ) : null}
-
-          <SoftPill tone="slate">
-            {menuTypeLabel(
-              order.menu_type_snapshot,
-              safeLocale,
-              order.menu_category_snapshot || copy.notSet
-            )}
-          </SoftPill>
-
-          {order.menu_category_snapshot ? (
-            <SoftPill tone="slate">{order.menu_category_snapshot}</SoftPill>
-          ) : null}
-        </div>
-
         <div className="rounded-[22px] bg-slate-50 p-4">
           <InfoRow
             label={copy.menuTitle}
@@ -1307,7 +1396,11 @@ export default function CreatorOrderDetailPage() {
 
           <InfoRow
             label={copy.price}
-            value={formatPrice(order.menu_price_amount, order.currency, safeLocale)}
+            value={formatPrice(
+              order.menu_price_amount,
+              order.currency,
+              safeLocale
+            )}
           />
 
           <InfoRow
@@ -1328,7 +1421,7 @@ export default function CreatorOrderDetailPage() {
 
         <Link
           href="/creator/payouts"
-          className="mt-5 flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3.5 text-sm font-black text-slate-700 transition active:scale-[0.98]"
+          className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white"
         >
           {copy.payoutPage}
         </Link>
