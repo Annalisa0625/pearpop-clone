@@ -1,7 +1,7 @@
 // File: app/creator/requests/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
@@ -80,6 +80,61 @@ type PendingItem =
       creator_accept_deadline: null;
       chat: ChatRow | null;
     };
+
+const AUTH_TIMEOUT_MS = 8000;
+const ORDER_TIMEOUT_MS = 10000;
+const LEGACY_TIMEOUT_MS = 5000;
+const CHAT_TIMEOUT_MS = 5000;
+
+function withTimeout<T = any>(
+  promiseLike: PromiseLike<T> | T,
+  ms: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const promise = Promise.resolve(promiseLike);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  ms: number,
+  timeoutMessage: string
+) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => {
+    controller.abort();
+  }, ms);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    const isAbort =
+      error instanceof DOMException && error.name === "AbortError";
+
+    if (isAbort) {
+      throw new Error(timeoutMessage);
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
@@ -371,6 +426,7 @@ export default function CreatorRequestsPage() {
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const mountedRef = useRef(true);
 
   const copy = useMemo(
     () =>
@@ -379,6 +435,10 @@ export default function CreatorRequestsPage() {
             title: "注文",
             subtitle: "届いた注文を確認して、受けるか相談できます。",
             fetchError: "注文の取得に失敗しました。",
+            partialFetchError:
+              "一部の情報を取得できませんでした。注文自体は表示できる範囲で表示しています。",
+            authTimeout:
+              "ログイン情報の取得に時間がかかっています。ページを再読み込みしてください。",
             unnamedProduct: "商品名未設定",
             orderDate: "注文日",
             menu: "メニュー",
@@ -390,6 +450,7 @@ export default function CreatorRequestsPage() {
             deadlineAlert: "返答期限",
             checkDetail: "内容を確認してください",
             errorTitle: "エラー",
+            noticeTitle: "一部読み込みに失敗しました",
             unreadLabel: "新着",
             unreadSuffix: "件",
             totalLabel: "届いている注文",
@@ -398,6 +459,10 @@ export default function CreatorRequestsPage() {
             title: "Orders",
             subtitle: "Review incoming orders and discuss if needed.",
             fetchError: "Failed to load orders.",
+            partialFetchError:
+              "Some information could not be loaded. Showing available orders.",
+            authTimeout:
+              "Loading your login session is taking too long. Please reload the page.",
             unnamedProduct: "No product name",
             orderDate: "Order date",
             menu: "Menu",
@@ -409,6 +474,7 @@ export default function CreatorRequestsPage() {
             deadlineAlert: "Reply by",
             checkDetail: "Check details",
             errorTitle: "Error",
+            noticeTitle: "Partial loading issue",
             unreadLabel: "New",
             unreadSuffix: "",
             totalLabel: "Incoming orders",
@@ -418,204 +484,298 @@ export default function CreatorRequestsPage() {
 
   const [items, setItems] = useState<PendingItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const loadLegacyRequests = useCallback(async () => {
+    try {
+      const legacyRes = await fetchWithTimeout(
+        "/api/creator/requests",
+        {
+          credentials: "include",
+          cache: "no-store",
+        },
+        LEGACY_TIMEOUT_MS,
+        "legacy creator requests timeout"
+      );
+
+      const legacyJson = await legacyRes.json().catch(() => null);
+
+      if (!legacyRes.ok) {
+        console.warn("legacy creator requests load skipped:", legacyJson);
+        return [];
+      }
+
+      const legacyAllItems = (legacyJson?.requests ?? []) as LegacyRequestRow[];
+
+      return legacyAllItems.filter(
+        (request) => (request.status ?? "pending") === "pending"
+      );
+    } catch (error) {
+      console.warn("legacy creator requests load skipped:", error);
+      return [];
+    }
+  }, []);
+
+  const loadOrders = useCallback(
+    async (userId: string) => {
+      const result: any = await withTimeout(
+        supabase
+          .from("orders")
+          .select(
+            `
+            id,
+            status,
+            payment_status,
+            created_at,
+            product_name,
+            deadline,
+            menu_title_snapshot,
+            creator_payout_amount,
+            currency,
+            creator_accept_deadline
+          `
+          )
+          .eq("creator_user_id", userId)
+          .eq("status", "authorized_pending_creator")
+          .order("created_at", { ascending: false }),
+        ORDER_TIMEOUT_MS,
+        "creator pending orders timeout"
+      );
+
+      if (result?.error) {
+        throw result.error;
+      }
+
+      return (result?.data ?? []) as unknown as OrderRow[];
+    },
+    [supabase]
+  );
+
+  const loadOrderChats = useCallback(
+    async (orderIds: string[]) => {
+      if (orderIds.length === 0) return new Map<string, ChatRow>();
+
+      try {
+        const result: any = await withTimeout(
+          supabase
+            .from("chats")
+            .select(
+              `
+              id,
+              order_id,
+              last_message_at,
+              chat_reads (
+                user_id,
+                last_read_at
+              )
+            `
+            )
+            .in("order_id", orderIds),
+          CHAT_TIMEOUT_MS,
+          "creator pending order chats timeout"
+        );
+
+        if (result?.error) {
+          throw result.error;
+        }
+
+        return new Map(
+          ((result?.data ?? []) as ChatRow[])
+            .filter((chat) => !!chat.order_id)
+            .map((chat) => [chat.order_id as string, chat])
+        );
+      } catch (error) {
+        console.warn("creator pending order chat load skipped:", error);
+        return new Map<string, ChatRow>();
+      }
+    },
+    [supabase]
+  );
+
+  const loadLegacyChats = useCallback(
+    async (legacyRequestIds: string[]) => {
+      if (legacyRequestIds.length === 0) return new Map<string, ChatRow>();
+
+      try {
+        const result: any = await withTimeout(
+          supabase
+            .from("chats")
+            .select(
+              `
+              id,
+              request_id,
+              last_message_at,
+              chat_reads (
+                user_id,
+                last_read_at
+              )
+            `
+            )
+            .in("request_id", legacyRequestIds),
+          CHAT_TIMEOUT_MS,
+          "creator pending legacy chats timeout"
+        );
+
+        if (result?.error) {
+          throw result.error;
+        }
+
+        return new Map(
+          ((result?.data ?? []) as ChatRow[])
+            .filter((chat) => !!chat.request_id)
+            .map((chat) => [chat.request_id as string, chat])
+        );
+      } catch (error) {
+        console.warn("creator pending legacy chat load skipped:", error);
+        return new Map<string, ChatRow>();
+      }
+    },
+    [supabase]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNotice(null);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    try {
+      const authResult: any = await withTimeout(
+        supabase.auth.getUser(),
+        AUTH_TIMEOUT_MS,
+        copy.authTimeout
+      );
 
-    if (userError || !user) {
-      setError(copy.fetchError);
+      const user = authResult?.data?.user ?? null;
+      const userError = authResult?.error ?? null;
+
+      if (userError || !user) {
+        setError(copy.fetchError);
+        setItems([]);
+        setCurrentUserId(null);
+        return;
+      }
+
+      setCurrentUserId(user.id);
+
+      const [ordersSettled, legacySettled] = await Promise.allSettled([
+        loadOrders(user.id),
+        loadLegacyRequests(),
+      ]);
+
+      let orders: OrderRow[] = [];
+      let legacyPendingRows: LegacyRequestRow[] = [];
+
+      if (ordersSettled.status === "fulfilled") {
+        orders = ordersSettled.value;
+      } else {
+        console.error("creator order list load error:", ordersSettled.reason);
+        setError(copy.fetchError);
+      }
+
+      if (legacySettled.status === "fulfilled") {
+        legacyPendingRows = legacySettled.value;
+      } else {
+        console.warn("legacy requests skipped:", legacySettled.reason);
+        setNotice(copy.partialFetchError);
+      }
+
+      const orderIds = orders.map((order) => order.id);
+      const legacyRequestIds = legacyPendingRows.map((request) => request.id);
+
+      const [orderChatMap, legacyChatMap] = await Promise.all([
+        loadOrderChats(orderIds),
+        loadLegacyChats(legacyRequestIds),
+      ]);
+
+      const legacyPendingItems: PendingItem[] = legacyPendingRows.map(
+        (request): PendingItem => ({
+          kind: "legacy_request",
+          id: request.id,
+          created_at: request.created_at,
+          status: request.status ?? "pending",
+          payment_status: null,
+          product_name: request.product_name,
+          deadline: request.deadline,
+          menu_title: null,
+          creator_payout_amount: null,
+          currency: "JPY",
+          creator_accept_deadline: null,
+          chat: legacyChatMap.get(request.id) ?? null,
+        })
+      );
+
+      const orderItems: PendingItem[] = orders.map(
+        (order): PendingItem => ({
+          kind: "order",
+          id: order.id,
+          created_at: order.created_at,
+          status: order.status,
+          payment_status: order.payment_status,
+          product_name: order.product_name,
+          deadline: order.deadline,
+          menu_title: order.menu_title_snapshot,
+          creator_payout_amount: order.creator_payout_amount,
+          currency: order.currency,
+          creator_accept_deadline: order.creator_accept_deadline,
+          chat: orderChatMap.get(order.id) ?? null,
+        })
+      );
+
+      const nextItems = [...orderItems, ...legacyPendingItems].sort((a, b) => {
+        const aUnread = isUnreadForUser(a.chat, user.id) ? 1 : 0;
+        const bUnread = isUnreadForUser(b.chat, user.id) ? 1 : 0;
+
+        if (aUnread !== bUnread) return bUnread - aUnread;
+
+        const aUrgency = getUrgencyScore(a);
+        const bUrgency = getUrgencyScore(b);
+
+        if (aUrgency !== bUrgency) return aUrgency - bUrgency;
+
+        const aLastMessage = a.chat?.last_message_at
+          ? new Date(a.chat.last_message_at).getTime()
+          : 0;
+        const bLastMessage = b.chat?.last_message_at
+          ? new Date(b.chat.last_message_at).getTime()
+          : 0;
+
+        if (aLastMessage !== bLastMessage) {
+          return bLastMessage - aLastMessage;
+        }
+
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      setItems(nextItems);
+    } catch (error) {
+      console.error("creator requests load error:", error);
+      setError(error instanceof Error ? error.message : copy.fetchError);
       setItems([]);
-      setLoading(false);
-      return;
-    }
-
-    setCurrentUserId(user.id);
-
-    const [legacyRes, orderRes] = await Promise.all([
-      fetch("/api/creator/requests", {
-        credentials: "include",
-        cache: "no-store",
-      }),
-
-      supabase
-        .from("orders")
-        .select(
-          `
-          id,
-          status,
-          payment_status,
-          created_at,
-          product_name,
-          deadline,
-          menu_title_snapshot,
-          creator_payout_amount,
-          currency,
-          creator_accept_deadline
-        `
-        )
-        .eq("creator_user_id", user.id)
-        .eq("status", "authorized_pending_creator")
-        .order("created_at", { ascending: false }),
-    ]);
-
-    const legacyJson = await legacyRes.json().catch(() => null);
-
-    if (!legacyRes.ok) {
-      console.error("legacy creator requests load error:", legacyJson);
-    }
-
-    if (orderRes.error) {
-      console.error("creator order list load error:", orderRes.error);
-    }
-
-    const legacyAllItems = legacyRes.ok
-      ? ((legacyJson?.requests ?? []) as LegacyRequestRow[])
-      : [];
-
-    const legacyPendingRows = legacyAllItems.filter(
-      (request) => (request.status ?? "pending") === "pending"
-    );
-
-    const orders = (orderRes.data ?? []) as unknown as OrderRow[];
-
-    const orderIds = orders.map((order) => order.id);
-    const legacyRequestIds = legacyPendingRows.map((request) => request.id);
-
-    let orderChatMap = new Map<string, ChatRow>();
-    let legacyChatMap = new Map<string, ChatRow>();
-
-    if (orderIds.length > 0) {
-      const { data: chatRows, error: chatError } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          order_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("order_id", orderIds);
-
-      if (chatError) {
-        console.error("creator pending order chat load error:", chatError);
-      } else {
-        orderChatMap = new Map(
-          ((chatRows ?? []) as ChatRow[])
-            .filter((chat) => !!chat.order_id)
-            .map((chat) => [chat.order_id as string, chat])
-        );
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
       }
     }
-
-    if (legacyRequestIds.length > 0) {
-      const { data: chatRows, error: chatError } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          request_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("request_id", legacyRequestIds);
-
-      if (chatError) {
-        console.error("creator pending legacy chat load error:", chatError);
-      } else {
-        legacyChatMap = new Map(
-          ((chatRows ?? []) as ChatRow[])
-            .filter((chat) => !!chat.request_id)
-            .map((chat) => [chat.request_id as string, chat])
-        );
-      }
-    }
-
-    const legacyPendingItems: PendingItem[] = legacyPendingRows.map(
-      (request): PendingItem => ({
-        kind: "legacy_request",
-        id: request.id,
-        created_at: request.created_at,
-        status: request.status ?? "pending",
-        payment_status: null,
-        product_name: request.product_name,
-        deadline: request.deadline,
-        menu_title: null,
-        creator_payout_amount: null,
-        currency: "JPY",
-        creator_accept_deadline: null,
-        chat: legacyChatMap.get(request.id) ?? null,
-      })
-    );
-
-    const orderItems: PendingItem[] = orders.map(
-      (order): PendingItem => ({
-        kind: "order",
-        id: order.id,
-        created_at: order.created_at,
-        status: order.status,
-        payment_status: order.payment_status,
-        product_name: order.product_name,
-        deadline: order.deadline,
-        menu_title: order.menu_title_snapshot,
-        creator_payout_amount: order.creator_payout_amount,
-        currency: order.currency,
-        creator_accept_deadline: order.creator_accept_deadline,
-        chat: orderChatMap.get(order.id) ?? null,
-      })
-    );
-
-    const nextItems = [...orderItems, ...legacyPendingItems].sort((a, b) => {
-      const aUnread = isUnreadForUser(a.chat, user.id) ? 1 : 0;
-      const bUnread = isUnreadForUser(b.chat, user.id) ? 1 : 0;
-
-      if (aUnread !== bUnread) return bUnread - aUnread;
-
-      const aUrgency = getUrgencyScore(a);
-      const bUrgency = getUrgencyScore(b);
-
-      if (aUrgency !== bUrgency) return aUrgency - bUrgency;
-
-      const aLastMessage = a.chat?.last_message_at
-        ? new Date(a.chat.last_message_at).getTime()
-        : 0;
-      const bLastMessage = b.chat?.last_message_at
-        ? new Date(b.chat.last_message_at).getTime()
-        : 0;
-
-      if (aLastMessage !== bLastMessage) {
-        return bLastMessage - aLastMessage;
-      }
-
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-    setItems(nextItems);
-
-    if (!legacyRes.ok && orderRes.error) {
-      setError(copy.fetchError);
-    }
-
-    setLoading(false);
-  }, [copy.fetchError, supabase]);
+  }, [
+    copy.authTimeout,
+    copy.fetchError,
+    copy.partialFetchError,
+    loadLegacyChats,
+    loadLegacyRequests,
+    loadOrderChats,
+    loadOrders,
+    supabase,
+  ]);
 
   useEffect(() => {
+    mountedRef.current = true;
     void load();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, [load]);
 
   useEffect(() => {
@@ -729,6 +889,14 @@ export default function CreatorRequestsPage() {
           tone="red"
           title={copy.errorTitle}
           description={error}
+        />
+      ) : null}
+
+      {notice && !error ? (
+        <CreatorNotice
+          tone="amber"
+          title={copy.noticeTitle}
+          description={notice}
         />
       ) : null}
 
