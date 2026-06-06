@@ -1,15 +1,10 @@
 // File: app/api/orders/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getBaseUrl, getStripe } from "@/lib/stripe";
-import {
-  calculateOrderFees,
-  normalizeInternalPlanCode,
-} from "@/lib/orders/fees";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 60;
 
 type ProjectType = "visit_experience" | "product_delivery" | "provided_assets";
 
@@ -42,12 +37,21 @@ type CheckoutBody = {
   note?: string;
   has_free_offer?: boolean;
   wants_secondary_use?: boolean;
-
   pr_account?: string;
   pr_hashtags?: string[];
   post_notes?: string;
-
   reference_assets?: ReferenceAssetInput[];
+};
+
+type ServerDeps = {
+  supabaseAdmin: any;
+  getStripe: () => any;
+  getBaseUrl: () => string;
+  calculateOrderFees: (args: {
+    menuPriceAmount: number;
+    buyerPlanCode: string | null | undefined;
+  }) => any;
+  normalizeInternalPlanCode: (value: string | null | undefined) => string;
 };
 
 const ORDER_REFERENCE_ASSETS_BUCKET = "order-reference-assets";
@@ -89,12 +93,14 @@ const ZERO_DECIMAL_CURRENCIES = new Set([
   "XPF",
 ]);
 
-function withTimeout<T>(
-  promise: PromiseLike<T>,
+function withTimeout<T = any>(
+  promiseLike: PromiseLike<T> | T,
   ms: number,
   timeoutMessage: string
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const promise = Promise.resolve(promiseLike);
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -107,24 +113,57 @@ function withTimeout<T>(
   });
 }
 
-async function getAuthenticatedUser(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : null;
+async function loadServerDeps(): Promise<ServerDeps> {
+  const [supabaseModule, stripeModule, feesModule] = await Promise.all([
+    import("@/lib/supabaseAdmin"),
+    import("@/lib/stripe"),
+    import("@/lib/orders/fees"),
+  ]);
 
-  if (!token) {
-    return { user: null, error: "認証トークンがありません" };
+  return {
+    supabaseAdmin: (supabaseModule as any).supabaseAdmin,
+    getStripe: (stripeModule as any).getStripe,
+    getBaseUrl: (stripeModule as any).getBaseUrl,
+    calculateOrderFees: (feesModule as any).calculateOrderFees,
+    normalizeInternalPlanCode: (feesModule as any).normalizeInternalPlanCode,
+  };
+}
+
+function getBearerToken(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
   }
 
-  const {
-    data: { user },
-    error,
-  } = await withTimeout(
-    supabaseAdmin.auth.getUser(token),
+  return authHeader.slice("Bearer ".length);
+}
+
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    route: "/api/orders/checkout",
+    methods: ["POST"],
+    message: "checkout route is alive",
+  });
+}
+
+export async function HEAD() {
+  return new NextResponse(null, { status: 200 });
+}
+
+async function getAuthenticatedUser(args: {
+  supabaseAdmin: any;
+  token: string;
+}) {
+  const authResult: any = await withTimeout(
+    args.supabaseAdmin.auth.getUser(args.token),
     AUTH_TIMEOUT_MS,
     "認証情報の確認に時間がかかっています"
   );
+
+  const user = authResult?.data?.user ?? null;
+  const error = authResult?.error ?? null;
 
   if (error || !user) {
     return { user: null, error: "認証に失敗しました" };
@@ -133,65 +172,77 @@ async function getAuthenticatedUser(req: NextRequest) {
   return { user, error: null };
 }
 
-async function ensureCompanyUser(userId: string) {
-  const { data, error } = await withTimeout(
-    supabaseAdmin
+async function ensureCompanyUser(args: {
+  supabaseAdmin: any;
+  userId: string;
+}) {
+  const result: any = await withTimeout(
+    args.supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", userId)
+      .eq("user_id", args.userId)
       .eq("role", "company")
       .maybeSingle(),
     DB_TIMEOUT_MS,
     "企業ロールの確認に時間がかかっています"
   );
 
-  if (error || !data) {
+  if (result?.error || !result?.data) {
     return false;
   }
 
   return true;
 }
 
-async function ensureNoActiveSuspension(userId: string) {
-  const { data, error } = await withTimeout(
-    supabaseAdmin
+async function ensureNoActiveSuspension(args: {
+  supabaseAdmin: any;
+  userId: string;
+}) {
+  const result: any = await withTimeout(
+    args.supabaseAdmin
       .from("user_suspensions")
       .select("id")
-      .eq("user_id", userId)
+      .eq("user_id", args.userId)
       .eq("is_active", true)
       .limit(1),
     DB_TIMEOUT_MS,
     "アカウント状態の確認に時間がかかっています"
   );
 
-  if (error) {
-    throw error;
+  if (result?.error) {
+    throw result.error;
   }
 
-  return (data ?? []).length === 0;
+  return (result?.data ?? []).length === 0;
 }
 
-async function getCompany(userId: string) {
-  const { data, error } = await withTimeout(
-    supabaseAdmin
+async function getCompany(args: {
+  supabaseAdmin: any;
+  userId: string;
+}) {
+  const result: any = await withTimeout(
+    args.supabaseAdmin
       .from("companies")
       .select("company_name, contact_email, approval_status")
-      .eq("user_id", userId)
+      .eq("user_id", args.userId)
       .maybeSingle(),
     DB_TIMEOUT_MS,
     "企業情報の取得に時間がかかっています"
   );
 
-  if (error) {
-    throw error;
+  if (result?.error) {
+    throw result.error;
   }
 
-  return data;
+  return result?.data ?? null;
 }
 
-async function getUserState(userId: string) {
-  const { data, error } = await withTimeout(
-    supabaseAdmin
+async function getUserState(args: {
+  supabaseAdmin: any;
+  userId: string;
+}) {
+  const result: any = await withTimeout(
+    args.supabaseAdmin
       .from("user_states")
       .select(
         `
@@ -206,28 +257,29 @@ async function getUserState(userId: string) {
         stripe_customer_id
       `
       )
-      .eq("user_id", userId)
+      .eq("user_id", args.userId)
       .maybeSingle(),
     DB_TIMEOUT_MS,
     "利用状態の取得に時間がかかっています"
   );
 
-  if (error) {
-    throw error;
+  if (result?.error) {
+    throw result.error;
   }
 
-  return data;
+  return result?.data ?? null;
 }
 
-async function upsertUserState(
-  userId: string,
-  patch: Record<string, string | number | boolean | null>
-) {
-  const { error } = await withTimeout(
-    supabaseAdmin.from("user_states").upsert(
+async function upsertUserState(args: {
+  supabaseAdmin: any;
+  userId: string;
+  patch: Record<string, string | number | boolean | null>;
+}) {
+  const result: any = await withTimeout(
+    args.supabaseAdmin.from("user_states").upsert(
       {
-        user_id: userId,
-        ...patch,
+        user_id: args.userId,
+        ...args.patch,
       },
       {
         onConflict: "user_id",
@@ -237,23 +289,22 @@ async function upsertUserState(
     "利用状態の更新に時間がかかっています"
   );
 
-  if (error) {
-    throw error;
+  if (result?.error) {
+    throw result.error;
   }
 }
 
 async function findOrCreateStripeCustomer(args: {
+  stripe: any;
   userId: string;
   email: string;
   companyName?: string | null;
   existingCustomerId?: string | null;
 }) {
-  const stripe = getStripe();
-
   if (args.existingCustomerId) {
     try {
-      const existingCustomer = await withTimeout(
-        stripe.customers.retrieve(args.existingCustomerId),
+      const existingCustomer: any = await withTimeout(
+        args.stripe.customers.retrieve(args.existingCustomerId),
         STRIPE_TIMEOUT_MS,
         "Stripe顧客情報の確認に時間がかかっています"
       );
@@ -272,8 +323,8 @@ async function findOrCreateStripeCustomer(args: {
   }
 
   try {
-    const byEmail = await withTimeout(
-      stripe.customers.list({
+    const byEmail: any = await withTimeout(
+      args.stripe.customers.list({
         email: args.email,
         limit: 20,
       }),
@@ -282,8 +333,8 @@ async function findOrCreateStripeCustomer(args: {
     );
 
     const matchedByMetadata =
-      byEmail.data.find(
-        (customer) => customer.metadata?.supabase_user_id === args.userId
+      byEmail?.data?.find(
+        (customer: any) => customer.metadata?.supabase_user_id === args.userId
       ) ?? null;
 
     if (matchedByMetadata) {
@@ -294,7 +345,7 @@ async function findOrCreateStripeCustomer(args: {
   }
 
   return withTimeout(
-    stripe.customers.create({
+    args.stripe.customers.create({
       email: args.email,
       name: args.companyName ?? args.email,
       metadata: {
@@ -391,8 +442,11 @@ function isDateStringOrNull(value: string | null) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-function isPaidPlan(planCode: string | null | undefined) {
-  const normalized = normalizeInternalPlanCode(planCode);
+function isPaidPlan(args: {
+  normalizeInternalPlanCode: (value: string | null | undefined) => string;
+  planCode: string | null | undefined;
+}) {
+  const normalized = args.normalizeInternalPlanCode(args.planCode);
   return normalized === "standard" || normalized === "global_pro";
 }
 
@@ -560,6 +614,7 @@ function normalizeReferenceAssets(value: unknown, userId: string) {
 }
 
 async function safeInsertOrderEvent(args: {
+  supabaseAdmin: any;
   orderId: string;
   actorUserId: string | null;
   eventType: string;
@@ -574,7 +629,7 @@ async function safeInsertOrderEvent(args: {
     } as never;
 
     await withTimeout(
-      supabaseAdmin.from("order_events").insert(eventRow),
+      args.supabaseAdmin.from("order_events").insert(eventRow),
       DB_OPTIONAL_TIMEOUT_MS,
       "order event insert timeout"
     );
@@ -584,6 +639,7 @@ async function safeInsertOrderEvent(args: {
 }
 
 async function safePersistReferenceAssets(args: {
+  supabaseAdmin: any;
   orderId: string;
   bUserId: string;
   creatorUserId: string;
@@ -606,19 +662,22 @@ async function safePersistReferenceAssets(args: {
       sort_order: asset.sort_order,
     }));
 
-    const { error } = await withTimeout(
-      supabaseAdmin.from("order_reference_assets").insert(assetRows as never),
+    const result: any = await withTimeout(
+      args.supabaseAdmin
+        .from("order_reference_assets")
+        .insert(assetRows as never),
       DB_OPTIONAL_TIMEOUT_MS,
       "reference assets insert timeout"
     );
 
-    if (error) {
-      throw error;
+    if (result?.error) {
+      throw result.error;
     }
   } catch (error) {
     console.warn("reference assets insert skipped", error);
 
     await safeInsertOrderEvent({
+      supabaseAdmin: args.supabaseAdmin,
       orderId: args.orderId,
       actorUserId: args.bUserId,
       eventType: "order_reference_assets_insert_skipped",
@@ -636,9 +695,32 @@ async function safePersistReferenceAssets(args: {
 export async function POST(req: NextRequest) {
   let createdOrderId: string | null = null;
   let actorUserId: string | null = null;
+  let deps: ServerDeps | null = null;
 
   try {
-    const { user, error: authError } = await getAuthenticatedUser(req);
+    const token = getBearerToken(req);
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "認証トークンがありません" },
+        { status: 401 }
+      );
+    }
+
+    deps = await loadServerDeps();
+
+    const {
+      supabaseAdmin,
+      getStripe,
+      getBaseUrl,
+      calculateOrderFees,
+      normalizeInternalPlanCode,
+    } = deps;
+
+    const { user, error: authError } = await getAuthenticatedUser({
+      supabaseAdmin,
+      token,
+    });
 
     if (authError || !user) {
       return NextResponse.json({ error: authError }, { status: 401 });
@@ -646,7 +728,10 @@ export async function POST(req: NextRequest) {
 
     actorUserId = user.id;
 
-    const isCompany = await ensureCompanyUser(user.id);
+    const isCompany = await ensureCompanyUser({
+      supabaseAdmin,
+      userId: user.id,
+    });
 
     if (!isCompany) {
       return NextResponse.json(
@@ -655,7 +740,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const canUseOrders = await ensureNoActiveSuspension(user.id);
+    const canUseOrders = await ensureNoActiveSuspension({
+      supabaseAdmin,
+      userId: user.id,
+    });
 
     if (!canUseOrders) {
       return NextResponse.json(
@@ -664,7 +752,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const company = await getCompany(user.id);
+    const company = await getCompany({
+      supabaseAdmin,
+      userId: user.id,
+    });
 
     if (!company) {
       return NextResponse.json(
@@ -680,7 +771,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userState = await getUserState(user.id);
+    const userState = await getUserState({
+      supabaseAdmin,
+      userId: user.id,
+    });
+
     const planCode = normalizeInternalPlanCode(userState?.company_plan_code);
 
     if (!userState?.company_profile_completed) {
@@ -698,7 +793,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (
-      isPaidPlan(planCode) &&
+      isPaidPlan({
+        normalizeInternalPlanCode,
+        planCode,
+      }) &&
       userState.company_subscription_status !== "active"
     ) {
       return NextResponse.json(
@@ -806,7 +904,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: creator, error: creatorError } = await withTimeout(
+    const creatorResult: any = await withTimeout(
       supabaseAdmin
         .from("creators")
         .select(
@@ -829,9 +927,11 @@ export async function POST(req: NextRequest) {
       "クリエイター情報の取得に時間がかかっています"
     );
 
-    if (creatorError) {
-      throw creatorError;
+    if (creatorResult?.error) {
+      throw creatorResult.error;
     }
+
+    const creator = creatorResult?.data ?? null;
 
     if (!creator) {
       return NextResponse.json(
@@ -853,7 +953,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: menu, error: menuError } = await withTimeout(
+    const menuResult: any = await withTimeout(
       supabaseAdmin
         .from("creator_menus")
         .select(
@@ -885,9 +985,11 @@ export async function POST(req: NextRequest) {
       "メニュー情報の取得に時間がかかっています"
     );
 
-    if (menuError) {
-      throw menuError;
+    if (menuResult?.error) {
+      throw menuResult.error;
     }
+
+    const menu = menuResult?.data ?? null;
 
     if (!menu) {
       return NextResponse.json(
@@ -955,14 +1057,19 @@ export async function POST(req: NextRequest) {
     const baseUrl = getBaseUrl();
 
     const customer = await findOrCreateStripeCustomer({
+      stripe,
       userId: user.id,
       email,
       companyName: company.company_name ?? null,
       existingCustomerId: userState.stripe_customer_id ?? null,
     });
 
-    await upsertUserState(user.id, {
-      stripe_customer_id: customer.id,
+    await upsertUserState({
+      supabaseAdmin,
+      userId: user.id,
+      patch: {
+        stripe_customer_id: customer.id,
+      },
     });
 
     const orderInsert = {
@@ -1019,7 +1126,7 @@ export async function POST(req: NextRequest) {
       stripe_payment_status: "checkout_pending",
 
       metadata: {
-        source: "orders_checkout_api_v3_non_blocking_reference_assets",
+        source: "orders_checkout_api_v4_lazy_imports",
         plan_code: planCode,
         plan_public_name: fees.buyerPlanPublicNameSnapshot,
         payment_flow: "manual_capture",
@@ -1032,7 +1139,7 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const { data: order, error: orderError } = await withTimeout(
+    const orderResult: any = await withTimeout(
       supabaseAdmin
         .from("orders")
         .insert(orderInsert as never)
@@ -1042,20 +1149,21 @@ export async function POST(req: NextRequest) {
       "注文情報の作成に時間がかかっています"
     );
 
-    if (orderError || !order) {
-      throw orderError ?? new Error("Order creation failed");
+    if (orderResult?.error || !orderResult?.data) {
+      throw orderResult?.error ?? new Error("Order creation failed");
     }
 
+    const order = orderResult.data;
     createdOrderId = order.id;
 
     const successUrl = `${baseUrl}/b/orders/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/b/creators/${creator.id}/request?menuId=${menu.id}&checkout=cancelled`;
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    const lineItems: any[] = [
       {
         price_data: {
           currency: currency.toLowerCase(),
-          unit_amount: toStripeAmount(fees.menuPriceAmount, currency)!,
+          unit_amount: toStripeAmount(fees.menuPriceAmount, currency),
           product_data: {
             name: menu.title,
             description: menu.description?.slice(0, 500) ?? undefined,
@@ -1078,7 +1186,7 @@ export async function POST(req: NextRequest) {
           unit_amount: toStripeAmount(
             fees.buyerMarketplaceFeeAmount,
             currency
-          )!,
+          ),
           product_data: {
             name: "Trendre marketplace fee",
             description: `Buyer marketplace fee ${
@@ -1094,7 +1202,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const session = await withTimeout(
+    const session: any = await withTimeout(
       stripe.checkout.sessions.create({
         mode: "payment",
         customer: customer.id,
@@ -1149,7 +1257,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const { error: updateOrderError } = await withTimeout(
+      const updateOrderResult: any = await withTimeout(
         supabaseAdmin
           .from("orders")
           .update({
@@ -1161,14 +1269,15 @@ export async function POST(req: NextRequest) {
         "checkout session id update timeout"
       );
 
-      if (updateOrderError) {
-        console.warn("checkout session id update error", updateOrderError);
+      if (updateOrderResult?.error) {
+        console.warn("checkout session id update error", updateOrderResult.error);
       }
     } catch (error) {
       console.warn("checkout session id update skipped", error);
     }
 
     await safePersistReferenceAssets({
+      supabaseAdmin,
       orderId: order.id,
       bUserId: user.id,
       creatorUserId: creator.user_id,
@@ -1176,6 +1285,7 @@ export async function POST(req: NextRequest) {
     });
 
     await safeInsertOrderEvent({
+      supabaseAdmin,
       orderId: order.id,
       actorUserId: user.id,
       eventType: "stripe_checkout_session_created",
@@ -1211,8 +1321,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("orders checkout error", error);
 
-    if (createdOrderId) {
+    if (createdOrderId && deps) {
       await safeInsertOrderEvent({
+        supabaseAdmin: deps.supabaseAdmin,
         orderId: createdOrderId,
         actorUserId,
         eventType: "orders_checkout_error",
