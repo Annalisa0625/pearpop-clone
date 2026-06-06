@@ -10,10 +10,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-import ChatEmbed from "@/app/components/ChatEmbed";
 
 type OrderDetail = {
   id: string;
@@ -132,18 +131,6 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
-function formatDateOnly(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
-    month: "numeric",
-    day: "numeric",
-  });
-}
-
 function formatPrice(
   value: number | null | undefined,
   currency: string | null | undefined,
@@ -205,9 +192,18 @@ function isInProgress(order: OrderDetail) {
   );
 }
 
-function canUseChat(order: OrderDetail) {
+function canOpenChat(order: OrderDetail) {
   if (isCheckoutPending(order)) return false;
-  return !isTerminalStatus(order.status);
+  if (isWaitingForCreator(order)) return false;
+  if (isTerminalStatus(order.status)) return false;
+
+  return (
+    order.payment_status === "captured" ||
+    order.status === "accepted_captured" ||
+    order.status === "in_progress" ||
+    order.status === "delivered" ||
+    order.status === "revision_requested"
+  );
 }
 
 function statusLabel(order: OrderDetail, locale: "ja" | "en") {
@@ -385,6 +381,20 @@ function LinkIcon() {
       />
       <path
         d="M12 8a3 3 0 0 1 0 4l-2 2a3 3 0 1 1-4-4l1-1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MessageIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v4A2.5 2.5 0 0 1 13.5 12H10l-4 3v-3.1A2.5 2.5 0 0 1 4 9.5v-4Z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
@@ -778,6 +788,37 @@ function ResponseActionBox({
   );
 }
 
+function ChatCtaBox({
+  href,
+  title,
+  body,
+  buttonLabel,
+}: {
+  href: string;
+  title: string;
+  body: string;
+  buttonLabel: string;
+}) {
+  return (
+    <Surface className="p-4 sm:p-5">
+      <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
+        {title}
+      </p>
+      <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+        {body}
+      </p>
+
+      <Link
+        href={href}
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
+      >
+        <MessageIcon />
+        {buttonLabel}
+      </Link>
+    </Surface>
+  );
+}
+
 function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
   if (locale === "ja") {
     if (isCheckoutPending(order)) {
@@ -878,6 +919,7 @@ function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
 
 export default function CreatorOrderDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const orderId = params.id as string;
 
   const { locale } = useAppLocale();
@@ -892,10 +934,7 @@ export default function CreatorOrderDetailPage() {
             loading: "読み込み中...",
             notFound: "注文が見つかりませんでした。",
             back: "一覧へ戻る",
-            chatTitle: "注文チャット",
-            nextAction: "対応",
             orderContent: "注文内容",
-            orderContentBody: "商品・URL・実施タイミングを確認できます。",
             deliveryTitle: "納品URLを提出",
             redeliveryTitle: "修正版の納品URLを提出",
             deliveryBody:
@@ -946,9 +985,6 @@ export default function CreatorOrderDetailPage() {
             revisionTitle: "修正依頼",
             notSet: "未設定",
             noPostInstruction: "指定された投稿用テキストはありません。",
-            chatUnavailableTitle: "チャットは支払い確認後に使えます",
-            chatUnavailableBody:
-              "支払い確認が完了すると、注文チャットで詳細を相談できます。",
             referenceLoadFailed:
               "参考画像の読み込みに時間がかかっています。後でもう一度開いてください。",
             referenceOpen: "開く",
@@ -956,23 +992,21 @@ export default function CreatorOrderDetailPage() {
             summaryMenu: "メニュー",
             summaryPayout: "受取予定",
             summaryDeadline: "返答期限",
-            summaryStatus: "状態",
             detailSheetTitle: "注文の詳細",
             detailSheetBody: "必要な情報だけ確認できるようにまとめています。",
-            openExternal: "リンクを開く",
             responseTitle: "この注文に返答してください",
             responseBody:
               "内容を確認して、対応できる場合は注文を受けてください。難しい場合は辞退できます。",
+            chatCtaTitle: "企業とやり取りできます",
+            chatCtaBody:
+              "注文内容の確認や進行中の相談は、専用チャットで行えます。",
+            chatCtaButton: "Bとやり取りする",
           }
         : {
             loading: "Loading...",
             notFound: "Order was not found.",
             back: "Back",
-            chatTitle: "Order chat",
-            nextAction: "Action",
             orderContent: "Order details",
-            orderContentBody:
-              "Review the product, URL, and preferred timing.",
             deliveryTitle: "Submit delivery URL",
             redeliveryTitle: "Submit revised delivery URL",
             deliveryBody:
@@ -1023,10 +1057,6 @@ export default function CreatorOrderDetailPage() {
             revisionTitle: "Revision request",
             notSet: "Not set",
             noPostInstruction: "No post text was specified.",
-            chatUnavailableTitle:
-              "Chat will be available after payment confirmation",
-            chatUnavailableBody:
-              "Once payment is confirmed, you can discuss details in order chat.",
             referenceLoadFailed:
               "Reference images are taking too long to load. Please try again later.",
             referenceOpen: "Open",
@@ -1034,14 +1064,16 @@ export default function CreatorOrderDetailPage() {
             summaryMenu: "Menu",
             summaryPayout: "Expected",
             summaryDeadline: "Reply by",
-            summaryStatus: "Status",
             detailSheetTitle: "Order details",
             detailSheetBody:
               "Everything important is organized in one place.",
-            openExternal: "Open link",
             responseTitle: "Respond to this order",
             responseBody:
               "Review the details and accept the order if you can handle it. You can decline if it is not a fit.",
+            chatCtaTitle: "You can message the brand",
+            chatCtaBody:
+              "Use the dedicated chat page to discuss progress and details.",
+            chatCtaButton: "Message the brand",
           },
     [safeLocale]
   );
@@ -1270,6 +1302,11 @@ export default function CreatorOrderDetailPage() {
             (type === "accept" ? copy.acceptFailed : copy.declineFailed)
         );
         setActionLoading(null);
+        return;
+      }
+
+      if (type === "accept") {
+        router.push(`/creator/orders/${order.id}/chat`);
         return;
       }
 
@@ -1503,20 +1540,14 @@ export default function CreatorOrderDetailPage() {
         </Surface>
       ) : null}
 
-      {canUseChat(order) ? (
-        <Surface className="overflow-hidden p-0 [&>div>div:nth-child(2)]:!h-[280px] md:[&>div>div:nth-child(2)]:!h-[340px]">
-          <ChatEmbed orderId={order.id} title={copy.chatTitle} />
-        </Surface>
-      ) : (
-        <Surface className="p-4 sm:p-5">
-          <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
-            {copy.chatUnavailableTitle}
-          </p>
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            {copy.chatUnavailableBody}
-          </p>
-        </Surface>
-      )}
+      {canOpenChat(order) ? (
+        <ChatCtaBox
+          href={`/creator/orders/${order.id}/chat`}
+          title={copy.chatCtaTitle}
+          body={copy.chatCtaBody}
+          buttonLabel={copy.chatCtaButton}
+        />
+      ) : null}
 
       {canDeliver ? (
         <Surface className="p-4 sm:p-5">
