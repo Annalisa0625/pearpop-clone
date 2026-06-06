@@ -221,9 +221,6 @@ export default function ChatEmbed({
             sending: "送信中",
             send: "送信",
             sendError: "送信エラー",
-            me: "自分",
-            partner: "相手",
-            today: "今日",
           }
         : {
             title: title === "チャット" ? "Chat" : title,
@@ -235,14 +232,12 @@ export default function ChatEmbed({
             fetchError: "Chat fetch error",
             noChat: "Chat has not been created yet.",
             empty: "No messages yet",
-            emptyBody: "Send a message here only when you need to confirm something.",
+            emptyBody:
+              "Send a message here only when you need to confirm something.",
             placeholder: "Type a message",
             sending: "Sending",
             send: "Send",
             sendError: "Send error",
-            me: "Me",
-            partner: "Partner",
-            today: "Today",
           },
     [safeLocale, title, subtitle]
   );
@@ -534,11 +529,11 @@ export default function ChatEmbed({
   };
 
   const shellClass = isPage
-    ? "flex h-full min-h-[520px] flex-col overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)]"
+    ? "flex h-full min-h-0 flex-col overflow-hidden bg-white"
     : "flex h-full flex-col overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm";
 
   const messageAreaClass = isPage
-    ? "min-h-[430px] flex-1 overflow-y-auto bg-[#F8F9FA] px-3 py-4 sm:px-5"
+    ? "min-h-0 flex-1 overflow-y-auto bg-[#F8F9FA] px-3 py-4 sm:px-5"
     : "h-[420px] overflow-y-auto bg-[#F8F9FA] px-3 py-4 sm:px-5";
 
   return (
@@ -627,11 +622,7 @@ export default function ChatEmbed({
                             </div>
                           </div>
 
-                          <div
-                            className={`mt-1 px-1 text-[10px] font-semibold text-slate-400 ${
-                              isMine ? "text-right" : "text-left"
-                            }`}
-                          >
+                          <div className="mt-1 px-1 text-[10px] font-semibold text-slate-400">
                             {formatMessageTime(msg.created_at, safeLocale)}
                           </div>
                         </div>

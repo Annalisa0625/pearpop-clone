@@ -200,10 +200,10 @@ export default function CreatorOrderChatPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-96px)] bg-[#F8F9FA] px-3 py-3 sm:px-4">
-        <div className="mx-auto flex h-[calc(100vh-120px)] max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white ring-1 ring-slate-100">
+      <div className="bg-[#F8F9FA] px-3 py-3 pb-24 sm:px-4">
+        <div className="mx-auto flex h-[calc(100dvh-235px)] min-h-[480px] max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white ring-1 ring-slate-100">
           <div className="h-16 animate-pulse border-b border-slate-100 bg-white" />
-          <div className="flex-1 animate-pulse bg-slate-50" />
+          <div className="min-h-0 flex-1 animate-pulse bg-slate-50" />
         </div>
       </div>
     );
@@ -211,7 +211,7 @@ export default function CreatorOrderChatPage() {
 
   if (!order || error) {
     return (
-      <div className="min-h-[calc(100vh-96px)] bg-[#F8F9FA] px-4 py-5">
+      <div className="bg-[#F8F9FA] px-4 py-5 pb-24">
         <div className="mx-auto max-w-3xl rounded-[28px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
           <p className="text-sm font-semibold leading-7 text-slate-600">
             {error || copy.notFound}
@@ -230,7 +230,7 @@ export default function CreatorOrderChatPage() {
 
   if (!canOpenChat(order)) {
     return (
-      <div className="min-h-[calc(100vh-96px)] bg-[#F8F9FA] px-4 py-5">
+      <div className="bg-[#F8F9FA] px-4 py-5 pb-24">
         <div className="mx-auto max-w-3xl rounded-[28px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
           <Link
             href={`/creator/orders/${order.id}`}
@@ -254,8 +254,8 @@ export default function CreatorOrderChatPage() {
   const title = order.product_name || copy.titleFallback;
 
   return (
-    <div className="min-h-[calc(100vh-96px)] bg-[#F8F9FA] px-3 py-3 sm:px-4">
-      <div className="mx-auto flex h-[calc(100vh-120px)] max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+    <div className="bg-[#F8F9FA] px-3 py-3 pb-24 sm:px-4">
+      <div className="mx-auto flex h-[calc(100dvh-235px)] min-h-[480px] max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
         <header className="shrink-0 border-b border-slate-100 bg-white px-4 py-3">
           <div className="flex items-center gap-3">
             <Link
