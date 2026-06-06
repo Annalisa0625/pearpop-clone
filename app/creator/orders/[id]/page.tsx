@@ -147,18 +147,6 @@ function formatPrice(
   }
 }
 
-function formatFileSize(bytes: number | null | undefined) {
-  const value = Number(bytes);
-
-  if (!Number.isFinite(value) || value <= 0) return "";
-
-  if (value >= 1024 * 1024) {
-    return `${(value / 1024 / 1024).toFixed(1)}MB`;
-  }
-
-  return `${Math.ceil(value / 1024)}KB`;
-}
-
 function isTerminalStatus(status: string) {
   return [
     "completed",
@@ -466,37 +454,21 @@ function CopyIcon() {
   );
 }
 
-function ReferenceAssetsCard({
-  title,
-  body,
+function ReferenceAssetsMiniStrip({
   assets,
-  emptyLabel,
-  openLabel,
   loading,
 }: {
-  title: string;
-  body: string;
   assets: ReferenceAsset[];
-  emptyLabel: string;
-  openLabel: string;
   loading: boolean;
 }) {
-  if (loading) {
-    return (
-      <Card title={title} body={body}>
-        <div className="rounded-[22px] bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-400">読み込み中...</p>
-        </div>
-      </Card>
-    );
-  }
-
-  if (assets.length === 0) return null;
+  if (loading || assets.length === 0) return null;
 
   return (
-    <Card title={title} body={body}>
-      <div className="grid gap-3">
-        {assets.map((asset) => (
+    <div className="mt-5 flex items-center gap-2 overflow-x-auto pb-1">
+      {assets.map((asset) => {
+        const isImage = asset.file_type === "image" && asset.signed_url;
+
+        return (
           <a
             key={asset.id}
             href={asset.signed_url ?? "#"}
@@ -506,41 +478,27 @@ function ReferenceAssetsCard({
             onClick={(event) => {
               if (!asset.signed_url) event.preventDefault();
             }}
-            className={`group flex items-center gap-3 rounded-[22px] bg-slate-50 p-3 ring-1 ring-slate-100 transition ${
-              asset.signed_url
-                ? "active:scale-[0.98]"
-                : "pointer-events-none opacity-60"
+            className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-slate-50 ring-1 ring-slate-100 transition active:scale-[0.96] ${
+              asset.signed_url ? "" : "pointer-events-none opacity-50"
             }`}
+            title={asset.file_name}
           >
-            {asset.file_type === "image" && asset.signed_url ? (
+            {isImage ? (
               <img
-                src={asset.signed_url}
-                alt={asset.file_name}
+                src={asset.signed_url!}
+                alt=""
                 loading="lazy"
-                className="h-16 w-16 shrink-0 rounded-[18px] object-cover ring-1 ring-slate-100"
+                className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100">
+              <span className="text-[11px] font-black text-[#ff5f67]">
                 PDF
-              </div>
+              </span>
             )}
-
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-black text-slate-950">
-                {asset.file_name || emptyLabel}
-              </p>
-              <p className="mt-1 text-xs font-bold text-slate-400">
-                {asset.file_type.toUpperCase()} / {formatFileSize(asset.size_bytes)}
-              </p>
-            </div>
-
-            <span className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-100 group-active:scale-[0.98]">
-              {openLabel}
-            </span>
           </a>
-        ))}
-      </div>
-    </Card>
+        );
+      })}
+    </div>
   );
 }
 
@@ -662,10 +620,6 @@ export default function CreatorOrderDetailPage() {
             nextAction: "対応",
             orderContent: "注文内容",
             orderContentBody: "商品・URL・実施タイミングを確認できます。",
-            referenceAssets: "参考資料",
-            referenceAssetsBody:
-              "企業から共有された商品画像、サービス資料、投稿イメージです。",
-            referenceAssetsOpen: "開く",
             deliveryTitle: "納品URLを提出",
             redeliveryTitle: "修正版の納品URLを提出",
             deliveryBody:
@@ -720,7 +674,7 @@ export default function CreatorOrderDetailPage() {
             chatUnavailableBody:
               "支払い確認が完了すると、注文チャットで詳細を相談できます。",
             referenceLoadFailed:
-              "参考資料の読み込みに時間がかかっています。後でもう一度開いてください。",
+              "参考画像の読み込みに時間がかかっています。後でもう一度開いてください。",
           }
         : {
             loading: "Loading...",
@@ -731,10 +685,6 @@ export default function CreatorOrderDetailPage() {
             orderContent: "Order details",
             orderContentBody:
               "Review the product, URL, and preferred timing.",
-            referenceAssets: "Reference materials",
-            referenceAssetsBody:
-              "Product images, service documents, or post examples shared by the brand.",
-            referenceAssetsOpen: "Open",
             deliveryTitle: "Submit delivery URL",
             redeliveryTitle: "Submit revised delivery URL",
             deliveryBody:
@@ -789,7 +739,7 @@ export default function CreatorOrderDetailPage() {
             chatUnavailableBody:
               "Once payment is confirmed, you can discuss details in order chat.",
             referenceLoadFailed:
-              "Reference materials are taking too long to load. Please try again later.",
+              "Reference images are taking too long to load. Please try again later.",
           },
     [safeLocale]
   );
@@ -797,9 +747,6 @@ export default function CreatorOrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [referenceAssets, setReferenceAssets] = useState<ReferenceAsset[]>([]);
   const [referenceAssetsLoading, setReferenceAssetsLoading] = useState(false);
-  const [referenceAssetsError, setReferenceAssetsError] = useState<string | null>(
-    null
-  );
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<
     "accept" | "decline" | "deliver" | null
@@ -812,7 +759,6 @@ export default function CreatorOrderDetailPage() {
   const loadReferenceAssets = useCallback(
     async (targetOrderId: string, token: string) => {
       setReferenceAssetsLoading(true);
-      setReferenceAssetsError(null);
 
       try {
         const res = await fetchWithTimeout(
@@ -834,7 +780,6 @@ export default function CreatorOrderDetailPage() {
         if (!res.ok) {
           console.error("reference assets load error:", json);
           setReferenceAssets([]);
-          setReferenceAssetsError(json?.error ?? copy.referenceLoadFailed);
           return;
         }
 
@@ -845,9 +790,6 @@ export default function CreatorOrderDetailPage() {
         if (!mountedRef.current) return;
 
         setReferenceAssets([]);
-        setReferenceAssetsError(
-          error instanceof Error ? error.message : copy.referenceLoadFailed
-        );
       } finally {
         if (mountedRef.current) {
           setReferenceAssetsLoading(false);
@@ -983,8 +925,11 @@ export default function CreatorOrderDetailPage() {
     try {
       const token =
         accessToken ??
-        (await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS, copy.authFailed))
-          ?.data?.session?.access_token ??
+        (await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_TIMEOUT_MS,
+          copy.authFailed
+        ))?.data?.session?.access_token ??
         null;
 
       if (!token) {
@@ -1050,8 +995,11 @@ export default function CreatorOrderDetailPage() {
     try {
       const token =
         accessToken ??
-        (await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS, copy.authFailed))
-          ?.data?.session?.access_token ??
+        (await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_TIMEOUT_MS,
+          copy.authFailed
+        ))?.data?.session?.access_token ??
         null;
 
       if (!token) {
@@ -1187,6 +1135,11 @@ export default function CreatorOrderDetailPage() {
             {nextAction.body}
           </p>
 
+          <ReferenceAssetsMiniStrip
+            assets={referenceAssets}
+            loading={referenceAssetsLoading}
+          />
+
           <Link
             href={backHref}
             className="mt-5 inline-flex rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
@@ -1236,21 +1189,6 @@ export default function CreatorOrderDetailPage() {
           </div>
         </Card>
       )}
-
-      <ReferenceAssetsCard
-        title={copy.referenceAssets}
-        body={copy.referenceAssetsBody}
-        assets={referenceAssets}
-        emptyLabel={copy.notSet}
-        openLabel={copy.referenceAssetsOpen}
-        loading={referenceAssetsLoading}
-      />
-
-      {referenceAssetsError ? (
-        <section className="rounded-[24px] bg-amber-50 p-5 text-amber-900 ring-1 ring-amber-100">
-          <p className="text-sm font-semibold leading-7">{referenceAssetsError}</p>
-        </section>
-      ) : null}
 
       {canDeliver ? (
         <Card
