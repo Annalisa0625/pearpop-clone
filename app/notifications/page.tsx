@@ -2,7 +2,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -27,41 +26,165 @@ type NotificationRow = {
   created_at: string;
 };
 
-function formatDateTime(value: string, locale: "ja" | "en") {
+type NotificationTab = "direct" | "news";
+
+const NEWS_TYPES = new Set([
+  "news",
+  "service_news",
+  "service_announcement",
+  "system_announcement",
+  "announcement",
+  "admin_notice",
+]);
+
+function getMetadataString(
+  metadata: Record<string, unknown> | null,
+  key: string
+) {
+  const value = metadata?.[key];
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return "";
+}
+
+function isNewsNotification(item: NotificationRow) {
+  const category = getMetadataString(item.metadata, "category").toLowerCase();
+
+  return (
+    NEWS_TYPES.has(item.notification_type) ||
+    category === "news" ||
+    category === "service" ||
+    category === "system" ||
+    category === "announcement"
+  );
+}
+
+function formatRelativeTime(value: string, locale: "ja" | "en") {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-    month: "numeric",
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 1000 / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (locale === "ja") {
+    if (diffMinutes < 1) return "たった今";
+    if (diffMinutes < 60) return `${diffMinutes}分前`;
+    if (diffHours < 24) return `${diffHours}時間前`;
+    if (diffDays < 30) return `${diffDays}日前`;
+
+    return date.toLocaleDateString("ja-JP", {
+      month: "numeric",
+      day: "numeric",
+    });
+  }
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 30) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
     day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
-function NotificationIcon({ unread }: { unread: boolean }) {
+function BackIcon() {
   return (
-    <div
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-        unread
-          ? "bg-rose-50 text-[#ff5f67] ring-1 ring-rose-100"
-          : "bg-slate-50 text-slate-400 ring-1 ring-slate-100"
-      }`}
-    >
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <path
+        d="M15 5 8 12l7 7"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+      <path
+        d="m9 5 7 7-7 7"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BellMiniIcon({ news }: { news: boolean }) {
+  if (news) {
+    return (
       <svg
         viewBox="0 0 24 24"
-        className="h-5 w-5"
+        className="h-7 w-7"
         fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M5 7.5A3.5 3.5 0 0 1 8.5 4h7A3.5 3.5 0 0 1 19 7.5v5A3.5 3.5 0 0 1 15.5 16H11l-5 4v-4.5A3.5 3.5 0 0 1 5 12V7.5Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-7 w-7"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M18 8.5a6 6 0 0 0-12 0c0 7-3 7-3 8.7h18c0-1.7-3-1.7-3-8.7Z"
         stroke="currentColor"
         strokeWidth="2.1"
         strokeLinecap="round"
         strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M18 8.5a6 6 0 0 0-12 0c0 7-3 7-3 8.7h18c0-1.7-3-1.7-3-8.7Z" />
-        <path d="M9.8 20a2.4 2.4 0 0 0 4.4 0" />
-      </svg>
+      />
+      <path
+        d="M9.8 20a2.4 2.4 0 0 0 4.4 0"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyState({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex min-h-[320px] items-center justify-center px-8 py-16 text-center">
+      <div>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+          <BellMiniIcon news={false} />
+        </div>
+        <p className="mt-5 text-base font-black text-slate-800">{title}</p>
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-400">
+          {body}
+        </p>
+      </div>
     </div>
   );
 }
@@ -76,34 +199,32 @@ export default function NotificationsPage() {
     () =>
       safeLocale === "ja"
         ? {
-            title: "通知",
-            subtitle: "注文・メッセージ・納品などの更新を確認できます。",
+            title: "お知らせ",
+            direct: "あなた宛",
+            news: "お知らせ",
             loading: "読み込み中...",
             loginRequired: "ログインが必要です。",
-            login: "ログインへ",
-            unreadOnly: "未読のみ",
-            showAll: "すべて表示",
-            empty: "通知はありません。",
-            open: "開く",
-            markRead: "既読にする",
-            read: "既読",
-            unread: "未読",
+            loginBody: "通知を確認するにはログインしてください。",
+            directEmpty: "あなた宛の通知はありません。",
+            directEmptyBody: "注文・メッセージ・納品などの通知がここに表示されます。",
+            newsEmpty: "お知らせはありません。",
+            newsEmptyBody: "Trendreからのお知らせや重要な案内がここに表示されます。",
             loadFailed: "通知の取得に失敗しました。",
             readFailed: "既読処理に失敗しました。",
           }
         : {
             title: "Notifications",
-            subtitle: "Check updates for orders, messages, and deliveries.",
+            direct: "For you",
+            news: "News",
             loading: "Loading...",
             loginRequired: "Login required.",
-            login: "Go to login",
-            unreadOnly: "Unread only",
-            showAll: "Show all",
-            empty: "No notifications.",
-            open: "Open",
-            markRead: "Mark as read",
-            read: "Read",
-            unread: "Unread",
+            loginBody: "Please log in to view notifications.",
+            directEmpty: "No notifications for you.",
+            directEmptyBody:
+              "Order, message, and delivery updates will appear here.",
+            newsEmpty: "No news.",
+            newsEmptyBody:
+              "Important updates and announcements from Trendre will appear here.",
             loadFailed: "Failed to load notifications.",
             readFailed: "Failed to mark as read.",
           },
@@ -111,9 +232,9 @@ export default function NotificationsPage() {
   );
 
   const [items, setItems] = useState<NotificationRow[]>([]);
+  const [activeTab, setActiveTab] = useState<NotificationTab>("direct");
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(true);
-  const [unreadOnly, setUnreadOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const getAccessToken = useCallback(async () => {
@@ -142,11 +263,7 @@ export default function NotificationsPage() {
 
       const searchParams = new URLSearchParams();
 
-      searchParams.set("limit", "50");
-
-      if (unreadOnly) {
-        searchParams.set("unread", "1");
-      }
+      searchParams.set("limit", "80");
 
       const res = await fetch(`/api/notifications?${searchParams.toString()}`, {
         method: "GET",
@@ -170,11 +287,33 @@ export default function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [copy.loadFailed, getAccessToken, unreadOnly]);
+  }, [copy.loadFailed, getAccessToken]);
 
   useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
+
+  const directItems = useMemo(
+    () => items.filter((item) => !isNewsNotification(item)),
+    [items]
+  );
+
+  const newsItems = useMemo(
+    () => items.filter((item) => isNewsNotification(item)),
+    [items]
+  );
+
+  const directUnreadCount = useMemo(
+    () => directItems.filter((item) => !item.read_at).length,
+    [directItems]
+  );
+
+  const newsUnreadCount = useMemo(
+    () => newsItems.filter((item) => !item.read_at).length,
+    [newsItems]
+  );
+
+  const currentItems = activeTab === "direct" ? directItems : newsItems;
 
   const markAsRead = async (id: string) => {
     try {
@@ -232,148 +371,201 @@ export default function NotificationsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-[#F8F9FA] px-4 py-10">
-        <div className="mx-auto max-w-3xl space-y-4">
-          <div className="h-32 animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-          <div className="h-24 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
-          <div className="h-24 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
-        </div>
-      </main>
-    );
-  }
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
 
-  if (!loggedIn) {
-    return (
-      <main className="min-h-screen bg-[#F8F9FA] px-4 py-10">
-        <div className="mx-auto max-w-3xl rounded-[30px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
-          <h1 className="text-[26px] font-black tracking-[-0.05em] text-slate-950">
-            {copy.loginRequired}
-          </h1>
-
-          <Link
-            href="/login"
-            className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white"
-          >
-            {copy.login}
-          </Link>
-        </div>
-      </main>
-    );
-  }
+    router.push("/home");
+  };
 
   return (
-    <main className="min-h-screen bg-[#F8F9FA] px-4 py-8">
-      <div className="mx-auto max-w-3xl">
-        <section className="overflow-hidden rounded-[32px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#ff5f67]">
-                Trendre
-              </p>
-              <h1 className="mt-2 text-[30px] font-black tracking-[-0.06em] text-slate-950">
-                {copy.title}
-              </h1>
-              <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                {copy.subtitle}
-              </p>
-            </div>
+    <main className="min-h-screen bg-white text-slate-950 sm:bg-[#F8F9FA]">
+      <div className="mx-auto min-h-screen w-full max-w-[760px] bg-white sm:my-8 sm:min-h-[calc(100vh-64px)] sm:overflow-hidden sm:rounded-[34px] sm:shadow-[0_22px_70px_rgba(15,23,42,0.08)] sm:ring-1 sm:ring-slate-100">
+        <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
+          <div className="relative flex h-[72px] items-center justify-center px-4">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="absolute left-4 flex h-11 w-11 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-50 active:scale-95"
+              aria-label="back"
+            >
+              <BackIcon />
+            </button>
+
+            <h1 className="text-[26px] font-black tracking-[-0.055em] text-slate-950">
+              {copy.title}
+            </h1>
+          </div>
+
+          <div className="grid grid-cols-2 border-t border-slate-50">
+            <button
+              type="button"
+              onClick={() => setActiveTab("direct")}
+              className={`relative flex h-[58px] items-center justify-center text-base font-black transition ${
+                activeTab === "direct"
+                  ? "text-[#ff3b5c]"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <span className="relative">
+                {copy.direct}
+
+                {directUnreadCount > 0 ? (
+                  <span className="absolute -right-3 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff3b5c] ring-2 ring-white" />
+                ) : null}
+              </span>
+
+              {activeTab === "direct" ? (
+                <span className="absolute bottom-0 left-0 h-[4px] w-full rounded-full bg-[#ff3b5c]" />
+              ) : null}
+            </button>
 
             <button
               type="button"
-              onClick={() => setUnreadOnly((value) => !value)}
-              className={`w-fit rounded-full px-4 py-2 text-xs font-black ring-1 transition ${
-                unreadOnly
-                  ? "bg-[#ff5f67] text-white ring-[#ff5f67]"
-                  : "bg-slate-50 text-slate-600 ring-slate-100"
+              onClick={() => setActiveTab("news")}
+              className={`relative flex h-[58px] items-center justify-center text-base font-black transition ${
+                activeTab === "news"
+                  ? "text-[#ff3b5c]"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              {unreadOnly ? copy.showAll : copy.unreadOnly}
+              <span className="relative">
+                {copy.news}
+
+                {newsUnreadCount > 0 ? (
+                  <span className="absolute -right-3 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff3b5c] ring-2 ring-white" />
+                ) : null}
+              </span>
+
+              {activeTab === "news" ? (
+                <span className="absolute bottom-0 left-0 h-[4px] w-full rounded-full bg-[#ff3b5c]" />
+              ) : null}
             </button>
           </div>
-        </section>
+        </header>
 
-        {error ? (
-          <div className="mt-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
-            {error}
-          </div>
-        ) : null}
-
-        <section className="mt-4 space-y-3">
-          {items.length === 0 ? (
-            <div className="rounded-[28px] bg-white p-6 text-center text-sm font-semibold text-slate-500 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-              {copy.empty}
-            </div>
-          ) : (
-            items.map((item) => {
-              const unread = !item.read_at;
-
-              return (
-                <article
-                  key={item.id}
-                  className={`rounded-[28px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 transition ${
-                    unread ? "ring-rose-100" : "ring-slate-100 opacity-80"
-                  }`}
+        {loading ? (
+          <section className="px-4 py-5">
+            <div className="space-y-0">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="flex animate-pulse gap-4 border-b border-slate-100 px-1 py-5"
                 >
-                  <div className="flex gap-4">
-                    <NotificationIcon unread={unread} />
+                  <div className="h-14 w-14 shrink-0 rounded-full bg-slate-100" />
+                  <div className="flex-1 space-y-3">
+                    <div className="h-4 w-11/12 rounded-full bg-slate-100" />
+                    <div className="h-4 w-8/12 rounded-full bg-slate-100" />
+                    <div className="h-3 w-20 rounded-full bg-slate-100" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : !loggedIn ? (
+          <section className="px-6 py-16 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+              <BellMiniIcon news={false} />
+            </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-black ${
-                            unread
-                              ? "bg-rose-50 text-[#ff5f67]"
-                              : "bg-slate-50 text-slate-400"
+            <h2 className="mt-5 text-xl font-black text-slate-950">
+              {copy.loginRequired}
+            </h2>
+
+            <p className="mt-2 text-sm font-semibold leading-7 text-slate-400">
+              {copy.loginBody}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="mt-6 rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white"
+            >
+              Login
+            </button>
+          </section>
+        ) : (
+          <section>
+            {error ? (
+              <div className="mx-4 mt-4 rounded-[22px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
+                {error}
+              </div>
+            ) : null}
+
+            {currentItems.length === 0 ? (
+              <EmptyState
+                title={
+                  activeTab === "direct" ? copy.directEmpty : copy.newsEmpty
+                }
+                body={
+                  activeTab === "direct"
+                    ? copy.directEmptyBody
+                    : copy.newsEmptyBody
+                }
+              />
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {currentItems.map((item) => {
+                  const unread = !item.read_at;
+                  const news = isNewsNotification(item);
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => void openNotification(item)}
+                      className="flex w-full gap-4 bg-white px-5 py-5 text-left transition hover:bg-slate-50 active:bg-slate-50"
+                    >
+                      <div className="relative shrink-0">
+                        <div
+                          className={`flex h-[58px] w-[58px] items-center justify-center rounded-full ring-1 ${
+                            news
+                              ? "bg-emerald-50 text-emerald-600 ring-emerald-100"
+                              : "bg-rose-50 text-[#ff3b5c] ring-rose-100"
                           }`}
                         >
-                          {unread ? copy.unread : copy.read}
-                        </span>
-
-                        <span className="text-xs font-semibold text-slate-400">
-                          {formatDateTime(item.created_at, safeLocale)}
-                        </span>
-                      </div>
-
-                      <h2 className="mt-2 break-words text-base font-black text-slate-950">
-                        {item.title}
-                      </h2>
-
-                      {item.body ? (
-                        <p className="mt-1 whitespace-pre-line break-words text-sm font-semibold leading-7 text-slate-500">
-                          {item.body}
-                        </p>
-                      ) : null}
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {item.link_path ? (
-                          <button
-                            type="button"
-                            onClick={() => void openNotification(item)}
-                            className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white transition active:scale-[0.98]"
-                          >
-                            {copy.open}
-                          </button>
-                        ) : null}
+                          <BellMiniIcon news={news} />
+                        </div>
 
                         {unread ? (
-                          <button
-                            type="button"
-                            onClick={() => void markAsRead(item.id)}
-                            className="rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100 transition active:scale-[0.98]"
-                          >
-                            {copy.markRead}
-                          </button>
+                          <span className="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full bg-sky-400 ring-[3px] ring-white" />
                         ) : null}
                       </div>
-                    </div>
-                  </div>
-                </article>
-              );
-            })
-          )}
-        </section>
+
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p
+                          className={`break-words text-[15px] leading-6 ${
+                            unread
+                              ? "font-black text-slate-950"
+                              : "font-bold text-slate-700"
+                          }`}
+                        >
+                          {item.title}
+                        </p>
+
+                        {item.body ? (
+                          <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-500">
+                            {item.body}
+                          </p>
+                        ) : null}
+
+                        <p className="mt-1 text-sm font-semibold text-slate-400">
+                          {formatRelativeTime(item.created_at, safeLocale)}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center text-slate-400">
+                        <ChevronIcon />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </main>
   );
