@@ -2,53 +2,9 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-import {
-  CreatorBadge,
-  CreatorCard,
-  CreatorChevron,
-  CreatorEmptyState,
-  CreatorHero,
-  CreatorLinkButton,
-  CreatorMiniInfo,
-  CreatorNotice,
-  CreatorPage,
-  CreatorSkeleton,
-  CreatorTabButton,
-  CreatorTabs,
-} from "@/app/creator/_components/CreatorDesignSystem";
-
-type ChatReadRow = {
-  user_id: string;
-  last_read_at: string | null;
-};
-
-type ChatRow = {
-  id: string;
-  request_id?: string | null;
-  order_id?: string | null;
-  last_message_at: string | null;
-  chat_reads?: ChatReadRow[] | null;
-};
-
-type LegacyRequestRow = {
-  id: string;
-  created_at: string;
-  updated_at: string | null;
-  status: string | null;
-  product_name: string | null;
-  deadline: string | null;
-  delivered_post_url: string | null;
-  chats?: ChatRow[] | ChatRow | null;
-};
 
 type OrderRow = {
   id: string;
@@ -57,185 +13,67 @@ type OrderRow = {
   status: string;
   payment_status: string;
   product_name: string | null;
-  deadline: string | null;
-  delivered_post_url: string | null;
   menu_title_snapshot: string | null;
-  menu_price_amount: number | null;
-  currency: string | null;
-  creator_payout_amount: number | null;
-  revision_requested_at: string | null;
-  revision_note: string | null;
-  auto_complete_at: string | null;
+  creator_accept_deadline: string | null;
 };
 
-type CreatorRow = {
+type TodoOrder = {
   id: string;
-  user_id: string;
-};
-
-type JobItem = {
-  kind: "order" | "legacy_request";
-  id: string;
+  title: string;
   status: string;
-  payment_status?: string | null;
-  created_at: string;
   updated_at: string | null;
-  product_name: string | null;
-  deadline: string | null;
-  delivered_post_url: string | null;
-  menu_title?: string | null;
-  menu_price_amount?: number | null;
-  currency?: string | null;
-  creator_payout_amount?: number | null;
-  revision_requested_at?: string | null;
-  revision_note?: string | null;
-  auto_complete_at?: string | null;
-  chat: ChatRow | null;
+  created_at: string;
 };
 
-type FilterKey = "todo" | "delivered" | "completed" | "all";
-
-const STATUS_ORDER: Record<string, number> = {
-  revision_requested: 0,
-  accepted_captured: 1,
-  in_progress: 1,
-  accepted: 1,
-  delivered: 2,
-  completed: 3,
-};
-
-function normalizeChat(chats: LegacyRequestRow["chats"]): ChatRow | null {
-  if (!chats) return null;
-  if (Array.isArray(chats)) return chats[0] ?? null;
-  return chats;
-}
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.filter((value): value is string => Boolean(value)))
-  );
-}
-
-function getTimestamp(value: string | null | undefined) {
-  if (!value) return 0;
+function getTime(value: string | null | undefined) {
+  if (!value) return null;
 
   const time = new Date(value).getTime();
-  return Number.isNaN(time) ? 0 : time;
+
+  if (Number.isNaN(time)) return null;
+
+  return time;
 }
 
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
-    month: "numeric",
-    day: "numeric",
-  });
-}
-
-function formatPrice(
-  value: number | null | undefined,
-  currency: string | null | undefined,
-  locale: "ja" | "en"
-) {
-  if (value == null) return locale === "ja" ? "未設定" : "Not set";
-
-  const safeCurrency = currency || "JPY";
-
-  try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
-      style: "currency",
-      currency: safeCurrency,
-      maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
-    }).format(value);
-  } catch {
-    return safeCurrency === "USD"
-      ? `$${value.toLocaleString()}`
-      : `¥${value.toLocaleString()}`;
+function isIncomingOrder(order: OrderRow) {
+  if (
+    order.status !== "authorized_pending_creator" ||
+    order.payment_status !== "authorized"
+  ) {
+    return false;
   }
+
+  const deadlineTime = getTime(order.creator_accept_deadline);
+
+  if (deadlineTime == null) {
+    return true;
+  }
+
+  return deadlineTime > Date.now();
 }
 
-function isActionStatus(status: string) {
+function isExecutionOrder(order: OrderRow) {
   return [
-    "revision_requested",
-    "accepted",
     "accepted_captured",
     "in_progress",
-  ].includes(status);
+    "revision_requested",
+  ].includes(order.status);
 }
 
-function isUnreadForUser(item: JobItem, userId: string | null) {
-  if (!userId) return false;
-  if (!item.chat?.last_message_at) return false;
+function getOrderTitle(order: Pick<OrderRow, "product_name" | "menu_title_snapshot">) {
+  const productName = order.product_name?.trim();
+  const menuName = order.menu_title_snapshot?.trim();
 
-  const readRow =
-    item.chat.chat_reads?.find((row) => row.user_id === userId) ?? null;
+  return productName || menuName || "注文";
+}
 
-  if (!readRow?.last_read_at) return true;
-
+function ChevronIcon() {
   return (
-    new Date(item.chat.last_message_at).getTime() >
-    new Date(readRow.last_read_at).getTime()
-  );
-}
-
-function getActionText(status: string, locale: "ja" | "en") {
-  if (locale === "ja") {
-    if (status === "revision_requested") return "修正内容を確認してください";
-    if (
-      status === "accepted" ||
-      status === "accepted_captured" ||
-      status === "in_progress"
-    ) {
-      return "制作・投稿を進めてください";
-    }
-    if (status === "delivered") return "企業の確認待ちです";
-    if (status === "completed") return "完了しています";
-    return "内容を確認してください";
-  }
-
-  if (status === "revision_requested") return "Check revision request";
-  if (
-    status === "accepted" ||
-    status === "accepted_captured" ||
-    status === "in_progress"
-  ) {
-    return "Continue production";
-  }
-  if (status === "delivered") return "Waiting for brand review";
-  if (status === "completed") return "Completed";
-  return "Check details";
-}
-
-function LoadingView() {
-  return (
-    <CreatorPage>
-      <CreatorSkeleton className="h-28" />
-      <CreatorSkeleton className="h-28" />
-      <CreatorSkeleton className="h-28" />
-      <CreatorSkeleton className="h-28" />
-    </CreatorPage>
-  );
-}
-
-function EmptyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
-      <rect
-        x="4"
-        y="4"
-        width="16"
-        height="16"
-        rx="5"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
       <path
-        d="m8.3 12.2 2.4 2.4 5-5.2"
+        d="m9 5 7 7-7 7"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.3"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -243,9 +81,9 @@ function EmptyIcon() {
   );
 }
 
-function TodoIcon() {
+function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
       <rect
         x="4"
         y="4"
@@ -266,114 +104,73 @@ function TodoIcon() {
   );
 }
 
-function JobCard({
-  item,
-  locale,
-  copy,
-  unread,
-}: {
-  item: JobItem;
-  locale: "ja" | "en";
-  copy: {
-    unnamedProduct: string;
-    updatedAt: string;
-    menu: string;
-    payoutAmount: string;
-    newMessage: string;
-    revisionNeeded: string;
-    nextAction: string;
-  };
-  unread: boolean;
-}) {
-  const detailHref =
-    item.kind === "order"
-      ? `/creator/orders/${item.id}`
-      : `/creator/requests/${item.id}`;
+function EmptyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <path
+        d="M5 12.5 10 17 19 7"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
-  const isRevision = item.status === "revision_requested";
-  const shouldShowBadges = unread || isRevision;
+function LoadingView() {
+  return (
+    <main className="mx-auto max-w-3xl px-4 pb-28">
+      <div className="space-y-3">
+        <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-20 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+        <div className="h-20 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      </div>
+    </main>
+  );
+}
+
+function TodoItem({
+  href,
+  title,
+  body,
+  accent = "slate",
+}: {
+  href: string;
+  title: string;
+  body?: string;
+  accent?: "rose" | "slate";
+}) {
+  const iconClass =
+    accent === "rose"
+      ? "bg-rose-50 text-[#FF3B5C] ring-rose-100"
+      : "bg-slate-50 text-slate-500 ring-slate-100";
 
   return (
-    <Link href={detailHref} className="block">
-      <CreatorCard className="p-4 transition active:scale-[0.98]">
-        <div className="flex items-start gap-4">
-          <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] ring-1 ${
-              isRevision
-                ? "bg-rose-50 text-[#FF3B5C] ring-rose-100"
-                : "bg-slate-50 text-slate-500 ring-slate-100"
-            }`}
-          >
-            <TodoIcon />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            {shouldShowBadges ? (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {unread ? (
-                  <CreatorBadge tone="blue">{copy.newMessage}</CreatorBadge>
-                ) : null}
-
-                {isRevision ? (
-                  <CreatorBadge tone="red">{copy.revisionNeeded}</CreatorBadge>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
-                  {item.product_name || copy.unnamedProduct}
-                </h2>
-
-                <p className="mt-1.5 text-xs font-bold text-slate-400">
-                  {copy.updatedAt}：
-                  {formatDate(item.updated_at ?? item.created_at, locale)}
-                </p>
-              </div>
-
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-                <CreatorChevron />
-              </span>
-            </div>
-
-            <div className="mt-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
-                <CreatorMiniInfo
-                  label={copy.nextAction}
-                  value={getActionText(item.status, locale)}
-                />
-
-                {item.kind === "order" ? (
-                  <CreatorMiniInfo
-                    label={copy.payoutAmount}
-                    value={formatPrice(
-                      item.creator_payout_amount,
-                      item.currency,
-                      locale
-                    )}
-                    strong
-                  />
-                ) : null}
-              </div>
-
-              {item.menu_title ? (
-                <div className="mt-3 border-t border-slate-100 pt-3">
-                  <CreatorMiniInfo label={copy.menu} value={item.menu_title} />
-                </div>
-              ) : null}
-
-              {isRevision && item.revision_note?.trim() ? (
-                <div className="mt-3 rounded-[18px] bg-white px-3 py-3 ring-1 ring-rose-100">
-                  <p className="text-xs font-bold leading-6 text-rose-900">
-                    {item.revision_note}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </div>
+    <Link href={href} className="block">
+      <article className="flex items-center gap-4 rounded-[24px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]">
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ring-1 ${iconClass}`}
+        >
+          <CheckIcon />
         </div>
-      </CreatorCard>
+
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[16px] font-black tracking-[-0.035em] text-slate-950">
+            {title}
+          </h2>
+
+          {body ? (
+            <p className="mt-1 line-clamp-2 text-sm font-semibold leading-6 text-slate-400">
+              {body}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+          <ChevronIcon />
+        </div>
+      </article>
     </Link>
   );
 }
@@ -388,118 +185,58 @@ export default function CreatorJobsPage() {
       safeLocale === "ja"
         ? {
             title: "ToDo",
-            subtitle: "進行中の注文と、今やることを確認できます。",
-            fetchError: "ToDoの取得に失敗しました。",
-            unnamedProduct: "商品名未設定",
-            menu: "メニュー",
-            payoutAmount: "受取予定",
-            revisionNeeded: "要確認",
-            newMessage: "新着メッセージ",
-            updatedAt: "更新日",
-            empty: "対応中の注文はありません",
-            emptyBody: "受けた注文や対応が必要なものがここに表示されます。",
-            checkRequests: "届いた注文を見る",
-            all: "すべて",
-            todo: "対応中",
-            delivered: "確認待ち",
-            completed: "完了",
-            errorTitle: "エラー",
-            nextAction: "次にやること",
-            activeLabel: "対応中",
-            reviewLabel: "確認待ち",
+            subtitle: "今やることだけを確認できます。",
+            incomingTitle: "注文が届いています",
+            incomingBody: "受ける / 辞退する注文があります。",
+            executionSuffix: "実行待ちです",
+            executionBody:
+              "PR投稿・制作・納品URLの提出を進めてください。",
+            emptyTitle: "今やることはありません",
+            emptyBody:
+              "新しい注文や実行待ちの注文があると、ここに表示されます。",
+            errorTitle: "ToDoを取得できませんでした",
+            errorBody: "時間をおいてもう一度お試しください。",
           }
         : {
             title: "ToDo",
-            subtitle: "Check active orders and what to do next.",
-            fetchError: "Failed to load ToDo.",
-            unnamedProduct: "No product name",
-            menu: "Menu",
-            payoutAmount: "Expected",
-            revisionNeeded: "Check",
-            newMessage: "New message",
-            updatedAt: "Updated",
-            empty: "No active orders",
-            emptyBody: "Accepted orders and action items will appear here.",
-            checkRequests: "View incoming orders",
-            all: "All",
-            todo: "Active",
-            delivered: "Review",
-            completed: "Done",
-            errorTitle: "Error",
-            nextAction: "Next",
-            activeLabel: "Active",
-            reviewLabel: "Review",
+            subtitle: "Check only what needs action now.",
+            incomingTitle: "New orders are waiting",
+            incomingBody: "There are orders to accept or decline.",
+            executionSuffix: "is waiting for action",
+            executionBody:
+              "Continue production, posting, or delivery URL submission.",
+            emptyTitle: "Nothing to do now",
+            emptyBody:
+              "New orders and active orders will appear here.",
+            errorTitle: "Failed to load ToDo",
+            errorBody: "Please try again later.",
           },
     [safeLocale]
   );
 
-  const [items, setItems] = useState<JobItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [incomingCount, setIncomingCount] = useState(0);
+  const [executionOrders, setExecutionOrders] = useState<TodoOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterKey>("todo");
+  const [error, setError] = useState(false);
 
-  const load = useCallback(async () => {
+  const loadTodos = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setError(false);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (userError || !user) {
-      console.error("creator jobs user load error:", userError);
-      setItems([]);
-      setLoading(false);
-      return;
-    }
+      if (userError || !user) {
+        setIncomingCount(0);
+        setExecutionOrders([]);
+        setLoading(false);
+        return;
+      }
 
-    setCurrentUserId(user.id);
-
-    const { data: creatorRow, error: creatorError } = await supabase
-      .from("creators")
-      .select("id, user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (creatorError) {
-      console.error("creator row load error:", creatorError);
-    }
-
-    const creator = (creatorRow as CreatorRow | null) ?? null;
-    const legacyCreatorKeys = uniqueStrings([user.id, creator?.id]);
-
-    const [
-      { data: legacyRows, error: legacyError },
-      { data: orderRows, error: orderError },
-    ] = await Promise.all([
-      supabase
-        .from("requests")
-        .select(
-          `
-          id,
-          created_at,
-          updated_at,
-          status,
-          product_name,
-          deadline,
-          delivered_post_url,
-          chats (
-            id,
-            request_id,
-            last_message_at,
-            chat_reads (
-              user_id,
-              last_read_at
-            )
-          )
-        `
-        )
-        .in("creator_user_id", legacyCreatorKeys)
-        .in("status", ["accepted", "delivered", "completed"]),
-
-      supabase
+      const { data, error: orderError } = await supabase
         .from("orders")
         .select(
           `
@@ -509,145 +246,62 @@ export default function CreatorJobsPage() {
           status,
           payment_status,
           product_name,
-          deadline,
-          delivered_post_url,
           menu_title_snapshot,
-          menu_price_amount,
-          currency,
-          creator_payout_amount,
-          revision_requested_at,
-          revision_note,
-          auto_complete_at
+          creator_accept_deadline
         `
         )
         .eq("creator_user_id", user.id)
         .in("status", [
+          "authorized_pending_creator",
           "accepted_captured",
           "in_progress",
-          "delivered",
           "revision_requested",
-          "completed",
-        ]),
-    ]);
+        ])
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
 
-    if (legacyError || orderError) {
-      console.error("creator jobs load error:", { legacyError, orderError });
-      setError(copy.fetchError);
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-
-    const orders = (orderRows ?? []) as unknown as OrderRow[];
-    const orderIds = orders.map((order) => order.id);
-
-    let orderChatMap = new Map<string, ChatRow>();
-
-    if (orderIds.length > 0) {
-      const { data: chatRows, error: chatError } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          order_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("order_id", orderIds);
-
-      if (chatError) {
-        console.error("creator order chat load error:", chatError);
-      } else {
-        orderChatMap = new Map(
-          ((chatRows ?? []) as ChatRow[])
-            .filter((chat) => !!chat.order_id)
-            .map((chat) => [chat.order_id as string, chat])
-        );
+      if (orderError) {
+        console.error("creator todo load error:", orderError);
+        setIncomingCount(0);
+        setExecutionOrders([]);
+        setError(true);
+        setLoading(false);
+        return;
       }
+
+      const rows = ((data ?? []) as unknown as OrderRow[]).filter(Boolean);
+
+      const incoming = rows.filter(isIncomingOrder);
+
+      const execution = rows
+        .filter(isExecutionOrder)
+        .map((order) => ({
+          id: order.id,
+          title: getOrderTitle(order),
+          status: order.status,
+          updated_at: order.updated_at,
+          created_at: order.created_at,
+        }));
+
+      setIncomingCount(incoming.length);
+      setExecutionOrders(execution);
+      setLoading(false);
+    } catch (error) {
+      console.error("creator todo load error:", error);
+      setIncomingCount(0);
+      setExecutionOrders([]);
+      setError(true);
+      setLoading(false);
     }
-
-    const legacyItems: JobItem[] = ((legacyRows ?? []) as LegacyRequestRow[]).map(
-      (row) => ({
-        kind: "legacy_request",
-        id: row.id,
-        status: row.status ?? "accepted",
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        product_name: row.product_name,
-        deadline: row.deadline,
-        delivered_post_url: row.delivered_post_url,
-        chat: normalizeChat(row.chats),
-      })
-    );
-
-    const orderItems: JobItem[] = orders.map((order) => ({
-      kind: "order",
-      id: order.id,
-      status: order.status,
-      payment_status: order.payment_status,
-      created_at: order.created_at,
-      updated_at: order.updated_at,
-      product_name: order.product_name,
-      deadline: order.deadline,
-      delivered_post_url: order.delivered_post_url,
-      menu_title: order.menu_title_snapshot,
-      menu_price_amount: order.menu_price_amount,
-      currency: order.currency,
-      creator_payout_amount: order.creator_payout_amount,
-      revision_requested_at: order.revision_requested_at,
-      revision_note: order.revision_note,
-      auto_complete_at: order.auto_complete_at,
-      chat: orderChatMap.get(order.id) ?? null,
-    }));
-
-    setItems([...orderItems, ...legacyItems]);
-    setLoading(false);
-  }, [copy.fetchError, supabase]);
+  }, [supabase]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadTodos();
+  }, [loadTodos]);
 
   useEffect(() => {
     const channel = supabase
-      .channel("creator-jobs-list-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-        },
-        () => {
-          void load();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "chat_reads",
-        },
-        () => {
-          void load();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "chats",
-        },
-        () => {
-          void load();
-        }
-      )
+      .channel("creator-todos-realtime")
       .on(
         "postgres_changes",
         {
@@ -656,13 +310,13 @@ export default function CreatorJobsPage() {
           table: "orders",
         },
         () => {
-          void load();
+          void loadTodos();
         }
       )
       .subscribe();
 
     const onFocus = () => {
-      void load();
+      void loadTodos();
     };
 
     window.addEventListener("focus", onFocus);
@@ -671,149 +325,79 @@ export default function CreatorJobsPage() {
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
     };
-  }, [load, supabase]);
-
-  const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      const aUnread = isUnreadForUser(a, currentUserId) ? 1 : 0;
-      const bUnread = isUnreadForUser(b, currentUserId) ? 1 : 0;
-
-      if (aUnread !== bUnread) return bUnread - aUnread;
-
-      const statusDiff =
-        (STATUS_ORDER[a.status] ?? 999) - (STATUS_ORDER[b.status] ?? 999);
-
-      if (statusDiff !== 0) return statusDiff;
-
-      const aLast = a.chat?.last_message_at
-        ? new Date(a.chat.last_message_at).getTime()
-        : 0;
-      const bLast = b.chat?.last_message_at
-        ? new Date(b.chat.last_message_at).getTime()
-        : 0;
-
-      if (aLast !== bLast) return bLast - aLast;
-
-      return (
-        getTimestamp(b.updated_at ?? b.created_at) -
-        getTimestamp(a.updated_at ?? a.created_at)
-      );
-    });
-  }, [currentUserId, items]);
-
-  const todoItems = sortedItems.filter((item) => isActionStatus(item.status));
-  const deliveredItems = sortedItems.filter(
-    (item) => item.status === "delivered"
-  );
-  const completedItems = sortedItems.filter(
-    (item) => item.status === "completed"
-  );
-
-  const filteredItems =
-    filter === "todo"
-      ? todoItems
-      : filter === "delivered"
-        ? deliveredItems
-        : filter === "completed"
-          ? completedItems
-          : sortedItems;
+  }, [loadTodos, supabase]);
 
   if (loading) {
     return <LoadingView />;
   }
 
+  const hasTodos = incomingCount > 0 || executionOrders.length > 0;
+
   return (
-    <CreatorPage>
-      <CreatorHero title={copy.title} description={copy.subtitle}>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
-            <p className="text-xs font-black text-slate-400">
-              {copy.activeLabel}
-            </p>
-            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
-              {todoItems.length}
-              {safeLocale === "ja" ? "件" : ""}
-            </p>
-          </div>
+    <main className="mx-auto max-w-3xl px-4 pb-28">
+      <section className="mb-4 overflow-hidden rounded-[30px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FF3B5C]">
+          Trendre
+        </p>
 
-          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
-            <p className="text-xs font-black text-slate-400">
-              {copy.reviewLabel}
-            </p>
-            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
-              {deliveredItems.length}
-              {safeLocale === "ja" ? "件" : ""}
-            </p>
-          </div>
-        </div>
+        <h1 className="mt-2 text-[30px] font-black tracking-[-0.06em] text-slate-950">
+          {copy.title}
+        </h1>
 
-        <div className="mt-4">
-          <CreatorTabs>
-            <CreatorTabButton
-              active={filter === "todo"}
-              onClick={() => setFilter("todo")}
-            >
-              {copy.todo} {todoItems.length}
-            </CreatorTabButton>
-
-            <CreatorTabButton
-              active={filter === "delivered"}
-              onClick={() => setFilter("delivered")}
-            >
-              {copy.delivered} {deliveredItems.length}
-            </CreatorTabButton>
-
-            <CreatorTabButton
-              active={filter === "completed"}
-              onClick={() => setFilter("completed")}
-            >
-              {copy.completed} {completedItems.length}
-            </CreatorTabButton>
-
-            <CreatorTabButton
-              active={filter === "all"}
-              onClick={() => setFilter("all")}
-            >
-              {copy.all}
-            </CreatorTabButton>
-          </CreatorTabs>
-        </div>
-      </CreatorHero>
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+          {copy.subtitle}
+        </p>
+      </section>
 
       {error ? (
-        <CreatorNotice
-          tone="red"
-          title={copy.errorTitle}
-          description={error}
-        />
+        <section className="mb-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold leading-7 text-rose-700 ring-1 ring-rose-100">
+          <p className="font-black">{copy.errorTitle}</p>
+          <p className="mt-1">{copy.errorBody}</p>
+        </section>
       ) : null}
 
-      {filteredItems.length === 0 && !error ? (
-        <CreatorCard className="p-5">
-          <CreatorEmptyState
-            icon={<EmptyIcon />}
-            title={copy.empty}
-            description={copy.emptyBody}
-            action={
-              <CreatorLinkButton href="/creator/requests">
-                {copy.checkRequests}
-              </CreatorLinkButton>
-            }
-          />
-        </CreatorCard>
+      {!hasTodos && !error ? (
+        <section className="rounded-[28px] bg-white p-8 text-center shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+            <EmptyIcon />
+          </div>
+
+          <h2 className="mt-5 text-lg font-black tracking-[-0.04em] text-slate-950">
+            {copy.emptyTitle}
+          </h2>
+
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-400">
+            {copy.emptyBody}
+          </p>
+        </section>
       ) : null}
 
       <section className="space-y-3">
-        {filteredItems.map((item) => (
-          <JobCard
-            key={`${item.kind}-${item.id}`}
-            item={item}
-            locale={safeLocale}
-            copy={copy}
-            unread={isUnreadForUser(item, currentUserId)}
+        {incomingCount > 0 ? (
+          <TodoItem
+            href="/creator/requests"
+            title={copy.incomingTitle}
+            body={
+              safeLocale === "ja"
+                ? `${incomingCount}件の注文に返答が必要です。`
+                : `${incomingCount} order${
+                    incomingCount === 1 ? "" : "s"
+                  } need a reply.`
+            }
+            accent="rose"
+          />
+        ) : null}
+
+        {executionOrders.map((order) => (
+          <TodoItem
+            key={order.id}
+            href={`/creator/orders/${order.id}`}
+            title={`${order.title}：${copy.executionSuffix}`}
+            body={copy.executionBody}
+            accent="slate"
           />
         ))}
       </section>
-    </CreatorPage>
+    </main>
   );
 }
