@@ -53,6 +53,10 @@ function isActivePath(pathname: string, href: string) {
     );
   }
 
+  if (href === "/b/todos") {
+    return pathname === "/b/todos" || pathname.startsWith("/b/todos/");
+  }
+
   if (href === "/b/billing") {
     return pathname === "/b/billing" || pathname.startsWith("/b/billing/");
   }
@@ -68,6 +72,27 @@ function MenuIcon() {
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" aria-hidden="true">
+      <path
+        d="M21 11.1V12a9 9 0 1 1-5.3-8.2"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m9.2 11.8 2.2 2.2L21 4.5"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -126,8 +151,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
-  // /b/creators は未ログインにも公開する。
-  // ただし、Bとしてログイン済みなら PublicHeader ではなく B用ヘッダー/Menu を出す。
   const isInfluencerSearchPage =
     pathname === "/b/creators" || pathname.startsWith("/b/creators/");
 
@@ -148,6 +171,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               "ログインと既存注文の確認はできますが、新しい注文はできません。",
             profile: "アカウント設定",
             jobs: "注文",
+            todos: "ToDo",
             search: "インフルエンサー検索",
             saved: "保存済み",
             company: "BRAND",
@@ -166,6 +190,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               "You can log in and view existing orders, but you cannot place new orders.",
             profile: "Account Settings",
             jobs: "Orders",
+            todos: "ToDo",
             search: "Influencer Search",
             saved: "Saved",
             company: "BRAND",
@@ -394,6 +419,14 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
               className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
             />
 
+            <Link
+              href="/b/todos"
+              aria-label={copy.todos}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
+            >
+              <CheckCircleIcon />
+            </Link>
+
             <div
               className="relative"
               onMouseEnter={openProfileMenu}
@@ -449,6 +482,13 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                         href="/b/orders"
                         label={copy.jobs}
                         active={isActivePath(pathname, "/b/orders")}
+                        onClick={closeProfileMenu}
+                      />
+
+                      <MenuLink
+                        href="/b/todos"
+                        label={copy.todos}
+                        active={isActivePath(pathname, "/b/todos")}
                         onClick={closeProfileMenu}
                       />
 
