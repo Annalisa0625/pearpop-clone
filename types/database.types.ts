@@ -555,41 +555,241 @@ export type Database = {
           },
         ]
       }
-      notifications: {
+      notification_deliveries: {
         Row: {
-          body: string | null
+          attempt_count: number
+          channel: string
           created_at: string
+          error_message: string | null
+          failed_at: string | null
           id: string
-          is_read: boolean
-          link: string | null
-          request_id: string
-          title: string | null
-          type: string
+          last_attempt_at: string | null
+          metadata: Json
+          notification_id: string
+          provider: string | null
+          provider_recipient_id: string | null
+          recipient_user_id: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          channel: string
+          created_at?: string
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          metadata?: Json
+          notification_id: string
+          provider?: string | null
+          provider_recipient_id?: string | null
+          recipient_user_id: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          metadata?: Json
+          notification_id?: string
+          provider?: string | null
+          provider_recipient_id?: string | null
+          recipient_user_id?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_deliveries_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_external_accounts: {
+        Row: {
+          connected_at: string
+          created_at: string
+          disconnected_at: string | null
+          id: string
+          is_connected: boolean
+          metadata: Json
+          provider: string
+          provider_display_name: string | null
+          provider_user_id: string
+          updated_at: string
           user_id: string
         }
         Insert: {
-          body?: string | null
+          connected_at?: string
           created_at?: string
+          disconnected_at?: string | null
           id?: string
-          is_read?: boolean
-          link?: string | null
-          request_id: string
-          title?: string | null
-          type: string
+          is_connected?: boolean
+          metadata?: Json
+          provider: string
+          provider_display_name?: string | null
+          provider_user_id: string
+          updated_at?: string
           user_id: string
         }
         Update: {
-          body?: string | null
+          connected_at?: string
           created_at?: string
+          disconnected_at?: string | null
           id?: string
-          is_read?: boolean
-          link?: string | null
-          request_id?: string
-          title?: string | null
-          type?: string
+          is_connected?: boolean
+          metadata?: Json
+          provider?: string
+          provider_display_name?: string | null
+          provider_user_id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          in_app_enabled: boolean
+          line_enabled: boolean
+          muted_types: string[]
+          push_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          in_app_enabled?: boolean
+          line_enabled?: boolean
+          muted_types?: string[]
+          push_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          in_app_enabled?: boolean
+          line_enabled?: boolean
+          muted_types?: string[]
+          push_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          actor_user_id: string | null
+          archived_at: string | null
+          body: string | null
+          chat_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          importance: string | null
+          is_read: boolean
+          link: string | null
+          link_path: string | null
+          message_id: string | null
+          metadata: Json | null
+          notification_type: string | null
+          order_id: string | null
+          read_at: string | null
+          recipient_user_id: string | null
+          request_id: string
+          title: string | null
+          type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          archived_at?: string | null
+          body?: string | null
+          chat_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          importance?: string | null
+          is_read?: boolean
+          link?: string | null
+          link_path?: string | null
+          message_id?: string | null
+          metadata?: Json | null
+          notification_type?: string | null
+          order_id?: string | null
+          read_at?: string | null
+          recipient_user_id?: string | null
+          request_id: string
+          title?: string | null
+          type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          archived_at?: string | null
+          body?: string | null
+          chat_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          importance?: string | null
+          is_read?: boolean
+          link?: string | null
+          link_path?: string | null
+          message_id?: string | null
+          metadata?: Json | null
+          notification_type?: string | null
+          order_id?: string | null
+          read_at?: string | null
+          recipient_user_id?: string | null
+          request_id?: string
+          title?: string | null
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_events: {
         Row: {
@@ -1333,6 +1533,34 @@ export type Database = {
       }
     }
     Functions: {
+      create_app_notification: {
+        Args: {
+          p_actor_user_id: string
+          p_body: string
+          p_chat_id: string
+          p_dedupe_key: string
+          p_entity_id: string
+          p_entity_type: string
+          p_importance: string
+          p_link_path: string
+          p_message_id: string
+          p_metadata: Json
+          p_notification_type: string
+          p_order_id: string
+          p_recipient_user_id: string
+          p_title: string
+        }
+        Returns: string
+      }
+      enqueue_line_delivery_for_notification: {
+        Args: {
+          p_link_path: string
+          p_notification_id: string
+          p_notification_type: string
+          p_recipient_user_id: string
+        }
+        Returns: undefined
+      }
       is_limit_trading: { Args: { p_user_id: string }; Returns: boolean }
       mark_chat_read: {
         Args: { _chat_id: string; _user_id: string }
