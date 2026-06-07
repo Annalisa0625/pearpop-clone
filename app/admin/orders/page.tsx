@@ -9,6 +9,7 @@ type TabKey =
   | "checkout"
   | "waiting"
   | "active"
+  | "attention"
   | "review"
   | "completed"
   | "canceled";
@@ -118,6 +119,17 @@ function needsAdminAttention(level: AgeLevel) {
   return level === "warning" || level === "critical";
 }
 
+function isStaleActiveOrder(order: OrderRow) {
+  const tab = mapStatusToTab(order.status);
+
+  if (tab !== "active") return false;
+  if (order.delivered_post_url) return false;
+
+  const days = getAcceptedDays(order);
+
+  return days != null && days >= 7;
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) return "-";
 
@@ -176,6 +188,7 @@ function getStatusClass(tab: TabKey) {
   if (tab === "checkout") return "bg-slate-50 text-slate-500 ring-slate-200";
   if (tab === "waiting") return "bg-amber-50 text-amber-800 ring-amber-100";
   if (tab === "active") return "bg-slate-950 text-white ring-slate-950";
+  if (tab === "attention") return "bg-red-50 text-red-700 ring-red-100";
   if (tab === "review") return "bg-rose-50 text-[#ff5f67] ring-rose-100";
   if (tab === "completed") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (tab === "canceled") return "bg-slate-100 text-slate-500 ring-slate-200";
@@ -198,17 +211,6 @@ function getAgeLabel(days: number | null) {
   if (days >= 3) return `注意：C承認から${days}日`;
 
   return `C承認から${days}日`;
-}
-
-function isStaleActiveOrder(order: OrderRow) {
-  const tab = mapStatusToTab(order.status);
-
-  if (tab !== "active") return false;
-  if (order.delivered_post_url) return false;
-
-  const days = getAcceptedDays(order);
-
-  return days != null && days >= 7;
 }
 
 function Pill({
@@ -261,20 +263,30 @@ function TabButton({
   count,
   active,
   onClick,
+  tone = "default",
 }: {
   label: string;
   count: number;
   active: boolean;
   onClick: () => void;
+  tone?: "default" | "danger";
 }) {
+  const inactiveClass =
+    tone === "danger"
+      ? "bg-white text-red-600 ring-1 ring-red-100 hover:bg-red-50"
+      : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50";
+
+  const activeClass =
+    tone === "danger"
+      ? "bg-red-600 text-white shadow-[0_14px_30px_rgba(220,38,38,0.18)]"
+      : "bg-slate-950 text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]";
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black transition ${
-        active
-          ? "bg-slate-950 text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]"
-          : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+        active ? activeClass : inactiveClass
       }`}
     >
       <span>{label}</span>
@@ -290,11 +302,12 @@ function TabButton({
 }
 
 function OrderCard({ order }: { order: OrderRow }) {
-  const tab = mapStatusToTab(order.status);
-  const acceptedDays = tab === "active" ? getAcceptedDays(order) : null;
+  const baseTab = mapStatusToTab(order.status);
+  const acceptedDays = baseTab === "active" ? getAcceptedDays(order) : null;
   const ageLevel = getAgeLevel(acceptedDays);
   const ageLabel = getAgeLabel(acceptedDays);
   const shouldWarn = needsAdminAttention(ageLevel);
+  const displayTab = shouldWarn ? "attention" : baseTab;
 
   const title =
     order.product_name?.trim() ||
@@ -315,7 +328,7 @@ function OrderCard({ order }: { order: OrderRow }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap gap-2">
-            <Pill className={getStatusClass(tab)}>
+            <Pill className={getStatusClass(displayTab)}>
               {getStatusLabel(order.status, order.payment_status)}
             </Pill>
 
@@ -331,7 +344,7 @@ function OrderCard({ order }: { order: OrderRow }) {
               <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
                 納品URLあり
               </Pill>
-            ) : tab === "active" ? (
+            ) : baseTab === "active" ? (
               <Pill className="bg-slate-50 text-slate-500 ring-slate-100">
                 納品URLなし
               </Pill>
@@ -516,7 +529,13 @@ export default function AdminOrdersPage() {
     return orders.filter((order) => {
       const orderTab = mapStatusToTab(order.status);
 
-      if (tab !== "all" && orderTab !== tab) return false;
+      if (tab === "attention" && !isStaleActiveOrder(order)) {
+        return false;
+      }
+
+      if (tab !== "all" && tab !== "attention" && orderTab !== tab) {
+        return false;
+      }
 
       if (!normalizedQ) return true;
 
@@ -620,6 +639,14 @@ export default function AdminOrdersPage() {
               count={counts.active}
               active={tab === "active"}
               onClick={() => setTab("active")}
+            />
+
+            <TabButton
+              label="要確認"
+              count={counts.staleActive}
+              active={tab === "attention"}
+              onClick={() => setTab("attention")}
+              tone={counts.staleActive > 0 ? "danger" : "default"}
             />
 
             <TabButton
