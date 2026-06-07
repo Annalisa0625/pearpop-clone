@@ -706,21 +706,16 @@ export type Database = {
           entity_id: string | null
           entity_type: string | null
           id: string
-          importance: string | null
-          is_read: boolean
-          link: string | null
+          importance: string
           link_path: string | null
           message_id: string | null
-          metadata: Json | null
-          notification_type: string | null
+          metadata: Json
+          notification_type: string
           order_id: string | null
           read_at: string | null
-          recipient_user_id: string | null
-          request_id: string
-          title: string | null
-          type: string
-          updated_at: string | null
-          user_id: string
+          recipient_user_id: string
+          title: string
+          updated_at: string
         }
         Insert: {
           actor_user_id?: string | null
@@ -732,21 +727,16 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
-          importance?: string | null
-          is_read?: boolean
-          link?: string | null
+          importance?: string
           link_path?: string | null
           message_id?: string | null
-          metadata?: Json | null
-          notification_type?: string | null
+          metadata?: Json
+          notification_type: string
           order_id?: string | null
           read_at?: string | null
-          recipient_user_id?: string | null
-          request_id: string
-          title?: string | null
-          type: string
-          updated_at?: string | null
-          user_id: string
+          recipient_user_id: string
+          title: string
+          updated_at?: string
         }
         Update: {
           actor_user_id?: string | null
@@ -758,21 +748,16 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
-          importance?: string | null
-          is_read?: boolean
-          link?: string | null
+          importance?: string
           link_path?: string | null
           message_id?: string | null
-          metadata?: Json | null
-          notification_type?: string | null
+          metadata?: Json
+          notification_type?: string
           order_id?: string | null
           read_at?: string | null
-          recipient_user_id?: string | null
-          request_id?: string
-          title?: string | null
-          type?: string
-          updated_at?: string | null
-          user_id?: string
+          recipient_user_id?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: [
           {
