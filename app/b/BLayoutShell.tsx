@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -13,45 +12,20 @@ import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import PublicHeader from "@/components/PublicHeader";
-
-type NavBadgeKey = "requests" | "jobs" | "orders";
+import NotificationBell from "@/components/NotificationBell";
 
 type TopNavItem = {
   href: string;
   label: string;
-  badgeKey?: NavBadgeKey;
 };
 
 type MobileNavItem = {
   href: string;
   shortLabel: string;
-  badgeKey?: NavBadgeKey;
-};
-
-type ChatReadRow = {
-  user_id: string;
-  last_read_at: string | null;
-};
-
-type ChatRow = {
-  id: string;
-  request_id?: string | null;
-  order_id?: string | null;
-  last_message_at: string | null;
-  chat_reads?: ChatReadRow[] | ChatReadRow | null;
-};
-
-type UnreadState = {
-  requests: boolean;
-  jobs: boolean;
 };
 
 function isActivePath(pathname: string, href: string) {
   if (pathname === href) return true;
-
-  if (href === "/home") {
-    return pathname === "/home";
-  }
 
   if (href === "/b/dashboard") {
     return pathname === "/b" || pathname === "/b/dashboard";
@@ -79,55 +53,11 @@ function isActivePath(pathname: string, href: string) {
     );
   }
 
-  if (href === "/b/requests") {
-    return pathname === "/b/requests" || pathname.startsWith("/b/requests/");
-  }
-
-  if (href === "/b/jobs") {
-    return pathname === "/b/jobs" || pathname.startsWith("/b/jobs/");
-  }
-
   if (href === "/b/billing") {
     return pathname === "/b/billing" || pathname.startsWith("/b/billing/");
   }
 
   return pathname.startsWith(href);
-}
-
-function getChatReads(chat: ChatRow) {
-  if (!chat.chat_reads) return [];
-  if (Array.isArray(chat.chat_reads)) return chat.chat_reads;
-  return [chat.chat_reads];
-}
-
-function isUnreadChat(chat: ChatRow, userId: string) {
-  if (!chat.last_message_at) return false;
-
-  const readRow =
-    getChatReads(chat).find((row) => row.user_id === userId) ?? null;
-
-  if (!readRow?.last_read_at) return true;
-
-  return (
-    new Date(chat.last_message_at).getTime() >
-    new Date(readRow.last_read_at).getTime()
-  );
-}
-
-function hasUnreadChats(chats: ChatRow[], userId: string) {
-  return chats.some((chat) => isUnreadChat(chat, userId));
-}
-
-function TopNavUnreadDot() {
-  return (
-    <span className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff5f67] ring-2 ring-white" />
-  );
-}
-
-function MenuUnreadDot() {
-  return (
-    <span className="ml-auto h-2 w-2 rounded-full bg-[#ff5f67]" />
-  );
 }
 
 function MenuIcon() {
@@ -161,13 +91,11 @@ function MenuLink({
   href,
   label,
   active,
-  unread,
   onClick,
 }: {
   href: string;
   label: string;
   active: boolean;
-  unread?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -181,7 +109,6 @@ function MenuLink({
       }`}
     >
       <span>{label}</span>
-      {unread ? <MenuUnreadDot /> : null}
     </Link>
   );
 }
@@ -196,10 +123,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   const [limitReason, setLimitReason] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isCompanyViewer, setIsCompanyViewer] = useState<boolean | null>(null);
-  const [unread, setUnread] = useState<UnreadState>({
-    requests: false,
-    jobs: false,
-  });
 
   const isOnboarding = pathname.startsWith("/b/onboarding");
 
@@ -224,12 +147,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             limitBody:
               "ログインと既存注文の確認はできますが、新しい注文はできません。",
             profile: "アカウント設定",
-            requests: "返答待ち",
             jobs: "注文",
             search: "インフルエンサー検索",
             saved: "保存済み",
             company: "BRAND",
             consoleTitle: "企業アカウント",
+            notifications: "通知",
             menu: "Menu",
           }
         : {
@@ -242,12 +165,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             limitBody:
               "You can log in and view existing orders, but you cannot place new orders.",
             profile: "Account Settings",
-            requests: "Waiting",
             jobs: "Orders",
             search: "Influencer Search",
             saved: "Saved",
             company: "BRAND",
             consoleTitle: "Brand Account",
+            notifications: "Notifications",
             menu: "Menu",
           },
     [locale]
@@ -266,7 +189,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       {
         href: "/b/orders",
         label: copy.jobs,
-        badgeKey: "orders",
       },
     ],
     [copy.jobs, copy.saved, copy.search]
@@ -289,7 +211,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
       {
         href: "/b/orders",
         shortLabel: locale === "ja" ? "注文" : "Orders",
-        badgeKey: "orders",
       },
     ],
     [locale]
@@ -340,192 +261,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
     };
   }, [isInfluencerSearchPage, supabase]);
 
-  const loadUnreadBadges = useCallback(async () => {
-    if (shouldUsePublicHeader) {
-      setUnread({ requests: false, jobs: false });
-      return;
-    }
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      setUnread({ requests: false, jobs: false });
-      return;
-    }
-
-    const [
-      { data: pendingOrders, error: pendingOrdersError },
-      { data: activeOrders, error: activeOrdersError },
-      { data: pendingRequests, error: pendingRequestsError },
-      { data: activeRequests, error: activeRequestsError },
-    ] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("id")
-        .eq("b_user_id", user.id)
-        .in("status", ["authorized_pending_creator", "checkout_pending"]),
-
-      supabase
-        .from("orders")
-        .select("id")
-        .eq("b_user_id", user.id)
-        .in("status", [
-          "accepted_captured",
-          "in_progress",
-          "delivered",
-          "completed",
-        ]),
-
-      supabase
-        .from("requests")
-        .select("id")
-        .eq("b_user_id", user.id)
-        .eq("status", "pending"),
-
-      supabase
-        .from("requests")
-        .select("id")
-        .eq("b_user_id", user.id)
-        .in("status", ["accepted", "delivered", "completed"]),
-    ]);
-
-    if (
-      pendingOrdersError ||
-      activeOrdersError ||
-      pendingRequestsError ||
-      activeRequestsError
-    ) {
-      console.error("B unread source load error:", {
-        pendingOrdersError,
-        activeOrdersError,
-        pendingRequestsError,
-        activeRequestsError,
-      });
-    }
-
-    const pendingOrderIds = ((pendingOrders ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-    const activeOrderIds = ((activeOrders ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-    const pendingRequestIds = ((pendingRequests ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-    const activeRequestIds = ((activeRequests ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-
-    let pendingOrderChats: ChatRow[] = [];
-    let activeOrderChats: ChatRow[] = [];
-    let pendingRequestChats: ChatRow[] = [];
-    let activeRequestChats: ChatRow[] = [];
-
-    if (pendingOrderIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          order_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("order_id", pendingOrderIds);
-
-      if (error) {
-        console.error("B pending order chat unread load error:", error);
-      } else {
-        pendingOrderChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    if (activeOrderIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          order_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("order_id", activeOrderIds);
-
-      if (error) {
-        console.error("B active order chat unread load error:", error);
-      } else {
-        activeOrderChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    if (pendingRequestIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          request_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("request_id", pendingRequestIds);
-
-      if (error) {
-        console.error("B pending request chat unread load error:", error);
-      } else {
-        pendingRequestChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    if (activeRequestIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          request_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("request_id", activeRequestIds);
-
-      if (error) {
-        console.error("B active request chat unread load error:", error);
-      } else {
-        activeRequestChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    setUnread({
-      requests:
-        hasUnreadChats(pendingOrderChats, user.id) ||
-        hasUnreadChats(pendingRequestChats, user.id),
-      jobs:
-        hasUnreadChats(activeOrderChats, user.id) ||
-        hasUnreadChats(activeRequestChats, user.id),
-    });
-  }, [supabase, shouldUsePublicHeader]);
-
   useEffect(() => {
     if (shouldUsePublicHeader) {
       setLimitReason(null);
@@ -565,68 +300,12 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
   }, [supabase, shouldUsePublicHeader]);
 
   useEffect(() => {
-    if (shouldUsePublicHeader) {
-      setUnread({ requests: false, jobs: false });
-      return;
-    }
-
-    void loadUnreadBadges();
-
-    const channel = supabase
-      .channel("b-layout-unread-badges")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "chat_reads" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "chats" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "requests" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .subscribe();
-
-    const onFocus = () => {
-      void loadUnreadBadges();
-    };
-
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("trendre:chat-read-changed", onFocus);
-
-    return () => {
-      void supabase.removeChannel(channel);
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener("trendre:chat-read-changed", onFocus);
-    };
-  }, [loadUnreadBadges, supabase, shouldUsePublicHeader]);
+    setMenuOpen(false);
+  }, [pathname]);
 
   const handleLogout = async () => {
     if (loggingOut) return;
+
     setLoggingOut(true);
 
     try {
@@ -691,14 +370,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
           <nav className="hidden items-center justify-center gap-9 text-sm font-black text-slate-700 md:flex">
             {topNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
-              const showUnread =
-                item.badgeKey === "orders"
-                  ? unread.requests || unread.jobs
-                  : item.badgeKey === "requests"
-                    ? unread.requests
-                    : item.badgeKey === "jobs"
-                      ? unread.jobs
-                      : false;
 
               return (
                 <Link
@@ -711,13 +382,18 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                   }`}
                 >
                   {item.label}
-                  {showUnread ? <TopNavUnreadDot /> : null}
                 </Link>
               );
             })}
           </nav>
 
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-end gap-2">
+            <NotificationBell
+              href="/notifications"
+              label={copy.notifications}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
+            />
+
             <div
               className="relative"
               onMouseEnter={openProfileMenu}
@@ -773,7 +449,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                         href="/b/orders"
                         label={copy.jobs}
                         active={isActivePath(pathname, "/b/orders")}
-                        unread={unread.requests || unread.jobs}
                         onClick={closeProfileMenu}
                       />
 
@@ -821,12 +496,6 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
           <div className="grid grid-cols-4">
             {mobileNavItems.map((item) => {
               const active = isActivePath(pathname, item.href);
-              const showUnread =
-                item.badgeKey === "orders"
-                  ? unread.requests || unread.jobs
-                  : item.badgeKey
-                    ? unread[item.badgeKey]
-                    : false;
 
               return (
                 <Link
@@ -837,11 +506,11 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
                   }`}
                 >
                   <span>{item.shortLabel}</span>
-                  {showUnread ? (
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#ff5f67]" />
-                  ) : (
-                    <span className="mt-1 h-1.5 w-1.5" />
-                  )}
+                  <span
+                    className={`mt-1 h-1.5 w-1.5 rounded-full ${
+                      active ? "bg-[#ff5f67]" : "bg-transparent"
+                    }`}
+                  />
                 </Link>
               );
             })}

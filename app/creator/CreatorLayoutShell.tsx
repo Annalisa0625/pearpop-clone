@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -12,103 +11,19 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-
-type NavBadgeKey = "requests" | "jobs";
+import NotificationBell from "@/components/NotificationBell";
 
 type NavItem = {
   href: string;
   label: string;
   icon: ReactNode;
-  badgeKey?: NavBadgeKey;
 };
 
 type DetailNavContext = "requests" | "jobs" | null;
 
-type RequestSummary = {
-  id: string;
-  status: string | null;
-};
-
-type ChatReadRow = {
-  user_id: string;
-  last_read_at: string | null;
-};
-
-type ChatRow = {
-  id: string;
-  request_id?: string | null;
-  order_id?: string | null;
-  last_message_at: string | null;
-  chat_reads?: ChatReadRow[] | ChatReadRow | null;
-};
-
-type CreatorRow = {
-  id: string;
-  user_id: string;
-};
-
-type UnreadState = {
-  requests: boolean;
-  jobs: boolean;
-};
-
 type IconProps = {
   className?: string;
 };
-
-function BellIcon({ className = "" }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.1"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M18 8.5a6 6 0 0 0-12 0c0 7-3 7-3 8.7h18c0-1.7-3-1.7-3-8.7Z" />
-      <path d="M9.8 20a2.4 2.4 0 0 0 4.4 0" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon({ className = "" }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.1"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M21 11.1V12a9 9 0 1 1-5.3-8.2" />
-      <path d="m9.2 11.8 2.2 2.2L21 4.5" />
-    </svg>
-  );
-}
-
-function UserIcon({ className = "" }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.1"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M20 21a8 8 0 0 0-16 0" />
-      <circle cx="12" cy="8" r="4" />
-    </svg>
-  );
-}
 
 function HomeIcon({ className = "" }: IconProps) {
   return (
@@ -186,26 +101,6 @@ function YenIcon({ className = "" }: IconProps) {
   );
 }
 
-function MenuIcon({ className = "" }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.1"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="6.5" cy="7" r="1.6" />
-      <circle cx="17.5" cy="7" r="1.6" />
-      <circle cx="6.5" cy="17" r="1.6" />
-      <circle cx="17.5" cy="17" r="1.6" />
-    </svg>
-  );
-}
-
 function ProfileIcon({ className = "" }: IconProps) {
   return (
     <svg
@@ -220,6 +115,42 @@ function ProfileIcon({ className = "" }: IconProps) {
     >
       <path d="M5 19.5a7 7 0 0 1 14 0" />
       <circle cx="12" cy="8.2" r="4.2" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21 11.1V12a9 9 0 1 1-5.3-8.2" />
+      <path d="m9.2 11.8 2.2 2.2L21 4.5" />
+    </svg>
+  );
+}
+
+function UserIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M20 21a8 8 0 0 0-16 0" />
+      <circle cx="12" cy="8" r="4" />
     </svg>
   );
 }
@@ -298,13 +229,8 @@ function LoginIcon({ className = "" }: IconProps) {
   );
 }
 
-function getRequestDetailId(pathname: string) {
-  const match = pathname.match(/^\/creator\/requests\/([^/]+)$/);
-  return match?.[1] ?? null;
-}
-
-function getOrderDetailId(pathname: string) {
-  const match = pathname.match(/^\/creator\/orders\/([^/]+)$/);
+function getOrderIdFromPath(pathname: string) {
+  const match = pathname.match(/^\/creator\/orders\/([^/]+)/);
   return match?.[1] ?? null;
 }
 
@@ -325,6 +251,7 @@ function getDetailNavContextFromStatus(status: string | null): DetailNavContext 
     normalized === "accepted_captured" ||
     normalized === "in_progress" ||
     normalized === "delivered" ||
+    normalized === "revision_requested" ||
     normalized === "completed"
   ) {
     return "jobs";
@@ -348,7 +275,7 @@ function isActivePath(
     if (pathname === "/creator/requests") return true;
 
     if (pathname.startsWith("/creator/requests/")) {
-      return detailNavContext === "requests";
+      return true;
     }
 
     if (pathname.startsWith("/creator/orders/")) {
@@ -360,10 +287,6 @@ function isActivePath(
 
   if (href === "/creator/jobs") {
     if (pathname === "/creator/jobs") return true;
-
-    if (pathname.startsWith("/creator/requests/")) {
-      return detailNavContext === "jobs";
-    }
 
     if (pathname.startsWith("/creator/orders/")) {
       return detailNavContext === "jobs";
@@ -382,72 +305,11 @@ function isActivePath(
   return pathname.startsWith(href);
 }
 
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.filter((value): value is string => Boolean(value)))
-  );
-}
-
-function getChatReads(chat: ChatRow) {
-  if (!chat.chat_reads) return [];
-  if (Array.isArray(chat.chat_reads)) return chat.chat_reads;
-  return [chat.chat_reads];
-}
-
-function isUnreadChat(chat: ChatRow, userId: string) {
-  if (!chat.last_message_at) return false;
-
-  const readRow =
-    getChatReads(chat).find((row) => row.user_id === userId) ?? null;
-
-  if (!readRow?.last_read_at) return true;
-
-  return (
-    new Date(chat.last_message_at).getTime() >
-    new Date(readRow.last_read_at).getTime()
-  );
-}
-
-function hasUnreadChats(chats: ChatRow[], userId: string) {
-  return chats.some((chat) => isUnreadChat(chat, userId));
-}
-
 function isGuardExcludedPath(pathname: string) {
   return (
     pathname.startsWith("/creator/profile") ||
     pathname.startsWith("/creator/payouts") ||
     pathname.startsWith("/creator/onboarding")
-  );
-}
-
-function RedDot({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={`absolute rounded-full bg-[#ff5f67] ring-2 ring-white ${className}`}
-    />
-  );
-}
-
-function HeaderAction({
-  href,
-  label,
-  children,
-  showDot,
-}: {
-  href: string;
-  label: string;
-  children: ReactNode;
-  showDot?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-label={label}
-      className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
-    >
-      {children}
-      {showDot ? <RedDot className="right-2 top-2 h-2.5 w-2.5" /> : null}
-    </Link>
   );
 }
 
@@ -527,8 +389,6 @@ export default function CreatorLayoutShell({
             language: "表示言語",
             limitTitle: "現在、取引が一部制限されています",
             limitReasonLabel: "理由",
-            limitBody:
-              "既存の注文対応はできますが、新しい注文の受け付けは制限されています。",
           }
         : {
             home: "Home",
@@ -559,8 +419,6 @@ export default function CreatorLayoutShell({
             language: "Language",
             limitTitle: "Some account actions are restricted",
             limitReasonLabel: "Reason",
-            limitBody:
-              "You can continue handling existing orders, but new orders are restricted.",
           },
     [locale]
   );
@@ -576,13 +434,11 @@ export default function CreatorLayoutShell({
         href: "/creator/requests",
         label: copy.orders,
         icon: <OrdersIcon className="h-[25px] w-[25px]" />,
-        badgeKey: "requests",
       },
       {
         href: "/creator/jobs",
         label: copy.todo,
         icon: <TodoIcon className="h-[25px] w-[25px]" />,
-        badgeKey: "jobs",
       },
       {
         href: "/creator/payouts",
@@ -590,10 +446,10 @@ export default function CreatorLayoutShell({
         icon: <YenIcon className="h-[25px] w-[25px]" />,
       },
       {
-  href: "/creator/profile",
-  label: copy.menu,
-  icon: <ProfileIcon className="h-[25px] w-[25px]" />,
-},
+        href: "/creator/profile",
+        label: copy.menu,
+        icon: <ProfileIcon className="h-[25px] w-[25px]" />,
+      },
     ],
     [copy.home, copy.menu, copy.orders, copy.payouts, copy.todo]
   );
@@ -602,208 +458,8 @@ export default function CreatorLayoutShell({
   const [limitReason, setLimitReason] = useState<string | null>(null);
   const [detailNavContext, setDetailNavContext] =
     useState<DetailNavContext>(null);
-  const [unread, setUnread] = useState<UnreadState>({
-    requests: false,
-    jobs: false,
-  });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-
-  const hasAnyUnread = unread.requests || unread.jobs;
-
-  const loadUnreadBadges = useCallback(async () => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      setUnread({ requests: false, jobs: false });
-      return;
-    }
-
-    const { data: creatorRow, error: creatorError } = await supabase
-      .from("creators")
-      .select("id, user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (creatorError) {
-      console.error("Creator unread creator row load error:", creatorError);
-    }
-
-    const creator = (creatorRow as CreatorRow | null) ?? null;
-    const legacyCreatorKeys = uniqueStrings([user.id, creator?.id]);
-
-    const [
-      { data: pendingOrders, error: pendingOrdersError },
-      { data: activeOrders, error: activeOrdersError },
-      { data: pendingRequests, error: pendingRequestsError },
-      { data: activeRequests, error: activeRequestsError },
-    ] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("id")
-        .eq("creator_user_id", user.id)
-        .in("status", ["authorized_pending_creator", "checkout_pending"]),
-
-      supabase
-        .from("orders")
-        .select("id")
-        .eq("creator_user_id", user.id)
-        .in("status", [
-          "accepted_captured",
-          "in_progress",
-          "delivered",
-          "completed",
-        ]),
-
-      supabase
-        .from("requests")
-        .select("id")
-        .in("creator_user_id", legacyCreatorKeys)
-        .eq("status", "pending"),
-
-      supabase
-        .from("requests")
-        .select("id")
-        .in("creator_user_id", legacyCreatorKeys)
-        .in("status", ["accepted", "delivered", "completed"]),
-    ]);
-
-    if (
-      pendingOrdersError ||
-      activeOrdersError ||
-      pendingRequestsError ||
-      activeRequestsError
-    ) {
-      console.error("Creator unread source load error:", {
-        pendingOrdersError,
-        activeOrdersError,
-        pendingRequestsError,
-        activeRequestsError,
-      });
-    }
-
-    const pendingOrderIds = ((pendingOrders ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-    const activeOrderIds = ((activeOrders ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-    const pendingRequestIds = ((pendingRequests ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-    const activeRequestIds = ((activeRequests ?? []) as { id: string }[]).map(
-      (row) => row.id
-    );
-
-    let pendingOrderChats: ChatRow[] = [];
-    let activeOrderChats: ChatRow[] = [];
-    let pendingRequestChats: ChatRow[] = [];
-    let activeRequestChats: ChatRow[] = [];
-
-    if (pendingOrderIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          order_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("order_id", pendingOrderIds);
-
-      if (error) {
-        console.error("Creator pending order chat unread load error:", error);
-      } else {
-        pendingOrderChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    if (activeOrderIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          order_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("order_id", activeOrderIds);
-
-      if (error) {
-        console.error("Creator active order chat unread load error:", error);
-      } else {
-        activeOrderChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    if (pendingRequestIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          request_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("request_id", pendingRequestIds);
-
-      if (error) {
-        console.error("Creator pending request chat unread load error:", error);
-      } else {
-        pendingRequestChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    if (activeRequestIds.length > 0) {
-      const { data, error } = await supabase
-        .from("chats")
-        .select(
-          `
-          id,
-          request_id,
-          last_message_at,
-          chat_reads (
-            user_id,
-            last_read_at
-          )
-        `
-        )
-        .in("request_id", activeRequestIds);
-
-      if (error) {
-        console.error("Creator active request chat unread load error:", error);
-      } else {
-        activeRequestChats = (data ?? []) as ChatRow[];
-      }
-    }
-
-    setUnread({
-      requests:
-        hasUnreadChats(pendingOrderChats, user.id) ||
-        hasUnreadChats(pendingRequestChats, user.id),
-      jobs:
-        hasUnreadChats(activeOrderChats, user.id) ||
-        hasUnreadChats(activeRequestChats, user.id),
-    });
-  }, [supabase]);
 
   useEffect(() => {
     let cancelled = false;
@@ -904,143 +560,55 @@ export default function CreatorLayoutShell({
   }, [supabase]);
 
   useEffect(() => {
-    void loadUnreadBadges();
+    const orderId = getOrderIdFromPath(pathname);
 
-    const channel = supabase
-      .channel("creator-layout-unread-badges")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "chat_reads" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "chats" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "requests" },
-        () => {
-          void loadUnreadBadges();
-        }
-      )
-      .subscribe();
+    if (!orderId) {
+      if (pathname.startsWith("/creator/requests/")) {
+        setDetailNavContext("requests");
+      } else {
+        setDetailNavContext(null);
+      }
 
-    const onFocus = () => {
-      void loadUnreadBadges();
-    };
-
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("trendre:chat-read-changed", onFocus);
-
-    return () => {
-      void supabase.removeChannel(channel);
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener("trendre:chat-read-changed", onFocus);
-    };
-  }, [loadUnreadBadges, supabase]);
-
-  useEffect(() => {
-    const requestId = getRequestDetailId(pathname);
-    const orderId = getOrderDetailId(pathname);
-
-    if (!requestId && !orderId) {
-      setDetailNavContext(null);
       return;
     }
 
     let cancelled = false;
 
     const loadDetailContext = async () => {
-      if (requestId) {
-        try {
-          const res = await fetch("/api/creator/requests", {
-            credentials: "include",
-            cache: "no-store",
-          });
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-          const json = await res.json().catch(() => null);
-
-          if (!res.ok) {
-            if (!cancelled) {
-              setDetailNavContext("requests");
-            }
-            return;
-          }
-
-          const requests = (json?.requests ?? []) as RequestSummary[];
-          const current = requests.find((item) => item.id === requestId);
-
-          if (!cancelled) {
-            setDetailNavContext(
-              getDetailNavContextFromStatus(current?.status ?? null) ??
-                "requests"
-            );
-          }
-        } catch (e) {
-          console.error("failed to resolve creator request nav context", e);
-          if (!cancelled) {
-            setDetailNavContext("requests");
-          }
+        if (!user) {
+          if (!cancelled) setDetailNavContext("requests");
+          return;
         }
 
-        return;
-      }
+        const { data, error } = await supabase
+          .from("orders")
+          .select("status")
+          .eq("id", orderId)
+          .eq("creator_user_id", user.id)
+          .maybeSingle();
 
-      if (orderId) {
-        try {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+        if (error) {
+          console.error("failed to resolve creator order nav context", error);
+        }
 
-          if (!user) {
-            if (!cancelled) setDetailNavContext("requests");
-            return;
-          }
+        const status =
+          (data as { status: string | null } | null)?.status ?? null;
 
-          const { data, error } = await supabase
-            .from("orders")
-            .select("status")
-            .eq("id", orderId)
-            .eq("creator_user_id", user.id)
-            .maybeSingle();
+        if (!cancelled) {
+          setDetailNavContext(
+            getDetailNavContextFromStatus(status) ?? "requests"
+          );
+        }
+      } catch (e) {
+        console.error("failed to resolve creator order nav context", e);
 
-          if (error) {
-            console.error("failed to resolve creator order nav context", error);
-          }
-
-          const status =
-            (data as { status: string | null } | null)?.status ?? null;
-
-          if (!cancelled) {
-            setDetailNavContext(
-              getDetailNavContextFromStatus(status) ?? "requests"
-            );
-          }
-        } catch (e) {
-          console.error("failed to resolve creator order nav context", e);
-          if (!cancelled) {
-            setDetailNavContext("requests");
-          }
+        if (!cancelled) {
+          setDetailNavContext("requests");
         }
       }
     };
@@ -1095,21 +663,19 @@ export default function CreatorLayoutShell({
           </Link>
 
           <div className="relative flex items-center gap-2">
-            <HeaderAction
-              href="/creator/requests"
+            <NotificationBell
+              href="/notifications"
               label={copy.notifications}
-              showDot={hasAnyUnread}
-            >
-              <BellIcon className="h-[21px] w-[21px]" />
-            </HeaderAction>
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
+            />
 
-            <HeaderAction
+            <Link
               href="/creator/jobs"
-              label={copy.waitingWork}
-              showDot={unread.jobs}
+              aria-label={copy.waitingWork}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
             >
               <CheckCircleIcon className="h-[21px] w-[21px]" />
-            </HeaderAction>
+            </Link>
 
             <button
               type="button"
@@ -1259,7 +825,6 @@ export default function CreatorLayoutShell({
         <div className="mx-auto grid max-w-[520px] grid-cols-5 gap-1">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailNavContext);
-            const showUnread = item.badgeKey ? unread[item.badgeKey] : false;
 
             return (
               <Link
@@ -1273,9 +838,7 @@ export default function CreatorLayoutShell({
               >
                 <span
                   className={`mb-1.5 flex h-9 w-9 items-center justify-center rounded-[18px] transition duration-200 ${
-                    active
-                      ? "bg-rose-50 shadow-sm"
-                      : "bg-transparent"
+                    active ? "bg-rose-50 shadow-sm" : "bg-transparent"
                   }`}
                 >
                   <span
@@ -1290,10 +853,6 @@ export default function CreatorLayoutShell({
                 <span className="max-w-full truncate text-center leading-4">
                   {item.label}
                 </span>
-
-                {showUnread ? (
-                  <RedDot className="right-[18px] top-[9px] h-2.5 w-2.5" />
-                ) : null}
               </Link>
             );
           })}
