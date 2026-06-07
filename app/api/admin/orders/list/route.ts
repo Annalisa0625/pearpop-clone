@@ -10,6 +10,10 @@ type OrderRow = {
   id: string;
   created_at: string;
   updated_at: string | null;
+  accepted_at: string | null;
+  captured_at: string | null;
+  delivered_at: string | null;
+  completed_at: string | null;
   status: string;
   payment_status: string;
   product_name: string | null;
@@ -61,6 +65,10 @@ export async function GET() {
         id,
         created_at,
         updated_at,
+        accepted_at,
+        captured_at,
+        delivered_at,
+        completed_at,
         status,
         payment_status,
         product_name,

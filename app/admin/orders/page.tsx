@@ -2,10 +2,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 type TabKey =
   | "all"
+  | "checkout"
   | "waiting"
   | "active"
   | "review"
@@ -16,6 +17,10 @@ type OrderRow = {
   id: string;
   created_at: string;
   updated_at: string | null;
+  accepted_at: string | null;
+  captured_at: string | null;
+  delivered_at: string | null;
+  completed_at: string | null;
   status: string;
   payment_status: string;
   product_name: string | null;
@@ -38,8 +43,14 @@ type OrderRow = {
   max_revision_count: number | null;
 };
 
+type AgeLevel = "none" | "watch" | "warning" | "critical";
+
 function mapStatusToTab(status: string): TabKey {
-  if (status === "authorized_pending_creator" || status === "checkout_pending") {
+  if (status === "checkout_pending") {
+    return "checkout";
+  }
+
+  if (status === "authorized_pending_creator") {
     return "waiting";
   }
 
@@ -59,12 +70,52 @@ function mapStatusToTab(status: string): TabKey {
     status === "declined_canceled" ||
     status === "expired_canceled" ||
     status === "canceled" ||
-    status === "cancelled"
+    status === "cancelled" ||
+    status === "capture_failed"
   ) {
     return "canceled";
   }
 
   return "completed";
+}
+
+function getTime(value: string | null | undefined) {
+  if (!value) return null;
+
+  const time = new Date(value).getTime();
+
+  if (Number.isNaN(time)) return null;
+
+  return time;
+}
+
+function getAcceptedDays(order: OrderRow) {
+  const acceptedTime =
+    getTime(order.accepted_at) ??
+    getTime(order.captured_at) ??
+    (mapStatusToTab(order.status) === "active"
+      ? getTime(order.updated_at ?? order.created_at)
+      : null);
+
+  if (acceptedTime == null) return null;
+
+  const diff = Date.now() - acceptedTime;
+
+  if (diff < 0) return 0;
+
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function getAgeLevel(days: number | null): AgeLevel {
+  if (days == null) return "none";
+  if (days >= 14) return "critical";
+  if (days >= 7) return "warning";
+  if (days >= 3) return "watch";
+  return "none";
+}
+
+function needsAdminAttention(level: AgeLevel) {
+  return level === "warning" || level === "critical";
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -115,12 +166,14 @@ function getStatusLabel(status: string, paymentStatus: string) {
   if (status === "completed") return "完了";
   if (status === "declined_canceled") return "C辞退";
   if (status === "expired_canceled") return "期限切れ";
+  if (status === "capture_failed") return "決済確定失敗";
   if (status === "canceled" || status === "cancelled") return "キャンセル";
 
   return `${status} / ${paymentStatus}`;
 }
 
 function getStatusClass(tab: TabKey) {
+  if (tab === "checkout") return "bg-slate-50 text-slate-500 ring-slate-200";
   if (tab === "waiting") return "bg-amber-50 text-amber-800 ring-amber-100";
   if (tab === "active") return "bg-slate-950 text-white ring-slate-950";
   if (tab === "review") return "bg-rose-50 text-[#ff5f67] ring-rose-100";
@@ -130,11 +183,39 @@ function getStatusClass(tab: TabKey) {
   return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
+function getAgePillClass(level: AgeLevel) {
+  if (level === "critical") return "bg-red-50 text-red-700 ring-red-100";
+  if (level === "warning") return "bg-orange-50 text-orange-700 ring-orange-100";
+  if (level === "watch") return "bg-amber-50 text-amber-700 ring-amber-100";
+  return "bg-slate-50 text-slate-500 ring-slate-100";
+}
+
+function getAgeLabel(days: number | null) {
+  if (days == null) return null;
+
+  if (days >= 14) return `要対応：C承認から${days}日`;
+  if (days >= 7) return `要確認：C承認から${days}日`;
+  if (days >= 3) return `注意：C承認から${days}日`;
+
+  return `C承認から${days}日`;
+}
+
+function isStaleActiveOrder(order: OrderRow) {
+  const tab = mapStatusToTab(order.status);
+
+  if (tab !== "active") return false;
+  if (order.delivered_post_url) return false;
+
+  const days = getAcceptedDays(order);
+
+  return days != null && days >= 7;
+}
+
 function Pill({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className: string;
 }) {
   return (
@@ -149,13 +230,25 @@ function Pill({
 function StatCard({
   label,
   value,
+  tone = "default",
 }: {
   label: string;
   value: number | string;
+  tone?: "default" | "danger";
 }) {
   return (
-    <div className="rounded-[24px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-      <p className="text-xs font-black text-slate-400">{label}</p>
+    <div
+      className={`rounded-[24px] bg-white p-5 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ${
+        tone === "danger" ? "ring-red-100" : "ring-slate-100"
+      }`}
+    >
+      <p
+        className={`text-xs font-black ${
+          tone === "danger" ? "text-red-500" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </p>
       <p className="mt-2 text-[28px] font-black tracking-[-0.06em] text-slate-950">
         {value}
       </p>
@@ -198,13 +291,27 @@ function TabButton({
 
 function OrderCard({ order }: { order: OrderRow }) {
   const tab = mapStatusToTab(order.status);
+  const acceptedDays = tab === "active" ? getAcceptedDays(order) : null;
+  const ageLevel = getAgeLevel(acceptedDays);
+  const ageLabel = getAgeLabel(acceptedDays);
+  const shouldWarn = needsAdminAttention(ageLevel);
+
   const title =
     order.product_name?.trim() ||
     order.menu_title_snapshot?.trim() ||
     "注文名未設定";
 
+  const cardRingClass =
+    ageLevel === "critical"
+      ? "ring-red-100"
+      : ageLevel === "warning"
+        ? "ring-orange-100"
+        : "ring-slate-100";
+
   return (
-    <article className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
+    <article
+      className={`rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ${cardRingClass}`}
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap gap-2">
@@ -216,9 +323,17 @@ function OrderCard({ order }: { order: OrderRow }) {
               {order.payment_status}
             </Pill>
 
+            {ageLabel ? (
+              <Pill className={getAgePillClass(ageLevel)}>{ageLabel}</Pill>
+            ) : null}
+
             {order.delivered_post_url ? (
               <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
                 納品URLあり
+              </Pill>
+            ) : tab === "active" ? (
+              <Pill className="bg-slate-50 text-slate-500 ring-slate-100">
+                納品URLなし
               </Pill>
             ) : null}
           </div>
@@ -231,6 +346,18 @@ function OrderCard({ order }: { order: OrderRow }) {
             <p className="mt-1 truncate text-sm font-semibold text-slate-400">
               メニュー：{order.menu_title_snapshot}
             </p>
+          ) : null}
+
+          {shouldWarn ? (
+            <div
+              className={`mt-4 rounded-2xl p-3 text-sm font-bold leading-6 ring-1 ${
+                ageLevel === "critical"
+                  ? "bg-red-50 text-red-700 ring-red-100"
+                  : "bg-orange-50 text-orange-700 ring-orange-100"
+              }`}
+            >
+              C承認後、納品URLがまだ提出されていません。チャット状況や進行状況の確認を推奨します。
+            </div>
           ) : null}
 
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -269,6 +396,27 @@ function OrderCard({ order }: { order: OrderRow }) {
               <p className="text-xs font-black text-slate-400">作成</p>
               <p className="mt-1 truncate font-black text-slate-800">
                 {formatDateTime(order.created_at)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-400">C承認</p>
+              <p className="mt-1 truncate font-black text-slate-800">
+                {formatDateTime(order.accepted_at ?? order.captured_at)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-400">納品</p>
+              <p className="mt-1 truncate font-black text-slate-800">
+                {formatDateTime(order.delivered_at)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-400">完了</p>
+              <p className="mt-1 truncate font-black text-slate-800">
+                {formatDateTime(order.completed_at)}
               </p>
             </div>
 
@@ -341,10 +489,16 @@ export default function AdminOrdersPage() {
   const counts = useMemo(() => {
     return {
       all: orders.length,
-      waiting: orders.filter((order) => mapStatusToTab(order.status) === "waiting")
-        .length,
-      active: orders.filter((order) => mapStatusToTab(order.status) === "active")
-        .length,
+      checkout: orders.filter(
+        (order) => mapStatusToTab(order.status) === "checkout"
+      ).length,
+      waiting: orders.filter(
+        (order) => mapStatusToTab(order.status) === "waiting"
+      ).length,
+      active: orders.filter(
+        (order) => mapStatusToTab(order.status) === "active"
+      ).length,
+      staleActive: orders.filter(isStaleActiveOrder).length,
       review: orders.filter((order) => mapStatusToTab(order.status) === "review")
         .length,
       completed: orders.filter(
@@ -423,13 +577,18 @@ export default function AdminOrdersPage() {
         </section>
       ) : null}
 
-      <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-7">
         <StatCard label="すべて" value={counts.all} />
+        <StatCard label="Checkout未完了" value={counts.checkout} />
         <StatCard label="C返答待ち" value={counts.waiting} />
         <StatCard label="進行中" value={counts.active} />
+        <StatCard
+          label="要確認"
+          value={counts.staleActive}
+          tone={counts.staleActive > 0 ? "danger" : "default"}
+        />
         <StatCard label="納品確認" value={counts.review} />
         <StatCard label="完了" value={counts.completed} />
-        <StatCard label="キャンセル" value={counts.canceled} />
       </section>
 
       <section className="mb-5 rounded-[28px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
@@ -441,30 +600,42 @@ export default function AdminOrdersPage() {
               active={tab === "all"}
               onClick={() => setTab("all")}
             />
+
+            <TabButton
+              label="Checkout未完了"
+              count={counts.checkout}
+              active={tab === "checkout"}
+              onClick={() => setTab("checkout")}
+            />
+
             <TabButton
               label="C返答待ち"
               count={counts.waiting}
               active={tab === "waiting"}
               onClick={() => setTab("waiting")}
             />
+
             <TabButton
               label="進行中"
               count={counts.active}
               active={tab === "active"}
               onClick={() => setTab("active")}
             />
+
             <TabButton
               label="納品確認"
               count={counts.review}
               active={tab === "review"}
               onClick={() => setTab("review")}
             />
+
             <TabButton
               label="完了"
               count={counts.completed}
               active={tab === "completed"}
               onClick={() => setTab("completed")}
             />
+
             <TabButton
               label="キャンセル"
               count={counts.canceled}
