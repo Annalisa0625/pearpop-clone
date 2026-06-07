@@ -283,7 +283,9 @@ function getStatusLabel(status: string) {
 }
 
 function isActiveOrder(status: string) {
-  return ["accepted_captured", "in_progress", "revision_requested"].includes(status);
+  return ["accepted_captured", "in_progress", "revision_requested"].includes(
+    status
+  );
 }
 
 function shouldWarnProgress(order: OrderRow) {
@@ -507,15 +509,25 @@ export default function AdminOrderDetailPage() {
     );
   }
 
-  const { order, company, creator, bAuthUser, creatorAuthUser, chat, messages, assets } =
-    detail;
+  const {
+    order,
+    company,
+    creator,
+    bAuthUser,
+    creatorAuthUser,
+    chat,
+    messages,
+    assets,
+  } = detail;
 
   const title =
     order.product_name?.trim() ||
     order.menu_title_snapshot?.trim() ||
     "注文名未設定";
 
-  const acceptedDays = isActiveOrder(order.status) ? getAcceptedDays(order) : null;
+  const acceptedDays = isActiveOrder(order.status)
+    ? getAcceptedDays(order)
+    : null;
   const progressWarning = shouldWarnProgress(order);
 
   return (
@@ -553,7 +565,9 @@ export default function AdminOrderDetailPage() {
               {order.delivered_post_url ? (
                 <Pill tone="rose">納品URLあり</Pill>
               ) : isActiveOrder(order.status) ? (
-                <Pill tone={progressWarning ? "amber" : "slate"}>納品URLなし</Pill>
+                <Pill tone={progressWarning ? "amber" : "slate"}>
+                  納品URLなし
+                </Pill>
               ) : null}
             </div>
 
@@ -612,8 +626,14 @@ export default function AdminOrderDetailPage() {
             </div>
 
             <div className="mt-3 grid gap-3">
-              <InfoItem label="要件" value={<p className="whitespace-pre-wrap">{order.requirements}</p>} />
-              <InfoItem label="注意事項・補足" value={<p className="whitespace-pre-wrap">{order.post_notes}</p>} />
+              <InfoItem
+                label="要件"
+                value={<p className="whitespace-pre-wrap">{order.requirements}</p>}
+              />
+              <InfoItem
+                label="注意事項・補足"
+                value={<p className="whitespace-pre-wrap">{order.post_notes}</p>}
+              />
               <InfoItem label="PR表記/アカウント" value={order.pr_account} />
               <InfoItem
                 label="投稿文・ハッシュタグ"
@@ -623,7 +643,11 @@ export default function AdminOrderDetailPage() {
                       <p className="whitespace-pre-wrap">{order.pr_copy_text}</p>
                     ) : null}
                     {order.pr_hashtags?.length ? (
-                      <p>{order.pr_hashtags.map((tag) => `#${tag.replace(/^#/, "")}`).join(" ")}</p>
+                      <p>
+                        {order.pr_hashtags
+                          .map((tag) => `#${tag.replace(/^#/, "")}`)
+                          .join(" ")}
+                      </p>
                     ) : null}
                   </div>
                 }
@@ -684,16 +708,27 @@ export default function AdminOrderDetailPage() {
                     メッセージはまだありません。
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {messages.map((message) => (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        order={order}
-                        company={company}
-                        creator={creator}
-                      />
-                    ))}
+                  <div className="rounded-[24px] bg-slate-50/60 p-3 ring-1 ring-slate-100">
+                    <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                      <p className="text-xs font-black text-slate-400">
+                        メッセージ {messages.length}件
+                      </p>
+                      <p className="text-xs font-bold text-slate-400">
+                        この枠内でスクロールできます
+                      </p>
+                    </div>
+
+                    <div className="max-h-[520px] space-y-3 overflow-y-auto overscroll-contain pr-2">
+                      {messages.map((message) => (
+                        <MessageBubble
+                          key={message.id}
+                          message={message}
+                          order={order}
+                          company={company}
+                          creator={creator}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -770,9 +805,7 @@ export default function AdminOrderDetailPage() {
               <InfoItem label="地域" value={[creator?.prefecture, creator?.city].filter(Boolean).join(" / ")} />
               <InfoItem
                 label="Stripe Connect"
-                value={
-                  creator?.stripe_onboarding_completed ? "完了" : "未完了"
-                }
+                value={creator?.stripe_onboarding_completed ? "完了" : "未完了"}
               />
               <InfoItem label="Stripe Account ID" value={creator?.stripe_account_id} mono />
               <InfoItem label="C User ID" value={order.creator_user_id} mono />
@@ -781,7 +814,10 @@ export default function AdminOrderDetailPage() {
 
           <Section title="決済情報">
             <div className="space-y-3">
-              <InfoItem label="B支払額" value={formatPrice(order.buyer_total_amount ?? order.stripe_amount, order.currency)} />
+              <InfoItem
+                label="B支払額"
+                value={formatPrice(order.buyer_total_amount ?? order.stripe_amount, order.currency)}
+              />
               <InfoItem label="メニュー価格" value={formatPrice(order.menu_price_amount, order.currency)} />
               <InfoItem label="B手数料" value={formatPrice(order.buyer_marketplace_fee_amount, order.currency)} />
               <InfoItem label="B手数料率" value={formatPercentBps(order.buyer_marketplace_fee_rate_bps)} />
