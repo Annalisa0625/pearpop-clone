@@ -444,6 +444,13 @@ function OrderCard({ order }: { order: OrderRow }) {
 
         <div className="flex shrink-0 flex-wrap gap-2 lg:flex-col">
           <Link
+            href={`/admin/orders/${order.id}`}
+            className="rounded-full bg-[#ff5f67] px-4 py-2.5 text-center text-xs font-black text-white shadow-[0_12px_26px_rgba(255,95,103,0.22)]"
+          >
+            Admin詳細
+          </Link>
+
+          <Link
             href={`/b/orders/${order.id}`}
             className="rounded-full bg-slate-950 px-4 py-2.5 text-center text-xs font-black text-white"
           >
