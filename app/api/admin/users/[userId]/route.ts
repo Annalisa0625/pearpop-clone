@@ -150,6 +150,7 @@ export async function GET(
           last_sign_in_at: authResult.data.user.last_sign_in_at ?? null,
           email_confirmed_at: authResult.data.user.email_confirmed_at ?? null,
           phone_confirmed_at: authResult.data.user.phone_confirmed_at ?? null,
+          banned_until: (authResult.data.user as any).banned_until ?? null,
           app_metadata: authResult.data.user.app_metadata ?? null,
           user_metadata: authResult.data.user.user_metadata ?? null,
         }

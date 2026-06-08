@@ -16,6 +16,7 @@ type AuthUser = {
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
   phone_confirmed_at: string | null;
+  banned_until: string | null;
   app_metadata: unknown;
   user_metadata: unknown;
 };
@@ -238,6 +239,57 @@ function InfoItem({
   );
 }
 
+function TextInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-black text-slate-400">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="mt-1 min-h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+      />
+    </label>
+  );
+}
+
+function TextArea({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-black text-slate-400">{label}</span>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+      />
+    </label>
+  );
+}
+
 function OrderCard({ order, side }: { order: OrderLite; side: "b" | "c" }) {
   const title =
     order.product_name?.trim() ||
@@ -283,6 +335,16 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [noticeTitle, setNoticeTitle] = useState("Trendreからのお知らせ");
+  const [noticeBody, setNoticeBody] = useState("");
+  const [noticeLinkPath, setNoticeLinkPath] = useState("");
+  const [noticeSending, setNoticeSending] = useState(false);
+
+  const [banLevel, setBanLevel] = useState<"temporary" | "permanent">("temporary");
+  const [banReason, setBanReason] = useState("");
+  const [banAdminNote, setBanAdminNote] = useState("");
+  const [banLoading, setBanLoading] = useState(false);
+
   const loadDetail = async () => {
     setLoading(true);
     setError(null);
@@ -325,6 +387,145 @@ export default function AdminUserDetailPage() {
       detail.userId
     );
   }, [detail]);
+
+  const isSuspended = Boolean(
+    detail?.profile?.is_suspended ||
+      detail?.creator?.is_suspended ||
+      detail?.authUser?.banned_until
+  );
+
+  const handleSendNotice = async () => {
+    if (!detail) return;
+
+    if (!noticeTitle.trim()) {
+      alert("通知タイトルを入力してください");
+      return;
+    }
+
+    if (!noticeBody.trim()) {
+      alert("通知本文を入力してください");
+      return;
+    }
+
+    setNoticeSending(true);
+
+    try {
+      const res = await fetch("/api/admin/users/notify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          userId: detail.userId,
+          title: noticeTitle,
+          body: noticeBody,
+          linkPath: noticeLinkPath,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json?.error ?? "通知送信に失敗しました");
+      }
+
+      alert("お知らせ欄へ通知を送信しました");
+      setNoticeBody("");
+      setNoticeLinkPath("");
+    } catch (error) {
+      console.error("send admin notice error:", error);
+      alert(error instanceof Error ? error.message : "通知送信に失敗しました");
+    } finally {
+      setNoticeSending(false);
+    }
+  };
+
+  const handleSuspend = async () => {
+    if (!detail) return;
+
+    if (!banReason.trim()) {
+      alert("停止理由を入力してください");
+      return;
+    }
+
+    const ok = confirm(
+      `${displayName} のアカウントを停止します。\nログインできなくなる可能性があります。本当に実行しますか？`
+    );
+
+    if (!ok) return;
+
+    setBanLoading(true);
+
+    try {
+      const res = await fetch("/api/admin/users/ban", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          userId: detail.userId,
+          reason: banReason,
+          level: banLevel,
+          adminNote: banAdminNote,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json?.error ?? "アカウント停止に失敗しました");
+      }
+
+      alert("アカウントを停止しました");
+      setBanReason("");
+      setBanAdminNote("");
+      await loadDetail();
+    } catch (error) {
+      console.error("admin suspend user error:", error);
+      alert(error instanceof Error ? error.message : "アカウント停止に失敗しました");
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  const handleUnsuspend = async () => {
+    if (!detail) return;
+
+    const ok = confirm(`${displayName} のアカウント停止を解除しますか？`);
+
+    if (!ok) return;
+
+    setBanLoading(true);
+
+    try {
+      const res = await fetch("/api/admin/users/unban", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          userId: detail.userId,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json?.error ?? "停止解除に失敗しました");
+      }
+
+      alert("アカウント停止を解除しました");
+      await loadDetail();
+    } catch (error) {
+      console.error("admin unsuspend user error:", error);
+      alert(error instanceof Error ? error.message : "停止解除に失敗しました");
+    } finally {
+      setBanLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -403,9 +604,7 @@ export default function AdminUserDetailPage() {
                 <Pill tone="amber">未承認</Pill>
               ) : null}
 
-              {profile?.is_suspended || creator?.is_suspended ? (
-                <Pill tone="red">停止中</Pill>
-              ) : null}
+              {isSuspended ? <Pill tone="red">停止中</Pill> : null}
             </div>
           </div>
 
@@ -440,6 +639,7 @@ export default function AdminUserDetailPage() {
               <InfoItem label="登録日時" value={formatDateTime(authUser?.created_at)} />
               <InfoItem label="メール確認" value={formatDateTime(authUser?.email_confirmed_at)} />
               <InfoItem label="電話確認" value={formatDateTime(authUser?.phone_confirmed_at)} />
+              <InfoItem label="停止期限" value={formatDateTime(authUser?.banned_until)} />
               <InfoItem label="ロール" value={roles.join(" / ") || "-"} />
             </div>
           </Section>
@@ -639,9 +839,121 @@ export default function AdminUserDetailPage() {
         </div>
 
         <aside className="space-y-5">
+          <Section title="Admin操作" description="お知らせ送信とアカウント停止を行えます。">
+            <div className="space-y-5">
+              <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+                <h3 className="text-sm font-black text-slate-950">
+                  お知らせ欄へ通知
+                </h3>
+
+                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                  送信すると相手の通知画面の「お知らせ」タブに表示されます。LINE連携済みの場合は将来LINE配信にもつなげられます。
+                </p>
+
+                <div className="mt-4 space-y-3">
+                  <TextInput
+                    label="タイトル"
+                    value={noticeTitle}
+                    onChange={setNoticeTitle}
+                    placeholder="Trendreからのお知らせ"
+                  />
+
+                  <TextArea
+                    label="本文"
+                    value={noticeBody}
+                    onChange={setNoticeBody}
+                    placeholder="ユーザーに表示するお知らせ内容を入力してください"
+                    rows={4}
+                  />
+
+                  <TextInput
+                    label="リンク先 任意"
+                    value={noticeLinkPath}
+                    onChange={setNoticeLinkPath}
+                    placeholder="/notifications など"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={noticeSending}
+                    onClick={handleSendNotice}
+                    className="w-full rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_12px_26px_rgba(255,95,103,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {noticeSending ? "送信中..." : "お知らせ欄へ通知する"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-[24px] bg-red-50 p-4 ring-1 ring-red-100">
+                <h3 className="text-sm font-black text-red-700">
+                  アカウント停止
+                </h3>
+
+                <p className="mt-1 text-xs font-bold leading-5 text-red-500">
+                  停止すると対象ユーザーはログインできなくなる可能性があります。本人確認・不正・重大トラブル時だけ使用してください。
+                </p>
+
+                {isSuspended ? (
+                  <button
+                    type="button"
+                    disabled={banLoading}
+                    onClick={handleUnsuspend}
+                    className="mt-4 w-full rounded-full bg-white px-5 py-3 text-sm font-black text-red-700 ring-1 ring-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {banLoading ? "解除中..." : "アカウント停止を解除する"}
+                  </button>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    <label className="block">
+                      <span className="text-xs font-black text-red-500">
+                        停止レベル
+                      </span>
+                      <select
+                        value={banLevel}
+                        onChange={(event) =>
+                          setBanLevel(event.target.value as "temporary" | "permanent")
+                        }
+                        className="mt-1 min-h-11 w-full rounded-2xl border border-red-100 bg-white px-4 text-sm font-black text-red-700 outline-none"
+                      >
+                        <option value="temporary">一時停止</option>
+                        <option value="permanent">永久停止</option>
+                      </select>
+                    </label>
+
+                    <TextArea
+                      label="停止理由"
+                      value={banReason}
+                      onChange={setBanReason}
+                      placeholder="例：不正利用の疑い、規約違反、本人確認未完了など"
+                      rows={3}
+                    />
+
+                    <TextArea
+                      label="管理者メモ 任意"
+                      value={banAdminNote}
+                      onChange={setBanAdminNote}
+                      placeholder="内部メモを残す場合に入力"
+                      rows={3}
+                    />
+
+                    <button
+                      type="button"
+                      disabled={banLoading}
+                      onClick={handleSuspend}
+                      className="w-full rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white shadow-[0_12px_26px_rgba(220,38,38,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {banLoading ? "停止中..." : "アカウントを停止する"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Section>
+
           <Section title="状態サマリー">
             <div className="space-y-3">
               <InfoItem label="種別" value={getRoleLabel(type)} />
+              <InfoItem label="停止状態" value={isSuspended ? "停止中" : "通常"} />
               <InfoItem label="B注文数" value={`${bOrders.length}件`} />
               <InfoItem label="C受注数" value={`${cOrders.length}件`} />
               <InfoItem
