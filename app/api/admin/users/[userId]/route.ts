@@ -26,6 +26,17 @@ function getPublicUrl(bucket: string | null, path: string | null) {
   }
 }
 
+function pickPortfolioUrl(asset: any) {
+  return (
+    asset.public_url ??
+    asset.asset_url ??
+    asset.image_url ??
+    asset.file_url ??
+    asset.url ??
+    getPublicUrl(asset.storage_bucket ?? null, asset.storage_path ?? null)
+  );
+}
+
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ userId: string }> }
@@ -193,12 +204,14 @@ export async function GET(
         supabaseAdmin
           .from("creator_menus")
           .select("*")
-          .eq("creator_id", creator.id),
+          .eq("creator_id", creator.id)
+          .order("sort_order", { ascending: true }),
 
         supabaseAdmin
           .from("creator_portfolio_assets")
           .select("*")
-          .eq("creator_id", creator.id),
+          .eq("creator_id", creator.id)
+          .order("sort_order", { ascending: true }),
       ]);
 
       if (socialErr) {
@@ -216,12 +229,15 @@ export async function GET(
       creatorSocialAccounts = socialRows ?? [];
       creatorMenus = menuRows ?? [];
 
-      portfolioAssets = (portfolioRows ?? []).map((asset: any) => ({
-        ...asset,
-        public_url:
-          asset.public_url ??
-          getPublicUrl(asset.storage_bucket ?? null, asset.storage_path ?? null),
-      }));
+      portfolioAssets = (portfolioRows ?? []).map((asset: any) => {
+        const publicUrl = pickPortfolioUrl(asset);
+
+        return {
+          ...asset,
+          public_url: publicUrl,
+          asset_url: asset.asset_url ?? publicUrl,
+        };
+      });
     }
 
     if (!authUser && !company && !creator && !profile) {
