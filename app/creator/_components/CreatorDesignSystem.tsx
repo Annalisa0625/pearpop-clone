@@ -26,7 +26,7 @@ export const creatorTheme = {
   },
 
   page:
-    "max-w-full touch-pan-y space-y-3 overflow-x-hidden pb-4 text-slate-950",
+  "trendre-safe-page trendre-creator-page-bottom max-w-full touch-pan-y space-y-3 overflow-x-hidden text-slate-950",
 
   surface:
     "rounded-[28px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100",

@@ -1,3 +1,167 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --trendre-page-bg: #f8f9fb;
+  --trendre-ink: #020617;
+  --trendre-primary: #ff3b5c;
+  --trendre-safe-top: env(safe-area-inset-top, 0px);
+  --trendre-safe-right: env(safe-area-inset-right, 0px);
+  --trendre-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --trendre-safe-left: env(safe-area-inset-left, 0px);
+  --trendre-creator-header-height: 64px;
+  --trendre-creator-bottom-nav-height: 76px;
+}
+
+* {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+html {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: var(--trendre-page-bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior-x: none;
+  scroll-behavior: smooth;
+}
+
+body {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: var(--trendre-page-bg);
+  color: var(--trendre-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
+
+#__next {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+a,
+button,
+input,
+textarea,
+select,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+img,
+video,
+canvas,
+svg,
+iframe {
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+pre,
+code,
+kbd,
+samp {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.break-safe {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.trendre-app-shell {
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow-x: hidden;
+  background: var(--trendre-page-bg);
+  overscroll-behavior-x: none;
+}
+
+.trendre-safe-page {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding-left: max(0px, var(--trendre-safe-left));
+  padding-right: max(0px, var(--trendre-safe-right));
+}
+
+.trendre-creator-page-bottom {
+  padding-bottom: calc(
+    var(--trendre-creator-bottom-nav-height) +
+      var(--trendre-safe-bottom) +
+      24px
+  );
+}
+
+.trendre-scrollbar-none {
+  scrollbar-width: none;
+}
+
+.trendre-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@supports (height: 100dvh) {
+  .trendre-min-screen {
+    min-height: 100dvh;
+  }
+}
+
+@supports not (height: 100dvh) {
+  .trendre-min-screen {
+    min-height: 100vh;
+  }
+}
+
+::selection {
+  background: rgba(255, 59, 92, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
