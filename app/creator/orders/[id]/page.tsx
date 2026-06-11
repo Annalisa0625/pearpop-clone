@@ -62,6 +62,8 @@ type ReferenceAsset = {
   signed_url: string | null;
 };
 
+type ActionLoading = "accept" | "decline" | "deliver" | null;
+
 const AUTH_TIMEOUT_MS = 8000;
 const ORDER_TIMEOUT_MS = 10000;
 const REFERENCE_ASSET_TIMEOUT_MS = 8000;
@@ -94,6 +96,7 @@ async function fetchWithTimeout(
   timeoutMessage: string
 ) {
   const controller = new AbortController();
+
   const timer = window.setTimeout(() => {
     controller.abort();
   }, ms);
@@ -121,6 +124,7 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
@@ -210,10 +214,10 @@ function statusLabel(order: OrderDetail, locale: "ja" | "en") {
   const status = order.status;
 
   if (locale === "ja") {
-    if (isCheckoutPending(order)) return "支払い確認中";
+    if (isCheckoutPending(order)) return "準備中";
     if (isWaitingForCreator(order)) return "返答待ち";
     if (isInProgress(order)) return "進行中";
-    if (status === "revision_requested") return "修正対応";
+    if (status === "revision_requested") return "修正対応中";
     if (status === "delivered") return "確認待ち";
     if (status === "completed") return "完了";
     if (status === "declined_canceled") return "辞退済み";
@@ -221,7 +225,7 @@ function statusLabel(order: OrderDetail, locale: "ja" | "en") {
     return "確認中";
   }
 
-  if (isCheckoutPending(order)) return "Checking payment";
+  if (isCheckoutPending(order)) return "Preparing";
   if (isWaitingForCreator(order)) return "Pending";
   if (isInProgress(order)) return "In progress";
   if (status === "revision_requested") return "Revision";
@@ -247,15 +251,15 @@ function transferLabel(value: string | null, locale: "ja" | "en") {
   const status = value || "not_started";
 
   if (locale === "ja") {
-    if (status === "transferred") return "送金済み";
-    if (status === "pending") return "送金処理中";
-    if (status === "failed") return "確認中";
+    if (status === "transferred") return "反映済み";
+    if (status === "pending") return "確認中";
+    if (status === "failed") return "運営が確認中";
     return "完了後に反映";
   }
 
-  if (status === "transferred") return "Transferred";
-  if (status === "pending") return "Processing";
-  if (status === "failed") return "Checking";
+  if (status === "transferred") return "Reflected";
+  if (status === "pending") return "Checking";
+  if (status === "failed") return "Support is checking";
   return "After completion";
 }
 
@@ -295,6 +299,12 @@ function buildPrCopyText(order: OrderDetail) {
 
   const lines: string[] = [];
 
+  const mainCopy = order.pr_copy_text?.trim();
+
+  if (mainCopy) {
+    lines.push(mainCopy);
+  }
+
   if (account) {
     lines.push(`PR@${account}`);
   }
@@ -303,7 +313,7 @@ function buildPrCopyText(order: OrderDetail) {
     lines.push(hashtags.map((tag) => `#${tag}`).join(" "));
   }
 
-  return lines.join("\n");
+  return lines.join("\n\n").trim();
 }
 
 function extractRequirementSection(
@@ -311,10 +321,12 @@ function extractRequirementSection(
   sectionTitle: string
 ) {
   const text = requirements?.trim();
+
   if (!text) return "";
 
   const marker = `【${sectionTitle}】`;
   const start = text.indexOf(marker);
+
   if (start < 0) return "";
 
   const rest = text.slice(start + marker.length).trim();
@@ -648,7 +660,7 @@ function ReferenceGallery({
       </div>
 
       {assets.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="trendre-scrollbar-none flex gap-2 overflow-x-auto pb-1">
           {assets.map((asset, index) => {
             const active = index === safeIndex;
             const thumbIsImage = asset.file_type === "image";
@@ -705,7 +717,7 @@ function OrderSummaryBox({
           <p className="text-xs font-black text-slate-400">
             {copy.summaryMenu}
           </p>
-          <p className="mt-1 text-[15px] font-black text-slate-950">
+          <p className="mt-1 break-words text-[15px] font-black text-slate-950">
             {order.menu_title_snapshot || copy.notSet}
           </p>
         </div>
@@ -756,7 +768,7 @@ function ResponseActionBox({
     accepting: string;
     declining: string;
   };
-  actionLoading: "accept" | "decline" | "deliver" | null;
+  actionLoading: ActionLoading;
   onAccept: () => void;
   onDecline: () => void;
 }) {
@@ -801,20 +813,109 @@ function ChatCtaBox({
 }) {
   return (
     <Surface className="p-4 sm:p-5">
-      <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
-        {title}
-      </p>
-      <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-        {body}
-      </p>
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+          <MessageIcon />
+        </div>
 
-      <Link
-        href={href}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
-      >
-        <MessageIcon />
-        {buttonLabel}
-      </Link>
+        <div className="min-w-0 flex-1">
+          <p className="text-[17px] font-black tracking-[-0.04em] text-slate-950">
+            {title}
+          </p>
+          <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+            {body}
+          </p>
+
+          <Link
+            href={href}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
+          >
+            <MessageIcon />
+            {buttonLabel}
+          </Link>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function DeliveryActionBox({
+  order,
+  copy,
+  deliveryUrl,
+  setDeliveryUrl,
+  actionLoading,
+  onDeliver,
+  isRevisionRequested,
+}: {
+  order: OrderDetail;
+  copy: {
+    deliveryTitle: string;
+    redeliveryTitle: string;
+    deliveryBody: string;
+    deliveredPostUrlPlaceholder: string;
+    openDeliveredUrl: string;
+    deliver: string;
+    redeliver: string;
+    updateDelivery: string;
+    delivering: string;
+  };
+  deliveryUrl: string;
+  setDeliveryUrl: (value: string) => void;
+  actionLoading: ActionLoading;
+  onDeliver: () => void;
+  isRevisionRequested: boolean;
+}) {
+  return (
+    <Surface className="overflow-hidden">
+      <div className="bg-gradient-to-br from-rose-50 via-white to-white p-4 ring-1 ring-rose-50 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-white text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
+            <LinkIcon />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
+              {isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              {copy.deliveryBody}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <input
+            type="url"
+            value={deliveryUrl}
+            onChange={(e) => setDeliveryUrl(e.target.value)}
+            placeholder={copy.deliveredPostUrlPlaceholder}
+            className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-[16px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+          />
+
+          {order.delivered_post_url ? (
+            <a
+              href={order.delivered_post_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex max-w-full items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
+            >
+              <LinkIcon />
+              <span className="truncate">{copy.openDeliveredUrl}</span>
+            </a>
+          ) : null}
+
+          <PrimaryButton onClick={onDeliver} disabled={actionLoading !== null}>
+            {actionLoading === "deliver"
+              ? copy.delivering
+              : isRevisionRequested
+                ? copy.redeliver
+                : order.delivered_post_url
+                  ? copy.updateDelivery
+                  : copy.deliver}
+          </PrimaryButton>
+        </div>
+      </div>
     </Surface>
   );
 }
@@ -823,97 +924,97 @@ function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
   if (locale === "ja") {
     if (isCheckoutPending(order)) {
       return {
-        title: "支払い確認中です",
-        body: "注文情報の確認が完了すると、返答できる状態になります。",
+        title: "注文の準備中です",
+        body: "企業側の確認が完了すると、対応するか選べるようになります。",
       };
     }
 
     if (isWaitingForCreator(order)) {
       return {
-        title: "注文内容を確認してください",
-        body: "内容を確認して、対応できる場合は注文を受けてください。",
+        title: "対応するか選びましょう",
+        body: "内容・報酬・期限を確認して、対応できる場合は注文を受けてください。",
       };
     }
 
     if (order.status === "revision_requested") {
       return {
-        title: "修正対応が必要です",
-        body: "修正内容を確認して、再度納品URLを提出してください。",
+        title: "修正版を提出しましょう",
+        body: "企業からの修正内容を確認し、修正版のURLを送ってください。",
       };
     }
 
     if (order.status === "delivered") {
       return {
-        title: "確認待ちです",
-        body: "納品URLは提出済みです。確認完了までお待ちください。",
+        title: "企業の確認を待っています",
+        body: "納品URLは送信済みです。確認が完了するまでお待ちください。",
       };
     }
 
     if (order.status === "completed") {
       return {
-        title: "この注文は完了しました",
-        body: "報酬の状況は報酬ページから確認できます。",
+        title: "注文が完了しました",
+        body: "お疲れさまでした。報酬の状況は報酬ページで確認できます。",
       };
     }
 
     if (isInProgress(order)) {
       return {
-        title: "納品を進めましょう",
-        body: "制作・投稿が完了したら、納品URLを提出してください。",
+        title: "納品URLを提出しましょう",
+        body: "投稿・制作が完了したら、確認できるURLを送ってください。",
       };
     }
 
     return {
-      title: "確認中です",
-      body: "注文の状態を確認しています。",
+      title: "注文を確認しています",
+      body: "現在の状態を確認しています。少し時間をおいて再度ご確認ください。",
     };
   }
 
   if (isCheckoutPending(order)) {
     return {
-      title: "Checking payment",
-      body: "You will be able to respond once the order is confirmed.",
+      title: "Preparing this order",
+      body: "You will be able to respond once the brand confirmation is complete.",
     };
   }
 
   if (isWaitingForCreator(order)) {
     return {
-      title: "Review this order",
-      body: "Review the details and accept it if you can handle it.",
+      title: "Choose whether to accept",
+      body: "Review the details, payout, and deadline before accepting this order.",
     };
   }
 
   if (order.status === "revision_requested") {
     return {
-      title: "Revision needed",
-      body: "Check the revision request and submit the updated delivery URL.",
+      title: "Submit a revised URL",
+      body: "Check the brand’s revision request and send the updated URL.",
     };
   }
 
   if (order.status === "delivered") {
     return {
-      title: "Waiting for review",
-      body: "Your delivery URL has been submitted.",
+      title: "Waiting for brand review",
+      body: "Your delivery URL has been submitted. Please wait for confirmation.",
     };
   }
 
   if (order.status === "completed") {
     return {
       title: "This order is complete",
-      body: "You can check payout status from the payouts page.",
+      body: "Great work. You can check payout status from your payouts page.",
     };
   }
 
   if (isInProgress(order)) {
     return {
-      title: "Continue delivery",
-      body: "Submit the delivery URL when the work is ready.",
+      title: "Submit your delivery URL",
+      body: "When the post or asset is ready, send a URL the brand can review.",
     };
   }
 
   return {
-    title: "Checking",
-    body: "Checking the order status.",
+    title: "Checking this order",
+    body: "We are checking the current order status.",
   };
 }
 
@@ -934,32 +1035,38 @@ export default function CreatorOrderDetailPage() {
             loading: "読み込み中...",
             notFound: "注文が見つかりませんでした。",
             back: "一覧へ戻る",
+
+            taskLabel: "今やること",
             orderContent: "注文内容",
-            deliveryTitle: "納品URLを提出",
-            redeliveryTitle: "修正版の納品URLを提出",
+
+            deliveryTitle: "納品する",
+            redeliveryTitle: "修正版を送る",
             deliveryBody:
-              "投稿URL、成果物URL、Google Drive URLなど、確認できるURLを入力してください。",
+              "投稿URL、成果物URL、Google Driveなど、企業が確認できるURLを入力してください。",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "提出済みURLを開く",
-            deliver: "納品URLを提出する",
-            redeliver: "修正版を提出する",
-            updateDelivery: "納品URLを更新する",
+            deliver: "このURLを送る",
+            redeliver: "修正版を送る",
+            updateDelivery: "URLを更新する",
             delivering: "送信中...",
-            deliveryRequired: "納品URLを入力してください。",
-            deliveryFailed: "納品処理に失敗しました。",
+            deliveryRequired: "確認できるURLを入力してください。",
+            deliveryFailed:
+              "送信できませんでした。URLを確認してもう一度お試しください。",
+
             accept: "注文を受ける",
             decline: "今回は辞退する",
             accepting: "承認中...",
             declining: "辞退中...",
             confirmAccept:
-              "この注文を受けますか？受けると決済が確定し、注文が開始されます。",
+              "この注文を受けますか？受けると注文が開始されます。",
             confirmDecline:
-              "この注文を辞退しますか？辞退すると請求は確定しません。",
-            confirmDeliver: "このURLで納品しますか？",
-            confirmRedeliver: "このURLで修正版を提出しますか？",
-            acceptFailed: "承認処理に失敗しました。",
-            declineFailed: "辞退処理に失敗しました。",
+              "この注文を辞退しますか？辞退すると、この注文は開始されません。",
+            confirmDeliver: "このURLを企業に送りますか？",
+            confirmRedeliver: "このURLを修正版として送りますか？",
+            acceptFailed: "注文を受けられませんでした。時間を置いて再度お試しください。",
+            declineFailed: "辞退できませんでした。時間を置いて再度お試しください。",
             authFailed: "ログイン情報を取得できませんでした。",
+
             productName: "商品・案件",
             productUrl: "商品URL",
             projectType: "案件タイプ",
@@ -969,69 +1076,82 @@ export default function CreatorOrderDetailPage() {
             yes: "あり",
             no: "なし",
             requestNote: "依頼内容",
-            postInstructionTitle: "投稿の最後に貼り付ける内容",
+
+            postInstructionTitle: "投稿に貼り付ける内容",
             postInstructionBody:
               "投稿の最後に貼り付けるアカウント表記とハッシュタグです。",
             copyPostText: "コピーする",
             copied: "コピーしました",
             postNotes: "投稿で触れてほしいこと・注意事項",
+
             menuAndPayout: "メニュー・報酬",
             menuTitle: "メニュー",
             deliverables: "納品物",
             price: "メニュー価格",
             payout: "受取予定",
-            transfer: "送金",
+            transfer: "報酬の反映",
             payoutPage: "報酬ページを見る",
             revisionTitle: "修正依頼",
+
             notSet: "未設定",
             noPostInstruction: "指定された投稿用テキストはありません。",
             referenceLoadFailed:
               "参考画像の読み込みに時間がかかっています。後でもう一度開いてください。",
             referenceOpen: "開く",
             referenceFile: "参考ファイル",
+
             summaryMenu: "メニュー",
             summaryPayout: "受取予定",
             summaryDeadline: "返答期限",
+
             detailSheetTitle: "注文の詳細",
             detailSheetBody: "必要な情報だけ確認できるようにまとめています。",
-            responseTitle: "この注文に返答してください",
+
+            responseTitle: "この注文に対応しますか？",
             responseBody:
-              "内容を確認して、対応できる場合は注文を受けてください。難しい場合は辞退できます。",
-            chatCtaTitle: "企業とやり取りできます",
+              "内容・報酬・期限を確認して、対応できる場合は注文を受けてください。",
+
+            chatCtaTitle: "企業に相談する",
             chatCtaBody:
-              "注文内容の確認や進行中の相談は、専用チャットで行えます。",
-            chatCtaButton: "Bとやり取りする",
+              "不明点や進行中の相談がある場合は、チャットで確認できます。",
+            chatCtaButton: "チャットを開く",
           }
         : {
             loading: "Loading...",
             notFound: "Order was not found.",
             back: "Back",
+
+            taskLabel: "Next step",
             orderContent: "Order details",
-            deliveryTitle: "Submit delivery URL",
-            redeliveryTitle: "Submit revised delivery URL",
+
+            deliveryTitle: "Send your delivery",
+            redeliveryTitle: "Send the revised URL",
             deliveryBody:
-              "Enter a URL such as a post URL, asset URL, or Google Drive URL.",
+              "Enter a post URL, asset URL, Google Drive link, or another URL the brand can review.",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "Open submitted URL",
-            deliver: "Submit delivery URL",
-            redeliver: "Submit revised URL",
-            updateDelivery: "Update delivery URL",
-            delivering: "Submitting...",
-            deliveryRequired: "Please enter a delivery URL.",
-            deliveryFailed: "Failed to submit delivery.",
+            deliver: "Send this URL",
+            redeliver: "Send revised URL",
+            updateDelivery: "Update URL",
+            delivering: "Sending...",
+            deliveryRequired: "Please enter a URL the brand can review.",
+            deliveryFailed:
+              "Could not send the URL. Please check it and try again.",
+
             accept: "Accept order",
             decline: "Decline this time",
             accepting: "Accepting...",
             declining: "Declining...",
             confirmAccept:
-              "Accept this order? Payment will be captured and the order will start.",
+              "Accept this order? The order will start after you accept.",
             confirmDecline:
-              "Decline this order? The charge will not be finalized.",
-            confirmDeliver: "Submit this URL as delivery?",
-            confirmRedeliver: "Submit this revised URL?",
-            acceptFailed: "Failed to accept this order.",
-            declineFailed: "Failed to decline this order.",
+              "Decline this order? This order will not start.",
+            confirmDeliver: "Send this URL to the brand?",
+            confirmRedeliver: "Send this URL as the revised delivery?",
+            acceptFailed: "Could not accept this order. Please try again later.",
+            declineFailed: "Could not decline this order. Please try again later.",
             authFailed: "Could not retrieve your login session.",
+
             productName: "Product",
             productUrl: "Product URL",
             projectType: "Project type",
@@ -1041,39 +1161,46 @@ export default function CreatorOrderDetailPage() {
             yes: "Yes",
             no: "No",
             requestNote: "Request note",
-            postInstructionTitle: "Text to paste at the end",
+
+            postInstructionTitle: "Text to paste in the post",
             postInstructionBody:
               "Account mention and hashtags to paste at the end of the post.",
             copyPostText: "Copy",
             copied: "Copied",
             postNotes: "Points and notes",
+
             menuAndPayout: "Menu & payout",
             menuTitle: "Menu",
             deliverables: "Deliverable",
             price: "Menu price",
             payout: "Expected",
-            transfer: "Transfer",
+            transfer: "Payout status",
             payoutPage: "View payouts",
             revisionTitle: "Revision request",
+
             notSet: "Not set",
             noPostInstruction: "No post text was specified.",
             referenceLoadFailed:
               "Reference images are taking too long to load. Please try again later.",
             referenceOpen: "Open",
             referenceFile: "Reference file",
+
             summaryMenu: "Menu",
             summaryPayout: "Expected",
             summaryDeadline: "Reply by",
+
             detailSheetTitle: "Order details",
             detailSheetBody:
               "Everything important is organized in one place.",
-            responseTitle: "Respond to this order",
+
+            responseTitle: "Can you take this order?",
             responseBody:
-              "Review the details and accept the order if you can handle it. You can decline if it is not a fit.",
-            chatCtaTitle: "You can message the brand",
+              "Review the details, payout, and deadline before accepting this order.",
+
+            chatCtaTitle: "Ask the brand",
             chatCtaBody:
-              "Use the dedicated chat page to discuss progress and details.",
-            chatCtaButton: "Message the brand",
+              "If anything is unclear, you can message the brand from the chat.",
+            chatCtaButton: "Open chat",
           },
     [safeLocale]
   );
@@ -1082,9 +1209,7 @@ export default function CreatorOrderDetailPage() {
   const [referenceAssets, setReferenceAssets] = useState<ReferenceAsset[]>([]);
   const [referenceAssetsLoading, setReferenceAssetsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<
-    "accept" | "decline" | "deliver" | null
-  >(null);
+  const [actionLoading, setActionLoading] = useState<ActionLoading>(null);
   const [error, setError] = useState<string | null>(null);
   const [deliveryUrl, setDeliveryUrl] = useState("");
   const [copied, setCopied] = useState(false);
@@ -1093,8 +1218,8 @@ export default function CreatorOrderDetailPage() {
   const [openPanels, setOpenPanels] = useState({
     postText: false,
     notes: false,
-    revision: true,
-    order: true,
+    revision: false,
+    order: false,
     payout: false,
   });
 
@@ -1255,6 +1380,18 @@ export default function CreatorOrderDetailPage() {
     };
   }, [loadOrder]);
 
+  useEffect(() => {
+    if (!order) return;
+
+    setOpenPanels({
+      postText: isInProgress(order) || order.status === "revision_requested",
+      notes: isInProgress(order) || order.status === "revision_requested",
+      revision: order.status === "revision_requested",
+      order: isWaitingForCreator(order),
+      payout: order.status === "completed",
+    });
+  }, [order?.id, order?.status]);
+
   const runAction = async (type: "accept" | "decline") => {
     if (!order) return;
 
@@ -1408,9 +1545,9 @@ export default function CreatorOrderDetailPage() {
   if (loading) {
     return (
       <div className="space-y-4 overflow-x-hidden pb-28">
-        <div className="h-[420px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[340px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[180px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
         <div className="h-[260px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-        <div className="h-[280px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
       </div>
     );
   }
@@ -1450,6 +1587,7 @@ export default function CreatorOrderDetailPage() {
     : "/creator/jobs";
 
   const prCopyText = buildPrCopyText(order);
+
   const postNotes =
     order.post_notes?.trim() ||
     extractRequirementSection(order.requirements, "投稿で触れてほしいこと・注意事項");
@@ -1457,12 +1595,14 @@ export default function CreatorOrderDetailPage() {
   const projectTypeText = firstLine(
     extractRequirementSection(order.requirements, "案件タイプ")
   );
+
   const timingText = extractRequirementSection(order.requirements, "実施タイミング");
   const requestNote = extractRequirementSection(order.requirements, "依頼内容");
 
   const mediaAssets = referenceAssets.filter((asset) =>
     Boolean(asset.signed_url)
   );
+
   const safeSelectedIndex = Math.min(
     selectedAssetIndex,
     Math.max(mediaAssets.length - 1, 0)
@@ -1471,7 +1611,7 @@ export default function CreatorOrderDetailPage() {
   return (
     <div className="max-w-full touch-pan-y space-y-4 overflow-x-hidden overscroll-y-contain pb-28">
       <Surface className="overflow-hidden">
-        <div className="p-4 sm:p-5">
+        <div className="bg-gradient-to-br from-white via-white to-rose-50/55 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <SoftPill tone={statusTone(order)}>
@@ -1487,7 +1627,7 @@ export default function CreatorOrderDetailPage() {
 
             <Link
               href={backHref}
-              className="shrink-0 rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
+              className="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
             >
               {copy.back}
             </Link>
@@ -1505,21 +1645,32 @@ export default function CreatorOrderDetailPage() {
               />
             ) : null}
 
-            <div>
-              <h1 className="break-words text-[26px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-                {order.product_name || nextAction.title}
+            <div className="rounded-[26px] bg-white/90 p-4 shadow-sm ring-1 ring-white/80">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ff5f67]">
+                {copy.taskLabel}
+              </p>
+
+              <h1 className="mt-2 break-words text-[27px] font-black leading-tight tracking-[-0.06em] text-slate-950">
+                {nextAction.title}
               </h1>
 
               <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
                 {nextAction.body}
               </p>
+
+              {order.product_name ? (
+                <div className="mt-4 rounded-[20px] bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                  <p className="text-xs font-black text-slate-400">
+                    {copy.productName}
+                  </p>
+                  <p className="mt-1 break-words text-sm font-black text-slate-900">
+                    {order.product_name}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
-            <OrderSummaryBox
-              order={order}
-              locale={safeLocale}
-              copy={copy}
-            />
+            <OrderSummaryBox order={order} locale={safeLocale} copy={copy} />
 
             <ResponseActionBox
               order={order}
@@ -1540,6 +1691,18 @@ export default function CreatorOrderDetailPage() {
         </Surface>
       ) : null}
 
+      {canDeliver ? (
+        <DeliveryActionBox
+          order={order}
+          copy={copy}
+          deliveryUrl={deliveryUrl}
+          setDeliveryUrl={setDeliveryUrl}
+          actionLoading={actionLoading}
+          onDeliver={() => void runDeliver()}
+          isRevisionRequested={isRevisionRequested}
+        />
+      ) : null}
+
       {canOpenChat(order) ? (
         <ChatCtaBox
           href={`/creator/orders/${order.id}/chat`}
@@ -1547,52 +1710,6 @@ export default function CreatorOrderDetailPage() {
           body={copy.chatCtaBody}
           buttonLabel={copy.chatCtaButton}
         />
-      ) : null}
-
-      {canDeliver ? (
-        <Surface className="p-4 sm:p-5">
-          <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
-            {isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
-          </p>
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            {copy.deliveryBody}
-          </p>
-
-          <div className="mt-4 space-y-3">
-            <input
-              type="url"
-              value={deliveryUrl}
-              onChange={(e) => setDeliveryUrl(e.target.value)}
-              placeholder={copy.deliveredPostUrlPlaceholder}
-              className="w-full rounded-[20px] border border-slate-200 px-4 py-4 text-base outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
-            />
-
-            {order.delivered_post_url ? (
-              <a
-                href={order.delivered_post_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
-              >
-                <LinkIcon />
-                {copy.openDeliveredUrl}
-              </a>
-            ) : null}
-
-            <PrimaryButton
-              onClick={() => void runDeliver()}
-              disabled={actionLoading !== null}
-            >
-              {actionLoading === "deliver"
-                ? copy.delivering
-                : isRevisionRequested
-                  ? copy.redeliver
-                  : order.delivered_post_url
-                    ? copy.updateDelivery
-                    : copy.deliver}
-            </PrimaryButton>
-          </div>
-        </Surface>
       ) : null}
 
       <Surface className="overflow-hidden">
@@ -1609,9 +1726,7 @@ export default function CreatorOrderDetailPage() {
           <AccordionItem
             title={copy.postInstructionTitle}
             subtitle={
-              prCopyText
-                ? prCopyText.split("\n")[0]
-                : copy.noPostInstruction
+              prCopyText ? prCopyText.split("\n")[0] : copy.noPostInstruction
             }
             open={openPanels.postText}
             onToggle={() =>
