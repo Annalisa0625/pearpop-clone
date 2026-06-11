@@ -206,6 +206,7 @@ export type Database = {
           deliverables: string | null
           delivery_days: number | null
           description: string | null
+          fulfillment_type: string
           id: string
           is_active: boolean | null
           menu_type: string | null
@@ -229,6 +230,7 @@ export type Database = {
           deliverables?: string | null
           delivery_days?: number | null
           description?: string | null
+          fulfillment_type?: string
           id?: string
           is_active?: boolean | null
           menu_type?: string | null
@@ -252,6 +254,7 @@ export type Database = {
           deliverables?: string | null
           delivery_days?: number | null
           description?: string | null
+          fulfillment_type?: string
           id?: string
           is_active?: boolean | null
           menu_type?: string | null
@@ -898,9 +901,12 @@ export type Database = {
           disputed_at: string | null
           expired_at: string | null
           fee_rate_bps: number
+          fulfillment_type: string
           has_free_offer: boolean
           id: string
           linked_request_id: string | null
+          materials_confirmed_at: string | null
+          materials_provided_at: string | null
           max_revision_count: number
           menu_allow_secondary_use_snapshot: boolean
           menu_category_snapshot: string | null
@@ -920,13 +926,22 @@ export type Database = {
           pr_account: string | null
           pr_copy_text: string | null
           pr_hashtags: string[]
+          preparation_data: Json
+          preparation_ready_at: string | null
+          preparation_started_at: string | null
+          preparation_status: string
           product_name: string
           product_url: string | null
           project_type: string | null
+          received_at: string | null
           requirements: string
           revision_count: number
           revision_note: string | null
           revision_requested_at: string | null
+          shipped_at: string | null
+          shipping_address_shared_at: string | null
+          shipping_carrier: string | null
+          shipping_tracking_number: string | null
           status: string
           stripe_amount: number
           stripe_checkout_session_id: string | null
@@ -939,7 +954,12 @@ export type Database = {
           transfer_status: string
           transferred_at: string | null
           updated_at: string
+          visit_candidate_note: string | null
+          visit_location: string | null
+          visit_notes: string | null
+          visit_scheduled_at: string | null
           wants_secondary_use: boolean
+          work_started_at: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -971,9 +991,12 @@ export type Database = {
           disputed_at?: string | null
           expired_at?: string | null
           fee_rate_bps?: number
+          fulfillment_type?: string
           has_free_offer?: boolean
           id?: string
           linked_request_id?: string | null
+          materials_confirmed_at?: string | null
+          materials_provided_at?: string | null
           max_revision_count?: number
           menu_allow_secondary_use_snapshot?: boolean
           menu_category_snapshot?: string | null
@@ -993,13 +1016,22 @@ export type Database = {
           pr_account?: string | null
           pr_copy_text?: string | null
           pr_hashtags?: string[]
+          preparation_data?: Json
+          preparation_ready_at?: string | null
+          preparation_started_at?: string | null
+          preparation_status?: string
           product_name: string
           product_url?: string | null
           project_type?: string | null
+          received_at?: string | null
           requirements: string
           revision_count?: number
           revision_note?: string | null
           revision_requested_at?: string | null
+          shipped_at?: string | null
+          shipping_address_shared_at?: string | null
+          shipping_carrier?: string | null
+          shipping_tracking_number?: string | null
           status?: string
           stripe_amount: number
           stripe_checkout_session_id?: string | null
@@ -1012,7 +1044,12 @@ export type Database = {
           transfer_status?: string
           transferred_at?: string | null
           updated_at?: string
+          visit_candidate_note?: string | null
+          visit_location?: string | null
+          visit_notes?: string | null
+          visit_scheduled_at?: string | null
           wants_secondary_use?: boolean
+          work_started_at?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -1044,9 +1081,12 @@ export type Database = {
           disputed_at?: string | null
           expired_at?: string | null
           fee_rate_bps?: number
+          fulfillment_type?: string
           has_free_offer?: boolean
           id?: string
           linked_request_id?: string | null
+          materials_confirmed_at?: string | null
+          materials_provided_at?: string | null
           max_revision_count?: number
           menu_allow_secondary_use_snapshot?: boolean
           menu_category_snapshot?: string | null
@@ -1066,13 +1106,22 @@ export type Database = {
           pr_account?: string | null
           pr_copy_text?: string | null
           pr_hashtags?: string[]
+          preparation_data?: Json
+          preparation_ready_at?: string | null
+          preparation_started_at?: string | null
+          preparation_status?: string
           product_name?: string
           product_url?: string | null
           project_type?: string | null
+          received_at?: string | null
           requirements?: string
           revision_count?: number
           revision_note?: string | null
           revision_requested_at?: string | null
+          shipped_at?: string | null
+          shipping_address_shared_at?: string | null
+          shipping_carrier?: string | null
+          shipping_tracking_number?: string | null
           status?: string
           stripe_amount?: number
           stripe_checkout_session_id?: string | null
@@ -1085,7 +1134,12 @@ export type Database = {
           transfer_status?: string
           transferred_at?: string | null
           updated_at?: string
+          visit_candidate_note?: string | null
+          visit_location?: string | null
+          visit_notes?: string | null
+          visit_scheduled_at?: string | null
           wants_secondary_use?: boolean
+          work_started_at?: string | null
         }
         Relationships: [
           {

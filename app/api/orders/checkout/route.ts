@@ -8,6 +8,21 @@ export const maxDuration = 60;
 
 type ProjectType = "visit_experience" | "product_delivery" | "provided_assets";
 
+type FulfillmentType = "material_provided" | "product_shipping" | "visit";
+
+type PreparationStatus =
+  | "not_started"
+  | "waiting_materials"
+  | "materials_provided"
+  | "materials_confirmed"
+  | "waiting_shipping_address"
+  | "waiting_shipment"
+  | "shipped"
+  | "received"
+  | "waiting_schedule"
+  | "schedule_confirmed"
+  | "ready_to_start";
+
 type ReferenceAssetInput = {
   storage_path?: unknown;
   file_name?: unknown;
@@ -407,6 +422,25 @@ function normalizeProjectType(value: unknown): ProjectType | null {
   if (value === "product_delivery") return "product_delivery";
   if (value === "provided_assets") return "provided_assets";
   return null;
+}
+
+function getFulfillmentTypeFromProjectType(
+  projectType: ProjectType
+): FulfillmentType {
+  if (projectType === "visit_experience") return "visit";
+  if (projectType === "product_delivery") return "product_shipping";
+  return "material_provided";
+}
+
+function getInitialPreparationStatus(
+  fulfillmentType: FulfillmentType
+): PreparationStatus {
+  if (fulfillmentType === "visit") return "waiting_schedule";
+  if (fulfillmentType === "product_shipping") {
+    return "waiting_shipping_address";
+  }
+
+  return "materials_provided";
 }
 
 function isUgcMenuSnapshot(menu: {
@@ -842,6 +876,7 @@ export async function POST(req: NextRequest) {
       getString(body.requirements ?? body.note) ||
       postNotes ||
       "詳細は注文後のチャットで相談します。";
+
     const hasFreeOffer = getBoolean(body.has_free_offer);
     const requestedSecondaryUse = getBoolean(body.wants_secondary_use);
 
@@ -903,6 +938,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const fulfillmentType = getFulfillmentTypeFromProjectType(projectType);
+    const initialPreparationStatus =
+      getInitialPreparationStatus(fulfillmentType);
+    const preparationStartedAt = new Date().toISOString();
 
     const creatorResult: any = await withTimeout(
       supabaseAdmin
@@ -1083,6 +1123,10 @@ export async function POST(req: NextRequest) {
       payment_flow: "manual_capture",
 
       project_type: projectType,
+      fulfillment_type: fulfillmentType,
+      preparation_status: initialPreparationStatus,
+      preparation_started_at: preparationStartedAt,
+
       product_name: productName,
       product_url: productUrl,
       requirements,
@@ -1131,6 +1175,8 @@ export async function POST(req: NextRequest) {
         plan_public_name: fees.buyerPlanPublicNameSnapshot,
         payment_flow: "manual_capture",
         project_type: projectType,
+        fulfillment_type: fulfillmentType,
+        preparation_status: initialPreparationStatus,
         buyer_marketplace_fee_rate_bps: fees.buyerMarketplaceFeeRateBps,
         creator_transaction_fee_rate_bps: fees.creatorTransactionFeeRateBps,
         pr_account: prAccount,
@@ -1220,6 +1266,8 @@ export async function POST(req: NextRequest) {
             creator_menu_id: menu.id,
             payment_flow: "manual_capture",
             project_type: projectType,
+            fulfillment_type: fulfillmentType,
+            preparation_status: initialPreparationStatus,
             menu_price_amount: String(fees.menuPriceAmount),
             buyer_marketplace_fee_amount: String(
               fees.buyerMarketplaceFeeAmount
@@ -1243,6 +1291,8 @@ export async function POST(req: NextRequest) {
           creator_menu_id: menu.id,
           payment_flow: "manual_capture",
           project_type: projectType,
+          fulfillment_type: fulfillmentType,
+          preparation_status: initialPreparationStatus,
         },
         success_url: successUrl,
         cancel_url: cancelUrl,
@@ -1299,6 +1349,8 @@ export async function POST(req: NextRequest) {
         creator_payout_amount: fees.creatorPayoutAmount,
         platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
         project_type: projectType,
+        fulfillment_type: fulfillmentType,
+        preparation_status: initialPreparationStatus,
         reference_assets_count: referenceAssets.length,
       },
     });
@@ -1307,6 +1359,8 @@ export async function POST(req: NextRequest) {
       url: session.url,
       order_id: order.id,
       checkout_session_id: session.id,
+      fulfillment_type: fulfillmentType,
+      preparation_status: initialPreparationStatus,
       reference_assets_count: referenceAssets.length,
       amount: {
         currency,
