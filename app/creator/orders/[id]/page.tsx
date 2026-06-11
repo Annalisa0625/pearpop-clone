@@ -14,12 +14,47 @@ import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 
+type FulfillmentType = "material_provided" | "product_shipping" | "visit";
+
+type PreparationStatus =
+  | "not_started"
+  | "waiting_materials"
+  | "materials_provided"
+  | "materials_confirmed"
+  | "waiting_shipping_address"
+  | "waiting_shipment"
+  | "shipped"
+  | "received"
+  | "waiting_schedule"
+  | "schedule_confirmed"
+  | "ready_to_start";
+
 type OrderDetail = {
   id: string;
   status: string;
   payment_status: string;
   created_at: string;
   updated_at: string | null;
+
+  fulfillment_type: FulfillmentType | string | null;
+  preparation_status: PreparationStatus | string | null;
+  preparation_started_at: string | null;
+  preparation_ready_at: string | null;
+  work_started_at: string | null;
+
+  visit_location: string | null;
+  visit_candidate_note: string | null;
+  visit_scheduled_at: string | null;
+  visit_notes: string | null;
+
+  shipping_address_shared_at: string | null;
+  shipping_carrier: string | null;
+  shipping_tracking_number: string | null;
+  shipped_at: string | null;
+  received_at: string | null;
+
+  materials_provided_at: string | null;
+  materials_confirmed_at: string | null;
 
   product_name: string | null;
   product_url: string | null;
@@ -210,6 +245,77 @@ function canOpenChat(order: OrderDetail) {
   );
 }
 
+function normalizeFulfillmentType(
+  value: string | null | undefined
+): FulfillmentType {
+  if (value === "product_shipping") return "product_shipping";
+  if (value === "visit") return "visit";
+  return "material_provided";
+}
+
+function normalizePreparationStatus(
+  value: string | null | undefined
+): PreparationStatus {
+  const allowed: PreparationStatus[] = [
+    "not_started",
+    "waiting_materials",
+    "materials_provided",
+    "materials_confirmed",
+    "waiting_shipping_address",
+    "waiting_shipment",
+    "shipped",
+    "received",
+    "waiting_schedule",
+    "schedule_confirmed",
+    "ready_to_start",
+  ];
+
+  return allowed.includes(value as PreparationStatus)
+    ? (value as PreparationStatus)
+    : "ready_to_start";
+}
+
+function isPreparationReady(order: OrderDetail) {
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+  const preparationStatus = normalizePreparationStatus(order.preparation_status);
+
+  if (preparationStatus === "ready_to_start") return true;
+
+  if (fulfillmentType === "material_provided") {
+    return (
+      preparationStatus === "materials_provided" ||
+      preparationStatus === "materials_confirmed"
+    );
+  }
+
+  if (fulfillmentType === "product_shipping") {
+    return preparationStatus === "received";
+  }
+
+  if (fulfillmentType === "visit") {
+    return preparationStatus === "schedule_confirmed";
+  }
+
+  return true;
+}
+
+function fulfillmentLabel(
+  value: string | null | undefined,
+  locale: "ja" | "en"
+) {
+  const type = normalizeFulfillmentType(value);
+
+  if (locale === "ja") {
+    if (type === "product_shipping") return "商品提供型";
+    if (type === "visit") return "来店型";
+    return "素材提供型";
+  }
+
+  if (type === "product_shipping") return "Product shipping";
+  if (type === "visit") return "Visit";
+  return "Material provided";
+}
+
 function transferLabel(value: string | null, locale: "ja" | "en") {
   const status = value || "not_started";
 
@@ -372,6 +478,40 @@ function MessageIcon() {
         d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v4A2.5 2.5 0 0 1 13.5 12H10l-4 3v-3.1A2.5 2.5 0 0 1 4 9.5v-4Z"
         stroke="currentColor"
         strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PackageIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 7.2 10 4l6 3.2v5.7L10 16l-6-3.1V7.2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.5 7.5 10 10.5l5.5-3M10 10.5V16"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M5 4v2M15 4v2M4 8h12M5.5 5h9A2.5 2.5 0 0 1 17 7.5v7A2.5 2.5 0 0 1 14.5 17h-9A2.5 2.5 0 0 1 3 14.5v-7A2.5 2.5 0 0 1 5.5 5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -778,6 +918,283 @@ function ChatCtaBox({
   );
 }
 
+function PreparationGuidanceBox({
+  order,
+  locale,
+  chatHref,
+  canChat,
+  copy,
+}: {
+  order: OrderDetail;
+  locale: "ja" | "en";
+  chatHref: string;
+  canChat: boolean;
+  copy: {
+    preparationTitle: string;
+    preparationBeforeAcceptTitle: string;
+    preparationChatButton: string;
+    preparationChatDisabled: string;
+    preparationReadyLabel: string;
+    preparationWaitingLabel: string;
+  };
+}) {
+  if (isCheckoutPending(order) || isTerminalStatus(order.status)) {
+    return null;
+  }
+
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+  const preparationStatus = normalizePreparationStatus(order.preparation_status);
+  const ready = isPreparationReady(order);
+  const beforeAccept = isWaitingForCreator(order);
+
+  let icon: ReactNode = <LinkIcon />;
+  let title = "";
+  let body = "";
+  let detail: ReactNode = null;
+
+  if (locale === "ja") {
+    if (fulfillmentType === "material_provided") {
+      icon = <LinkIcon />;
+      title = beforeAccept
+        ? "素材・投稿情報を確認して進める案件です"
+        : ready
+          ? "素材・投稿情報を確認してください"
+          : "企業からの素材・投稿情報を待っています";
+      body = beforeAccept
+        ? "注文を受ける前に、参考資料・投稿条件・PR表記などを確認してください。"
+        : ready
+          ? "企業から届いた画像・動画・商品情報・投稿条件を確認して、制作を進めてください。"
+          : "企業が必要な素材や投稿情報を追加すると、制作を進めやすくなります。";
+      detail = order.materials_provided_at ? (
+        <p className="mt-2 text-xs font-black text-slate-400">
+          素材提供：{formatDateTime(order.materials_provided_at, locale)}
+        </p>
+      ) : null;
+    }
+
+    if (fulfillmentType === "product_shipping") {
+      icon = <PackageIcon />;
+
+      if (preparationStatus === "waiting_shipping_address") {
+        title = beforeAccept
+          ? "商品を受け取って進める案件です"
+          : "配送先の共有が必要です";
+        body = beforeAccept
+          ? "注文を受けた後、企業と配送先・発送方法を確認してから制作を進めます。"
+          : "商品を受け取るために、企業と配送先・発送方法を確認してください。";
+      } else if (preparationStatus === "waiting_shipment") {
+        title = "企業の発送を待っています";
+        body = "企業が商品を発送したら、追跡番号や配送状況を確認できます。";
+      } else if (preparationStatus === "shipped") {
+        title = "商品の到着を待っています";
+        body = "商品が届いたら内容を確認して、制作を進めてください。";
+      } else {
+        title = ready ? "商品を確認できました" : "商品を受け取ってください";
+        body = ready
+          ? "商品を確認できているため、制作を進められます。"
+          : "商品が届いたら、内容を確認してから制作を進めてください。";
+      }
+
+      detail = (
+        <div className="mt-3 grid gap-2 rounded-[18px] bg-white/70 p-3 ring-1 ring-slate-100">
+          {order.shipping_carrier || order.shipping_tracking_number ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black text-slate-400">配送</span>
+              <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
+                {[order.shipping_carrier, order.shipping_tracking_number]
+                  .filter(Boolean)
+                  .join(" / ")}
+              </span>
+            </div>
+          ) : null}
+
+          {order.shipped_at ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black text-slate-400">発送</span>
+              <span className="text-right text-xs font-black text-slate-700">
+                {formatDateTime(order.shipped_at, locale)}
+              </span>
+            </div>
+          ) : null}
+
+          {order.received_at ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black text-slate-400">受取</span>
+              <span className="text-right text-xs font-black text-slate-700">
+                {formatDateTime(order.received_at, locale)}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (fulfillmentType === "visit") {
+      icon = <CalendarIcon />;
+
+      if (preparationStatus === "schedule_confirmed") {
+        title = "来店日が決まっています";
+        body = "来店日・場所・注意事項を確認して、当日に向けて準備してください。";
+      } else {
+        title = beforeAccept
+          ? "来店日を決めて進める案件です"
+          : "来店日を決めてください";
+        body = beforeAccept
+          ? "注文を受けた後、企業と日程・場所・撮影ルールを確認して進めます。"
+          : "企業と来店日・場所・撮影ルールを確認して、日程を決めてください。";
+      }
+
+      detail = (
+        <div className="mt-3 grid gap-2 rounded-[18px] bg-white/70 p-3 ring-1 ring-slate-100">
+          {order.visit_scheduled_at ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black text-slate-400">来店日</span>
+              <span className="text-right text-xs font-black text-slate-700">
+                {formatDateTime(order.visit_scheduled_at, locale)}
+              </span>
+            </div>
+          ) : null}
+
+          {order.visit_location ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black text-slate-400">場所</span>
+              <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
+                {order.visit_location}
+              </span>
+            </div>
+          ) : null}
+
+          {order.visit_notes ? (
+            <p className="whitespace-pre-line text-xs font-semibold leading-6 text-slate-500">
+              {order.visit_notes}
+            </p>
+          ) : null}
+        </div>
+      );
+    }
+  } else {
+    if (fulfillmentType === "material_provided") {
+      icon = <LinkIcon />;
+      title = beforeAccept
+        ? "This order uses brand-provided materials"
+        : ready
+          ? "Review the brand materials"
+          : "Waiting for brand materials";
+      body = beforeAccept
+        ? "Before accepting, review the reference assets, posting rules, and PR text."
+        : ready
+          ? "Check the images, videos, product information, and posting instructions from the brand."
+          : "The brand needs to provide the materials or posting information before work can start.";
+    }
+
+    if (fulfillmentType === "product_shipping") {
+      icon = <PackageIcon />;
+
+      if (preparationStatus === "waiting_shipping_address") {
+        title = beforeAccept
+          ? "This order requires product shipping"
+          : "Share delivery details";
+        body = beforeAccept
+          ? "After accepting, coordinate delivery details with the brand before starting."
+          : "Coordinate the shipping address and delivery method with the brand.";
+      } else if (preparationStatus === "waiting_shipment") {
+        title = "Waiting for shipment";
+        body = "The brand will ship the product and share delivery details.";
+      } else if (preparationStatus === "shipped") {
+        title = "Waiting for the product";
+        body = "Once the product arrives, review it before creating content.";
+      } else {
+        title = ready ? "Product received" : "Receive the product";
+        body = ready
+          ? "The product has been received. You can continue with the work."
+          : "Review the product after it arrives, then continue with the work.";
+      }
+    }
+
+    if (fulfillmentType === "visit") {
+      icon = <CalendarIcon />;
+
+      if (preparationStatus === "schedule_confirmed") {
+        title = "Visit date confirmed";
+        body = "Check the date, place, and notes before the visit.";
+      } else {
+        title = beforeAccept
+          ? "This order requires a visit"
+          : "Confirm the visit date";
+        body = beforeAccept
+          ? "After accepting, coordinate the date, place, and shooting rules with the brand."
+          : "Coordinate the visit date, place, and shooting rules with the brand.";
+      }
+    }
+  }
+
+  return (
+    <Surface className="overflow-hidden">
+      <div
+        className={`p-4 sm:p-5 ${
+          ready
+            ? "bg-gradient-to-br from-emerald-50 via-white to-white ring-1 ring-emerald-50"
+            : "bg-gradient-to-br from-amber-50 via-white to-white ring-1 ring-amber-50"
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white shadow-sm ring-1 ${
+              ready
+                ? "text-emerald-700 ring-emerald-100"
+                : "text-amber-700 ring-amber-100"
+            }`}
+          >
+            {icon}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-black text-slate-400">
+                {beforeAccept
+                  ? copy.preparationBeforeAcceptTitle
+                  : copy.preparationTitle}
+              </p>
+              <span
+                className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
+                  ready
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                {ready ? copy.preparationReadyLabel : copy.preparationWaitingLabel}
+              </span>
+            </div>
+
+            <p className="text-[18px] font-black tracking-[-0.05em] text-slate-950">
+              {title}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              {body}
+            </p>
+
+            {detail}
+
+            {canChat ? (
+              <Link
+                href={chatHref}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
+              >
+                <MessageIcon />
+                {copy.preparationChatButton}
+              </Link>
+            ) : (
+              <p className="mt-3 rounded-[16px] bg-white/70 px-4 py-3 text-xs font-bold leading-6 text-slate-500 ring-1 ring-slate-100">
+                {copy.preparationChatDisabled}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
 function DeliveryActionBox({
   order,
   copy,
@@ -954,6 +1371,14 @@ export default function CreatorOrderDetailPage() {
 
             orderContent: "注文内容",
 
+            preparationTitle: "開始前に必要なこと",
+            preparationBeforeAcceptTitle: "受ける前に確認",
+            preparationChatButton: "企業と相談する",
+            preparationChatDisabled:
+              "注文を受けると、企業とチャットで相談できるようになります。",
+            preparationReadyLabel: "進められます",
+            preparationWaitingLabel: "準備が必要",
+
             deliveryTitle: "納品する",
             redeliveryTitle: "修正版を送る",
             deliveryBody:
@@ -973,7 +1398,7 @@ export default function CreatorOrderDetailPage() {
             accepting: "承認中...",
             declining: "辞退中...",
             confirmAccept:
-              "この注文を受けますか？受けると注文が開始されます。",
+              "この注文を受けますか？受けると企業と準備を進められます。",
             confirmDecline:
               "この注文を辞退しますか？辞退すると、この注文は開始されません。",
             confirmDeliver: "このURLを企業に送りますか？",
@@ -986,7 +1411,7 @@ export default function CreatorOrderDetailPage() {
 
             productName: "商品・案件",
             productUrl: "商品URL",
-            projectType: "案件タイプ",
+            projectType: "進め方",
             timing: "実施タイミング",
             freeOffer: "商品提供",
             secondaryUse: "二次利用",
@@ -1026,7 +1451,7 @@ export default function CreatorOrderDetailPage() {
 
             responseTitle: "この注文に対応しますか？",
             responseBody:
-              "内容・報酬・期限を確認して、対応できる場合は注文を受けてください。",
+              "内容・報酬・期限・進め方を確認して、対応できる場合は注文を受けてください。",
 
             chatCtaTitle: "企業に相談する",
             chatCtaBody:
@@ -1039,6 +1464,14 @@ export default function CreatorOrderDetailPage() {
             back: "Back",
 
             orderContent: "Order details",
+
+            preparationTitle: "Before you start",
+            preparationBeforeAcceptTitle: "Before accepting",
+            preparationChatButton: "Ask the brand",
+            preparationChatDisabled:
+              "After accepting, you can coordinate with the brand in chat.",
+            preparationReadyLabel: "Ready",
+            preparationWaitingLabel: "Needs setup",
 
             deliveryTitle: "Send your delivery",
             redeliveryTitle: "Send the revised URL",
@@ -1059,7 +1492,7 @@ export default function CreatorOrderDetailPage() {
             accepting: "Accepting...",
             declining: "Declining...",
             confirmAccept:
-              "Accept this order? The order will start after you accept.",
+              "Accept this order? You will be able to coordinate with the brand.",
             confirmDecline:
               "Decline this order? This order will not start.",
             confirmDeliver: "Send this URL to the brand?",
@@ -1071,7 +1504,7 @@ export default function CreatorOrderDetailPage() {
 
             productName: "Product",
             productUrl: "Product URL",
-            projectType: "Project type",
+            projectType: "Flow",
             timing: "Timing",
             freeOffer: "Free product",
             secondaryUse: "Secondary use",
@@ -1112,7 +1545,7 @@ export default function CreatorOrderDetailPage() {
 
             responseTitle: "Can you take this order?",
             responseBody:
-              "Review the details, payout, and deadline before accepting this order.",
+              "Review the details, payout, deadline, and workflow before accepting this order.",
 
             chatCtaTitle: "Ask the brand",
             chatCtaBody:
@@ -1220,6 +1653,22 @@ export default function CreatorOrderDetailPage() {
             payment_status,
             created_at,
             updated_at,
+            fulfillment_type,
+            preparation_status,
+            preparation_started_at,
+            preparation_ready_at,
+            work_started_at,
+            visit_location,
+            visit_candidate_note,
+            visit_scheduled_at,
+            visit_notes,
+            shipping_address_shared_at,
+            shipping_carrier,
+            shipping_tracking_number,
+            shipped_at,
+            received_at,
+            materials_provided_at,
+            materials_confirmed_at,
             product_name,
             product_url,
             requirements,
@@ -1488,7 +1937,7 @@ export default function CreatorOrderDetailPage() {
     );
   }
 
-  const canDeliver =
+  const baseCanDeliver =
     [
       "accepted_captured",
       "in_progress",
@@ -1496,6 +1945,7 @@ export default function CreatorOrderDetailPage() {
       "revision_requested",
     ].includes(order.status) && order.payment_status === "captured";
 
+  const canDeliver = baseCanDeliver && isPreparationReady(order);
   const isRevisionRequested = order.status === "revision_requested";
 
   const backHref = isWaitingForCreator(order)
@@ -1525,6 +1975,11 @@ export default function CreatorOrderDetailPage() {
   );
 
   const passiveNotice = getPassiveNoticeCopy(order, safeLocale);
+  const canChat = canOpenChat(order);
+  const shouldShowPreparation =
+    !isCheckoutPending(order) &&
+    !isTerminalStatus(order.status) &&
+    order.status !== "delivered";
 
   return (
     <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden overscroll-y-contain pb-28">
@@ -1550,7 +2005,11 @@ export default function CreatorOrderDetailPage() {
             />
           ) : null}
 
-          <div className={referenceAssetsLoading || mediaAssets.length > 0 ? "mt-3" : ""}>
+          <div
+            className={
+              referenceAssetsLoading || mediaAssets.length > 0 ? "mt-3" : ""
+            }
+          >
             <OrderSummaryBox order={order} locale={safeLocale} copy={copy} />
           </div>
         </div>
@@ -1572,6 +2031,16 @@ export default function CreatorOrderDetailPage() {
         onDecline={() => void runAction("decline")}
       />
 
+      {shouldShowPreparation ? (
+        <PreparationGuidanceBox
+          order={order}
+          locale={safeLocale}
+          canChat={canChat}
+          chatHref={`/creator/orders/${order.id}/chat`}
+          copy={copy}
+        />
+      ) : null}
+
       {canDeliver ? (
         <DeliveryActionBox
           order={order}
@@ -1584,11 +2053,11 @@ export default function CreatorOrderDetailPage() {
         />
       ) : null}
 
-      {!isWaitingForCreator(order) && !canDeliver ? (
+      {!isWaitingForCreator(order) && !canDeliver && !shouldShowPreparation ? (
         <PassiveNoticeBox title={passiveNotice.title} body={passiveNotice.body} />
       ) : null}
 
-      {canOpenChat(order) ? (
+      {canChat ? (
         <ChatCtaBox
           href={`/creator/orders/${order.id}/chat`}
           title={copy.chatCtaTitle}
@@ -1691,6 +2160,11 @@ export default function CreatorOrderDetailPage() {
               />
 
               <DetailRow
+                label={copy.projectType}
+                value={fulfillmentLabel(order.fulfillment_type, safeLocale)}
+              />
+
+              <DetailRow
                 label={copy.productUrl}
                 value={
                   order.product_url ? (
@@ -1709,11 +2183,6 @@ export default function CreatorOrderDetailPage() {
               />
 
               <DetailRow
-                label={copy.projectType}
-                value={projectTypeText || copy.notSet}
-              />
-
-              <DetailRow
                 label={copy.timing}
                 value={timingText || copy.notSet}
               />
@@ -1728,6 +2197,15 @@ export default function CreatorOrderDetailPage() {
                 value={order.wants_secondary_use ? copy.yes : copy.no}
               />
             </div>
+
+            {projectTypeText ? (
+              <div className="mt-3">
+                <p className="mb-2 text-xs font-black text-slate-400">
+                  {safeLocale === "ja" ? "案件タイプ" : "Project type"}
+                </p>
+                <PlainTextBox value={projectTypeText} emptyLabel={copy.notSet} />
+              </div>
+            ) : null}
 
             {requestNote ? (
               <div className="mt-3">
