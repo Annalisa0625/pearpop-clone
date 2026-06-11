@@ -115,6 +115,7 @@ type ActionLoading =
   | "deliver"
   | "shipping_address"
   | "received"
+  | "materials_confirmed"
   | null;
 
 const AUTH_TIMEOUT_MS = 8000;
@@ -311,10 +312,7 @@ function isPreparationReady(order: OrderDetail) {
   if (preparationStatus === "ready_to_start") return true;
 
   if (fulfillmentType === "material_provided") {
-    return (
-      preparationStatus === "materials_provided" ||
-      preparationStatus === "materials_confirmed"
-    );
+    return preparationStatus === "materials_confirmed";
   }
 
   if (fulfillmentType === "product_shipping") {
@@ -326,6 +324,16 @@ function isPreparationReady(order: OrderDetail) {
   }
 
   return true;
+}
+
+function canConfirmMaterials(order: OrderDetail) {
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+
+  if (fulfillmentType !== "material_provided") return false;
+  if (order.payment_status !== "captured") return false;
+  if (order.materials_confirmed_at) return false;
+
+  return order.status === "accepted_captured" || order.status === "in_progress";
 }
 
 function canShareShippingAddress(order: OrderDetail) {
@@ -1026,6 +1034,80 @@ function ChatCtaBox({
   );
 }
 
+function MaterialsConfirmActionBox({
+  order,
+  actionLoading,
+  onConfirm,
+  copy,
+}: {
+  order: OrderDetail;
+  actionLoading: ActionLoading;
+  onConfirm: () => void;
+  copy: {
+    materialsConfirmTitle: string;
+    materialsConfirmBody: string;
+    materialsConfirmButton: string;
+    materialsConfirmLoading: string;
+    materialsConfirmedTitle: string;
+    materialsConfirmedBody: string;
+  };
+}) {
+  if (normalizeFulfillmentType(order.fulfillment_type) !== "material_provided") {
+    return null;
+  }
+
+  if (order.materials_confirmed_at) {
+    return (
+      <Surface className="overflow-hidden">
+        <div className="bg-gradient-to-br from-emerald-50 via-white to-white p-4 ring-1 ring-emerald-50 sm:p-5">
+          <p className="text-[18px] font-black tracking-[-0.05em] text-slate-950">
+            {copy.materialsConfirmedTitle}
+          </p>
+          <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+            {copy.materialsConfirmedBody}
+          </p>
+        </div>
+      </Surface>
+    );
+  }
+
+  if (!canConfirmMaterials(order)) {
+    return null;
+  }
+
+  return (
+    <Surface className="overflow-hidden">
+      <div className="bg-gradient-to-br from-amber-50 via-white to-white p-4 ring-1 ring-amber-50 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white text-amber-700 shadow-sm ring-1 ring-amber-100">
+            <LinkIcon />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
+              {copy.materialsConfirmTitle}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              {copy.materialsConfirmBody}
+            </p>
+
+            <div className="mt-4">
+              <PrimaryButton
+                onClick={onConfirm}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === "materials_confirmed"
+                  ? copy.materialsConfirmLoading
+                  : copy.materialsConfirmButton}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
 function ProductShippingActionBox({
   order,
   shippingAddress,
@@ -1041,33 +1123,7 @@ function ProductShippingActionBox({
   actionLoading: ActionLoading;
   onShareAddress: () => void;
   onReceived: () => void;
-  copy: {
-    shippingAddressTitle: string;
-    shippingAddressBody: string;
-    shippingRecipientName: string;
-    shippingPostalCode: string;
-    shippingPrefecture: string;
-    shippingCity: string;
-    shippingAddressLine1: string;
-    shippingAddressLine2: string;
-    shippingPhoneNumber: string;
-    shippingNotes: string;
-    shippingShareAddress: string;
-    shippingUpdateAddress: string;
-    shippingSharingAddress: string;
-    productReceivedTitle: string;
-    productReceivedBody: string;
-    productReceivedButton: string;
-    productReceivedLoading: string;
-    shippingStatusShared: string;
-    shippingStatusWaitingShipment: string;
-    shippingStatusShipped: string;
-    shippingStatusReceived: string;
-    shippingCarrier: string;
-    shippingTrackingNumber: string;
-    shippedAt: string;
-    receivedAt: string;
-  };
+  copy: any;
 }) {
   const preparationStatus = normalizePreparationStatus(order.preparation_status);
   const addressShared = Boolean(order.shipping_address_shared_at);
@@ -1305,14 +1361,7 @@ function PreparationGuidanceBox({
   locale: "ja" | "en";
   chatHref: string;
   canChat: boolean;
-  copy: {
-    preparationTitle: string;
-    preparationBeforeAcceptTitle: string;
-    preparationChatButton: string;
-    preparationChatDisabled: string;
-    preparationReadyLabel: string;
-    preparationWaitingLabel: string;
-  };
+  copy: any;
 }) {
   if (isCheckoutPending(order) || isTerminalStatus(order.status)) {
     return null;
@@ -1334,16 +1383,16 @@ function PreparationGuidanceBox({
       title = beforeAccept
         ? "素材・投稿情報を確認して進める案件です"
         : ready
-          ? "素材・投稿情報を確認してください"
-          : "企業からの素材・投稿情報を待っています";
+          ? "素材・投稿情報を確認済みです"
+          : "素材・投稿情報を確認してください";
       body = beforeAccept
         ? "注文を受ける前に、参考資料・投稿条件・PR表記などを確認してください。"
         : ready
-          ? "企業から届いた画像・動画・商品情報・投稿条件を確認して、制作を進めてください。"
-          : "企業が必要な素材や投稿情報を追加すると、制作を進めやすくなります。";
-      detail = order.materials_provided_at ? (
+          ? "素材・投稿情報の確認が完了しています。制作と納品に進めます。"
+          : "企業から届いた画像・動画・商品情報・投稿条件を確認し、問題なければ確認ボタンを押してください。";
+      detail = order.materials_confirmed_at ? (
         <p className="mt-2 text-xs font-black text-slate-400">
-          素材提供：{formatDateTime(order.materials_provided_at, locale)}
+          確認日時：{formatDateTime(order.materials_confirmed_at, locale)}
         </p>
       ) : null;
     }
@@ -1421,13 +1470,13 @@ function PreparationGuidanceBox({
       title = beforeAccept
         ? "This order uses brand-provided materials"
         : ready
-          ? "Review the brand materials"
-          : "Waiting for brand materials";
+          ? "Materials confirmed"
+          : "Review the brand materials";
       body = beforeAccept
         ? "Before accepting, review the reference assets, posting rules, and PR text."
         : ready
-          ? "Check the images, videos, product information, and posting instructions from the brand."
-          : "The brand needs to provide the materials or posting information before work can start.";
+          ? "The materials have been confirmed. You can continue with the work."
+          : "Review the images, videos, product information, and posting instructions, then confirm them.";
     }
 
     if (fulfillmentType === "product_shipping") {
@@ -1548,17 +1597,7 @@ function DeliveryActionBox({
   isRevisionRequested,
 }: {
   order: OrderDetail;
-  copy: {
-    deliveryTitle: string;
-    redeliveryTitle: string;
-    deliveryBody: string;
-    deliveredPostUrlPlaceholder: string;
-    openDeliveredUrl: string;
-    deliver: string;
-    redeliver: string;
-    updateDelivery: string;
-    delivering: string;
-  };
+  copy: any;
   deliveryUrl: string;
   setDeliveryUrl: (value: string) => void;
   actionLoading: ActionLoading;
@@ -1722,6 +1761,19 @@ export default function CreatorOrderDetailPage() {
             preparationReadyLabel: "進められます",
             preparationWaitingLabel: "準備が必要",
 
+            materialsConfirmTitle: "素材・投稿情報を確認してください",
+            materialsConfirmBody:
+              "企業から届いた素材、投稿条件、PR表記、注意事項を確認し、問題なければ確認完了にしてください。",
+            materialsConfirmButton: "素材・投稿情報を確認しました",
+            materialsConfirmLoading: "更新中...",
+            materialsConfirmConfirm:
+              "素材・投稿情報を確認済みにしますか？確認後、納品に進めるようになります。",
+            materialsConfirmFailed:
+              "素材確認の更新に失敗しました。時間を置いて再度お試しください。",
+            materialsConfirmedTitle: "素材・投稿情報を確認済みです",
+            materialsConfirmedBody:
+              "この注文は制作・納品に進める状態です。",
+
             shippingAddressTitle: "配送先を共有する",
             shippingAddressBody:
               "商品を受け取るための配送先を入力してください。企業側に共有されます。",
@@ -1852,6 +1904,19 @@ export default function CreatorOrderDetailPage() {
               "After accepting, you can coordinate with the brand in chat.",
             preparationReadyLabel: "Ready",
             preparationWaitingLabel: "Needs setup",
+
+            materialsConfirmTitle: "Review the provided materials",
+            materialsConfirmBody:
+              "Review the assets, posting conditions, PR text, and notes from the brand. Confirm them if everything is okay.",
+            materialsConfirmButton: "I reviewed the materials",
+            materialsConfirmLoading: "Updating...",
+            materialsConfirmConfirm:
+              "Mark the materials as confirmed? You will be able to continue to delivery.",
+            materialsConfirmFailed:
+              "Could not update material confirmation. Please try again later.",
+            materialsConfirmedTitle: "Materials confirmed",
+            materialsConfirmedBody:
+              "This order is ready for content creation and delivery.",
 
             shippingAddressTitle: "Share delivery address",
             shippingAddressBody:
@@ -2251,6 +2316,51 @@ export default function CreatorOrderDetailPage() {
     }
   };
 
+  const runConfirmMaterials = async () => {
+    if (!order) return;
+
+    if (!window.confirm(copy.materialsConfirmConfirm)) return;
+
+    setActionLoading("materials_confirmed");
+    setError(null);
+
+    try {
+      const token = await getActionToken();
+
+      if (!token) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/creator/orders/${order.id}/materials-confirmed`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+        ACTION_TIMEOUT_MS,
+        copy.materialsConfirmFailed
+      );
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(json?.error ?? copy.materialsConfirmFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      await loadOrder();
+      setActionLoading(null);
+    } catch (e: any) {
+      setError(e?.message ?? copy.materialsConfirmFailed);
+      setActionLoading(null);
+    }
+  };
+
   const runShareShippingAddress = async () => {
     if (!order) return;
 
@@ -2500,6 +2610,7 @@ export default function CreatorOrderDetailPage() {
 
   const passiveNotice = getPassiveNoticeCopy(order, safeLocale);
   const canChat = canOpenChat(order);
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
   const shouldShowPreparation =
     !isCheckoutPending(order) &&
     !isTerminalStatus(order.status) &&
@@ -2565,7 +2676,20 @@ export default function CreatorOrderDetailPage() {
         />
       ) : null}
 
-      {normalizeFulfillmentType(order.fulfillment_type) === "product_shipping" &&
+      {fulfillmentType === "material_provided" &&
+      !isWaitingForCreator(order) &&
+      !isCheckoutPending(order) &&
+      !isTerminalStatus(order.status) &&
+      order.status !== "delivered" ? (
+        <MaterialsConfirmActionBox
+          order={order}
+          actionLoading={actionLoading}
+          onConfirm={() => void runConfirmMaterials()}
+          copy={copy}
+        />
+      ) : null}
+
+      {fulfillmentType === "product_shipping" &&
       !isWaitingForCreator(order) &&
       !isCheckoutPending(order) &&
       !isTerminalStatus(order.status) &&
