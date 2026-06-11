@@ -365,7 +365,7 @@ export default function CreatorLayoutShell({
             orders: "注文",
             todo: "ToDo",
             payouts: "報酬",
-            menu: "プロフィール",
+            menu: "プロフ",
 
             notifications: "通知",
             waitingWork: "実行待ち",
@@ -428,27 +428,27 @@ export default function CreatorLayoutShell({
       {
         href: "/creator/dashboard",
         label: copy.home,
-        icon: <HomeIcon className="h-[25px] w-[25px]" />,
+        icon: <HomeIcon className="h-[22px] w-[22px]" />,
       },
       {
         href: "/creator/requests",
         label: copy.orders,
-        icon: <OrdersIcon className="h-[25px] w-[25px]" />,
+        icon: <OrdersIcon className="h-[22px] w-[22px]" />,
       },
       {
         href: "/creator/jobs",
         label: copy.todo,
-        icon: <TodoIcon className="h-[25px] w-[25px]" />,
+        icon: <TodoIcon className="h-[22px] w-[22px]" />,
       },
       {
         href: "/creator/payouts",
         label: copy.payouts,
-        icon: <YenIcon className="h-[25px] w-[25px]" />,
+        icon: <YenIcon className="h-[22px] w-[22px]" />,
       },
       {
         href: "/creator/profile",
         label: copy.menu,
-        icon: <ProfileIcon className="h-[25px] w-[25px]" />,
+        icon: <ProfileIcon className="h-[22px] w-[22px]" />,
       },
     ],
     [copy.home, copy.menu, copy.orders, copy.payouts, copy.todo]
@@ -636,7 +636,7 @@ export default function CreatorLayoutShell({
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f8f9fb] text-slate-950">
+    <div className="trendre-app-shell trendre-min-screen overflow-x-hidden bg-[#f8f9fb] text-slate-950">
       <header className="fixed inset-x-0 top-0 z-[100] border-b border-slate-100 bg-white/95 backdrop-blur-xl">
         {limitReason ? (
           <div className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-amber-900">
@@ -814,14 +814,14 @@ export default function CreatorLayoutShell({
       </header>
 
       <main
-        className={`mx-auto w-full max-w-5xl overflow-x-hidden px-4 pb-28 md:px-6 ${
+        className={`mx-auto w-full max-w-5xl overflow-x-hidden px-4 md:px-6 ${
           limitReason ? "pt-[122px]" : "pt-[84px]"
         }`}
       >
         {children}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-2 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-14px_36px_rgba(15,23,42,0.07)] backdrop-blur-xl">
         <div className="mx-auto grid max-w-[520px] grid-cols-5 gap-1">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailNavContext);
@@ -830,14 +830,14 @@ export default function CreatorLayoutShell({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative flex min-h-[68px] flex-col items-center justify-center rounded-[24px] px-1.5 py-2 text-[11px] font-black transition duration-200 active:scale-[0.96] ${
+                className={`relative flex min-h-[58px] flex-col items-center justify-center rounded-[20px] px-1 py-1.5 text-[10px] font-black transition duration-200 active:scale-[0.96] ${
                   active
                     ? "text-[#ff5f67]"
                     : "text-slate-400 hover:text-slate-600"
                 }`}
               >
                 <span
-                  className={`mb-1.5 flex h-9 w-9 items-center justify-center rounded-[18px] transition duration-200 ${
+                  className={`mb-1 flex h-8 w-8 items-center justify-center rounded-[16px] transition duration-200 ${
                     active ? "bg-rose-50 shadow-sm" : "bg-transparent"
                   }`}
                 >
