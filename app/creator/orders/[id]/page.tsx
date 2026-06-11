@@ -320,7 +320,9 @@ function isPreparationReady(order: OrderDetail) {
   }
 
   if (fulfillmentType === "visit") {
-    return preparationStatus === "schedule_confirmed";
+    // 来店型は日時をDBで固定登録せず、チャットで調整する前提。
+    // 受注後は実施完了後に納品へ進める。
+    return true;
   }
 
   return true;
@@ -829,10 +831,10 @@ function ReferenceGallery({
               key={asset.id}
               className="relative h-[210px] min-w-full snap-center overflow-hidden rounded-[24px] border border-slate-100 bg-slate-50"
             >
-              {isImage ? (
+              {isImage && asset.signed_url ? (
                 <img
-                  src={asset.signed_url ?? ""}
-                  alt=""
+                  src={asset.signed_url}
+                  alt={asset.file_name}
                   loading="eager"
                   decoding="async"
                   className="h-full w-full object-cover"
@@ -840,10 +842,10 @@ function ReferenceGallery({
               ) : (
                 <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-50 to-slate-100 px-6 text-center">
                   <div className="rounded-[18px] bg-white px-4 py-2 text-sm font-black text-[#ff5f67] ring-1 ring-slate-200">
-                    PDF
+                    {isImage ? "IMAGE" : "PDF"}
                   </div>
-                  <p className="max-w-[260px] text-sm font-semibold leading-6 text-slate-500">
-                    {fileLabel}
+                  <p className="max-w-[260px] break-words text-sm font-semibold leading-6 text-slate-500">
+                    {asset.file_name || fileLabel}
                   </p>
                 </div>
               )}
@@ -1125,6 +1127,7 @@ function ProductShippingActionBox({
   onReceived: () => void;
   copy: any;
 }) {
+  const [modalOpen, setModalOpen] = useState(false);
   const preparationStatus = normalizePreparationStatus(order.preparation_status);
   const addressShared = Boolean(order.shipping_address_shared_at);
   const canShareAddress = canShareShippingAddress(order);
@@ -1138,215 +1141,267 @@ function ProductShippingActionBox({
     return null;
   }
 
+  const buttonLabel = addressShared
+    ? copy.shippingUpdateAddress
+    : copy.shippingShareAddress;
+
   return (
-    <Surface className="overflow-hidden">
-      <div className="bg-gradient-to-br from-amber-50 via-white to-white p-4 ring-1 ring-amber-50 sm:p-5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white text-amber-700 shadow-sm ring-1 ring-amber-100">
-            <PackageIcon />
+    <>
+      <Surface className="overflow-hidden">
+        <div className="bg-gradient-to-br from-amber-50 via-white to-white p-4 ring-1 ring-amber-50 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white text-amber-700 shadow-sm ring-1 ring-amber-100">
+              <PackageIcon />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
+                {copy.shippingAddressTitle}
+              </p>
+              <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+                {addressShared
+                  ? copy.shippingStatusShared
+                  : copy.shippingAddressBody}
+              </p>
+
+              <div className="mt-4">
+                <PrimaryButton
+                  onClick={() => setModalOpen(true)}
+                  disabled={actionLoading !== null || !canShareAddress}
+                  variant={addressShared ? "soft" : "solid"}
+                >
+                  {buttonLabel}
+                </PrimaryButton>
+              </div>
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
-              {copy.shippingAddressTitle}
-            </p>
-            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
-              {copy.shippingAddressBody}
-            </p>
-          </div>
+          {addressShared ? (
+            <div className="mt-4 rounded-[20px] bg-white/80 p-4 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-400">
+                {copy.shippingStatusShared}
+              </p>
+
+              <div className="mt-3 grid gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black text-slate-400">
+                    {preparationStatus === "received"
+                      ? copy.shippingStatusReceived
+                      : preparationStatus === "shipped"
+                        ? copy.shippingStatusShipped
+                        : copy.shippingStatusWaitingShipment}
+                  </span>
+                </div>
+
+                {order.shipping_carrier ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-black text-slate-400">
+                      {copy.shippingCarrier}
+                    </span>
+                    <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
+                      {order.shipping_carrier}
+                    </span>
+                  </div>
+                ) : null}
+
+                {order.shipping_tracking_number ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-black text-slate-400">
+                      {copy.shippingTrackingNumber}
+                    </span>
+                    <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
+                      {order.shipping_tracking_number}
+                    </span>
+                  </div>
+                ) : null}
+
+                {order.shipped_at ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-black text-slate-400">
+                      {copy.shippedAt}
+                    </span>
+                    <span className="text-right text-xs font-black text-slate-700">
+                      {formatDateTime(order.shipped_at, "ja")}
+                    </span>
+                  </div>
+                ) : null}
+
+                {order.received_at ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-black text-slate-400">
+                      {copy.receivedAt}
+                    </span>
+                    <span className="text-right text-xs font-black text-slate-700">
+                      {formatDateTime(order.received_at, "ja")}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {addressShared && !order.received_at ? (
+            <div className="mt-4 rounded-[20px] bg-white/80 p-4 ring-1 ring-slate-100">
+              <p className="text-[16px] font-black text-slate-950">
+                {copy.productReceivedTitle}
+              </p>
+              <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+                {copy.productReceivedBody}
+              </p>
+
+              <div className="mt-3">
+                <PrimaryButton
+                  onClick={onReceived}
+                  disabled={actionLoading !== null || !canReceive}
+                >
+                  {actionLoading === "received"
+                    ? copy.productReceivedLoading
+                    : copy.productReceivedButton}
+                </PrimaryButton>
+              </div>
+            </div>
+          ) : null}
         </div>
+      </Surface>
 
-        <div className="mt-4 grid gap-3">
-          <ShippingInput
-            label={copy.shippingRecipientName}
-            value={shippingAddress.recipient_name}
-            onChange={(value) =>
-              setShippingAddress({
-                ...shippingAddress,
-                recipient_name: value,
-              })
-            }
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <ShippingInput
-              label={copy.shippingPostalCode}
-              value={shippingAddress.postal_code}
-              onChange={(value) =>
-                setShippingAddress({
-                  ...shippingAddress,
-                  postal_code: value,
-                })
-              }
-            />
-
-            <ShippingInput
-              label={copy.shippingPrefecture}
-              value={shippingAddress.prefecture}
-              onChange={(value) =>
-                setShippingAddress({
-                  ...shippingAddress,
-                  prefecture: value,
-                })
-              }
-            />
-          </div>
-
-          <ShippingInput
-            label={copy.shippingCity}
-            value={shippingAddress.city}
-            onChange={(value) =>
-              setShippingAddress({
-                ...shippingAddress,
-                city: value,
-              })
-            }
-          />
-
-          <ShippingInput
-            label={copy.shippingAddressLine1}
-            value={shippingAddress.address_line1}
-            onChange={(value) =>
-              setShippingAddress({
-                ...shippingAddress,
-                address_line1: value,
-              })
-            }
-          />
-
-          <ShippingInput
-            label={copy.shippingAddressLine2}
-            value={shippingAddress.address_line2}
-            onChange={(value) =>
-              setShippingAddress({
-                ...shippingAddress,
-                address_line2: value,
-              })
-            }
-          />
-
-          <ShippingInput
-            label={copy.shippingPhoneNumber}
-            value={shippingAddress.phone_number}
-            onChange={(value) =>
-              setShippingAddress({
-                ...shippingAddress,
-                phone_number: value,
-              })
-            }
-          />
-
-          <ShippingInput
-            label={copy.shippingNotes}
-            value={shippingAddress.notes}
-            onChange={(value) =>
-              setShippingAddress({
-                ...shippingAddress,
-                notes: value,
-              })
-            }
-            multiline
-          />
-
-          <PrimaryButton
-            onClick={onShareAddress}
-            disabled={actionLoading !== null || !canShareAddress}
-          >
-            {actionLoading === "shipping_address"
-              ? copy.shippingSharingAddress
-              : addressShared
-                ? copy.shippingUpdateAddress
-                : copy.shippingShareAddress}
-          </PrimaryButton>
-        </div>
-
-        {addressShared ? (
-          <div className="mt-4 rounded-[20px] bg-white/80 p-4 ring-1 ring-slate-100">
-            <p className="text-xs font-black text-slate-400">
-              {copy.shippingStatusShared}
-            </p>
-
-            <div className="mt-3 grid gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-black text-slate-400">
-                  {preparationStatus === "received"
-                    ? copy.shippingStatusReceived
-                    : preparationStatus === "shipped"
-                      ? copy.shippingStatusShipped
-                      : copy.shippingStatusWaitingShipment}
-                </span>
+      {modalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
+          <div className="max-h-[88vh] w-full max-w-[520px] overflow-y-auto rounded-[28px] bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.28)] ring-1 ring-white/60 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xl font-black tracking-[-0.05em] text-slate-950">
+                  {copy.shippingAddressTitle}
+                </p>
+                <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+                  {copy.shippingAddressBody}
+                </p>
               </div>
 
-              {order.shipping_carrier ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black text-slate-400">
-                    {copy.shippingCarrier}
-                  </span>
-                  <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
-                    {order.shipping_carrier}
-                  </span>
-                </div>
-              ) : null}
-
-              {order.shipping_tracking_number ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black text-slate-400">
-                    {copy.shippingTrackingNumber}
-                  </span>
-                  <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
-                    {order.shipping_tracking_number}
-                  </span>
-                </div>
-              ) : null}
-
-              {order.shipped_at ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black text-slate-400">
-                    {copy.shippedAt}
-                  </span>
-                  <span className="text-right text-xs font-black text-slate-700">
-                    {formatDateTime(order.shipped_at, "ja")}
-                  </span>
-                </div>
-              ) : null}
-
-              {order.received_at ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black text-slate-400">
-                    {copy.receivedAt}
-                  </span>
-                  <span className="text-right text-xs font-black text-slate-700">
-                    {formatDateTime(order.received_at, "ja")}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {addressShared && !order.received_at ? (
-          <div className="mt-4 rounded-[20px] bg-white/80 p-4 ring-1 ring-slate-100">
-            <p className="text-[16px] font-black text-slate-950">
-              {copy.productReceivedTitle}
-            </p>
-            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
-              {copy.productReceivedBody}
-            </p>
-
-            <div className="mt-3">
-              <PrimaryButton
-                onClick={onReceived}
-                disabled={actionLoading !== null || !canReceive}
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200"
+                aria-label="close"
               >
-                {actionLoading === "received"
-                  ? copy.productReceivedLoading
-                  : copy.productReceivedButton}
-              </PrimaryButton>
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <ShippingInput
+                label={copy.shippingRecipientName}
+                value={shippingAddress.recipient_name}
+                onChange={(value) =>
+                  setShippingAddress({
+                    ...shippingAddress,
+                    recipient_name: value,
+                  })
+                }
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <ShippingInput
+                  label={copy.shippingPostalCode}
+                  value={shippingAddress.postal_code}
+                  onChange={(value) =>
+                    setShippingAddress({
+                      ...shippingAddress,
+                      postal_code: value,
+                    })
+                  }
+                />
+
+                <ShippingInput
+                  label={copy.shippingPrefecture}
+                  value={shippingAddress.prefecture}
+                  onChange={(value) =>
+                    setShippingAddress({
+                      ...shippingAddress,
+                      prefecture: value,
+                    })
+                  }
+                />
+              </div>
+
+              <ShippingInput
+                label={copy.shippingCity}
+                value={shippingAddress.city}
+                onChange={(value) =>
+                  setShippingAddress({
+                    ...shippingAddress,
+                    city: value,
+                  })
+                }
+              />
+
+              <ShippingInput
+                label={copy.shippingAddressLine1}
+                value={shippingAddress.address_line1}
+                onChange={(value) =>
+                  setShippingAddress({
+                    ...shippingAddress,
+                    address_line1: value,
+                  })
+                }
+              />
+
+              <ShippingInput
+                label={copy.shippingAddressLine2}
+                value={shippingAddress.address_line2}
+                onChange={(value) =>
+                  setShippingAddress({
+                    ...shippingAddress,
+                    address_line2: value,
+                  })
+                }
+              />
+
+              <ShippingInput
+                label={copy.shippingPhoneNumber}
+                value={shippingAddress.phone_number}
+                onChange={(value) =>
+                  setShippingAddress({
+                    ...shippingAddress,
+                    phone_number: value,
+                  })
+                }
+              />
+
+              <ShippingInput
+                label={copy.shippingNotes}
+                value={shippingAddress.notes}
+                onChange={(value) =>
+                  setShippingAddress({
+                    ...shippingAddress,
+                    notes: value,
+                  })
+                }
+                multiline
+              />
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <PrimaryButton
+                  onClick={() => setModalOpen(false)}
+                  disabled={actionLoading !== null}
+                  variant="soft"
+                >
+                  {copy.back}
+                </PrimaryButton>
+
+                <PrimaryButton
+                  onClick={onShareAddress}
+                  disabled={actionLoading !== null || !canShareAddress}
+                >
+                  {actionLoading === "shipping_address"
+                    ? copy.shippingSharingAddress
+                    : buttonLabel}
+                </PrimaryButton>
+              </div>
             </div>
           </div>
-        ) : null}
-      </div>
-    </Surface>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -1406,7 +1461,7 @@ function PreparationGuidanceBox({
           : "配送先の共有が必要です";
         body = beforeAccept
           ? "注文を受けた後、企業と配送先・発送方法を確認してから制作を進めます。"
-          : "商品を受け取るために、下のフォームから配送先を共有してください。";
+          : "商品を受け取るために、「配送先を入力する」ボタンから配送先を共有してください。";
       } else if (preparationStatus === "waiting_shipment") {
         title = "企業の発送を待っています";
         body = "配送先は共有済みです。企業が商品を発送するまでお待ちください。";
@@ -1429,11 +1484,11 @@ function PreparationGuidanceBox({
         body = "来店日・場所・注意事項を確認して、当日に向けて準備してください。";
       } else {
         title = beforeAccept
-          ? "来店日を決めて進める案件です"
-          : "来店日を決めてください";
+          ? "チャットで来店日程を調整する案件です"
+          : "チャットで来店日程を調整してください";
         body = beforeAccept
-          ? "注文を受けた後、企業と日程・場所・撮影ルールを確認して進めます。"
-          : "企業と来店日・場所・撮影ルールを確認して、日程を決めてください。";
+          ? "注文を受けた後、企業とチャットで来店日・場所・撮影ルールを調整して進めます。"
+          : "企業とチャットで来店日・場所・撮影ルールを調整してください。";
       }
 
       detail = (
@@ -1488,7 +1543,7 @@ function PreparationGuidanceBox({
           : "Share delivery details";
         body = beforeAccept
           ? "After accepting, coordinate delivery details with the brand before starting."
-          : "Share your delivery address below so the brand can ship the product.";
+          : "Use the address button to share your delivery address with the brand.";
       } else if (preparationStatus === "waiting_shipment") {
         title = "Waiting for shipment";
         body = "Your delivery address has been shared. Please wait for the brand to ship the product.";
@@ -1511,11 +1566,11 @@ function PreparationGuidanceBox({
         body = "Check the date, place, and notes before the visit.";
       } else {
         title = beforeAccept
-          ? "This order requires a visit"
-          : "Confirm the visit date";
+          ? "This order requires visit coordination in chat"
+          : "Coordinate the visit in chat";
         body = beforeAccept
-          ? "After accepting, coordinate the date, place, and shooting rules with the brand."
-          : "Coordinate the visit date, place, and shooting rules with the brand.";
+          ? "After accepting, coordinate the visit date, place, and shooting rules with the brand in chat."
+          : "Coordinate the visit date, place, and shooting rules with the brand in chat.";
       }
     }
   }
@@ -2599,9 +2654,7 @@ export default function CreatorOrderDetailPage() {
   const timingText = extractRequirementSection(order.requirements, "実施タイミング");
   const requestNote = extractRequirementSection(order.requirements, "依頼内容");
 
-  const mediaAssets = referenceAssets.filter((asset) =>
-    Boolean(asset.signed_url)
-  );
+  const mediaAssets = referenceAssets;
 
   const safeSelectedIndex = Math.min(
     selectedAssetIndex,
@@ -2719,15 +2772,6 @@ export default function CreatorOrderDetailPage() {
 
       {!isWaitingForCreator(order) && !canDeliver && !shouldShowPreparation ? (
         <PassiveNoticeBox title={passiveNotice.title} body={passiveNotice.body} />
-      ) : null}
-
-      {canChat ? (
-        <ChatCtaBox
-          href={`/creator/orders/${order.id}/chat`}
-          title={copy.chatCtaTitle}
-          body={copy.chatCtaBody}
-          buttonLabel={copy.chatCtaButton}
-        />
       ) : null}
 
       <Surface className="overflow-hidden">
