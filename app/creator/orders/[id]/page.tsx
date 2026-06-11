@@ -210,43 +210,6 @@ function canOpenChat(order: OrderDetail) {
   );
 }
 
-function statusLabel(order: OrderDetail, locale: "ja" | "en") {
-  const status = order.status;
-
-  if (locale === "ja") {
-    if (isCheckoutPending(order)) return "準備中";
-    if (isWaitingForCreator(order)) return "返答待ち";
-    if (isInProgress(order)) return "進行中";
-    if (status === "revision_requested") return "修正対応中";
-    if (status === "delivered") return "確認待ち";
-    if (status === "completed") return "完了";
-    if (status === "declined_canceled") return "辞退済み";
-    if (status === "expired_canceled") return "期限切れ";
-    return "確認中";
-  }
-
-  if (isCheckoutPending(order)) return "Preparing";
-  if (isWaitingForCreator(order)) return "Pending";
-  if (isInProgress(order)) return "In progress";
-  if (status === "revision_requested") return "Revision";
-  if (status === "delivered") return "Review";
-  if (status === "completed") return "Done";
-  if (status === "declined_canceled") return "Declined";
-  if (status === "expired_canceled") return "Expired";
-  return "Checking";
-}
-
-function statusTone(
-  order: OrderDetail
-): "rose" | "blue" | "amber" | "green" | "slate" {
-  if (isCheckoutPending(order)) return "slate";
-  if (isWaitingForCreator(order)) return "amber";
-  if (order.status === "revision_requested") return "rose";
-  if (isInProgress(order)) return "blue";
-  if (order.status === "completed") return "green";
-  return "slate";
-}
-
 function transferLabel(value: string | null, locale: "ja" | "en") {
   const status = value || "not_started";
 
@@ -294,16 +257,16 @@ function getCleanHashtags(values: string[] | null | undefined) {
 }
 
 function buildPrCopyText(order: OrderDetail) {
+  const mainCopy = order.pr_copy_text?.trim();
+
+  if (mainCopy) {
+    return mainCopy;
+  }
+
   const account = normalizePrAccountInput(order.pr_account);
   const hashtags = getCleanHashtags(order.pr_hashtags);
 
   const lines: string[] = [];
-
-  const mainCopy = order.pr_copy_text?.trim();
-
-  if (mainCopy) {
-    lines.push(mainCopy);
-  }
 
   if (account) {
     lines.push(`PR@${account}`);
@@ -313,7 +276,7 @@ function buildPrCopyText(order: OrderDetail) {
     lines.push(hashtags.map((tag) => `#${tag}`).join(" "));
   }
 
-  return lines.join("\n\n").trim();
+  return lines.join("\n").trim();
 }
 
 function extractRequirementSection(
@@ -416,33 +379,6 @@ function MessageIcon() {
   );
 }
 
-function SoftPill({
-  children,
-  tone = "slate",
-}: {
-  children: ReactNode;
-  tone?: "rose" | "blue" | "amber" | "green" | "slate";
-}) {
-  const className =
-    tone === "rose"
-      ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
-      : tone === "blue"
-        ? "bg-blue-50 text-blue-700 ring-blue-100"
-        : tone === "amber"
-          ? "bg-amber-50 text-amber-800 ring-amber-100"
-          : tone === "green"
-            ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-            : "bg-slate-50 text-slate-600 ring-slate-100";
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
 function Surface({
   children,
   className = "",
@@ -452,7 +388,7 @@ function Surface({
 }) {
   return (
     <section
-      className={`rounded-[30px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 ${className}`}
+      className={`rounded-[28px] bg-white shadow-[0_12px_34px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 ${className}`}
     >
       {children}
     </section>
@@ -469,8 +405,8 @@ function DetailRow({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3">
-      <span className="shrink-0 text-xs font-black text-slate-400">
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <span className="shrink-0 text-[11px] font-black text-slate-400">
         {label}
       </span>
       <div
@@ -492,7 +428,7 @@ function PlainTextBox({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-[20px] border border-slate-100 bg-slate-50/65 p-4">
+    <div className="rounded-[18px] border border-slate-100 bg-slate-50/65 p-4">
       <p className="whitespace-pre-line break-words text-sm font-semibold leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
       </p>
@@ -518,8 +454,8 @@ function PrimaryButton({
       disabled={disabled}
       className={
         variant === "soft"
-          ? "w-full rounded-full bg-white px-5 py-4 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          : "w-full rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          ? "w-full rounded-full bg-white px-5 py-3.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          : "w-full rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(255,95,103,0.2)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       }
     >
       {children}
@@ -545,12 +481,12 @@ function AccordionItem({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+        className="flex w-full items-center justify-between gap-4 px-5 py-3.5 text-left"
       >
         <div className="min-w-0">
           <p className="text-[15px] font-black text-slate-950">{title}</p>
           {subtitle ? (
-            <p className="mt-1 line-clamp-2 text-xs font-semibold leading-6 text-slate-400">
+            <p className="mt-0.5 line-clamp-1 text-xs font-semibold leading-6 text-slate-400">
               {subtitle}
             </p>
           ) : null}
@@ -559,7 +495,7 @@ function AccordionItem({
         <ChevronIcon open={open} />
       </button>
 
-      {open ? <div className="px-5 pb-5">{children}</div> : null}
+      {open ? <div className="px-5 pb-4">{children}</div> : null}
     </div>
   );
 }
@@ -579,10 +515,12 @@ function ReferenceGallery({
   openLabel: string;
   fileLabel: string;
 }) {
-  if (loading) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  if (loading && assets.length === 0) {
     return (
-      <div className="overflow-hidden rounded-[26px] border border-slate-100 bg-slate-50">
-        <div className="aspect-[4/3] animate-pulse bg-slate-100 sm:aspect-[16/10]" />
+      <div className="overflow-hidden rounded-[24px] border border-slate-100 bg-slate-50">
+        <div className="h-[210px] animate-pulse bg-gradient-to-br from-slate-100 via-white to-slate-100" />
       </div>
     );
   }
@@ -590,24 +528,73 @@ function ReferenceGallery({
   if (assets.length === 0) return null;
 
   const safeIndex = Math.min(selectedIndex, Math.max(assets.length - 1, 0));
-  const selected = assets[safeIndex];
-  const isImage = selected?.file_type === "image";
+
+  const scrollToIndex = (index: number) => {
+    onSelect(index);
+
+    const container = scrollRef.current;
+    const target = container?.children[index] as HTMLElement | undefined;
+
+    target?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  };
+
+  const handleScroll = () => {
+    const container = scrollRef.current;
+
+    if (!container) return;
+
+    const width = container.clientWidth;
+    if (!width) return;
+
+    const index = Math.round(container.scrollLeft / width);
+    const safeNextIndex = Math.min(Math.max(index, 0), assets.length - 1);
+
+    if (safeNextIndex !== safeIndex) {
+      onSelect(safeNextIndex);
+    }
+  };
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-[28px] border border-slate-100 bg-slate-50">
-        {selected ? (
-          isImage ? (
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 sm:aspect-[16/10]">
-              <img
-                src={selected.signed_url ?? ""}
-                alt=""
-                className="h-full w-full object-cover"
-              />
+    <div className="space-y-2.5">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="trendre-scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth"
+      >
+        {assets.map((asset) => {
+          const isImage = asset.file_type === "image";
 
-              {selected.signed_url ? (
+          return (
+            <div
+              key={asset.id}
+              className="relative h-[210px] min-w-full snap-center overflow-hidden rounded-[24px] border border-slate-100 bg-slate-50"
+            >
+              {isImage ? (
+                <img
+                  src={asset.signed_url ?? ""}
+                  alt=""
+                  loading="eager"
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-50 to-slate-100 px-6 text-center">
+                  <div className="rounded-[18px] bg-white px-4 py-2 text-sm font-black text-[#ff5f67] ring-1 ring-slate-200">
+                    PDF
+                  </div>
+                  <p className="max-w-[260px] text-sm font-semibold leading-6 text-slate-500">
+                    {fileLabel}
+                  </p>
+                </div>
+              )}
+
+              {asset.signed_url ? (
                 <a
-                  href={selected.signed_url}
+                  href={asset.signed_url}
                   target="_blank"
                   rel="noreferrer"
                   className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-200 backdrop-blur"
@@ -616,80 +603,24 @@ function ReferenceGallery({
                   {openLabel}
                 </a>
               ) : null}
-
-              {assets.length > 1 ? (
-                <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
-                  {assets.map((asset, index) => (
-                    <button
-                      key={asset.id}
-                      type="button"
-                      onClick={() => onSelect(index)}
-                      aria-label={`image ${index + 1}`}
-                      className={`h-2.5 rounded-full transition ${
-                        index === safeIndex
-                          ? "w-5 bg-[#ff5f67]"
-                          : "w-2.5 bg-white/80"
-                      }`}
-                    />
-                  ))}
-                </div>
-              ) : null}
             </div>
-          ) : (
-            <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-50 to-slate-100 px-6 text-center sm:aspect-[16/10]">
-              <div className="rounded-[18px] bg-white px-4 py-2 text-sm font-black text-[#ff5f67] ring-1 ring-slate-200">
-                PDF
-              </div>
-              <p className="max-w-[260px] text-sm font-semibold leading-6 text-slate-500">
-                {fileLabel}
-              </p>
-              {selected.signed_url ? (
-                <a
-                  href={selected.signed_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white"
-                >
-                  <LinkIcon />
-                  {openLabel}
-                </a>
-              ) : null}
-            </div>
-          )
-        ) : null}
+          );
+        })}
       </div>
 
       {assets.length > 1 ? (
-        <div className="trendre-scrollbar-none flex gap-2 overflow-x-auto pb-1">
-          {assets.map((asset, index) => {
-            const active = index === safeIndex;
-            const thumbIsImage = asset.file_type === "image";
-
-            return (
-              <button
-                key={asset.id}
-                type="button"
-                onClick={() => onSelect(index)}
-                className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-[18px] border transition ${
-                  active
-                    ? "border-[#ff5f67] ring-2 ring-rose-100"
-                    : "border-slate-100"
-                }`}
-              >
-                {thumbIsImage ? (
-                  <img
-                    src={asset.signed_url ?? ""}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[11px] font-black text-[#ff5f67]">
-                    PDF
-                  </div>
-                )}
-              </button>
-            );
-          })}
+        <div className="flex justify-center gap-1.5">
+          {assets.map((asset, index) => (
+            <button
+              key={asset.id}
+              type="button"
+              onClick={() => scrollToIndex(index)}
+              aria-label={`image ${index + 1}`}
+              className={`h-2 rounded-full transition ${
+                index === safeIndex ? "w-5 bg-[#ff5f67]" : "w-2 bg-slate-200"
+              }`}
+            />
+          ))}
         </div>
       ) : null}
     </div>
@@ -704,49 +635,55 @@ function OrderSummaryBox({
   order: OrderDetail;
   locale: "ja" | "en";
   copy: {
+    productName: string;
     summaryMenu: string;
     summaryPayout: string;
     summaryDeadline: string;
     notSet: string;
   };
 }) {
+  const deadline = order.creator_accept_deadline || order.deadline;
+
   return (
-    <div className="rounded-[24px] bg-slate-50/80 px-4 py-4 ring-1 ring-slate-100">
-      <div className="grid gap-3">
-        <div>
-          <p className="text-xs font-black text-slate-400">
-            {copy.summaryMenu}
+    <div className="rounded-[22px] bg-slate-50/85 p-4 ring-1 ring-slate-100">
+      {order.product_name ? (
+        <div className="mb-3">
+          <p className="text-[11px] font-black text-slate-400">
+            {copy.productName}
           </p>
           <p className="mt-1 break-words text-[15px] font-black text-slate-950">
-            {order.menu_title_snapshot || copy.notSet}
+            {order.product_name}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[11px] font-black text-slate-400">
+            {copy.summaryPayout}
+          </p>
+          <p className="mt-1 text-[15px] font-black text-slate-950">
+            {formatPrice(order.creator_payout_amount, order.currency, locale)}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs font-black text-slate-400">
-              {copy.summaryPayout}
-            </p>
-            <p className="mt-1 text-[15px] font-black text-slate-950">
-              {formatPrice(
-                order.creator_payout_amount,
-                order.currency,
-                locale
-              )}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs font-black text-slate-400">
-              {copy.summaryDeadline}
-            </p>
-            <p className="mt-1 text-[15px] font-black text-slate-950">
-              {order.creator_accept_deadline
-                ? formatDateTime(order.creator_accept_deadline, locale)
-                : copy.notSet}
-            </p>
-          </div>
+        <div>
+          <p className="text-[11px] font-black text-slate-400">
+            {copy.summaryDeadline}
+          </p>
+          <p className="mt-1 text-[15px] font-black text-slate-950">
+            {deadline ? formatDateTime(deadline, locale) : copy.notSet}
+          </p>
         </div>
+      </div>
+
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <p className="text-[11px] font-black text-slate-400">
+          {copy.summaryMenu}
+        </p>
+        <p className="mt-1 break-words text-sm font-black text-slate-900">
+          {order.menu_title_snapshot || copy.notSet}
+        </p>
       </div>
     </div>
   );
@@ -775,28 +712,30 @@ function ResponseActionBox({
   if (!isWaitingForCreator(order)) return null;
 
   return (
-    <div className="rounded-[26px] bg-gradient-to-br from-rose-50 via-white to-emerald-50 p-4 ring-1 ring-rose-100/70">
-      <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
-        {copy.responseTitle}
-      </p>
-      <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-        {copy.responseBody}
-      </p>
+    <Surface className="overflow-hidden">
+      <div className="bg-gradient-to-br from-rose-50 via-white to-white p-4 ring-1 ring-rose-50 sm:p-5">
+        <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
+          {copy.responseTitle}
+        </p>
+        <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+          {copy.responseBody}
+        </p>
 
-      <div className="mt-4 grid gap-3">
-        <PrimaryButton onClick={onAccept} disabled={actionLoading !== null}>
-          {actionLoading === "accept" ? copy.accepting : copy.accept}
-        </PrimaryButton>
+        <div className="mt-4 grid gap-3">
+          <PrimaryButton onClick={onAccept} disabled={actionLoading !== null}>
+            {actionLoading === "accept" ? copy.accepting : copy.accept}
+          </PrimaryButton>
 
-        <PrimaryButton
-          onClick={onDecline}
-          disabled={actionLoading !== null}
-          variant="soft"
-        >
-          {actionLoading === "decline" ? copy.declining : copy.decline}
-        </PrimaryButton>
+          <PrimaryButton
+            onClick={onDecline}
+            disabled={actionLoading !== null}
+            variant="soft"
+          >
+            {actionLoading === "decline" ? copy.declining : copy.decline}
+          </PrimaryButton>
+        </div>
       </div>
-    </div>
+    </Surface>
   );
 }
 
@@ -814,12 +753,12 @@ function ChatCtaBox({
   return (
     <Surface className="p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
           <MessageIcon />
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-[17px] font-black tracking-[-0.04em] text-slate-950">
+          <p className="text-[16px] font-black tracking-[-0.04em] text-slate-950">
             {title}
           </p>
           <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
@@ -828,7 +767,7 @@ function ChatCtaBox({
 
           <Link
             href={href}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
           >
             <MessageIcon />
             {buttonLabel}
@@ -870,7 +809,7 @@ function DeliveryActionBox({
     <Surface className="overflow-hidden">
       <div className="bg-gradient-to-br from-rose-50 via-white to-white p-4 ring-1 ring-rose-50 sm:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-white text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
             <LinkIcon />
           </div>
 
@@ -890,7 +829,7 @@ function DeliveryActionBox({
             value={deliveryUrl}
             onChange={(e) => setDeliveryUrl(e.target.value)}
             placeholder={copy.deliveredPostUrlPlaceholder}
-            className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-[16px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+            className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3.5 text-[16px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
           />
 
           {order.delivered_post_url ? (
@@ -920,7 +859,7 @@ function DeliveryActionBox({
   );
 }
 
-function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
+function getPassiveNoticeCopy(order: OrderDetail, locale: "ja" | "en") {
   if (locale === "ja") {
     if (isCheckoutPending(order)) {
       return {
@@ -929,24 +868,10 @@ function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
       };
     }
 
-    if (isWaitingForCreator(order)) {
-      return {
-        title: "対応するか選びましょう",
-        body: "内容・報酬・期限を確認して、対応できる場合は注文を受けてください。",
-      };
-    }
-
-    if (order.status === "revision_requested") {
-      return {
-        title: "修正版を提出しましょう",
-        body: "企業からの修正内容を確認し、修正版のURLを送ってください。",
-      };
-    }
-
     if (order.status === "delivered") {
       return {
         title: "企業の確認を待っています",
-        body: "納品URLは送信済みです。確認が完了するまでお待ちください。",
+        body: "送信したURLの確認が完了するまでお待ちください。",
       };
     }
 
@@ -957,16 +882,9 @@ function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
       };
     }
 
-    if (isInProgress(order)) {
-      return {
-        title: "納品URLを提出しましょう",
-        body: "投稿・制作が完了したら、確認できるURLを送ってください。",
-      };
-    }
-
     return {
       title: "注文を確認しています",
-      body: "現在の状態を確認しています。少し時間をおいて再度ご確認ください。",
+      body: "少し時間をおいて再度ご確認ください。",
     };
   }
 
@@ -977,24 +895,10 @@ function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
     };
   }
 
-  if (isWaitingForCreator(order)) {
-    return {
-      title: "Choose whether to accept",
-      body: "Review the details, payout, and deadline before accepting this order.",
-    };
-  }
-
-  if (order.status === "revision_requested") {
-    return {
-      title: "Submit a revised URL",
-      body: "Check the brand’s revision request and send the updated URL.",
-    };
-  }
-
   if (order.status === "delivered") {
     return {
       title: "Waiting for brand review",
-      body: "Your delivery URL has been submitted. Please wait for confirmation.",
+      body: "Please wait while the brand reviews your submitted URL.",
     };
   }
 
@@ -1005,17 +909,29 @@ function getNextActionCopy(order: OrderDetail, locale: "ja" | "en") {
     };
   }
 
-  if (isInProgress(order)) {
-    return {
-      title: "Submit your delivery URL",
-      body: "When the post or asset is ready, send a URL the brand can review.",
-    };
-  }
-
   return {
     title: "Checking this order",
-    body: "We are checking the current order status.",
+    body: "Please check again in a moment.",
   };
+}
+
+function PassiveNoticeBox({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <Surface className="p-4 sm:p-5">
+      <p className="text-[17px] font-black tracking-[-0.04em] text-slate-950">
+        {title}
+      </p>
+      <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+        {body}
+      </p>
+    </Surface>
+  );
 }
 
 export default function CreatorOrderDetailPage() {
@@ -1034,9 +950,8 @@ export default function CreatorOrderDetailPage() {
         ? {
             loading: "読み込み中...",
             notFound: "注文が見つかりませんでした。",
-            back: "一覧へ戻る",
+            back: "戻る",
 
-            taskLabel: "今やること",
             orderContent: "注文内容",
 
             deliveryTitle: "納品する",
@@ -1063,8 +978,10 @@ export default function CreatorOrderDetailPage() {
               "この注文を辞退しますか？辞退すると、この注文は開始されません。",
             confirmDeliver: "このURLを企業に送りますか？",
             confirmRedeliver: "このURLを修正版として送りますか？",
-            acceptFailed: "注文を受けられませんでした。時間を置いて再度お試しください。",
-            declineFailed: "辞退できませんでした。時間を置いて再度お試しください。",
+            acceptFailed:
+              "注文を受けられませんでした。時間を置いて再度お試しください。",
+            declineFailed:
+              "辞退できませんでした。時間を置いて再度お試しください。",
             authFailed: "ログイン情報を取得できませんでした。",
 
             productName: "商品・案件",
@@ -1102,7 +1019,7 @@ export default function CreatorOrderDetailPage() {
 
             summaryMenu: "メニュー",
             summaryPayout: "受取予定",
-            summaryDeadline: "返答期限",
+            summaryDeadline: "期限",
 
             detailSheetTitle: "注文の詳細",
             detailSheetBody: "必要な情報だけ確認できるようにまとめています。",
@@ -1121,7 +1038,6 @@ export default function CreatorOrderDetailPage() {
             notFound: "Order was not found.",
             back: "Back",
 
-            taskLabel: "Next step",
             orderContent: "Order details",
 
             deliveryTitle: "Send your delivery",
@@ -1149,7 +1065,8 @@ export default function CreatorOrderDetailPage() {
             confirmDeliver: "Send this URL to the brand?",
             confirmRedeliver: "Send this URL as the revised delivery?",
             acceptFailed: "Could not accept this order. Please try again later.",
-            declineFailed: "Could not decline this order. Please try again later.",
+            declineFailed:
+              "Could not decline this order. Please try again later.",
             authFailed: "Could not retrieve your login session.",
 
             productName: "Product",
@@ -1187,7 +1104,7 @@ export default function CreatorOrderDetailPage() {
 
             summaryMenu: "Menu",
             summaryPayout: "Expected",
-            summaryDeadline: "Reply by",
+            summaryDeadline: "Due",
 
             detailSheetTitle: "Order details",
             detailSheetBody:
@@ -1545,9 +1462,9 @@ export default function CreatorOrderDetailPage() {
   if (loading) {
     return (
       <div className="space-y-4 overflow-x-hidden pb-28">
-        <div className="h-[340px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-        <div className="h-[180px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
-        <div className="h-[260px] animate-pulse rounded-[30px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[280px] animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[210px] animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
+        <div className="h-[220px] animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
       </div>
     );
   }
@@ -1580,7 +1497,6 @@ export default function CreatorOrderDetailPage() {
     ].includes(order.status) && order.payment_status === "captured";
 
   const isRevisionRequested = order.status === "revision_requested";
-  const nextAction = getNextActionCopy(order, safeLocale);
 
   const backHref = isWaitingForCreator(order)
     ? "/creator/requests"
@@ -1608,77 +1524,34 @@ export default function CreatorOrderDetailPage() {
     Math.max(mediaAssets.length - 1, 0)
   );
 
+  const passiveNotice = getPassiveNoticeCopy(order, safeLocale);
+
   return (
-    <div className="max-w-full touch-pan-y space-y-4 overflow-x-hidden overscroll-y-contain pb-28">
+    <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden overscroll-y-contain pb-28">
       <Surface className="overflow-hidden">
-        <div className="bg-gradient-to-br from-white via-white to-rose-50/55 p-4 sm:p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <SoftPill tone={statusTone(order)}>
-                {statusLabel(order, safeLocale)}
-              </SoftPill>
-
-              {order.creator_accept_deadline && isWaitingForCreator(order) ? (
-                <SoftPill tone="amber">
-                  {formatDateTime(order.creator_accept_deadline, safeLocale)}
-                </SoftPill>
-              ) : null}
-            </div>
-
+        <div className="p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-end">
             <Link
               href={backHref}
-              className="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
+              className="shrink-0 rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
             >
               {copy.back}
             </Link>
           </div>
 
-          <div className="space-y-4">
-            {mediaAssets.length > 0 ? (
-              <ReferenceGallery
-                assets={mediaAssets}
-                loading={referenceAssetsLoading}
-                selectedIndex={safeSelectedIndex}
-                onSelect={setSelectedAssetIndex}
-                openLabel={copy.referenceOpen}
-                fileLabel={copy.referenceFile}
-              />
-            ) : null}
-
-            <div className="rounded-[26px] bg-white/90 p-4 shadow-sm ring-1 ring-white/80">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ff5f67]">
-                {copy.taskLabel}
-              </p>
-
-              <h1 className="mt-2 break-words text-[27px] font-black leading-tight tracking-[-0.06em] text-slate-950">
-                {nextAction.title}
-              </h1>
-
-              <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                {nextAction.body}
-              </p>
-
-              {order.product_name ? (
-                <div className="mt-4 rounded-[20px] bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
-                  <p className="text-xs font-black text-slate-400">
-                    {copy.productName}
-                  </p>
-                  <p className="mt-1 break-words text-sm font-black text-slate-900">
-                    {order.product_name}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-
-            <OrderSummaryBox order={order} locale={safeLocale} copy={copy} />
-
-            <ResponseActionBox
-              order={order}
-              copy={copy}
-              actionLoading={actionLoading}
-              onAccept={() => void runAction("accept")}
-              onDecline={() => void runAction("decline")}
+          {referenceAssetsLoading || mediaAssets.length > 0 ? (
+            <ReferenceGallery
+              assets={mediaAssets}
+              loading={referenceAssetsLoading}
+              selectedIndex={safeSelectedIndex}
+              onSelect={setSelectedAssetIndex}
+              openLabel={copy.referenceOpen}
+              fileLabel={copy.referenceFile}
             />
+          ) : null}
+
+          <div className={referenceAssetsLoading || mediaAssets.length > 0 ? "mt-3" : ""}>
+            <OrderSummaryBox order={order} locale={safeLocale} copy={copy} />
           </div>
         </div>
       </Surface>
@@ -1690,6 +1563,14 @@ export default function CreatorOrderDetailPage() {
           </p>
         </Surface>
       ) : null}
+
+      <ResponseActionBox
+        order={order}
+        copy={copy}
+        actionLoading={actionLoading}
+        onAccept={() => void runAction("accept")}
+        onDecline={() => void runAction("decline")}
+      />
 
       {canDeliver ? (
         <DeliveryActionBox
@@ -1703,6 +1584,10 @@ export default function CreatorOrderDetailPage() {
         />
       ) : null}
 
+      {!isWaitingForCreator(order) && !canDeliver ? (
+        <PassiveNoticeBox title={passiveNotice.title} body={passiveNotice.body} />
+      ) : null}
+
       {canOpenChat(order) ? (
         <ChatCtaBox
           href={`/creator/orders/${order.id}/chat`}
@@ -1714,15 +1599,15 @@ export default function CreatorOrderDetailPage() {
 
       <Surface className="overflow-hidden">
         <div className="px-5 pt-5">
-          <p className="text-[20px] font-black tracking-[-0.04em] text-slate-950">
+          <p className="text-[19px] font-black tracking-[-0.04em] text-slate-950">
             {copy.detailSheetTitle}
           </p>
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+          <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
             {copy.detailSheetBody}
           </p>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-3">
           <AccordionItem
             title={copy.postInstructionTitle}
             subtitle={
@@ -1749,7 +1634,7 @@ export default function CreatorOrderDetailPage() {
               <button
                 type="button"
                 onClick={() => void handleCopyPostText()}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
               >
                 <CopyIcon />
                 {copied ? copy.copied : copy.copyPostText}
@@ -1798,7 +1683,7 @@ export default function CreatorOrderDetailPage() {
               }))
             }
           >
-            <div className="divide-y divide-slate-100 rounded-[20px] border border-slate-100 bg-slate-50/55 px-4">
+            <div className="divide-y divide-slate-100 rounded-[18px] border border-slate-100 bg-slate-50/55 px-4">
               <DetailRow
                 label={copy.productName}
                 value={order.product_name || copy.notSet}
@@ -1845,7 +1730,7 @@ export default function CreatorOrderDetailPage() {
             </div>
 
             {requestNote ? (
-              <div className="mt-4">
+              <div className="mt-3">
                 <p className="mb-2 text-xs font-black text-slate-400">
                   {copy.requestNote}
                 </p>
@@ -1869,7 +1754,7 @@ export default function CreatorOrderDetailPage() {
               }))
             }
           >
-            <div className="divide-y divide-slate-100 rounded-[20px] border border-slate-100 bg-slate-50/55 px-4">
+            <div className="divide-y divide-slate-100 rounded-[18px] border border-slate-100 bg-slate-50/55 px-4">
               <DetailRow
                 label={copy.menuTitle}
                 value={order.menu_title_snapshot || copy.notSet}
@@ -1908,7 +1793,7 @@ export default function CreatorOrderDetailPage() {
 
             <Link
               href="/creator/payouts"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white"
+              className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white"
             >
               {copy.payoutPage}
             </Link>
