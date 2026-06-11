@@ -34,6 +34,12 @@ type ShipmentForm = {
   shipping_tracking_number: string;
 };
 
+type VisitScheduleForm = {
+  visit_scheduled_at: string;
+  visit_location: string;
+  visit_notes: string;
+};
+
 type ShippingAddress = {
   recipient_name?: string;
   postal_code?: string;
@@ -137,7 +143,12 @@ type InfluencerLite = {
   category: string | null;
 };
 
-type ActionLoading = "complete" | "revision" | "shipment" | null;
+type ActionLoading =
+  | "complete"
+  | "revision"
+  | "shipment"
+  | "visit_schedule"
+  | null;
 
 const AUTH_TIMEOUT_MS = 8000;
 const DB_TIMEOUT_MS = 12000;
@@ -209,6 +220,23 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function toDateTimeLocalValue(value: string | null | undefined) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const pad = (num: number) => String(num).padStart(2, "0");
+
+  const yyyy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mi = pad(date.getMinutes());
+
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
 function formatPrice(
@@ -301,14 +329,6 @@ function getPlatformIcon(value: string | null | undefined) {
 
 function isWaitingStatus(status: string) {
   return status === "authorized_pending_creator" || status === "checkout_pending";
-}
-
-function isActiveStatus(status: string) {
-  return (
-    status === "accepted_captured" ||
-    status === "in_progress" ||
-    status === "revision_requested"
-  );
 }
 
 function isDeliveredStatus(status: string) {
@@ -423,6 +443,15 @@ function canRegisterShipment(order: OrderDetail) {
   if (order.payment_status !== "captured") return false;
   if (!order.shipping_address_shared_at) return false;
   if (order.received_at) return false;
+
+  return order.status === "accepted_captured" || order.status === "in_progress";
+}
+
+function canRegisterVisitSchedule(order: OrderDetail) {
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+
+  if (fulfillmentType !== "visit") return false;
+  if (order.payment_status !== "captured") return false;
 
   return order.status === "accepted_captured" || order.status === "in_progress";
 }
@@ -648,6 +677,20 @@ function PackageIcon() {
   );
 }
 
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M5 4v2M15 4v2M4 8h12M5.5 5h9A2.5 2.5 0 0 1 17 7.5v7A2.5 2.5 0 0 1 14.5 17h-9A2.5 2.5 0 0 1 3 14.5v-7A2.5 2.5 0 0 1 5.5 5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function InfluencerAvatar({
   influencer,
 }: {
@@ -803,26 +846,41 @@ function TextBlock({
   );
 }
 
-function ShipmentInput({
+function FormInput({
   label,
   value,
   onChange,
   placeholder,
+  type = "text",
+  multiline,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  type?: string;
+  multiline?: boolean;
 }) {
   return (
     <label className="block">
       <span className="text-xs font-black text-slate-500">{label}</span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[16px] font-bold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
-      />
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          rows={4}
+          className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[16px] font-bold leading-7 text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[16px] font-bold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+        />
+      )}
     </label>
   );
 }
@@ -842,29 +900,7 @@ function ProductShipmentCard({
   actionLoading: ActionLoading;
   onSubmit: () => void;
   locale: "ja" | "en";
-  copy: {
-    productShippingTitle: string;
-    productShippingBody: string;
-    shippingAddressWaiting: string;
-    shippingAddressTitle: string;
-    shippingRecipientName: string;
-    shippingPostalCode: string;
-    shippingAddress: string;
-    shippingPhoneNumber: string;
-    shippingNotes: string;
-    shippingStatus: string;
-    shippingCarrier: string;
-    shippingTrackingNumber: string;
-    shippedAt: string;
-    receivedAt: string;
-    shipmentCarrierPlaceholder: string;
-    shipmentTrackingPlaceholder: string;
-    registerShipment: string;
-    updateShipment: string;
-    registeringShipment: string;
-    productReceived: string;
-    notSet: string;
-  };
+  copy: any;
 }) {
   const address = getShippingAddress(order);
   const canSubmit = canRegisterShipment(order);
@@ -894,14 +930,12 @@ function ProductShipmentCard({
                 </span>
                 {address.recipient_name || copy.notSet}
               </div>
-
               <div>
                 <span className="font-black text-slate-400">
                   {copy.shippingPostalCode}：
                 </span>
                 {address.postal_code || copy.notSet}
               </div>
-
               <div>
                 <span className="font-black text-slate-400">
                   {copy.shippingAddress}：
@@ -915,14 +949,12 @@ function ProductShipmentCard({
                   .filter(Boolean)
                   .join(" ") || copy.notSet}
               </div>
-
               <div>
                 <span className="font-black text-slate-400">
                   {copy.shippingPhoneNumber}：
                 </span>
                 {address.phone_number || copy.notSet}
               </div>
-
               {address.notes ? (
                 <div>
                   <span className="font-black text-slate-400">
@@ -972,7 +1004,7 @@ function ProductShipmentCard({
           {!order.received_at ? (
             <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
               <div className="grid gap-4">
-                <ShipmentInput
+                <FormInput
                   label={copy.shippingCarrier}
                   value={shipmentForm.shipping_carrier}
                   onChange={(value) =>
@@ -984,7 +1016,7 @@ function ProductShipmentCard({
                   placeholder={copy.shipmentCarrierPlaceholder}
                 />
 
-                <ShipmentInput
+                <FormInput
                   label={copy.shippingTrackingNumber}
                   value={shipmentForm.shipping_tracking_number}
                   onChange={(value) =>
@@ -1017,6 +1049,115 @@ function ProductShipmentCard({
   );
 }
 
+function VisitScheduleCard({
+  order,
+  visitForm,
+  setVisitForm,
+  actionLoading,
+  onSubmit,
+  locale,
+  copy,
+}: {
+  order: OrderDetail;
+  visitForm: VisitScheduleForm;
+  setVisitForm: (value: VisitScheduleForm) => void;
+  actionLoading: ActionLoading;
+  onSubmit: () => void;
+  locale: "ja" | "en";
+  copy: any;
+}) {
+  const canSubmit = canRegisterVisitSchedule(order);
+
+  if (normalizeFulfillmentType(order.fulfillment_type) !== "visit") {
+    return null;
+  }
+
+  return (
+    <ActionCard title={copy.visitScheduleTitle} body={copy.visitScheduleBody}>
+      <div className="space-y-4">
+        <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
+          <p className="text-sm font-black text-slate-950">
+            {copy.visitCurrentTitle}
+          </p>
+
+          <div className="mt-3 grid gap-2 text-sm font-bold text-slate-700">
+            <DetailRow
+              label={copy.visitScheduledAt}
+              value={
+                order.visit_scheduled_at
+                  ? formatDateTime(order.visit_scheduled_at, locale)
+                  : copy.notSet
+              }
+            />
+            <DetailRow
+              label={copy.visitLocation}
+              value={order.visit_location || copy.notSet}
+            />
+            <DetailRow
+              label={copy.visitNotes}
+              value={order.visit_notes || copy.notSet}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
+          <div className="grid gap-4">
+            <FormInput
+              label={copy.visitScheduledAt}
+              type="datetime-local"
+              value={visitForm.visit_scheduled_at}
+              onChange={(value) =>
+                setVisitForm({
+                  ...visitForm,
+                  visit_scheduled_at: value,
+                })
+              }
+            />
+
+            <FormInput
+              label={copy.visitLocation}
+              value={visitForm.visit_location}
+              onChange={(value) =>
+                setVisitForm({
+                  ...visitForm,
+                  visit_location: value,
+                })
+              }
+              placeholder={copy.visitLocationPlaceholder}
+            />
+
+            <FormInput
+              label={copy.visitNotes}
+              value={visitForm.visit_notes}
+              onChange={(value) =>
+                setVisitForm({
+                  ...visitForm,
+                  visit_notes: value,
+                })
+              }
+              placeholder={copy.visitNotesPlaceholder}
+              multiline
+            />
+
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={actionLoading !== null || !canSubmit}
+              className="rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading === "visit_schedule"
+                ? copy.registeringVisitSchedule
+                : order.visit_scheduled_at
+                  ? copy.updateVisitSchedule
+                  : copy.registerVisitSchedule}
+            </button>
+          </div>
+        </div>
+      </div>
+    </ActionCard>
+  );
+}
+
 export default function CompanyOrderDetailPage() {
   const params = useParams();
   const orderId = String(params.id ?? "");
@@ -1038,19 +1179,12 @@ export default function CompanyOrderDetailPage() {
             influencer: "インフルエンサー",
             influencerProfile: "インフルエンサー詳細を見る",
             payment: "支払い金額",
-            nextAction: "次にやること",
             chatCtaTitle: "クリエイターとやり取りできます",
             chatCtaBody:
               "注文開始後の確認や連絡は、専用チャットページで行えます。",
             chatCtaButton: "クリエイターとやり取りする",
-            waitingSummaryTitle: "注文内容の要約",
-            waitingSummaryBody:
-              "インフルエンサーの承認後にチャットが利用できます。",
             deliveryTitle: "納品URL",
             openDelivery: "納品URLを開く",
-            completeTitle: "納品確認",
-            completeBody:
-              "内容を確認し、問題なければ完了してください。完了後は原則として修正依頼・返金はできません。",
             complete: "完了する",
             completing: "完了処理中...",
             confirmComplete:
@@ -1100,6 +1234,24 @@ export default function CompanyOrderDetailPage() {
             shipmentFailed: "発送情報の登録に失敗しました。",
             productReceived: "受取済み",
 
+            visitScheduleTitle: "来店日程の登録",
+            visitScheduleBody:
+              "来店型の案件です。クリエイターと日程を確認し、来店日時・場所・注意事項を登録してください。",
+            visitCurrentTitle: "現在の来店情報",
+            visitScheduledAt: "来店日時",
+            visitLocation: "来店場所",
+            visitNotes: "注意事項・メモ",
+            visitLocationPlaceholder: "例：東京都渋谷区〇〇 1-2-3 店舗名",
+            visitNotesPlaceholder:
+              "例：受付で担当者名を伝えてください。撮影可能エリアは店内入口〜カウンター周辺です。",
+            registerVisitSchedule: "来店日程を登録する",
+            updateVisitSchedule: "来店日程を更新する",
+            registeringVisitSchedule: "登録中...",
+            visitScheduleRequired: "来店日時と来店場所を入力してください。",
+            visitScheduleConfirm:
+              "この来店日程を登録しますか？クリエイター側にも表示されます。",
+            visitScheduleFailed: "来店日程の登録に失敗しました。",
+
             orderContent: "注文内容",
             orderContentSub: "必要な時だけ確認できます",
             menuContent: "メニュー詳細",
@@ -1145,19 +1297,12 @@ export default function CompanyOrderDetailPage() {
             influencer: "Influencer",
             influencerProfile: "View influencer profile",
             payment: "Payment",
-            nextAction: "Next action",
             chatCtaTitle: "You can message the creator",
             chatCtaBody:
               "Use the dedicated chat page for progress checks and communication.",
             chatCtaButton: "Message the creator",
-            waitingSummaryTitle: "Order summary",
-            waitingSummaryBody:
-              "Chat becomes available after the influencer accepts.",
             deliveryTitle: "Delivery URL",
             openDelivery: "Open delivery URL",
-            completeTitle: "Review delivery",
-            completeBody:
-              "Complete the order if everything is okay. Revisions and refunds are generally unavailable after completion.",
             complete: "Complete",
             completing: "Completing...",
             confirmComplete:
@@ -1207,6 +1352,24 @@ export default function CompanyOrderDetailPage() {
             shipmentFailed: "Failed to register shipment.",
             productReceived: "Received",
 
+            visitScheduleTitle: "Visit schedule",
+            visitScheduleBody:
+              "This is a visit-based order. Confirm the date with the creator, then register the visit date, location, and notes.",
+            visitCurrentTitle: "Current visit details",
+            visitScheduledAt: "Visit date",
+            visitLocation: "Visit location",
+            visitNotes: "Notes",
+            visitLocationPlaceholder: "Example: Store name, address",
+            visitNotesPlaceholder:
+              "Example: Please tell reception the contact name. Shooting is allowed around the entrance and counter.",
+            registerVisitSchedule: "Register visit schedule",
+            updateVisitSchedule: "Update visit schedule",
+            registeringVisitSchedule: "Registering...",
+            visitScheduleRequired: "Please enter the visit date and location.",
+            visitScheduleConfirm:
+              "Register this visit schedule? It will be shown to the creator.",
+            visitScheduleFailed: "Failed to register visit schedule.",
+
             orderContent: "Order details",
             orderContentSub: "Available when needed",
             menuContent: "Menu details",
@@ -1254,6 +1417,11 @@ export default function CompanyOrderDetailPage() {
   const [shipmentForm, setShipmentForm] = useState<ShipmentForm>({
     shipping_carrier: "",
     shipping_tracking_number: "",
+  });
+  const [visitForm, setVisitForm] = useState<VisitScheduleForm>({
+    visit_scheduled_at: "",
+    visit_location: "",
+    visit_notes: "",
   });
 
   const loadOrder = useCallback(async () => {
@@ -1377,6 +1545,11 @@ export default function CompanyOrderDetailPage() {
       setShipmentForm({
         shipping_carrier: nextOrder?.shipping_carrier ?? "",
         shipping_tracking_number: nextOrder?.shipping_tracking_number ?? "",
+      });
+      setVisitForm({
+        visit_scheduled_at: toDateTimeLocalValue(nextOrder?.visit_scheduled_at),
+        visit_location: nextOrder?.visit_location ?? "",
+        visit_notes: nextOrder?.visit_notes ?? "",
       });
 
       if (!nextOrder) {
@@ -1583,6 +1756,58 @@ export default function CompanyOrderDetailPage() {
     }
   };
 
+  const runRegisterVisitSchedule = async () => {
+    if (!order) return;
+
+    if (!visitForm.visit_scheduled_at.trim() || !visitForm.visit_location.trim()) {
+      setError(copy.visitScheduleRequired);
+      return;
+    }
+
+    if (!window.confirm(copy.visitScheduleConfirm)) return;
+
+    setActionLoading("visit_schedule");
+    setError(null);
+
+    try {
+      const accessToken = await getActionToken();
+
+      if (!accessToken) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/company/orders/${order.id}/visit-schedule`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(visitForm),
+        },
+        ACTION_TIMEOUT_MS,
+        copy.visitScheduleFailed
+      );
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(json?.error ?? copy.visitScheduleFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      await loadOrder();
+      setActionLoading(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : copy.visitScheduleFailed);
+      setActionLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
@@ -1638,8 +1863,16 @@ export default function CompanyOrderDetailPage() {
 
   const canRequestRevision = canReviewDelivery && !revisionLimitReached;
   const canChat = canOpenChat(order);
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+
   const showShipmentCard =
-    normalizeFulfillmentType(order.fulfillment_type) === "product_shipping" &&
+    fulfillmentType === "product_shipping" &&
+    !isWaitingStatus(order.status) &&
+    !isTerminalStatus(order.status) &&
+    !isDeliveredStatus(order.status);
+
+  const showVisitCard =
+    fulfillmentType === "visit" &&
     !isWaitingStatus(order.status) &&
     !isTerminalStatus(order.status) &&
     !isDeliveredStatus(order.status);
@@ -1753,6 +1986,18 @@ export default function CompanyOrderDetailPage() {
                 setShipmentForm={setShipmentForm}
                 actionLoading={actionLoading}
                 onSubmit={() => void runRegisterShipment()}
+                locale={safeLocale}
+                copy={copy}
+              />
+            ) : null}
+
+            {showVisitCard ? (
+              <VisitScheduleCard
+                order={order}
+                visitForm={visitForm}
+                setVisitForm={setVisitForm}
+                actionLoading={actionLoading}
+                onSubmit={() => void runRegisterVisitSchedule()}
                 locale={safeLocale}
                 copy={copy}
               />
@@ -1902,7 +2147,11 @@ export default function CompanyOrderDetailPage() {
                 />
                 <DetailRow
                   label={copy.deadline}
-                  value={order.deadline ? formatDateTime(order.deadline, safeLocale) : copy.notSet}
+                  value={
+                    order.deadline
+                      ? formatDateTime(order.deadline, safeLocale)
+                      : copy.notSet
+                  }
                 />
                 <DetailRow
                   label={copy.freeOffer}
