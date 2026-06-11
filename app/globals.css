@@ -84,10 +84,12 @@ button {
   font: inherit;
 }
 
+/* iPhone Safariの入力時自動ズーム対策。
+   Tailwindの text-sm などより強く効かせるため !important を付ける。 */
 input,
 textarea,
 select {
-  font-size: 16px;
+  font-size: 16px !important;
 }
 
 input,

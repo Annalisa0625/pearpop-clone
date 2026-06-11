@@ -57,6 +57,22 @@ function getOAuthRedirectUrl(nextPath: string | null) {
   return url.toString();
 }
 
+function blurActiveElement() {
+  if (typeof document === "undefined") return;
+
+  const activeElement = document.activeElement;
+
+  if (activeElement instanceof HTMLElement) {
+    activeElement.blur();
+  }
+}
+
+function resetWindowPosition() {
+  if (typeof window === "undefined") return;
+
+  window.scrollTo(0, 0);
+}
+
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
@@ -171,6 +187,8 @@ export default function LoginClient() {
       } = await supabase.auth.getSession();
 
       if (session?.user) {
+        blurActiveElement();
+        resetWindowPosition();
         router.replace(afterLoginPath);
       }
     };
@@ -179,6 +197,9 @@ export default function LoginClient() {
   }, [afterLoginPath, hasOAuthReturn, router]);
 
   const handleGoogleLogin = async () => {
+    blurActiveElement();
+    resetWindowPosition();
+
     setError("");
     setOauthLoading(true);
 
@@ -214,6 +235,8 @@ export default function LoginClient() {
       return;
     }
 
+    blurActiveElement();
+
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
@@ -225,8 +248,13 @@ export default function LoginClient() {
       return;
     }
 
+    blurActiveElement();
+    resetWindowPosition();
     setLoading(false);
-    router.replace(afterLoginPath);
+
+    window.setTimeout(() => {
+      router.replace(afterLoginPath);
+    }, 80);
   };
 
   const isSubmitting = loading || oauthLoading;
@@ -293,7 +321,7 @@ export default function LoginClient() {
                     placeholder={copy.emailPlaceholder}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-[16px] font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
                     autoComplete="email"
                     disabled={isSubmitting}
                   />
@@ -308,7 +336,7 @@ export default function LoginClient() {
                     placeholder={copy.passwordPlaceholder}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-[16px] font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
                     autoComplete="current-password"
                     disabled={isSubmitting}
                   />
@@ -316,7 +344,7 @@ export default function LoginClient() {
               </div>
 
               {error ? (
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold leading-6 text-rose-600">
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold leading-6 text-rose-700">
                   {error}
                 </div>
               ) : null}
