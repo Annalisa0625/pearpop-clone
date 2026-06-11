@@ -29,6 +29,17 @@ type PreparationStatus =
   | "schedule_confirmed"
   | "ready_to_start";
 
+type ShippingAddressForm = {
+  recipient_name: string;
+  postal_code: string;
+  prefecture: string;
+  city: string;
+  address_line1: string;
+  address_line2: string;
+  phone_number: string;
+  notes: string;
+};
+
 type OrderDetail = {
   id: string;
   status: string;
@@ -38,6 +49,7 @@ type OrderDetail = {
 
   fulfillment_type: FulfillmentType | string | null;
   preparation_status: PreparationStatus | string | null;
+  preparation_data: Record<string, any> | null;
   preparation_started_at: string | null;
   preparation_ready_at: string | null;
   work_started_at: string | null;
@@ -97,12 +109,29 @@ type ReferenceAsset = {
   signed_url: string | null;
 };
 
-type ActionLoading = "accept" | "decline" | "deliver" | null;
+type ActionLoading =
+  | "accept"
+  | "decline"
+  | "deliver"
+  | "shipping_address"
+  | "received"
+  | null;
 
 const AUTH_TIMEOUT_MS = 8000;
 const ORDER_TIMEOUT_MS = 10000;
 const REFERENCE_ASSET_TIMEOUT_MS = 8000;
 const ACTION_TIMEOUT_MS = 30000;
+
+const EMPTY_SHIPPING_ADDRESS: ShippingAddressForm = {
+  recipient_name: "",
+  postal_code: "",
+  prefecture: "",
+  city: "",
+  address_line1: "",
+  address_line2: "",
+  phone_number: "",
+  notes: "",
+};
 
 function withTimeout<T = any>(
   promiseLike: PromiseLike<T> | T,
@@ -297,6 +326,49 @@ function isPreparationReady(order: OrderDetail) {
   }
 
   return true;
+}
+
+function canShareShippingAddress(order: OrderDetail) {
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+
+  if (fulfillmentType !== "product_shipping") return false;
+  if (order.payment_status !== "captured") return false;
+
+  return order.status === "accepted_captured" || order.status === "in_progress";
+}
+
+function canMarkProductReceived(order: OrderDetail) {
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+
+  if (fulfillmentType !== "product_shipping") return false;
+  if (order.payment_status !== "captured") return false;
+  if (!order.shipping_address_shared_at) return false;
+  if (order.received_at) return false;
+
+  return order.status === "accepted_captured" || order.status === "in_progress";
+}
+
+function getInitialShippingAddress(order: OrderDetail | null): ShippingAddressForm {
+  const raw = order?.preparation_data?.shipping_address;
+
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return EMPTY_SHIPPING_ADDRESS;
+  }
+
+  return {
+    recipient_name:
+      typeof raw.recipient_name === "string" ? raw.recipient_name : "",
+    postal_code: typeof raw.postal_code === "string" ? raw.postal_code : "",
+    prefecture: typeof raw.prefecture === "string" ? raw.prefecture : "",
+    city: typeof raw.city === "string" ? raw.city : "",
+    address_line1:
+      typeof raw.address_line1 === "string" ? raw.address_line1 : "",
+    address_line2:
+      typeof raw.address_line2 === "string" ? raw.address_line2 : "",
+    phone_number:
+      typeof raw.phone_number === "string" ? raw.phone_number : "",
+    notes: typeof raw.notes === "string" ? raw.notes : "",
+  };
 }
 
 function fulfillmentLabel(
@@ -600,6 +672,42 @@ function PrimaryButton({
     >
       {children}
     </button>
+  );
+}
+
+function ShippingInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-black text-slate-500">{label}</span>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className="mt-2 w-full resize-none rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-[16px] font-semibold leading-7 text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="mt-2 w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-[16px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+        />
+      )}
+    </label>
   );
 }
 
@@ -918,6 +1026,274 @@ function ChatCtaBox({
   );
 }
 
+function ProductShippingActionBox({
+  order,
+  shippingAddress,
+  setShippingAddress,
+  actionLoading,
+  onShareAddress,
+  onReceived,
+  copy,
+}: {
+  order: OrderDetail;
+  shippingAddress: ShippingAddressForm;
+  setShippingAddress: (value: ShippingAddressForm) => void;
+  actionLoading: ActionLoading;
+  onShareAddress: () => void;
+  onReceived: () => void;
+  copy: {
+    shippingAddressTitle: string;
+    shippingAddressBody: string;
+    shippingRecipientName: string;
+    shippingPostalCode: string;
+    shippingPrefecture: string;
+    shippingCity: string;
+    shippingAddressLine1: string;
+    shippingAddressLine2: string;
+    shippingPhoneNumber: string;
+    shippingNotes: string;
+    shippingShareAddress: string;
+    shippingUpdateAddress: string;
+    shippingSharingAddress: string;
+    productReceivedTitle: string;
+    productReceivedBody: string;
+    productReceivedButton: string;
+    productReceivedLoading: string;
+    shippingStatusShared: string;
+    shippingStatusWaitingShipment: string;
+    shippingStatusShipped: string;
+    shippingStatusReceived: string;
+    shippingCarrier: string;
+    shippingTrackingNumber: string;
+    shippedAt: string;
+    receivedAt: string;
+  };
+}) {
+  const preparationStatus = normalizePreparationStatus(order.preparation_status);
+  const addressShared = Boolean(order.shipping_address_shared_at);
+  const canShareAddress = canShareShippingAddress(order);
+  const canReceive = canMarkProductReceived(order);
+
+  if (normalizeFulfillmentType(order.fulfillment_type) !== "product_shipping") {
+    return null;
+  }
+
+  if (!canShareAddress && !addressShared) {
+    return null;
+  }
+
+  return (
+    <Surface className="overflow-hidden">
+      <div className="bg-gradient-to-br from-amber-50 via-white to-white p-4 ring-1 ring-amber-50 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white text-amber-700 shadow-sm ring-1 ring-amber-100">
+            <PackageIcon />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
+              {copy.shippingAddressTitle}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              {copy.shippingAddressBody}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          <ShippingInput
+            label={copy.shippingRecipientName}
+            value={shippingAddress.recipient_name}
+            onChange={(value) =>
+              setShippingAddress({
+                ...shippingAddress,
+                recipient_name: value,
+              })
+            }
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <ShippingInput
+              label={copy.shippingPostalCode}
+              value={shippingAddress.postal_code}
+              onChange={(value) =>
+                setShippingAddress({
+                  ...shippingAddress,
+                  postal_code: value,
+                })
+              }
+            />
+
+            <ShippingInput
+              label={copy.shippingPrefecture}
+              value={shippingAddress.prefecture}
+              onChange={(value) =>
+                setShippingAddress({
+                  ...shippingAddress,
+                  prefecture: value,
+                })
+              }
+            />
+          </div>
+
+          <ShippingInput
+            label={copy.shippingCity}
+            value={shippingAddress.city}
+            onChange={(value) =>
+              setShippingAddress({
+                ...shippingAddress,
+                city: value,
+              })
+            }
+          />
+
+          <ShippingInput
+            label={copy.shippingAddressLine1}
+            value={shippingAddress.address_line1}
+            onChange={(value) =>
+              setShippingAddress({
+                ...shippingAddress,
+                address_line1: value,
+              })
+            }
+          />
+
+          <ShippingInput
+            label={copy.shippingAddressLine2}
+            value={shippingAddress.address_line2}
+            onChange={(value) =>
+              setShippingAddress({
+                ...shippingAddress,
+                address_line2: value,
+              })
+            }
+          />
+
+          <ShippingInput
+            label={copy.shippingPhoneNumber}
+            value={shippingAddress.phone_number}
+            onChange={(value) =>
+              setShippingAddress({
+                ...shippingAddress,
+                phone_number: value,
+              })
+            }
+          />
+
+          <ShippingInput
+            label={copy.shippingNotes}
+            value={shippingAddress.notes}
+            onChange={(value) =>
+              setShippingAddress({
+                ...shippingAddress,
+                notes: value,
+              })
+            }
+            multiline
+          />
+
+          <PrimaryButton
+            onClick={onShareAddress}
+            disabled={actionLoading !== null || !canShareAddress}
+          >
+            {actionLoading === "shipping_address"
+              ? copy.shippingSharingAddress
+              : addressShared
+                ? copy.shippingUpdateAddress
+                : copy.shippingShareAddress}
+          </PrimaryButton>
+        </div>
+
+        {addressShared ? (
+          <div className="mt-4 rounded-[20px] bg-white/80 p-4 ring-1 ring-slate-100">
+            <p className="text-xs font-black text-slate-400">
+              {copy.shippingStatusShared}
+            </p>
+
+            <div className="mt-3 grid gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-black text-slate-400">
+                  {preparationStatus === "received"
+                    ? copy.shippingStatusReceived
+                    : preparationStatus === "shipped"
+                      ? copy.shippingStatusShipped
+                      : copy.shippingStatusWaitingShipment}
+                </span>
+              </div>
+
+              {order.shipping_carrier ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black text-slate-400">
+                    {copy.shippingCarrier}
+                  </span>
+                  <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
+                    {order.shipping_carrier}
+                  </span>
+                </div>
+              ) : null}
+
+              {order.shipping_tracking_number ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black text-slate-400">
+                    {copy.shippingTrackingNumber}
+                  </span>
+                  <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
+                    {order.shipping_tracking_number}
+                  </span>
+                </div>
+              ) : null}
+
+              {order.shipped_at ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black text-slate-400">
+                    {copy.shippedAt}
+                  </span>
+                  <span className="text-right text-xs font-black text-slate-700">
+                    {formatDateTime(order.shipped_at, "ja")}
+                  </span>
+                </div>
+              ) : null}
+
+              {order.received_at ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black text-slate-400">
+                    {copy.receivedAt}
+                  </span>
+                  <span className="text-right text-xs font-black text-slate-700">
+                    {formatDateTime(order.received_at, "ja")}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {addressShared && !order.received_at ? (
+          <div className="mt-4 rounded-[20px] bg-white/80 p-4 ring-1 ring-slate-100">
+            <p className="text-[16px] font-black text-slate-950">
+              {copy.productReceivedTitle}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              {copy.productReceivedBody}
+            </p>
+
+            <div className="mt-3">
+              <PrimaryButton
+                onClick={onReceived}
+                disabled={actionLoading !== null || !canReceive}
+              >
+                {actionLoading === "received"
+                  ? copy.productReceivedLoading
+                  : copy.productReceivedButton}
+              </PrimaryButton>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Surface>
+  );
+}
+
 function PreparationGuidanceBox({
   order,
   locale,
@@ -981,52 +1357,19 @@ function PreparationGuidanceBox({
           : "配送先の共有が必要です";
         body = beforeAccept
           ? "注文を受けた後、企業と配送先・発送方法を確認してから制作を進めます。"
-          : "商品を受け取るために、企業と配送先・発送方法を確認してください。";
+          : "商品を受け取るために、下のフォームから配送先を共有してください。";
       } else if (preparationStatus === "waiting_shipment") {
         title = "企業の発送を待っています";
-        body = "企業が商品を発送したら、追跡番号や配送状況を確認できます。";
+        body = "配送先は共有済みです。企業が商品を発送するまでお待ちください。";
       } else if (preparationStatus === "shipped") {
         title = "商品の到着を待っています";
-        body = "商品が届いたら内容を確認して、制作を進めてください。";
+        body = "商品が届いたら内容を確認して、「商品を受け取りました」を押してください。";
       } else {
         title = ready ? "商品を確認できました" : "商品を受け取ってください";
         body = ready
           ? "商品を確認できているため、制作を進められます。"
           : "商品が届いたら、内容を確認してから制作を進めてください。";
       }
-
-      detail = (
-        <div className="mt-3 grid gap-2 rounded-[18px] bg-white/70 p-3 ring-1 ring-slate-100">
-          {order.shipping_carrier || order.shipping_tracking_number ? (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-slate-400">配送</span>
-              <span className="min-w-0 truncate text-right text-xs font-black text-slate-700">
-                {[order.shipping_carrier, order.shipping_tracking_number]
-                  .filter(Boolean)
-                  .join(" / ")}
-              </span>
-            </div>
-          ) : null}
-
-          {order.shipped_at ? (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-slate-400">発送</span>
-              <span className="text-right text-xs font-black text-slate-700">
-                {formatDateTime(order.shipped_at, locale)}
-              </span>
-            </div>
-          ) : null}
-
-          {order.received_at ? (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-slate-400">受取</span>
-              <span className="text-right text-xs font-black text-slate-700">
-                {formatDateTime(order.received_at, locale)}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      );
     }
 
     if (fulfillmentType === "visit") {
@@ -1096,13 +1439,13 @@ function PreparationGuidanceBox({
           : "Share delivery details";
         body = beforeAccept
           ? "After accepting, coordinate delivery details with the brand before starting."
-          : "Coordinate the shipping address and delivery method with the brand.";
+          : "Share your delivery address below so the brand can ship the product.";
       } else if (preparationStatus === "waiting_shipment") {
         title = "Waiting for shipment";
-        body = "The brand will ship the product and share delivery details.";
+        body = "Your delivery address has been shared. Please wait for the brand to ship the product.";
       } else if (preparationStatus === "shipped") {
         title = "Waiting for the product";
-        body = "Once the product arrives, review it before creating content.";
+        body = "Once the product arrives, review it and mark it as received.";
       } else {
         title = ready ? "Product received" : "Receive the product";
         body = ready
@@ -1379,6 +1722,43 @@ export default function CreatorOrderDetailPage() {
             preparationReadyLabel: "進められます",
             preparationWaitingLabel: "準備が必要",
 
+            shippingAddressTitle: "配送先を共有する",
+            shippingAddressBody:
+              "商品を受け取るための配送先を入力してください。企業側に共有されます。",
+            shippingRecipientName: "宛名",
+            shippingPostalCode: "郵便番号",
+            shippingPrefecture: "都道府県",
+            shippingCity: "市区町村",
+            shippingAddressLine1: "番地・建物名",
+            shippingAddressLine2: "部屋番号など",
+            shippingPhoneNumber: "電話番号",
+            shippingNotes: "配送メモ",
+            shippingShareAddress: "配送先を共有する",
+            shippingUpdateAddress: "配送先を更新する",
+            shippingSharingAddress: "共有中...",
+            shippingAddressRequired: "配送先を入力してください。",
+            shippingAddressConfirm:
+              "この配送先を企業に共有しますか？企業が商品を発送するために使用します。",
+            shippingAddressFailed:
+              "配送先を共有できませんでした。入力内容を確認してください。",
+            productReceivedTitle: "商品を受け取ったら",
+            productReceivedBody:
+              "商品が手元に届き、内容を確認できたら押してください。押すと制作を進められる状態になります。",
+            productReceivedButton: "商品を受け取りました",
+            productReceivedLoading: "更新中...",
+            productReceivedConfirm:
+              "商品を受け取り済みにしますか？この操作後、納品に進めるようになります。",
+            productReceivedFailed:
+              "商品受取の更新に失敗しました。時間を置いて再度お試しください。",
+            shippingStatusShared: "配送先は共有済みです",
+            shippingStatusWaitingShipment: "企業の発送待ち",
+            shippingStatusShipped: "発送済み",
+            shippingStatusReceived: "受取済み",
+            shippingCarrier: "配送会社",
+            shippingTrackingNumber: "追跡番号",
+            shippedAt: "発送日時",
+            receivedAt: "受取日時",
+
             deliveryTitle: "納品する",
             redeliveryTitle: "修正版を送る",
             deliveryBody:
@@ -1473,6 +1853,43 @@ export default function CreatorOrderDetailPage() {
             preparationReadyLabel: "Ready",
             preparationWaitingLabel: "Needs setup",
 
+            shippingAddressTitle: "Share delivery address",
+            shippingAddressBody:
+              "Enter the address where the brand should ship the product.",
+            shippingRecipientName: "Recipient name",
+            shippingPostalCode: "Postal code",
+            shippingPrefecture: "Prefecture / State",
+            shippingCity: "City",
+            shippingAddressLine1: "Address line 1",
+            shippingAddressLine2: "Address line 2",
+            shippingPhoneNumber: "Phone number",
+            shippingNotes: "Delivery notes",
+            shippingShareAddress: "Share address",
+            shippingUpdateAddress: "Update address",
+            shippingSharingAddress: "Sharing...",
+            shippingAddressRequired: "Please enter the delivery address.",
+            shippingAddressConfirm:
+              "Share this delivery address with the brand?",
+            shippingAddressFailed:
+              "Could not share the delivery address. Please check the details.",
+            productReceivedTitle: "After receiving the product",
+            productReceivedBody:
+              "Tap this after the product arrives and you have checked it.",
+            productReceivedButton: "I received the product",
+            productReceivedLoading: "Updating...",
+            productReceivedConfirm:
+              "Mark this product as received? You will be able to proceed to delivery.",
+            productReceivedFailed:
+              "Could not update product receipt. Please try again later.",
+            shippingStatusShared: "Delivery address shared",
+            shippingStatusWaitingShipment: "Waiting for shipment",
+            shippingStatusShipped: "Shipped",
+            shippingStatusReceived: "Received",
+            shippingCarrier: "Carrier",
+            shippingTrackingNumber: "Tracking number",
+            shippedAt: "Shipped at",
+            receivedAt: "Received at",
+
             deliveryTitle: "Send your delivery",
             redeliveryTitle: "Send the revised URL",
             deliveryBody:
@@ -1562,6 +1979,8 @@ export default function CreatorOrderDetailPage() {
   const [actionLoading, setActionLoading] = useState<ActionLoading>(null);
   const [error, setError] = useState<string | null>(null);
   const [deliveryUrl, setDeliveryUrl] = useState("");
+  const [shippingAddress, setShippingAddress] =
+    useState<ShippingAddressForm>(EMPTY_SHIPPING_ADDRESS);
   const [copied, setCopied] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0);
@@ -1655,6 +2074,7 @@ export default function CreatorOrderDetailPage() {
             updated_at,
             fulfillment_type,
             preparation_status,
+            preparation_data,
             preparation_started_at,
             preparation_ready_at,
             work_started_at,
@@ -1713,6 +2133,7 @@ export default function CreatorOrderDetailPage() {
       const nextOrder = (orderResult?.data as OrderDetail | null) ?? null;
 
       setOrder(nextOrder);
+      setShippingAddress(getInitialShippingAddress(nextOrder));
       setDeliveryUrl(nextOrder?.delivered_post_url ?? "");
       setLoading(false);
 
@@ -1758,6 +2179,19 @@ export default function CreatorOrderDetailPage() {
     });
   }, [order?.id, order?.status]);
 
+  const getActionToken = async () => {
+    const token =
+      accessToken ??
+      (await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        copy.authFailed
+      ))?.data?.session?.access_token ??
+      null;
+
+    return token;
+  };
+
   const runAction = async (type: "accept" | "decline") => {
     if (!order) return;
 
@@ -1770,14 +2204,7 @@ export default function CreatorOrderDetailPage() {
     setError(null);
 
     try {
-      const token =
-        accessToken ??
-        (await withTimeout(
-          supabase.auth.getSession(),
-          AUTH_TIMEOUT_MS,
-          copy.authFailed
-        ))?.data?.session?.access_token ??
-        null;
+      const token = await getActionToken();
 
       if (!token) {
         setError(copy.authFailed);
@@ -1824,6 +2251,110 @@ export default function CreatorOrderDetailPage() {
     }
   };
 
+  const runShareShippingAddress = async () => {
+    if (!order) return;
+
+    if (
+      !shippingAddress.recipient_name.trim() ||
+      !shippingAddress.postal_code.trim() ||
+      !shippingAddress.prefecture.trim() ||
+      !shippingAddress.city.trim() ||
+      !shippingAddress.address_line1.trim() ||
+      !shippingAddress.phone_number.trim()
+    ) {
+      setError(copy.shippingAddressRequired);
+      return;
+    }
+
+    if (!window.confirm(copy.shippingAddressConfirm)) return;
+
+    setActionLoading("shipping_address");
+    setError(null);
+
+    try {
+      const token = await getActionToken();
+
+      if (!token) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/creator/orders/${order.id}/shipping-address`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(shippingAddress),
+        },
+        ACTION_TIMEOUT_MS,
+        copy.shippingAddressFailed
+      );
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(json?.error ?? copy.shippingAddressFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      await loadOrder();
+      setActionLoading(null);
+    } catch (e: any) {
+      setError(e?.message ?? copy.shippingAddressFailed);
+      setActionLoading(null);
+    }
+  };
+
+  const runMarkProductReceived = async () => {
+    if (!order) return;
+
+    if (!window.confirm(copy.productReceivedConfirm)) return;
+
+    setActionLoading("received");
+    setError(null);
+
+    try {
+      const token = await getActionToken();
+
+      if (!token) {
+        setError(copy.authFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      const res = await fetchWithTimeout(
+        `/api/creator/orders/${order.id}/received`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+        ACTION_TIMEOUT_MS,
+        copy.productReceivedFailed
+      );
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(json?.error ?? copy.productReceivedFailed);
+        setActionLoading(null);
+        return;
+      }
+
+      await loadOrder();
+      setActionLoading(null);
+    } catch (e: any) {
+      setError(e?.message ?? copy.productReceivedFailed);
+      setActionLoading(null);
+    }
+  };
+
   const runDeliver = async () => {
     if (!order) return;
 
@@ -1845,14 +2376,7 @@ export default function CreatorOrderDetailPage() {
     setError(null);
 
     try {
-      const token =
-        accessToken ??
-        (await withTimeout(
-          supabase.auth.getSession(),
-          AUTH_TIMEOUT_MS,
-          copy.authFailed
-        ))?.data?.session?.access_token ??
-        null;
+      const token = await getActionToken();
 
       if (!token) {
         setError(copy.authFailed);
@@ -2037,6 +2561,22 @@ export default function CreatorOrderDetailPage() {
           locale={safeLocale}
           canChat={canChat}
           chatHref={`/creator/orders/${order.id}/chat`}
+          copy={copy}
+        />
+      ) : null}
+
+      {normalizeFulfillmentType(order.fulfillment_type) === "product_shipping" &&
+      !isWaitingForCreator(order) &&
+      !isCheckoutPending(order) &&
+      !isTerminalStatus(order.status) &&
+      order.status !== "delivered" ? (
+        <ProductShippingActionBox
+          order={order}
+          shippingAddress={shippingAddress}
+          setShippingAddress={setShippingAddress}
+          actionLoading={actionLoading}
+          onShareAddress={() => void runShareShippingAddress()}
+          onReceived={() => void runMarkProductReceived()}
           copy={copy}
         />
       ) : null}
