@@ -346,24 +346,29 @@ function canConfirmMaterials(order: OrderDetail) {
   return order.status === "accepted_captured" || order.status === "in_progress";
 }
 
-function canShareShippingAddress(order: OrderDetail) {
+function canUseProductShippingPreparation(order: OrderDetail) {
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
 
   if (fulfillmentType !== "product_shipping") return false;
   if (order.payment_status !== "captured") return false;
+  if (isCheckoutPending(order)) return false;
+  if (isTerminalStatus(order.status)) return false;
 
-  return order.status === "accepted_captured" || order.status === "in_progress";
+  return !["delivered", "revision_requested", "completed"].includes(
+    order.status
+  );
+}
+
+function canShareShippingAddress(order: OrderDetail) {
+  return canUseProductShippingPreparation(order);
 }
 
 function canMarkProductReceived(order: OrderDetail) {
-  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
-
-  if (fulfillmentType !== "product_shipping") return false;
-  if (order.payment_status !== "captured") return false;
+  if (!canUseProductShippingPreparation(order)) return false;
   if (!order.shipping_address_shared_at) return false;
   if (order.received_at) return false;
 
-  return order.status === "accepted_captured" || order.status === "in_progress";
+  return true;
 }
 
 function getInitialShippingAddress(order: OrderDetail | null): ShippingAddressForm {
@@ -1571,7 +1576,6 @@ function ProductShippingActionBox({
     </>
   );
 }
-
 function PreparationGuidanceBox({
   order,
   locale,

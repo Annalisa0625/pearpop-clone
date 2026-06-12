@@ -68,7 +68,8 @@ function normalizeShippingAddress(input: ShippingAddressInput | null) {
   const prefecture = getString(input.prefecture).slice(0, 80);
   const city = getString(input.city).slice(0, 120);
   const addressLine1 = getString(input.address_line1).slice(0, 160);
-  const addressLine2 = getOptionalString(input.address_line2)?.slice(0, 160) ?? null;
+  const addressLine2 =
+    getOptionalString(input.address_line2)?.slice(0, 160) ?? null;
   const phoneNumber = normalizePhoneNumber(input.phone_number);
   const notes = getOptionalString(input.notes)?.slice(0, 500) ?? null;
 
@@ -103,7 +104,7 @@ function normalizeShippingAddress(input: ShippingAddressInput | null) {
   if (!addressLine1) {
     return {
       address: null,
-      error: "番地・建物名を入力してください",
+      error: "町名・番地・建物名を入力してください",
     };
   }
 
@@ -129,18 +130,27 @@ function normalizeShippingAddress(input: ShippingAddressInput | null) {
   };
 }
 
+function isTerminalOrderStatus(status: string) {
+  return [
+    "completed",
+    "declined_canceled",
+    "expired_canceled",
+    "canceled",
+    "cancelled",
+  ].includes(status);
+}
+
 function canShareShippingAddress(order: {
   status: string;
   payment_status: string;
   fulfillment_type: string | null;
 }) {
   if (order.fulfillment_type !== "product_shipping") return false;
-
   if (order.payment_status !== "captured") return false;
+  if (isTerminalOrderStatus(order.status)) return false;
 
-  return (
-    order.status === "accepted_captured" ||
-    order.status === "in_progress"
+  return !["delivered", "revision_requested", "completed"].includes(
+    order.status
   );
 }
 
@@ -154,7 +164,8 @@ export async function GET(
     ok: true,
     route: "creator order shipping address",
     order_id: id,
-    message: "POST this route to share a shipping address for product shipping orders.",
+    message:
+      "POST this route to share a shipping address for product shipping orders.",
   });
 }
 
@@ -171,7 +182,9 @@ export async function POST(
       return NextResponse.json({ error: authError }, { status: 401 });
     }
 
-    const body = (await req.json().catch(() => null)) as ShippingAddressInput | null;
+    const body = (await req.json().catch(() => null)) as
+      | ShippingAddressInput
+      | null;
     const { address, error: addressError } = normalizeShippingAddress(body);
 
     if (addressError || !address) {
@@ -242,6 +255,7 @@ export async function POST(
     const { error: updateError } = await supabaseAdmin
       .from("orders")
       .update({
+        status: order.status === "accepted_captured" ? "in_progress" : order.status,
         preparation_status: "waiting_shipment",
         preparation_data: nextPreparationData,
         shipping_address_shared_at: nowIso,
@@ -275,6 +289,7 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       order_id: order.id,
+      status: order.status === "accepted_captured" ? "in_progress" : order.status,
       preparation_status: "waiting_shipment",
       shipping_address_shared_at: nowIso,
     });
