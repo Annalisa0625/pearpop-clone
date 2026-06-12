@@ -109,6 +109,16 @@ type ReferenceAsset = {
   signed_url: string | null;
 };
 
+type PostalAddressResult = {
+  postal_code: string;
+  raw_postal_code: string;
+  prefecture: string;
+  city: string;
+  town: string;
+  address_line1: string;
+  full_address: string;
+};
+
 type ActionLoading =
   | "accept"
   | "decline"
@@ -320,8 +330,6 @@ function isPreparationReady(order: OrderDetail) {
   }
 
   if (fulfillmentType === "visit") {
-    // 来店型は日時をDBで固定登録せず、チャットで調整する前提。
-    // 受注後は実施完了後に納品へ進める。
     return true;
   }
 
@@ -379,6 +387,29 @@ function getInitialShippingAddress(order: OrderDetail | null): ShippingAddressFo
       typeof raw.phone_number === "string" ? raw.phone_number : "",
     notes: typeof raw.notes === "string" ? raw.notes : "",
   };
+}
+
+function getPostalDigits(value: string | null | undefined) {
+  return (value ?? "").replace(/[^\d]/g, "").slice(0, 7);
+}
+
+function formatPostalCodeForInput(value: string | null | undefined) {
+  const digits = getPostalDigits(value);
+
+  if (digits.length <= 3) return digits;
+
+  return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+}
+
+function isPostalAddressResult(value: any): value is PostalAddressResult {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value.raw_postal_code === "string" &&
+    typeof value.prefecture === "string" &&
+    typeof value.city === "string" &&
+    typeof value.address_line1 === "string"
+  );
 }
 
 function fulfillmentLabel(
@@ -499,7 +530,9 @@ function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
       viewBox="0 0 20 20"
-      className={`h-5 w-5 text-slate-400 transition ${open ? "rotate-180" : ""}`}
+      className={`h-5 w-5 text-slate-400 transition ${
+        open ? "rotate-180" : ""
+      }`}
       fill="none"
       aria-hidden="true"
     >
@@ -691,30 +724,45 @@ function ShippingInput({
   onChange,
   placeholder,
   multiline,
+  inputMode,
+  autoComplete,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   multiline?: boolean;
+  inputMode?:
+    | "none"
+    | "text"
+    | "tel"
+    | "url"
+    | "email"
+    | "numeric"
+    | "decimal"
+    | "search";
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-black text-slate-500">{label}</span>
+      <span className="text-[11px] font-black text-slate-500">{label}</span>
       {multiline ? (
         <textarea
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          rows={3}
-          className="mt-2 w-full resize-none rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-[16px] font-semibold leading-7 text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+          rows={2}
+          autoComplete={autoComplete}
+          className="mt-1.5 w-full resize-none rounded-[16px] border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] font-semibold leading-6 text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
         />
       ) : (
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="mt-2 w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-[16px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          className="mt-1.5 w-full rounded-[16px] border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
         />
       )}
     </label>
@@ -892,13 +940,7 @@ function OrderSummaryBox({
 }: {
   order: OrderDetail;
   locale: "ja" | "en";
-  copy: {
-    productName: string;
-    summaryMenu: string;
-    summaryPayout: string;
-    summaryDeadline: string;
-    notSet: string;
-  };
+  copy: any;
 }) {
   const deadline = order.creator_accept_deadline || order.deadline;
 
@@ -955,14 +997,7 @@ function ResponseActionBox({
   onDecline,
 }: {
   order: OrderDetail;
-  copy: {
-    responseTitle: string;
-    responseBody: string;
-    accept: string;
-    decline: string;
-    accepting: string;
-    declining: string;
-  };
+  copy: any;
   actionLoading: ActionLoading;
   onAccept: () => void;
   onDecline: () => void;
@@ -997,45 +1032,6 @@ function ResponseActionBox({
   );
 }
 
-function ChatCtaBox({
-  href,
-  title,
-  body,
-  buttonLabel,
-}: {
-  href: string;
-  title: string;
-  body: string;
-  buttonLabel: string;
-}) {
-  return (
-    <Surface className="p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
-          <MessageIcon />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-black tracking-[-0.04em] text-slate-950">
-            {title}
-          </p>
-          <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
-            {body}
-          </p>
-
-          <Link
-            href={href}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
-          >
-            <MessageIcon />
-            {buttonLabel}
-          </Link>
-        </div>
-      </div>
-    </Surface>
-  );
-}
-
 function MaterialsConfirmActionBox({
   order,
   actionLoading,
@@ -1045,14 +1041,7 @@ function MaterialsConfirmActionBox({
   order: OrderDetail;
   actionLoading: ActionLoading;
   onConfirm: () => void;
-  copy: {
-    materialsConfirmTitle: string;
-    materialsConfirmBody: string;
-    materialsConfirmButton: string;
-    materialsConfirmLoading: string;
-    materialsConfirmedTitle: string;
-    materialsConfirmedBody: string;
-  };
+  copy: any;
 }) {
   if (normalizeFulfillmentType(order.fulfillment_type) !== "material_provided") {
     return null;
@@ -1128,10 +1117,114 @@ function ProductShippingActionBox({
   copy: any;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [postalLookupLoading, setPostalLookupLoading] = useState(false);
+  const [postalLookupMessage, setPostalLookupMessage] = useState<string | null>(
+    null
+  );
+  const [postalCandidates, setPostalCandidates] = useState<
+    PostalAddressResult[]
+  >([]);
+  const [lastAutoLookupPostalCode, setLastAutoLookupPostalCode] = useState("");
+
   const preparationStatus = normalizePreparationStatus(order.preparation_status);
   const addressShared = Boolean(order.shipping_address_shared_at);
   const canShareAddress = canShareShippingAddress(order);
   const canReceive = canMarkProductReceived(order);
+  const postalDigits = getPostalDigits(shippingAddress.postal_code);
+
+  const applyPostalCandidate = useCallback(
+    (candidate: PostalAddressResult) => {
+      setShippingAddress({
+        ...shippingAddress,
+        postal_code: formatPostalCodeForInput(
+          candidate.raw_postal_code || candidate.postal_code
+        ),
+        prefecture: candidate.prefecture,
+        city: candidate.city,
+        address_line1: candidate.address_line1,
+      });
+
+      setPostalLookupMessage(copy.postalLookupApplied);
+    },
+    [copy.postalLookupApplied, setShippingAddress, shippingAddress]
+  );
+
+  const lookupPostalCode = useCallback(async () => {
+    const digits = getPostalDigits(shippingAddress.postal_code);
+
+    if (digits.length !== 7) {
+      setPostalCandidates([]);
+      setPostalLookupMessage(copy.postalLookupInvalid);
+      return;
+    }
+
+    setPostalLookupLoading(true);
+    setPostalLookupMessage(null);
+
+    try {
+      const res = await fetch(
+        `/api/postal-code/search?postal_code=${encodeURIComponent(digits)}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
+
+      const json = await res.json().catch(() => ({}));
+      const candidates = Array.isArray(json?.addresses)
+        ? json.addresses.filter(isPostalAddressResult)
+        : [];
+
+      if (!res.ok) {
+        throw new Error(json?.error ?? copy.postalLookupFailed);
+      }
+
+      if (candidates.length === 0) {
+        setPostalCandidates([]);
+        setPostalLookupMessage(copy.postalLookupNotFound);
+        return;
+      }
+
+      setPostalCandidates(candidates);
+      applyPostalCandidate(candidates[0]);
+      setLastAutoLookupPostalCode(digits);
+
+      if (candidates.length > 1) {
+        setPostalLookupMessage(copy.postalLookupMultiple);
+      }
+    } catch (error: any) {
+      setPostalCandidates([]);
+      setPostalLookupMessage(error?.message ?? copy.postalLookupFailed);
+    } finally {
+      setPostalLookupLoading(false);
+    }
+  }, [
+    applyPostalCandidate,
+    copy.postalLookupFailed,
+    copy.postalLookupInvalid,
+    copy.postalLookupMultiple,
+    copy.postalLookupNotFound,
+    shippingAddress.postal_code,
+  ]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    if (postalDigits.length === 0) {
+      setPostalCandidates([]);
+      setPostalLookupMessage(null);
+      return;
+    }
+
+    if (postalDigits.length !== 7) return;
+    if (postalDigits === lastAutoLookupPostalCode) return;
+
+    const timer = window.setTimeout(() => {
+      void lookupPostalCode();
+    }, 550);
+
+    return () => window.clearTimeout(timer);
+  }, [lastAutoLookupPostalCode, lookupPostalCode, modalOpen, postalDigits]);
 
   if (normalizeFulfillmentType(order.fulfillment_type) !== "product_shipping") {
     return null;
@@ -1265,14 +1358,20 @@ function ProductShippingActionBox({
       </Surface>
 
       {modalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
-          <div className="max-h-[88vh] w-full max-w-[520px] overflow-y-auto rounded-[28px] bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.28)] ring-1 ring-white/60 sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xl font-black tracking-[-0.05em] text-slate-950">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-3 backdrop-blur-sm"
+          style={{
+            paddingTop: "max(16px, env(safe-area-inset-top))",
+            paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+          }}
+        >
+          <div className="flex max-h-[82svh] w-full max-w-[520px] flex-col overflow-hidden rounded-[30px] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.28)] ring-1 ring-white/60 sm:max-h-[86vh]">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="min-w-0">
+                <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
                   {copy.shippingAddressTitle}
                 </p>
-                <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+                <p className="mt-1 text-xs font-semibold leading-6 text-slate-500">
                   {copy.shippingAddressBody}
                 </p>
               </div>
@@ -1280,123 +1379,191 @@ function ProductShippingActionBox({
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition active:scale-[0.98]"
                 aria-label="close"
               >
                 ×
               </button>
             </div>
 
-            <div className="mt-5 grid gap-3">
-              <ShippingInput
-                label={copy.shippingRecipientName}
-                value={shippingAddress.recipient_name}
-                onChange={(value) =>
-                  setShippingAddress({
-                    ...shippingAddress,
-                    recipient_name: value,
-                  })
-                }
-              />
-
-              <div className="grid grid-cols-2 gap-3">
+            <div className="trendre-scrollbar-none flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+              <div className="grid gap-3">
                 <ShippingInput
-                  label={copy.shippingPostalCode}
-                  value={shippingAddress.postal_code}
+                  label={copy.shippingRecipientName}
+                  value={shippingAddress.recipient_name}
+                  autoComplete="name"
                   onChange={(value) =>
                     setShippingAddress({
                       ...shippingAddress,
-                      postal_code: value,
+                      recipient_name: value,
+                    })
+                  }
+                />
+
+                <div className="rounded-[22px] bg-slate-50/85 p-3 ring-1 ring-slate-100">
+                  <div className="flex items-end gap-2">
+                    <div className="min-w-0 flex-1">
+                      <ShippingInput
+                        label={copy.shippingPostalCode}
+                        value={shippingAddress.postal_code}
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        placeholder="123-4567"
+                        onChange={(value) => {
+                          const formatted = formatPostalCodeForInput(value);
+                          const nextDigits = getPostalDigits(formatted);
+
+                          setShippingAddress({
+                            ...shippingAddress,
+                            postal_code: formatted,
+                          });
+
+                          setPostalCandidates([]);
+
+                          if (nextDigits.length < 7) {
+                            setLastAutoLookupPostalCode("");
+                            setPostalLookupMessage(null);
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void lookupPostalCode()}
+                      disabled={postalLookupLoading || postalDigits.length !== 7}
+                      className="mb-0.5 shrink-0 rounded-full bg-slate-950 px-4 py-3 text-xs font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {postalLookupLoading
+                        ? copy.postalLookupLoading
+                        : copy.postalLookupButton}
+                    </button>
+                  </div>
+
+                  {postalLookupMessage ? (
+                    <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
+                      {postalLookupMessage}
+                    </p>
+                  ) : null}
+
+                  {postalCandidates.length > 1 ? (
+                    <div className="mt-3 grid gap-2">
+                      <p className="text-[11px] font-black text-slate-400">
+                        {copy.postalLookupCandidateLabel}
+                      </p>
+                      {postalCandidates.map((candidate, index) => (
+                        <button
+                          key={`${candidate.raw_postal_code}-${candidate.full_address}-${index}`}
+                          type="button"
+                          onClick={() => applyPostalCandidate(candidate)}
+                          className="rounded-[16px] bg-white px-3 py-2 text-left text-xs font-bold leading-5 text-slate-600 ring-1 ring-slate-100 transition active:scale-[0.99]"
+                        >
+                          {candidate.full_address}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <ShippingInput
+                    label={copy.shippingPrefecture}
+                    value={shippingAddress.prefecture}
+                    autoComplete="address-level1"
+                    onChange={(value) =>
+                      setShippingAddress({
+                        ...shippingAddress,
+                        prefecture: value,
+                      })
+                    }
+                  />
+
+                  <ShippingInput
+                    label={copy.shippingCity}
+                    value={shippingAddress.city}
+                    autoComplete="address-level2"
+                    onChange={(value) =>
+                      setShippingAddress({
+                        ...shippingAddress,
+                        city: value,
+                      })
+                    }
+                  />
+                </div>
+
+                <ShippingInput
+                  label={copy.shippingAddressLine1}
+                  value={shippingAddress.address_line1}
+                  autoComplete="street-address"
+                  onChange={(value) =>
+                    setShippingAddress({
+                      ...shippingAddress,
+                      address_line1: value,
                     })
                   }
                 />
 
                 <ShippingInput
-                  label={copy.shippingPrefecture}
-                  value={shippingAddress.prefecture}
+                  label={copy.shippingAddressLine2}
+                  value={shippingAddress.address_line2}
+                  autoComplete="address-line2"
                   onChange={(value) =>
                     setShippingAddress({
                       ...shippingAddress,
-                      prefecture: value,
+                      address_line2: value,
                     })
                   }
                 />
+
+                <ShippingInput
+                  label={copy.shippingPhoneNumber}
+                  value={shippingAddress.phone_number}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  onChange={(value) =>
+                    setShippingAddress({
+                      ...shippingAddress,
+                      phone_number: value,
+                    })
+                  }
+                />
+
+                <ShippingInput
+                  label={copy.shippingNotes}
+                  value={shippingAddress.notes}
+                  onChange={(value) =>
+                    setShippingAddress({
+                      ...shippingAddress,
+                      notes: value,
+                    })
+                  }
+                  multiline
+                />
               </div>
+            </div>
 
-              <ShippingInput
-                label={copy.shippingCity}
-                value={shippingAddress.city}
-                onChange={(value) =>
-                  setShippingAddress({
-                    ...shippingAddress,
-                    city: value,
-                  })
-                }
-              />
+            <div
+              className="grid shrink-0 grid-cols-2 gap-3 border-t border-slate-100 bg-white px-5 py-4 sm:px-6"
+              style={{
+                paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+              }}
+            >
+              <PrimaryButton
+                onClick={() => setModalOpen(false)}
+                disabled={actionLoading !== null}
+                variant="soft"
+              >
+                {copy.back}
+              </PrimaryButton>
 
-              <ShippingInput
-                label={copy.shippingAddressLine1}
-                value={shippingAddress.address_line1}
-                onChange={(value) =>
-                  setShippingAddress({
-                    ...shippingAddress,
-                    address_line1: value,
-                  })
-                }
-              />
-
-              <ShippingInput
-                label={copy.shippingAddressLine2}
-                value={shippingAddress.address_line2}
-                onChange={(value) =>
-                  setShippingAddress({
-                    ...shippingAddress,
-                    address_line2: value,
-                  })
-                }
-              />
-
-              <ShippingInput
-                label={copy.shippingPhoneNumber}
-                value={shippingAddress.phone_number}
-                onChange={(value) =>
-                  setShippingAddress({
-                    ...shippingAddress,
-                    phone_number: value,
-                  })
-                }
-              />
-
-              <ShippingInput
-                label={copy.shippingNotes}
-                value={shippingAddress.notes}
-                onChange={(value) =>
-                  setShippingAddress({
-                    ...shippingAddress,
-                    notes: value,
-                  })
-                }
-                multiline
-              />
-
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <PrimaryButton
-                  onClick={() => setModalOpen(false)}
-                  disabled={actionLoading !== null}
-                  variant="soft"
-                >
-                  {copy.back}
-                </PrimaryButton>
-
-                <PrimaryButton
-                  onClick={onShareAddress}
-                  disabled={actionLoading !== null || !canShareAddress}
-                >
-                  {actionLoading === "shipping_address"
-                    ? copy.shippingSharingAddress
-                    : buttonLabel}
-                </PrimaryButton>
-              </div>
+              <PrimaryButton
+                onClick={onShareAddress}
+                disabled={actionLoading !== null || !canShareAddress}
+              >
+                {actionLoading === "shipping_address"
+                  ? copy.shippingSharingAddress
+                  : buttonLabel}
+              </PrimaryButton>
             </div>
           </div>
         </div>
@@ -1436,7 +1603,7 @@ function PreparationGuidanceBox({
     if (fulfillmentType === "material_provided") {
       icon = <LinkIcon />;
       title = beforeAccept
-        ? "素材・投稿情報を確認して進める案件です"
+        ? "素材・投稿情報を確認してください"
         : ready
           ? "素材・投稿情報を確認済みです"
           : "素材・投稿情報を確認してください";
@@ -1444,7 +1611,8 @@ function PreparationGuidanceBox({
         ? "注文を受ける前に、参考資料・投稿条件・PR表記などを確認してください。"
         : ready
           ? "素材・投稿情報の確認が完了しています。制作と納品に進めます。"
-          : "企業から届いた画像・動画・商品情報・投稿条件を確認し、問題なければ確認ボタンを押してください。";
+          : "届いた画像・動画・商品情報・投稿条件を確認し、問題なければ確認ボタンを押してください。";
+
       detail = order.materials_confirmed_at ? (
         <p className="mt-2 text-xs font-black text-slate-400">
           確認日時：{formatDateTime(order.materials_confirmed_at, locale)}
@@ -1457,14 +1625,14 @@ function PreparationGuidanceBox({
 
       if (preparationStatus === "waiting_shipping_address") {
         title = beforeAccept
-          ? "商品を受け取って進める案件です"
+          ? "商品を受け取ってから進めます"
           : "配送先の共有が必要です";
         body = beforeAccept
-          ? "注文を受けた後、企業と配送先・発送方法を確認してから制作を進めます。"
+          ? "注文を受けた後、配送先・発送方法をチャットで確認してから制作を進めます。"
           : "商品を受け取るために、「配送先を入力する」ボタンから配送先を共有してください。";
       } else if (preparationStatus === "waiting_shipment") {
-        title = "企業の発送を待っています";
-        body = "配送先は共有済みです。企業が商品を発送するまでお待ちください。";
+        title = "商品の発送を待っています";
+        body = "配送先は共有済みです。商品が発送されるまでお待ちください。";
       } else if (preparationStatus === "shipped") {
         title = "商品の到着を待っています";
         body = "商品が届いたら内容を確認して、「商品を受け取りました」を押してください。";
@@ -1484,14 +1652,19 @@ function PreparationGuidanceBox({
         body = "来店日・場所・注意事項を確認して、当日に向けて準備してください。";
       } else {
         title = beforeAccept
-          ? "チャットで来店日程を調整する案件です"
-          : "チャットで来店日程を調整してください";
+          ? "来店日程はチャットで相談します"
+          : "チャットで来店日程を相談してください";
         body = beforeAccept
-          ? "注文を受けた後、企業とチャットで来店日・場所・撮影ルールを調整して進めます。"
-          : "企業とチャットで来店日・場所・撮影ルールを調整してください。";
+          ? "注文を受けた後、チャットで来店日・場所・撮影ルールを相談して進めます。"
+          : "チャットで来店日・場所・撮影ルールを相談して進めてください。";
       }
 
-      detail = (
+      const hasVisitDetails =
+        Boolean(order.visit_scheduled_at) ||
+        Boolean(order.visit_location) ||
+        Boolean(order.visit_notes);
+
+      detail = hasVisitDetails ? (
         <div className="mt-3 grid gap-2 rounded-[18px] bg-white/70 p-3 ring-1 ring-slate-100">
           {order.visit_scheduled_at ? (
             <div className="flex items-center justify-between gap-3">
@@ -1517,16 +1690,16 @@ function PreparationGuidanceBox({
             </p>
           ) : null}
         </div>
-      );
+      ) : null;
     }
   } else {
     if (fulfillmentType === "material_provided") {
       icon = <LinkIcon />;
       title = beforeAccept
-        ? "This order uses brand-provided materials"
+        ? "Review the provided materials"
         : ready
           ? "Materials confirmed"
-          : "Review the brand materials";
+          : "Review the provided materials";
       body = beforeAccept
         ? "Before accepting, review the reference assets, posting rules, and PR text."
         : ready
@@ -1542,11 +1715,11 @@ function PreparationGuidanceBox({
           ? "This order requires product shipping"
           : "Share delivery details";
         body = beforeAccept
-          ? "After accepting, coordinate delivery details with the brand before starting."
-          : "Use the address button to share your delivery address with the brand.";
+          ? "After accepting, coordinate delivery details in chat before starting."
+          : "Use the address button to share your delivery address.";
       } else if (preparationStatus === "waiting_shipment") {
         title = "Waiting for shipment";
-        body = "Your delivery address has been shared. Please wait for the brand to ship the product.";
+        body = "Your delivery address has been shared. Please wait for the product to ship.";
       } else if (preparationStatus === "shipped") {
         title = "Waiting for the product";
         body = "Once the product arrives, review it and mark it as received.";
@@ -1566,11 +1739,11 @@ function PreparationGuidanceBox({
         body = "Check the date, place, and notes before the visit.";
       } else {
         title = beforeAccept
-          ? "This order requires visit coordination in chat"
+          ? "Coordinate the visit in chat"
           : "Coordinate the visit in chat";
         body = beforeAccept
-          ? "After accepting, coordinate the visit date, place, and shooting rules with the brand in chat."
-          : "Coordinate the visit date, place, and shooting rules with the brand in chat.";
+          ? "After accepting, coordinate the visit date, place, and shooting rules in chat."
+          : "Coordinate the visit date, place, and shooting rules in chat.";
       }
     }
   }
@@ -1609,7 +1782,9 @@ function PreparationGuidanceBox({
                     : "bg-amber-100 text-amber-700"
                 }`}
               >
-                {ready ? copy.preparationReadyLabel : copy.preparationWaitingLabel}
+                {ready
+                  ? copy.preparationReadyLabel
+                  : copy.preparationWaitingLabel}
               </span>
             </div>
 
@@ -1718,13 +1893,13 @@ function getPassiveNoticeCopy(order: OrderDetail, locale: "ja" | "en") {
     if (isCheckoutPending(order)) {
       return {
         title: "注文の準備中です",
-        body: "企業側の確認が完了すると、対応するか選べるようになります。",
+        body: "確認が完了すると、対応するか選べるようになります。",
       };
     }
 
     if (order.status === "delivered") {
       return {
-        title: "企業の確認を待っています",
+        title: "確認を待っています",
         body: "送信したURLの確認が完了するまでお待ちください。",
       };
     }
@@ -1745,14 +1920,14 @@ function getPassiveNoticeCopy(order: OrderDetail, locale: "ja" | "en") {
   if (isCheckoutPending(order)) {
     return {
       title: "Preparing this order",
-      body: "You will be able to respond once the brand confirmation is complete.",
+      body: "You will be able to respond once confirmation is complete.",
     };
   }
 
   if (order.status === "delivered") {
     return {
-      title: "Waiting for brand review",
-      body: "Please wait while the brand reviews your submitted URL.",
+      title: "Waiting for review",
+      body: "Please wait while your submitted URL is reviewed.",
     };
   }
 
@@ -1810,15 +1985,15 @@ export default function CreatorOrderDetailPage() {
 
             preparationTitle: "開始前に必要なこと",
             preparationBeforeAcceptTitle: "受ける前に確認",
-            preparationChatButton: "企業と相談する",
+            preparationChatButton: "チャットで相談する",
             preparationChatDisabled:
-              "注文を受けると、企業とチャットで相談できるようになります。",
+              "注文を受けると、チャットで相談できるようになります。",
             preparationReadyLabel: "進められます",
             preparationWaitingLabel: "準備が必要",
 
             materialsConfirmTitle: "素材・投稿情報を確認してください",
             materialsConfirmBody:
-              "企業から届いた素材、投稿条件、PR表記、注意事項を確認し、問題なければ確認完了にしてください。",
+              "届いた素材、投稿条件、PR表記、注意事項を確認し、問題なければ確認完了にしてください。",
             materialsConfirmButton: "素材・投稿情報を確認しました",
             materialsConfirmLoading: "更新中...",
             materialsConfirmConfirm:
@@ -1831,21 +2006,33 @@ export default function CreatorOrderDetailPage() {
 
             shippingAddressTitle: "配送先を共有する",
             shippingAddressBody:
-              "商品を受け取るための配送先を入力してください。企業側に共有されます。",
+              "商品を受け取るための配送先を入力してください。依頼元に共有されます。",
             shippingRecipientName: "宛名",
             shippingPostalCode: "郵便番号",
             shippingPrefecture: "都道府県",
             shippingCity: "市区町村",
-            shippingAddressLine1: "番地・建物名",
+            shippingAddressLine1: "町名・番地・建物名",
             shippingAddressLine2: "部屋番号など",
             shippingPhoneNumber: "電話番号",
             shippingNotes: "配送メモ",
+            postalLookupButton: "自動入力",
+            postalLookupLoading: "検索中...",
+            postalLookupInvalid: "郵便番号は7桁で入力してください。",
+            postalLookupFailed:
+              "住所を自動入力できませんでした。手入力してください。",
+            postalLookupNotFound:
+              "住所が見つかりませんでした。郵便番号を確認してください。",
+            postalLookupApplied:
+              "住所を自動入力しました。番地以降を入力してください。",
+            postalLookupMultiple:
+              "候補があります。違う場合は下から選んでください。",
+            postalLookupCandidateLabel: "住所候補",
             shippingShareAddress: "配送先を共有する",
             shippingUpdateAddress: "配送先を更新する",
             shippingSharingAddress: "共有中...",
             shippingAddressRequired: "配送先を入力してください。",
             shippingAddressConfirm:
-              "この配送先を企業に共有しますか？企業が商品を発送するために使用します。",
+              "この配送先を依頼元に共有しますか？商品発送のために使用されます。",
             shippingAddressFailed:
               "配送先を共有できませんでした。入力内容を確認してください。",
             productReceivedTitle: "商品を受け取ったら",
@@ -1858,7 +2045,7 @@ export default function CreatorOrderDetailPage() {
             productReceivedFailed:
               "商品受取の更新に失敗しました。時間を置いて再度お試しください。",
             shippingStatusShared: "配送先は共有済みです",
-            shippingStatusWaitingShipment: "企業の発送待ち",
+            shippingStatusWaitingShipment: "発送待ち",
             shippingStatusShipped: "発送済み",
             shippingStatusReceived: "受取済み",
             shippingCarrier: "配送会社",
@@ -1869,7 +2056,7 @@ export default function CreatorOrderDetailPage() {
             deliveryTitle: "納品する",
             redeliveryTitle: "修正版を送る",
             deliveryBody:
-              "投稿URL、成果物URL、Google Driveなど、企業が確認できるURLを入力してください。",
+              "投稿URL、成果物URL、Google Driveなど、確認できるURLを入力してください。",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "提出済みURLを開く",
             deliver: "このURLを送る",
@@ -1885,10 +2072,10 @@ export default function CreatorOrderDetailPage() {
             accepting: "承認中...",
             declining: "辞退中...",
             confirmAccept:
-              "この注文を受けますか？受けると企業と準備を進められます。",
+              "この注文を受けますか？受けるとチャットで準備を進められます。",
             confirmDecline:
               "この注文を辞退しますか？辞退すると、この注文は開始されません。",
-            confirmDeliver: "このURLを企業に送りますか？",
+            confirmDeliver: "このURLを送りますか？",
             confirmRedeliver: "このURLを修正版として送りますか？",
             acceptFailed:
               "注文を受けられませんでした。時間を置いて再度お試しください。",
@@ -1940,7 +2127,7 @@ export default function CreatorOrderDetailPage() {
             responseBody:
               "内容・報酬・期限・進め方を確認して、対応できる場合は注文を受けてください。",
 
-            chatCtaTitle: "企業に相談する",
+            chatCtaTitle: "チャットで相談する",
             chatCtaBody:
               "不明点や進行中の相談がある場合は、チャットで確認できます。",
             chatCtaButton: "チャットを開く",
@@ -1954,15 +2141,15 @@ export default function CreatorOrderDetailPage() {
 
             preparationTitle: "Before you start",
             preparationBeforeAcceptTitle: "Before accepting",
-            preparationChatButton: "Ask the brand",
+            preparationChatButton: "Open chat",
             preparationChatDisabled:
-              "After accepting, you can coordinate with the brand in chat.",
+              "After accepting, you can coordinate in chat.",
             preparationReadyLabel: "Ready",
             preparationWaitingLabel: "Needs setup",
 
             materialsConfirmTitle: "Review the provided materials",
             materialsConfirmBody:
-              "Review the assets, posting conditions, PR text, and notes from the brand. Confirm them if everything is okay.",
+              "Review the assets, posting conditions, PR text, and notes. Confirm them if everything is okay.",
             materialsConfirmButton: "I reviewed the materials",
             materialsConfirmLoading: "Updating...",
             materialsConfirmConfirm:
@@ -1975,21 +2162,32 @@ export default function CreatorOrderDetailPage() {
 
             shippingAddressTitle: "Share delivery address",
             shippingAddressBody:
-              "Enter the address where the brand should ship the product.",
+              "Enter the address where the product should be shipped.",
             shippingRecipientName: "Recipient name",
             shippingPostalCode: "Postal code",
             shippingPrefecture: "Prefecture / State",
             shippingCity: "City",
-            shippingAddressLine1: "Address line 1",
-            shippingAddressLine2: "Address line 2",
+            shippingAddressLine1: "Street / building",
+            shippingAddressLine2: "Room number",
             shippingPhoneNumber: "Phone number",
             shippingNotes: "Delivery notes",
+            postalLookupButton: "Auto fill",
+            postalLookupLoading: "Searching...",
+            postalLookupInvalid: "Enter a 7-digit postal code.",
+            postalLookupFailed:
+              "Could not auto-fill the address. Please enter it manually.",
+            postalLookupNotFound:
+              "No address was found. Please check the postal code.",
+            postalLookupApplied:
+              "Address filled. Please enter the street number and building.",
+            postalLookupMultiple:
+              "Multiple candidates were found. Select another one if needed.",
+            postalLookupCandidateLabel: "Address candidates",
             shippingShareAddress: "Share address",
             shippingUpdateAddress: "Update address",
             shippingSharingAddress: "Sharing...",
             shippingAddressRequired: "Please enter the delivery address.",
-            shippingAddressConfirm:
-              "Share this delivery address with the brand?",
+            shippingAddressConfirm: "Share this delivery address?",
             shippingAddressFailed:
               "Could not share the delivery address. Please check the details.",
             productReceivedTitle: "After receiving the product",
@@ -2013,14 +2211,14 @@ export default function CreatorOrderDetailPage() {
             deliveryTitle: "Send your delivery",
             redeliveryTitle: "Send the revised URL",
             deliveryBody:
-              "Enter a post URL, asset URL, Google Drive link, or another URL the brand can review.",
+              "Enter a post URL, asset URL, Google Drive link, or another URL that can be reviewed.",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "Open submitted URL",
             deliver: "Send this URL",
             redeliver: "Send revised URL",
             updateDelivery: "Update URL",
             delivering: "Sending...",
-            deliveryRequired: "Please enter a URL the brand can review.",
+            deliveryRequired: "Please enter a URL that can be reviewed.",
             deliveryFailed:
               "Could not send the URL. Please check it and try again.",
 
@@ -2029,10 +2227,10 @@ export default function CreatorOrderDetailPage() {
             accepting: "Accepting...",
             declining: "Declining...",
             confirmAccept:
-              "Accept this order? You will be able to coordinate with the brand.",
+              "Accept this order? You will be able to coordinate in chat.",
             confirmDecline:
               "Decline this order? This order will not start.",
-            confirmDeliver: "Send this URL to the brand?",
+            confirmDeliver: "Send this URL?",
             confirmRedeliver: "Send this URL as the revised delivery?",
             acceptFailed: "Could not accept this order. Please try again later.",
             declineFailed:
@@ -2084,9 +2282,9 @@ export default function CreatorOrderDetailPage() {
             responseBody:
               "Review the details, payout, deadline, and workflow before accepting this order.",
 
-            chatCtaTitle: "Ask the brand",
+            chatCtaTitle: "Open chat",
             chatCtaBody:
-              "If anything is unclear, you can message the brand from the chat.",
+              "If anything is unclear, you can message from the chat.",
             chatCtaButton: "Open chat",
           },
     [safeLocale]
@@ -2300,16 +2498,15 @@ export default function CreatorOrderDetailPage() {
   }, [order?.id, order?.status]);
 
   const getActionToken = async () => {
-    const token =
-      accessToken ??
-      (await withTimeout(
-        supabase.auth.getSession(),
-        AUTH_TIMEOUT_MS,
-        copy.authFailed
-      ))?.data?.session?.access_token ??
-      null;
+    if (accessToken) return accessToken;
 
-    return token;
+    const sessionResult: any = await withTimeout(
+      supabase.auth.getSession(),
+      AUTH_TIMEOUT_MS,
+      copy.authFailed
+    );
+
+    return sessionResult?.data?.session?.access_token ?? null;
   };
 
   const runAction = async (type: "accept" | "decline") => {
