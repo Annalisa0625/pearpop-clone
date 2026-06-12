@@ -42,6 +42,31 @@ function formatBadgeCount(count: number) {
   return String(count);
 }
 
+function getDefaultBadgeClassName(count: number) {
+  const isSingleDigit = count > 0 && count < 10;
+
+  if (isSingleDigit) {
+    return [
+      "absolute -right-1 -top-1",
+      "flex h-[18px] w-[18px] items-center justify-center",
+      "rounded-full bg-[#ff5f67]",
+      "text-[10px] font-black leading-none text-white",
+      "ring-2 ring-white",
+      "shadow-[0_4px_10px_rgba(255,95,103,0.25)]",
+    ].join(" ");
+  }
+
+  return [
+    "absolute -right-2 -top-1",
+    "flex h-[18px] min-w-[18px] items-center justify-center",
+    "rounded-full bg-[#ff5f67]",
+    "px-[5px]",
+    "text-[9px] font-black leading-none text-white",
+    "ring-2 ring-white",
+    "shadow-[0_4px_10px_rgba(255,95,103,0.25)]",
+  ].join(" ");
+}
+
 export default function NotificationBell({
   href = "/notifications",
   label = "通知",
@@ -167,12 +192,7 @@ export default function NotificationBell({
       {children ?? <BellIcon />}
 
       {count > 0 ? (
-        <span
-          className={
-            badgeClassName ??
-            "absolute -right-1 -top-1 flex min-w-[18px] items-center justify-center rounded-full bg-[#ff5f67] px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-white"
-          }
-        >
+        <span className={badgeClassName ?? getDefaultBadgeClassName(count)}>
           {formatBadgeCount(count)}
         </span>
       ) : null}
