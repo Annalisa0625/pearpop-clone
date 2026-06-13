@@ -151,7 +151,6 @@ function withTimeout<T = any>(
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const promise = Promise.resolve(promiseLike);
-
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       reject(new Error(timeoutMessage));
@@ -170,6 +169,7 @@ async function fetchWithTimeout(
   timeoutMessage: string
 ) {
   const controller = new AbortController();
+
   const timer = window.setTimeout(() => {
     controller.abort();
   }, ms);
@@ -208,6 +208,22 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
 }
 
@@ -303,14 +319,6 @@ function isWaitingStatus(status: string) {
   return status === "authorized_pending_creator" || status === "checkout_pending";
 }
 
-function isActiveStatus(status: string) {
-  return (
-    status === "accepted_captured" ||
-    status === "in_progress" ||
-    status === "revision_requested"
-  );
-}
-
 function isDeliveredStatus(status: string) {
   return status === "delivered";
 }
@@ -319,9 +327,8 @@ function isCompletedStatus(status: string) {
   return status === "completed";
 }
 
-function isTerminalStatus(status: string) {
+function isCanceledStatus(status: string) {
   return [
-    "completed",
     "declined_canceled",
     "expired_canceled",
     "canceled",
@@ -329,17 +336,22 @@ function isTerminalStatus(status: string) {
   ].includes(status);
 }
 
+function isTerminalStatus(status: string) {
+  return isCompletedStatus(status) || isCanceledStatus(status);
+}
+
 function canOpenChat(order: OrderDetail) {
   if (order.status === "checkout_pending") return false;
   if (order.status === "authorized_pending_creator") return false;
-  if (isTerminalStatus(order.status)) return false;
+  if (isCanceledStatus(order.status)) return false;
 
   return (
     order.payment_status === "captured" ||
     order.status === "accepted_captured" ||
     order.status === "in_progress" ||
     order.status === "delivered" ||
-    order.status === "revision_requested"
+    order.status === "revision_requested" ||
+    order.status === "completed"
   );
 }
 
@@ -423,6 +435,8 @@ function canRegisterShipment(order: OrderDetail) {
   if (order.payment_status !== "captured") return false;
   if (!order.shipping_address_shared_at) return false;
   if (order.received_at) return false;
+  if (isTerminalStatus(order.status)) return false;
+  if (isDeliveredStatus(order.status)) return false;
 
   return order.status === "accepted_captured" || order.status === "in_progress";
 }
@@ -435,20 +449,23 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       className: string;
       title: string;
       body: string;
+      accent: string;
     }
   > = {
     checkout_pending: {
       label: "支払い確認中",
       className: "bg-slate-100 text-slate-700 ring-slate-200",
       title: "支払い確認中です",
-      body: "支払い確認が完了すると、インフルエンサーへの返答待ちに進みます。",
+      body: "支払い確認が完了すると、クリエイターへの返答待ちに進みます。",
+      accent: "bg-slate-950",
     },
     authorized_pending_creator: {
       label: "返答待ち",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "インフルエンサーの返答待ちです",
+      title: "クリエイターの返答待ちです",
       body:
         "承認されると注文が開始されます。辞退または期限切れの場合、請求は確定しません。",
+      accent: "bg-amber-500",
     },
     accepted_captured: {
       label: "進行中",
@@ -456,6 +473,7 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       title: "注文は進行中です",
       body:
         "必要な確認や連絡は専用チャットで行えます。納品URLが届いたら内容を確認してください。",
+      accent: "bg-slate-950",
     },
     in_progress: {
       label: "進行中",
@@ -463,20 +481,23 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       title: "注文は進行中です",
       body:
         "必要な確認や連絡は専用チャットで行えます。納品URLが届いたら内容を確認してください。",
+      accent: "bg-slate-950",
     },
     delivered: {
-      label: "確認する",
+      label: "確認待ち",
       className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
       title: "納品内容を確認してください",
       body:
         "問題なければ注文を完了できます。修正依頼は元の注文内容に沿う範囲でのみ行えます。",
+      accent: "bg-[#ff5f67]",
     },
     revision_requested: {
       label: "修正依頼中",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
       title: "修正依頼を送信済みです",
       body:
-        "インフルエンサーから再納品されるまでお待ちください。必要な確認は専用チャットで行えます。",
+        "クリエイターから再納品されるまでお待ちください。必要な確認は専用チャットで行えます。",
+      accent: "bg-amber-500",
     },
     completed: {
       label: "完了",
@@ -484,18 +505,21 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       title: "この注文は完了しています",
       body:
         "完了後は原則として修正依頼・返金はできません。追加依頼は新しい注文として相談してください。",
+      accent: "bg-emerald-500",
     },
     declined_canceled: {
       label: "終了",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
       title: "この注文は終了しています",
-      body: "インフルエンサーの辞退により、請求は確定していません。",
+      body: "クリエイターの辞退により、請求は確定していません。",
+      accent: "bg-slate-400",
     },
     expired_canceled: {
       label: "期限切れ",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
       title: "この注文は期限切れです",
       body: "返答期限を過ぎたため、請求は確定していません。",
+      accent: "bg-slate-400",
     },
   };
 
@@ -504,14 +528,16 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       label: "Payment pending",
       className: "bg-slate-100 text-slate-700 ring-slate-200",
       title: "Payment is being confirmed",
-      body: "Once payment is confirmed, the order will wait for influencer approval.",
+      body: "Once payment is confirmed, the order will wait for creator approval.",
+      accent: "bg-slate-950",
     },
     authorized_pending_creator: {
       label: "Waiting",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "Waiting for influencer reply",
+      title: "Waiting for creator reply",
       body:
         "The order begins once accepted. If declined or expired, the charge is not captured.",
+      accent: "bg-amber-500",
     },
     accepted_captured: {
       label: "In progress",
@@ -519,6 +545,7 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       title: "Order is in progress",
       body:
         "Use the dedicated chat page for necessary confirmation. Review the delivery once the URL is submitted.",
+      accent: "bg-slate-950",
     },
     in_progress: {
       label: "In progress",
@@ -526,6 +553,7 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       title: "Order is in progress",
       body:
         "Use the dedicated chat page for necessary confirmation. Review the delivery once the URL is submitted.",
+      accent: "bg-slate-950",
     },
     delivered: {
       label: "Review",
@@ -533,13 +561,15 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       title: "Review the delivery",
       body:
         "Complete the order if everything is okay. Revisions should stay within the original requirements.",
+      accent: "bg-[#ff5f67]",
     },
     revision_requested: {
       label: "Revision",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
       title: "Revision request sent",
       body:
-        "Please wait for the influencer to submit the updated delivery. Use the dedicated chat page for any confirmation.",
+        "Please wait for the creator to submit the updated delivery. Use the dedicated chat page for any confirmation.",
+      accent: "bg-amber-500",
     },
     completed: {
       label: "Completed",
@@ -547,18 +577,21 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       title: "This order is completed",
       body:
         "Revisions and refunds are generally unavailable after completion. Place a new order for additional work.",
+      accent: "bg-emerald-500",
     },
     declined_canceled: {
       label: "Ended",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
       title: "This order has ended",
-      body: "The influencer declined, so the charge was not captured.",
+      body: "The creator declined, so the charge was not captured.",
+      accent: "bg-slate-400",
     },
     expired_canceled: {
       label: "Expired",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
       title: "This order expired",
       body: "The reply deadline passed, so the charge was not captured.",
+      accent: "bg-slate-400",
     },
   };
 
@@ -571,6 +604,7 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
         locale === "ja"
           ? "注文内容を確認できます。"
           : "You can review the order here.",
+      accent: "bg-slate-950",
     }
   );
 }
@@ -614,6 +648,20 @@ function DetailRow({
   );
 }
 
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M12.5 4.5 7 10l5.5 5.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function MessageIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
@@ -648,6 +696,40 @@ function PackageIcon() {
   );
 }
 
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m4.5 10 3.6 3.6L15.8 6"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ExternalIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M8 5H5.8A2.8 2.8 0 0 0 3 7.8v6.4A2.8 2.8 0 0 0 5.8 17h6.4a2.8 2.8 0 0 0 2.8-2.8V12"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M11 3h6v6M10 10l6.5-6.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function InfluencerAvatar({
   influencer,
 }: {
@@ -657,13 +739,13 @@ function InfluencerAvatar({
     return (
       <img
         src={influencer.avatar_url}
-        alt={influencer.display_name ?? "influencer"}
+        alt={influencer.display_name ?? "creator"}
         className="h-14 w-14 rounded-2xl object-cover"
       />
     );
   }
 
-  const initial = (influencer?.display_name?.trim()?.[0] ?? "I").toUpperCase();
+  const initial = (influencer?.display_name?.trim()?.[0] ?? "C").toUpperCase();
 
   return (
     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-100 text-lg font-black text-slate-900">
@@ -676,20 +758,25 @@ function ActionCard({
   title,
   body,
   children,
+  accentClassName = "bg-slate-950",
 }: {
   title: string;
   body: string;
   children?: ReactNode;
+  accentClassName?: string;
 }) {
   return (
-    <section className="rounded-[28px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-7">
-      <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-        {body}
-      </p>
-      {children ? <div className="mt-5">{children}</div> : null}
+    <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
+      <div className={`h-1.5 w-full ${accentClassName}`} />
+      <div className="p-6 md:p-7">
+        <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
+          {title}
+        </h2>
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+          {body}
+        </p>
+        {children ? <div className="mt-5">{children}</div> : null}
+      </div>
     </section>
   );
 }
@@ -702,7 +789,7 @@ function CompactCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] md:p-6">
+    <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:p-6">
       <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
         {title}
       </h2>
@@ -723,7 +810,7 @@ function ChatCtaCard({
   href: string;
 }) {
   return (
-    <section className="rounded-[28px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-7">
+    <section className="rounded-[28px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-7">
       <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
         {title}
       </h2>
@@ -732,7 +819,7 @@ function ChatCtaCard({
       </p>
       <Link
         href={href}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 active:scale-[0.98]"
       >
         <MessageIcon />
         {buttonLabel}
@@ -755,7 +842,7 @@ function CollapsibleCard({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="rounded-[24px] bg-white shadow-[0_14px_45px_rgba(15,23,42,0.04)]">
+    <section className="rounded-[24px] bg-white shadow-[0_14px_45px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -794,7 +881,7 @@ function TextBlock({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-[22px] bg-slate-50 p-4">
+    <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
       <p className="text-xs font-black text-slate-400">{label}</p>
       <p className="mt-2 whitespace-pre-line text-sm font-semibold leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
@@ -827,6 +914,182 @@ function ShipmentInput({
   );
 }
 
+function StepItem({
+  done,
+  active,
+  label,
+  body,
+}: {
+  done: boolean;
+  active: boolean;
+  label: string;
+  body: string;
+}) {
+  return (
+    <div
+      className={`flex gap-3 rounded-[20px] p-3 ring-1 ${
+        done
+          ? "bg-emerald-50 ring-emerald-100"
+          : active
+            ? "bg-rose-50 ring-rose-100"
+            : "bg-slate-50 ring-slate-100"
+      }`}
+    >
+      <div
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+          done
+            ? "bg-emerald-500 text-white"
+            : active
+              ? "bg-[#ff5f67] text-white"
+              : "bg-white text-slate-400 ring-1 ring-slate-200"
+        }`}
+      >
+        {done ? <CheckIcon /> : active ? "!" : ""}
+      </div>
+      <div className="min-w-0">
+        <p
+          className={`text-sm font-black ${
+            done || active ? "text-slate-950" : "text-slate-500"
+          }`}
+        >
+          {label}
+        </p>
+        <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PreparationGuideCard({
+  order,
+  locale,
+  copy,
+}: {
+  order: OrderDetail;
+  locale: "ja" | "en";
+  copy: Record<string, string>;
+}) {
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+  const address = getShippingAddress(order);
+  const delivered = Boolean(order.delivered_at || order.delivered_post_url);
+  const completed = isCompletedStatus(order.status);
+
+  if (fulfillmentType === "product_shipping") {
+    const addressDone = Boolean(address && order.shipping_address_shared_at);
+    const shippedDone = Boolean(order.shipped_at || order.shipping_tracking_number);
+    const receivedDone = Boolean(order.received_at);
+    const activeAddress = !addressDone;
+    const activeShipping = addressDone && !shippedDone;
+    const activeReceive = shippedDone && !receivedDone;
+    const activeDelivery = receivedDone && !delivered;
+    const activeReview = delivered && !completed;
+
+    return (
+      <CompactCard title={copy.productGuideTitle}>
+        <div className="grid gap-2">
+          <StepItem
+            done={addressDone}
+            active={activeAddress}
+            label={copy.stepAddressTitle}
+            body={copy.stepAddressBody}
+          />
+          <StepItem
+            done={shippedDone}
+            active={activeShipping}
+            label={copy.stepShipmentTitle}
+            body={copy.stepShipmentBody}
+          />
+          <StepItem
+            done={receivedDone}
+            active={activeReceive}
+            label={copy.stepReceiveTitle}
+            body={copy.stepReceiveBody}
+          />
+          <StepItem
+            done={delivered}
+            active={activeDelivery}
+            label={copy.stepDeliveryTitle}
+            body={copy.stepDeliveryBody}
+          />
+          <StepItem
+            done={completed}
+            active={activeReview}
+            label={copy.stepReviewTitle}
+            body={copy.stepReviewBody}
+          />
+        </div>
+      </CompactCard>
+    );
+  }
+
+  if (fulfillmentType === "visit") {
+    const scheduled = Boolean(order.visit_scheduled_at);
+    const deliveredDone = Boolean(order.delivered_at || order.delivered_post_url);
+
+    return (
+      <CompactCard title={copy.visitGuideTitle}>
+        <div className="grid gap-2">
+          <StepItem
+            done={scheduled}
+            active={!scheduled && !deliveredDone}
+            label={copy.stepScheduleTitle}
+            body={
+              order.visit_scheduled_at
+                ? `${copy.stepScheduleDonePrefix}${formatDateTime(
+                    order.visit_scheduled_at,
+                    locale
+                  )}`
+                : copy.stepScheduleBody
+            }
+          />
+          <StepItem
+            done={deliveredDone}
+            active={scheduled && !deliveredDone}
+            label={copy.stepDeliveryTitle}
+            body={copy.stepVisitDeliveryBody}
+          />
+          <StepItem
+            done={completed}
+            active={deliveredDone && !completed}
+            label={copy.stepReviewTitle}
+            body={copy.stepReviewBody}
+          />
+        </div>
+      </CompactCard>
+    );
+  }
+
+  const materialsConfirmed = Boolean(order.materials_confirmed_at);
+  const deliveredDone = Boolean(order.delivered_at || order.delivered_post_url);
+
+  return (
+    <CompactCard title={copy.materialGuideTitle}>
+      <div className="grid gap-2">
+        <StepItem
+          done={materialsConfirmed}
+          active={!materialsConfirmed && !deliveredDone}
+          label={copy.stepMaterialTitle}
+          body={copy.stepMaterialBody}
+        />
+        <StepItem
+          done={deliveredDone}
+          active={materialsConfirmed && !deliveredDone}
+          label={copy.stepDeliveryTitle}
+          body={copy.stepMaterialDeliveryBody}
+        />
+        <StepItem
+          done={completed}
+          active={deliveredDone && !completed}
+          label={copy.stepReviewTitle}
+          body={copy.stepReviewBody}
+        />
+      </div>
+    </CompactCard>
+  );
+}
+
 function ProductShipmentCard({
   order,
   shipmentForm,
@@ -842,29 +1105,7 @@ function ProductShipmentCard({
   actionLoading: ActionLoading;
   onSubmit: () => void;
   locale: "ja" | "en";
-  copy: {
-    productShippingTitle: string;
-    productShippingBody: string;
-    shippingAddressWaiting: string;
-    shippingAddressTitle: string;
-    shippingRecipientName: string;
-    shippingPostalCode: string;
-    shippingAddress: string;
-    shippingPhoneNumber: string;
-    shippingNotes: string;
-    shippingStatus: string;
-    shippingCarrier: string;
-    shippingTrackingNumber: string;
-    shippedAt: string;
-    receivedAt: string;
-    shipmentCarrierPlaceholder: string;
-    shipmentTrackingPlaceholder: string;
-    registerShipment: string;
-    updateShipment: string;
-    registeringShipment: string;
-    productReceived: string;
-    notSet: string;
-  };
+  copy: Record<string, string>;
 }) {
   const address = getShippingAddress(order);
   const canSubmit = canRegisterShipment(order);
@@ -875,35 +1116,51 @@ function ProductShipmentCard({
   }
 
   return (
-    <ActionCard title={copy.productShippingTitle} body={copy.productShippingBody}>
+    <ActionCard
+      title={copy.productShippingTitle}
+      body={copy.productShippingBody}
+      accentClassName={
+        order.received_at
+          ? "bg-emerald-500"
+          : order.shipped_at
+            ? "bg-amber-500"
+            : "bg-[#ff5f67]"
+      }
+    >
       {!address ? (
         <div className="rounded-[24px] bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-800 ring-1 ring-amber-100">
           {copy.shippingAddressWaiting}
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
-            <p className="text-sm font-black text-slate-950">
-              {copy.shippingAddressTitle}
-            </p>
-
-            <div className="mt-4 grid gap-2 text-sm font-bold leading-7 text-slate-700">
+          <div className="rounded-[24px] bg-slate-950 p-5 text-white">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <span className="font-black text-slate-400">
-                  {copy.shippingRecipientName}：
-                </span>
-                {address.recipient_name || copy.notSet}
+                <p className="text-xs font-black text-white/50">
+                  {copy.shippingAddressTitle}
+                </p>
+                <p className="mt-1 text-lg font-black">
+                  {address.recipient_name || copy.notSet}
+                </p>
               </div>
 
+              {order.shipping_address_shared_at ? (
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white">
+                  {formatDate(order.shipping_address_shared_at, locale)}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-2 text-sm font-bold leading-7 text-white/90">
               <div>
-                <span className="font-black text-slate-400">
+                <span className="font-black text-white/45">
                   {copy.shippingPostalCode}：
                 </span>
                 {address.postal_code || copy.notSet}
               </div>
 
               <div>
-                <span className="font-black text-slate-400">
+                <span className="font-black text-white/45">
                   {copy.shippingAddress}：
                 </span>
                 {[
@@ -917,7 +1174,7 @@ function ProductShipmentCard({
               </div>
 
               <div>
-                <span className="font-black text-slate-400">
+                <span className="font-black text-white/45">
                   {copy.shippingPhoneNumber}：
                 </span>
                 {address.phone_number || copy.notSet}
@@ -925,7 +1182,7 @@ function ProductShipmentCard({
 
               {address.notes ? (
                 <div>
-                  <span className="font-black text-slate-400">
+                  <span className="font-black text-white/45">
                     {copy.shippingNotes}：
                   </span>
                   {address.notes}
@@ -935,9 +1192,25 @@ function ProductShipmentCard({
           </div>
 
           <div className="rounded-[24px] bg-white p-5 ring-1 ring-slate-100">
-            <p className="text-sm font-black text-slate-950">
-              {copy.shippingStatus}
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-black text-slate-950">
+                {copy.shippingStatus}
+              </p>
+
+              {order.received_at ? (
+                <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-100">
+                  {copy.productReceived}
+                </Pill>
+              ) : order.shipped_at ? (
+                <Pill className="bg-amber-50 text-amber-800 ring-amber-100">
+                  {copy.shippingStatusShipped}
+                </Pill>
+              ) : (
+                <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
+                  {copy.shippingStatusNeedAction}
+                </Pill>
+              )}
+            </div>
 
             <div className="mt-3 grid gap-2 text-sm font-bold text-slate-700">
               <DetailRow
@@ -969,9 +1242,20 @@ function ProductShipmentCard({
             </div>
           </div>
 
-          {!order.received_at ? (
+          {order.received_at ? (
+            <div className="rounded-[24px] bg-emerald-50 p-5 text-sm font-bold leading-7 text-emerald-800 ring-1 ring-emerald-100">
+              {copy.shipmentLockedReceived}
+            </div>
+          ) : canSubmit ? (
             <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
-              <div className="grid gap-4">
+              <p className="text-sm font-black text-slate-950">
+                {copy.shipmentFormTitle}
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                {copy.shipmentFormBody}
+              </p>
+
+              <div className="mt-4 grid gap-4">
                 <ShipmentInput
                   label={copy.shippingCarrier}
                   value={shipmentForm.shipping_carrier}
@@ -999,7 +1283,7 @@ function ProductShipmentCard({
                 <button
                   type="button"
                   onClick={onSubmit}
-                  disabled={actionLoading !== null || !canSubmit}
+                  disabled={actionLoading !== null}
                   className="rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {actionLoading === "shipment"
@@ -1010,9 +1294,120 @@ function ProductShipmentCard({
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500 ring-1 ring-slate-100">
+              {copy.shipmentCannotEdit}
+            </div>
+          )}
         </div>
       )}
+    </ActionCard>
+  );
+}
+
+function DeliveryReviewCard({
+  order,
+  canReviewDelivery,
+  canRequestRevision,
+  revisionLimitReached,
+  actionLoading,
+  revisionNote,
+  setRevisionNote,
+  onComplete,
+  onRequestRevision,
+  canChat,
+  copy,
+}: {
+  order: OrderDetail;
+  canReviewDelivery: boolean;
+  canRequestRevision: boolean;
+  revisionLimitReached: boolean;
+  actionLoading: ActionLoading;
+  revisionNote: string;
+  setRevisionNote: (value: string) => void;
+  onComplete: () => void;
+  onRequestRevision: () => void;
+  canChat: boolean;
+  copy: Record<string, string>;
+}) {
+  return (
+    <ActionCard
+      title={copy.completeTitle}
+      body={copy.completeBody}
+      accentClassName="bg-[#ff5f67]"
+    >
+      {order.delivered_post_url ? (
+        <a
+          href={order.delivered_post_url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 active:scale-[0.98]"
+        >
+          <ExternalIcon />
+          {copy.openDelivery}
+        </a>
+      ) : (
+        <div className="rounded-[22px] bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-800 ring-1 ring-amber-100">
+          {copy.deliveryMissing}
+        </div>
+      )}
+
+      {canReviewDelivery ? (
+        <div className="mt-4 grid gap-3">
+          <button
+            type="button"
+            onClick={onComplete}
+            disabled={actionLoading !== null}
+            className="rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {actionLoading === "complete" ? copy.completing : copy.complete}
+          </button>
+
+          {canRequestRevision ? (
+            <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+              <p className="text-sm font-black text-slate-950">
+                {copy.revisionTitle}
+              </p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                {copy.revisionBody}
+              </p>
+
+              <textarea
+                value={revisionNote}
+                onChange={(event) => setRevisionNote(event.target.value)}
+                placeholder={copy.revisionPlaceholder}
+                rows={4}
+                className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 focus:ring-4 focus:ring-slate-100"
+              />
+
+              <button
+                type="button"
+                onClick={onRequestRevision}
+                disabled={actionLoading !== null}
+                className="mt-3 w-full rounded-full bg-white px-5 py-3 text-sm font-black text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {actionLoading === "revision"
+                  ? copy.requestingRevision
+                  : copy.requestRevision}
+              </button>
+            </div>
+          ) : revisionLimitReached ? (
+            <div className="rounded-[24px] bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-500 ring-1 ring-slate-100">
+              {copy.revisionLimitReached}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {canChat ? (
+        <Link
+          href={`/b/orders/${order.id}/chat`}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-4 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
+        >
+          <MessageIcon />
+          {copy.chatCtaButton}
+        </Link>
+      ) : null}
     </ActionCard>
   );
 }
@@ -1034,9 +1429,9 @@ export default function CompanyOrderDetailPage() {
             authFailed: "ログイン情報を取得できませんでした。",
             backOrders: "注文へ戻る",
             titleFallback: "注文詳細",
-            pageSubtitle: "今の状態と次に必要な対応を確認できます。",
-            influencer: "インフルエンサー",
-            influencerProfile: "インフルエンサー詳細を見る",
+            pageSubtitle: "現在の状態と、企業側で必要な対応を確認できます。",
+            influencer: "クリエイター",
+            influencerProfile: "クリエイター詳細を見る",
             payment: "支払い金額",
             nextAction: "次にやること",
             chatCtaTitle: "クリエイターとやり取りできます",
@@ -1045,13 +1440,13 @@ export default function CompanyOrderDetailPage() {
             chatCtaButton: "クリエイターとやり取りする",
             waitingSummaryTitle: "注文内容の要約",
             waitingSummaryBody:
-              "インフルエンサーの承認後にチャットが利用できます。",
+              "クリエイターの承認後にチャットが利用できます。返答をお待ちください。",
             deliveryTitle: "納品URL",
             openDelivery: "納品URLを開く",
             completeTitle: "納品確認",
             completeBody:
-              "内容を確認し、問題なければ完了してください。完了後は原則として修正依頼・返金はできません。",
-            complete: "完了する",
+              "納品内容を確認し、問題なければ注文を完了してください。完了後は原則として修正依頼・返金はできません。",
+            complete: "内容を承認して完了する",
             completing: "完了処理中...",
             confirmComplete:
               "この注文を完了しますか？納品内容を確認済みの場合のみ実行してください。",
@@ -1072,10 +1467,12 @@ export default function CompanyOrderDetailPage() {
               "修正依頼の上限回数に達しています。追加修正が必要な場合はチャットで相談するか、新しい注文として依頼してください。",
             revisionNoteLabel: "修正依頼内容",
             currentRevisionNote: "現在の修正依頼",
+            deliveryMissing:
+              "納品URLがまだ登録されていません。必要に応じてチャットで確認してください。",
 
-            productShippingTitle: "商品の発送",
+            productShippingTitle: "商品発送",
             productShippingBody:
-              "クリエイターが配送先を共有したら、商品を発送して配送会社・追跡番号を登録してください。",
+              "クリエイターから配送先が共有されたら、商品を発送して配送会社・追跡番号を登録してください。",
             shippingAddressWaiting:
               "クリエイターの配送先共有を待っています。配送先が共有されると、この画面に表示されます。",
             shippingAddressTitle: "配送先",
@@ -1085,13 +1482,15 @@ export default function CompanyOrderDetailPage() {
             shippingPhoneNumber: "電話番号",
             shippingNotes: "配送メモ",
             shippingStatus: "発送状況",
+            shippingStatusNeedAction: "発送登録が必要",
+            shippingStatusShipped: "発送済み",
             shippingCarrier: "配送会社",
             shippingTrackingNumber: "追跡番号",
             shippedAt: "発送日時",
             receivedAt: "受取日時",
             shipmentCarrierPlaceholder: "例：ヤマト運輸 / 佐川急便",
             shipmentTrackingPlaceholder: "例：1234-5678-9012",
-            registerShipment: "発送しました",
+            registerShipment: "発送情報を登録する",
             updateShipment: "発送情報を更新する",
             registeringShipment: "登録中...",
             shipmentRequired: "配送会社と追跡番号を入力してください。",
@@ -1099,6 +1498,43 @@ export default function CompanyOrderDetailPage() {
               "発送情報を登録しますか？クリエイター側に発送済みとして表示されます。",
             shipmentFailed: "発送情報の登録に失敗しました。",
             productReceived: "受取済み",
+            shipmentFormTitle: "発送情報を登録",
+            shipmentFormBody:
+              "登録するとクリエイター側に発送済みとして通知されます。",
+            shipmentLockedReceived:
+              "クリエイターが商品を受け取り済みです。発送情報の編集は不要です。",
+            shipmentCannotEdit:
+              "現在この注文では発送情報を編集できません。必要な場合はチャットで確認してください。",
+
+            productGuideTitle: "商品提供型の進行状況",
+            materialGuideTitle: "素材提供型の進行状況",
+            visitGuideTitle: "来店型の進行状況",
+            stepAddressTitle: "配送先共有",
+            stepAddressBody:
+              "クリエイターが商品発送に必要な配送先を共有します。",
+            stepShipmentTitle: "商品発送",
+            stepShipmentBody:
+              "企業側で商品を発送し、配送会社・追跡番号を登録します。",
+            stepReceiveTitle: "商品受取",
+            stepReceiveBody:
+              "クリエイターが商品を受け取ったら、受取済みに更新されます。",
+            stepDeliveryTitle: "納品",
+            stepDeliveryBody:
+              "クリエイターから投稿URL・確認URLが提出されます。",
+            stepReviewTitle: "確認・完了",
+            stepReviewBody:
+              "納品内容を確認し、問題なければ注文を完了してください。",
+            stepScheduleTitle: "日程調整",
+            stepScheduleBody:
+              "来店日時や場所はチャットで確認してください。",
+            stepScheduleDonePrefix: "来店予定：",
+            stepVisitDeliveryBody:
+              "来店後、クリエイターから実施内容・確認URLが提出されます。",
+            stepMaterialTitle: "素材確認",
+            stepMaterialBody:
+              "クリエイターが提供素材や投稿情報を確認します。",
+            stepMaterialDeliveryBody:
+              "素材確認後、クリエイターから納品URLが提出されます。",
 
             orderContent: "注文内容",
             orderContentSub: "必要な時だけ確認できます",
@@ -1134,6 +1570,13 @@ export default function CompanyOrderDetailPage() {
             acceptDeadline: "返答期限",
             autoComplete: "自動完了",
             autoCompleteExpired: "自動完了期限超過",
+            orderId: "注文ID",
+            createdAt: "注文日時",
+            acceptedAt: "受注日時",
+            capturedAt: "決済確定日時",
+            statusLabel: "ステータス",
+            creatorPayout: "クリエイター報酬",
+            platformRevenue: "プラットフォーム収益",
           }
         : {
             loading: "Loading...",
@@ -1142,8 +1585,8 @@ export default function CompanyOrderDetailPage() {
             backOrders: "Back to orders",
             titleFallback: "Order details",
             pageSubtitle: "Check the current status and the next action.",
-            influencer: "Influencer",
-            influencerProfile: "View influencer profile",
+            influencer: "Creator",
+            influencerProfile: "View creator profile",
             payment: "Payment",
             nextAction: "Next action",
             chatCtaTitle: "You can message the creator",
@@ -1152,13 +1595,13 @@ export default function CompanyOrderDetailPage() {
             chatCtaButton: "Message the creator",
             waitingSummaryTitle: "Order summary",
             waitingSummaryBody:
-              "Chat becomes available after the influencer accepts.",
+              "Chat becomes available after the creator accepts.",
             deliveryTitle: "Delivery URL",
             openDelivery: "Open delivery URL",
             completeTitle: "Review delivery",
             completeBody:
               "Complete the order if everything is okay. Revisions and refunds are generally unavailable after completion.",
-            complete: "Complete",
+            complete: "Approve and complete",
             completing: "Completing...",
             confirmComplete:
               "Complete this order? Please do this only after reviewing the delivery.",
@@ -1179,6 +1622,8 @@ export default function CompanyOrderDetailPage() {
               "The revision request limit has been reached. Please use chat or place a new order for additional work.",
             revisionNoteLabel: "Revision request",
             currentRevisionNote: "Current revision request",
+            deliveryMissing:
+              "The delivery URL has not been registered yet. Please confirm in chat if needed.",
 
             productShippingTitle: "Product shipment",
             productShippingBody:
@@ -1192,13 +1637,15 @@ export default function CompanyOrderDetailPage() {
             shippingPhoneNumber: "Phone",
             shippingNotes: "Delivery notes",
             shippingStatus: "Shipment status",
+            shippingStatusNeedAction: "Shipment required",
+            shippingStatusShipped: "Shipped",
             shippingCarrier: "Carrier",
             shippingTrackingNumber: "Tracking number",
             shippedAt: "Shipped at",
             receivedAt: "Received at",
             shipmentCarrierPlaceholder: "Example: Yamato / Sagawa",
             shipmentTrackingPlaceholder: "Example: 1234-5678-9012",
-            registerShipment: "Mark as shipped",
+            registerShipment: "Register shipment",
             updateShipment: "Update shipment",
             registeringShipment: "Registering...",
             shipmentRequired: "Please enter the carrier and tracking number.",
@@ -1206,6 +1653,43 @@ export default function CompanyOrderDetailPage() {
               "Register this shipment? It will be shown to the creator as shipped.",
             shipmentFailed: "Failed to register shipment.",
             productReceived: "Received",
+            shipmentFormTitle: "Register shipment details",
+            shipmentFormBody:
+              "The creator will be notified after shipment details are registered.",
+            shipmentLockedReceived:
+              "The creator has received the product. Shipment editing is no longer necessary.",
+            shipmentCannotEdit:
+              "Shipment details cannot be edited right now. Please confirm via chat if needed.",
+
+            productGuideTitle: "Product shipping progress",
+            materialGuideTitle: "Material provided progress",
+            visitGuideTitle: "Visit progress",
+            stepAddressTitle: "Delivery address",
+            stepAddressBody:
+              "The creator shares the address needed for product shipment.",
+            stepShipmentTitle: "Shipment",
+            stepShipmentBody:
+              "Ship the product and register the carrier and tracking number.",
+            stepReceiveTitle: "Product received",
+            stepReceiveBody:
+              "The creator marks the product as received after it arrives.",
+            stepDeliveryTitle: "Delivery",
+            stepDeliveryBody:
+              "The creator submits the post URL or review URL.",
+            stepReviewTitle: "Review and complete",
+            stepReviewBody:
+              "Review the delivery and complete the order if everything is okay.",
+            stepScheduleTitle: "Schedule",
+            stepScheduleBody:
+              "Confirm visit date, time, and location via chat.",
+            stepScheduleDonePrefix: "Scheduled visit: ",
+            stepVisitDeliveryBody:
+              "After the visit, the creator submits the report or review URL.",
+            stepMaterialTitle: "Material check",
+            stepMaterialBody:
+              "The creator confirms the provided materials and posting information.",
+            stepMaterialDeliveryBody:
+              "After confirming materials, the creator submits the delivery URL.",
 
             orderContent: "Order details",
             orderContentSub: "Available when needed",
@@ -1241,6 +1725,13 @@ export default function CompanyOrderDetailPage() {
             acceptDeadline: "Reply deadline",
             autoComplete: "Auto complete",
             autoCompleteExpired: "Auto-complete overdue",
+            orderId: "Order ID",
+            createdAt: "Created at",
+            acceptedAt: "Accepted at",
+            capturedAt: "Captured at",
+            statusLabel: "Status",
+            creatorPayout: "Creator payout",
+            platformRevenue: "Platform revenue",
           },
     [safeLocale]
   );
@@ -1587,7 +2078,7 @@ export default function CompanyOrderDetailPage() {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-6xl space-y-5">
-          <div className="h-32 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          <div className="h-36 animate-pulse rounded-[28px] bg-white shadow-sm" />
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
             <div className="h-96 animate-pulse rounded-[28px] bg-white shadow-sm" />
             <div className="h-80 animate-pulse rounded-[28px] bg-white shadow-sm" />
@@ -1600,7 +2091,7 @@ export default function CompanyOrderDetailPage() {
   if (!order) {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
-        <div className="mx-auto max-w-4xl rounded-[28px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.045)]">
+        <div className="mx-auto max-w-4xl rounded-[28px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
           <p className="text-sm font-semibold text-slate-600">
             {error ?? copy.notFound}
           </p>
@@ -1618,6 +2109,7 @@ export default function CompanyOrderDetailPage() {
 
   const meta = getStatusMeta(order.status, safeLocale);
   const backHref = getBackHref(order.status);
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
 
   const buyerTotal =
     order.buyer_total_amount ?? order.stripe_amount ?? order.menu_price_amount;
@@ -1638,62 +2130,71 @@ export default function CompanyOrderDetailPage() {
 
   const canRequestRevision = canReviewDelivery && !revisionLimitReached;
   const canChat = canOpenChat(order);
+
   const showShipmentCard =
-    normalizeFulfillmentType(order.fulfillment_type) === "product_shipping" &&
+    fulfillmentType === "product_shipping" &&
     !isWaitingStatus(order.status) &&
-    !isTerminalStatus(order.status) &&
-    !isDeliveredStatus(order.status);
+    !isCanceledStatus(order.status);
 
   return (
     <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
-      <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-gradient-to-b from-white via-rose-50/40 to-transparent" />
+      <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/25 blur-[150px]" />
 
       <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
-        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Pill className={meta.className}>{meta.label}</Pill>
+        <section className="overflow-hidden rounded-[30px] bg-white shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
+          <div className={`h-1.5 w-full ${meta.accent}`} />
 
-                {order.creator_accept_deadline && isWaitingStatus(order.status) ? (
-                  <DeadlineBadge
-                    deadline={order.creator_accept_deadline}
-                    label={copy.acceptDeadline}
-                    expiredLabel={copy.acceptDeadline}
-                    locale={safeLocale}
-                    urgentHours={12}
-                    warningHours={24}
-                  />
-                ) : null}
+          <div className="px-6 py-6 md:px-7 md:py-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Pill className={meta.className}>{meta.label}</Pill>
 
-                {order.auto_complete_at && isDeliveredStatus(order.status) ? (
-                  <DeadlineBadge
-                    deadline={order.auto_complete_at}
-                    label={copy.autoComplete}
-                    expiredLabel={copy.autoCompleteExpired}
-                    locale={safeLocale}
-                    urgentHours={12}
-                    warningHours={24}
-                  />
-                ) : null}
+                  <Pill className="bg-white text-slate-700 ring-slate-200">
+                    {fulfillmentLabel(order.fulfillment_type, safeLocale)}
+                  </Pill>
+
+                  {order.creator_accept_deadline && isWaitingStatus(order.status) ? (
+                    <DeadlineBadge
+                      deadline={order.creator_accept_deadline}
+                      label={copy.acceptDeadline}
+                      expiredLabel={copy.acceptDeadline}
+                      locale={safeLocale}
+                      urgentHours={12}
+                      warningHours={24}
+                    />
+                  ) : null}
+
+                  {order.auto_complete_at && isDeliveredStatus(order.status) ? (
+                    <DeadlineBadge
+                      deadline={order.auto_complete_at}
+                      label={copy.autoComplete}
+                      expiredLabel={copy.autoCompleteExpired}
+                      locale={safeLocale}
+                      urgentHours={12}
+                      warningHours={24}
+                    />
+                  ) : null}
+                </div>
+
+                <h1 className="mt-4 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+                  {order.product_name || order.menu_title_snapshot || copy.titleFallback}
+                </h1>
+
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                  {copy.pageSubtitle}
+                </p>
               </div>
 
-              <h1 className="mt-4 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
-                {order.product_name || copy.titleFallback}
-              </h1>
-
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                {copy.pageSubtitle}
-              </p>
+              <Link
+                href={backHref}
+                className="inline-flex w-fit items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
+              >
+                <BackIcon />
+                {copy.backOrders}
+              </Link>
             </div>
-
-            <Link
-              href={backHref}
-              className="inline-flex w-fit items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
-            >
-              {copy.backOrders}
-            </Link>
           </div>
         </section>
 
@@ -1705,46 +2206,42 @@ export default function CompanyOrderDetailPage() {
 
         <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <main className="space-y-5">
-            {isWaitingStatus(order.status) ? (
-              <ActionCard title={meta.title} body={meta.body}>
-                <div className="rounded-[24px] bg-slate-50 p-5">
-                  <div className="flex items-start gap-4">
-                    <InfluencerAvatar influencer={influencer} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-500">
-                        {copy.influencer}
-                      </p>
-                      <p className="mt-1 truncate text-xl font-black text-slate-950">
-                        {influencer?.display_name || copy.notSet}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        {influencer?.category || copy.notSet}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-white p-4">
-                      <p className="text-xs font-black text-slate-400">
-                        {copy.payment}
-                      </p>
-                      <p className="mt-2 text-lg font-black text-slate-950">
-                        {formatPrice(buyerTotal, order.currency, safeLocale)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-white p-4">
-                      <p className="text-xs font-black text-slate-400">
-                        {copy.menuTitle}
-                      </p>
-                      <p className="mt-2 truncate text-lg font-black text-slate-950">
-                        {order.menu_title_snapshot || copy.notSet}
-                      </p>
-                    </div>
-                  </div>
+            <ActionCard
+              title={meta.title}
+              body={meta.body}
+              accentClassName={meta.accent}
+            >
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+                  <p className="text-xs font-black text-slate-400">
+                    {copy.statusLabel}
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-950">
+                    {meta.label}
+                  </p>
                 </div>
-              </ActionCard>
-            ) : null}
+
+                <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+                  <p className="text-xs font-black text-slate-400">
+                    {copy.projectType}
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-950">
+                    {fulfillmentLabel(order.fulfillment_type, safeLocale)}
+                  </p>
+                </div>
+
+                <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+                  <p className="text-xs font-black text-slate-400">
+                    {copy.total}
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-950">
+                    {formatPrice(buyerTotal, order.currency, safeLocale)}
+                  </p>
+                </div>
+              </div>
+            </ActionCard>
+
+            <PreparationGuideCard order={order} locale={safeLocale} copy={copy} />
 
             {showShipmentCard ? (
               <ProductShipmentCard
@@ -1768,90 +2265,31 @@ export default function CompanyOrderDetailPage() {
             ) : null}
 
             {isDeliveredStatus(order.status) ? (
-              <ActionCard title={meta.title} body={meta.body}>
-                {order.delivered_post_url ? (
-                  <a
-                    href={order.delivered_post_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5"
-                  >
-                    {copy.openDelivery}
-                  </a>
-                ) : null}
-
-                {canReviewDelivery ? (
-                  <div className="mt-4 grid gap-3">
-                    <button
-                      type="button"
-                      onClick={() => void runComplete()}
-                      disabled={actionLoading !== null}
-                      className="rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {actionLoading === "complete"
-                        ? copy.completing
-                        : copy.complete}
-                    </button>
-
-                    {canRequestRevision ? (
-                      <div className="rounded-[24px] bg-slate-50 p-4">
-                        <p className="text-sm font-black text-slate-950">
-                          {copy.revisionTitle}
-                        </p>
-                        <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                          {copy.revisionBody}
-                        </p>
-
-                        <textarea
-                          value={revisionNote}
-                          onChange={(event) => setRevisionNote(event.target.value)}
-                          placeholder={copy.revisionPlaceholder}
-                          rows={4}
-                          className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950"
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => void runRequestRevision()}
-                          disabled={actionLoading !== null}
-                          className="mt-3 w-full rounded-full bg-white px-5 py-3 text-sm font-black text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {actionLoading === "revision"
-                            ? copy.requestingRevision
-                            : copy.requestRevision}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="rounded-[24px] bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-500">
-                        {copy.revisionLimitReached}
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-
-                {canChat ? (
-                  <Link
-                    href={`/b/orders/${order.id}/chat`}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-4 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
-                  >
-                    <MessageIcon />
-                    {copy.chatCtaButton}
-                  </Link>
-                ) : null}
-              </ActionCard>
+              <DeliveryReviewCard
+                order={order}
+                canReviewDelivery={canReviewDelivery}
+                canRequestRevision={canRequestRevision}
+                revisionLimitReached={revisionLimitReached}
+                actionLoading={actionLoading}
+                revisionNote={revisionNote}
+                setRevisionNote={setRevisionNote}
+                onComplete={() => void runComplete()}
+                onRequestRevision={() => void runRequestRevision()}
+                canChat={canChat}
+                copy={copy}
+              />
             ) : null}
 
-            {isCompletedStatus(order.status) ||
-            order.status === "declined_canceled" ||
-            order.status === "expired_canceled" ? (
-              <ActionCard title={meta.title} body={meta.body}>
+            {isCompletedStatus(order.status) || isCanceledStatus(order.status) ? (
+              <ActionCard title={meta.title} body={meta.body} accentClassName={meta.accent}>
                 {order.delivered_post_url ? (
                   <a
                     href={order.delivered_post_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex w-full items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 underline-offset-4 transition hover:bg-slate-200 hover:underline"
+                    className="flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 underline-offset-4 transition hover:bg-slate-200 hover:underline"
                   >
+                    <ExternalIcon />
                     {copy.openDelivery}
                   </a>
                 ) : null}
@@ -1902,7 +2340,11 @@ export default function CompanyOrderDetailPage() {
                 />
                 <DetailRow
                   label={copy.deadline}
-                  value={order.deadline ? formatDateTime(order.deadline, safeLocale) : copy.notSet}
+                  value={
+                    order.deadline
+                      ? formatDateTime(order.deadline, safeLocale)
+                      : copy.notSet
+                  }
                 />
                 <DetailRow
                   label={copy.freeOffer}
@@ -1912,6 +2354,23 @@ export default function CompanyOrderDetailPage() {
                   label={copy.secondaryUse}
                   value={order.wants_secondary_use ? copy.yes : copy.no}
                 />
+
+                {fulfillmentType === "visit" ? (
+                  <>
+                    <DetailRow
+                      label="来店場所"
+                      value={order.visit_location || copy.notSet}
+                    />
+                    <DetailRow
+                      label="来店予定"
+                      value={
+                        order.visit_scheduled_at
+                          ? formatDateTime(order.visit_scheduled_at, safeLocale)
+                          : copy.notSet
+                      }
+                    />
+                  </>
+                ) : null}
 
                 <div className="mt-4">
                   <TextBlock
@@ -2005,6 +2464,14 @@ export default function CompanyOrderDetailPage() {
                   value={formatPrice(buyerTotal, order.currency, safeLocale)}
                   strong
                 />
+                <DetailRow
+                  label={copy.creatorPayout}
+                  value={formatPrice(
+                    order.creator_payout_amount,
+                    order.currency,
+                    safeLocale
+                  )}
+                />
               </CollapsibleCard>
             </div>
           </main>
@@ -2033,6 +2500,21 @@ export default function CompanyOrderDetailPage() {
               ) : null}
             </CompactCard>
 
+            {canChat ? (
+              <CompactCard title={copy.chatCtaTitle}>
+                <p className="text-sm font-semibold leading-7 text-slate-500">
+                  {copy.chatCtaBody}
+                </p>
+                <Link
+                  href={`/b/orders/${order.id}/chat`}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
+                >
+                  <MessageIcon />
+                  {copy.chatCtaButton}
+                </Link>
+              </CompactCard>
+            ) : null}
+
             <CompactCard title={copy.payment}>
               <DetailRow
                 label={copy.menuPrice}
@@ -2050,6 +2532,30 @@ export default function CompanyOrderDetailPage() {
                 label={copy.total}
                 value={formatPrice(buyerTotal, order.currency, safeLocale)}
                 strong
+              />
+            </CompactCard>
+
+            <CompactCard title={copy.orderContent}>
+              <DetailRow label={copy.orderId} value={order.id} />
+              <DetailRow
+                label={copy.createdAt}
+                value={formatDateTime(order.created_at, safeLocale)}
+              />
+              <DetailRow
+                label={copy.acceptedAt}
+                value={
+                  order.accepted_at
+                    ? formatDateTime(order.accepted_at, safeLocale)
+                    : copy.notSet
+                }
+              />
+              <DetailRow
+                label={copy.capturedAt}
+                value={
+                  order.captured_at
+                    ? formatDateTime(order.captured_at, safeLocale)
+                    : copy.notSet
+                }
               />
             </CompactCard>
           </aside>
