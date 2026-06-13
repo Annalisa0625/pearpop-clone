@@ -138,6 +138,7 @@ type InfluencerLite = {
 };
 
 type ActionLoading = "complete" | "revision" | "shipment" | null;
+type Copy = Record<string, string>;
 
 const AUTH_TIMEOUT_MS = 8000;
 const DB_TIMEOUT_MS = 12000;
@@ -449,77 +450,61 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       className: string;
       title: string;
       body: string;
-      accent: string;
     }
   > = {
     checkout_pending: {
       label: "支払い確認中",
       className: "bg-slate-100 text-slate-700 ring-slate-200",
-      title: "支払い確認中です",
-      body: "支払い確認が完了すると、クリエイターへの返答待ちに進みます。",
-      accent: "bg-slate-950",
+      title: "支払い確認中",
+      body: "決済確認後、インフルエンサーの返答待ちになります。",
     },
     authorized_pending_creator: {
       label: "返答待ち",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "クリエイターの返答待ちです",
-      body:
-        "承認されると注文が開始されます。辞退または期限切れの場合、請求は確定しません。",
-      accent: "bg-amber-500",
+      title: "返答待ち",
+      body: "インフルエンサーの承認を待っています。",
     },
     accepted_captured: {
-      label: "進行中",
+      label: "対応中",
       className: "bg-slate-950 text-white ring-slate-950",
-      title: "注文は進行中です",
-      body:
-        "必要な確認や連絡は専用チャットで行えます。納品URLが届いたら内容を確認してください。",
-      accent: "bg-slate-950",
+      title: "対応中",
+      body: "必要な対応があればこの画面に表示されます。",
     },
     in_progress: {
-      label: "進行中",
+      label: "対応中",
       className: "bg-slate-950 text-white ring-slate-950",
-      title: "注文は進行中です",
-      body:
-        "必要な確認や連絡は専用チャットで行えます。納品URLが届いたら内容を確認してください。",
-      accent: "bg-slate-950",
+      title: "対応中",
+      body: "必要な対応があればこの画面に表示されます。",
     },
     delivered: {
-      label: "確認待ち",
+      label: "納品確認",
       className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
-      title: "納品内容を確認してください",
-      body:
-        "問題なければ注文を完了できます。修正依頼は元の注文内容に沿う範囲でのみ行えます。",
-      accent: "bg-[#ff5f67]",
+      title: "納品確認",
+      body: "内容を確認し、承認または修正依頼をしてください。",
     },
     revision_requested: {
       label: "修正依頼中",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "修正依頼を送信済みです",
-      body:
-        "クリエイターから再納品されるまでお待ちください。必要な確認は専用チャットで行えます。",
-      accent: "bg-amber-500",
+      title: "修正依頼中",
+      body: "再納品を待っています。",
     },
     completed: {
       label: "完了",
       className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-      title: "この注文は完了しています",
-      body:
-        "完了後は原則として修正依頼・返金はできません。追加依頼は新しい注文として相談してください。",
-      accent: "bg-emerald-500",
+      title: "完了",
+      body: "この注文は完了しています。",
     },
     declined_canceled: {
       label: "終了",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "この注文は終了しています",
-      body: "クリエイターの辞退により、請求は確定していません。",
-      accent: "bg-slate-400",
+      title: "終了",
+      body: "この注文は終了しています。",
     },
     expired_canceled: {
       label: "期限切れ",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "この注文は期限切れです",
-      body: "返答期限を過ぎたため、請求は確定していません。",
-      accent: "bg-slate-400",
+      title: "期限切れ",
+      body: "返答期限を過ぎたため終了しました。",
     },
   };
 
@@ -527,71 +512,56 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
     checkout_pending: {
       label: "Payment pending",
       className: "bg-slate-100 text-slate-700 ring-slate-200",
-      title: "Payment is being confirmed",
-      body: "Once payment is confirmed, the order will wait for creator approval.",
-      accent: "bg-slate-950",
+      title: "Payment pending",
+      body: "The order will wait for influencer approval after payment confirmation.",
     },
     authorized_pending_creator: {
       label: "Waiting",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "Waiting for creator reply",
-      body:
-        "The order begins once accepted. If declined or expired, the charge is not captured.",
-      accent: "bg-amber-500",
+      title: "Waiting",
+      body: "Waiting for the influencer to accept.",
     },
     accepted_captured: {
-      label: "In progress",
+      label: "Active",
       className: "bg-slate-950 text-white ring-slate-950",
-      title: "Order is in progress",
-      body:
-        "Use the dedicated chat page for necessary confirmation. Review the delivery once the URL is submitted.",
-      accent: "bg-slate-950",
+      title: "Active",
+      body: "Required actions will appear here.",
     },
     in_progress: {
-      label: "In progress",
+      label: "Active",
       className: "bg-slate-950 text-white ring-slate-950",
-      title: "Order is in progress",
-      body:
-        "Use the dedicated chat page for necessary confirmation. Review the delivery once the URL is submitted.",
-      accent: "bg-slate-950",
+      title: "Active",
+      body: "Required actions will appear here.",
     },
     delivered: {
       label: "Review",
       className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
-      title: "Review the delivery",
-      body:
-        "Complete the order if everything is okay. Revisions should stay within the original requirements.",
-      accent: "bg-[#ff5f67]",
+      title: "Review delivery",
+      body: "Review the delivery and approve or request a revision.",
     },
     revision_requested: {
       label: "Revision",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: "Revision request sent",
-      body:
-        "Please wait for the creator to submit the updated delivery. Use the dedicated chat page for any confirmation.",
-      accent: "bg-amber-500",
+      title: "Revision requested",
+      body: "Waiting for the updated delivery.",
     },
     completed: {
       label: "Completed",
       className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-      title: "This order is completed",
-      body:
-        "Revisions and refunds are generally unavailable after completion. Place a new order for additional work.",
-      accent: "bg-emerald-500",
+      title: "Completed",
+      body: "This order is completed.",
     },
     declined_canceled: {
       label: "Ended",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "This order has ended",
-      body: "The creator declined, so the charge was not captured.",
-      accent: "bg-slate-400",
+      title: "Ended",
+      body: "This order has ended.",
     },
     expired_canceled: {
       label: "Expired",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
-      title: "This order expired",
-      body: "The reply deadline passed, so the charge was not captured.",
-      accent: "bg-slate-400",
+      title: "Expired",
+      body: "The reply deadline has passed.",
     },
   };
 
@@ -599,12 +569,11 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
     (locale === "ja" ? ja[status] : en[status]) ?? {
       label: status,
       className: "bg-slate-100 text-slate-700 ring-slate-200",
-      title: locale === "ja" ? "注文状態を確認してください" : "Check order status",
+      title: locale === "ja" ? "注文状態" : "Order status",
       body:
         locale === "ja"
           ? "注文内容を確認できます。"
           : "You can review the order here.",
-      accent: "bg-slate-950",
     }
   );
 }
@@ -638,7 +607,7 @@ function DetailRow({
     <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
       <span className="text-sm font-bold text-slate-400">{label}</span>
       <span
-        className={`max-w-[66%] text-right text-sm ${
+        className={`max-w-[66%] break-words text-right text-sm ${
           strong ? "font-black text-slate-950" : "font-bold text-slate-800"
         }`}
       >
@@ -669,26 +638,6 @@ function MessageIcon() {
         d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v4A2.5 2.5 0 0 1 13.5 12H10l-4 3v-3.1A2.5 2.5 0 0 1 4 9.5v-4Z"
         stroke="currentColor"
         strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PackageIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="M4 7.2 10 4l6 3.2v5.7L10 16l-6-3.1V7.2Z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M4.5 7.5 10 10.5l5.5-3M10 10.5V16"
-        stroke="currentColor"
-        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -739,62 +688,55 @@ function InfluencerAvatar({
     return (
       <img
         src={influencer.avatar_url}
-        alt={influencer.display_name ?? "creator"}
-        className="h-14 w-14 rounded-2xl object-cover"
+        alt={influencer.display_name ?? "influencer"}
+        className="h-12 w-12 rounded-2xl object-cover"
       />
     );
   }
 
-  const initial = (influencer?.display_name?.trim()?.[0] ?? "C").toUpperCase();
+  const initial = (influencer?.display_name?.trim()?.[0] ?? "I").toUpperCase();
 
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-100 text-lg font-black text-slate-900">
+    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-100 text-base font-black text-slate-900">
       {initial}
     </div>
   );
 }
 
-function ActionCard({
-  title,
-  body,
+function Panel({
   children,
-  accentClassName = "bg-slate-950",
+  className = "",
 }: {
-  title: string;
-  body: string;
-  children?: ReactNode;
-  accentClassName?: string;
+  children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
-      <div className={`h-1.5 w-full ${accentClassName}`} />
-      <div className="p-6 md:p-7">
-        <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
-          {title}
-        </h2>
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-          {body}
-        </p>
-        {children ? <div className="mt-5">{children}</div> : null}
-      </div>
+    <section
+      className={`rounded-[28px] bg-white shadow-[0_16px_50px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 ${className}`}
+    >
+      {children}
     </section>
   );
 }
 
-function CompactCard({
+function SectionTitle({
   title,
-  children,
+  body,
 }: {
   title: string;
-  children: ReactNode;
+  body?: string;
 }) {
   return (
-    <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:p-6">
+    <div>
       <h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">
         {title}
       </h2>
-      <div className="mt-5">{children}</div>
-    </section>
+      {body ? (
+        <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+          {body}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -810,21 +752,16 @@ function ChatCtaCard({
   href: string;
 }) {
   return (
-    <section className="rounded-[28px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-7">
-      <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-        {body}
-      </p>
+    <Panel className="p-5">
+      <SectionTitle title={title} body={body} />
       <Link
         href={href}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 active:scale-[0.98]"
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 active:scale-[0.98]"
       >
         <MessageIcon />
         {buttonLabel}
       </Link>
-    </section>
+    </Panel>
   );
 }
 
@@ -842,11 +779,11 @@ function CollapsibleCard({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="rounded-[24px] bg-white shadow-[0_14px_45px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+    <Panel>
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left md:px-6"
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
       >
         <div>
           <h3 className="text-base font-black text-slate-950">{title}</h3>
@@ -857,17 +794,17 @@ function CollapsibleCard({
           ) : null}
         </div>
 
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-600">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-sm font-black text-slate-500 ring-1 ring-slate-100">
           {open ? "−" : "+"}
         </span>
       </button>
 
       {open ? (
-        <div className="border-t border-slate-100 px-5 pb-5 pt-2 md:px-6">
+        <div className="border-t border-slate-100 px-5 pb-5 pt-2">
           {children}
         </div>
       ) : null}
-    </section>
+    </Panel>
   );
 }
 
@@ -881,7 +818,7 @@ function TextBlock({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+    <div className="rounded-[20px] bg-slate-50 p-4 ring-1 ring-slate-100">
       <p className="text-xs font-black text-slate-400">{label}</p>
       <p className="mt-2 whitespace-pre-line text-sm font-semibold leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
@@ -914,20 +851,40 @@ function ShipmentInput({
   );
 }
 
+function ProgressDot({
+  done,
+  active,
+}: {
+  done: boolean;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+        done
+          ? "bg-emerald-500 text-white"
+          : active
+            ? "bg-[#ff5f67] text-white"
+            : "bg-white text-slate-300 ring-1 ring-slate-200"
+      }`}
+    >
+      {done ? <CheckIcon /> : active ? "!" : ""}
+    </div>
+  );
+}
+
 function StepItem({
   done,
   active,
   label,
-  body,
 }: {
   done: boolean;
   active: boolean;
   label: string;
-  body: string;
 }) {
   return (
     <div
-      className={`flex gap-3 rounded-[20px] p-3 ring-1 ${
+      className={`flex items-center gap-3 rounded-[18px] px-3 py-3 ring-1 ${
         done
           ? "bg-emerald-50 ring-emerald-100"
           : active
@@ -935,41 +892,24 @@ function StepItem({
             : "bg-slate-50 ring-slate-100"
       }`}
     >
-      <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-          done
-            ? "bg-emerald-500 text-white"
-            : active
-              ? "bg-[#ff5f67] text-white"
-              : "bg-white text-slate-400 ring-1 ring-slate-200"
+      <ProgressDot done={done} active={active} />
+      <p
+        className={`text-sm font-black ${
+          done || active ? "text-slate-950" : "text-slate-500"
         }`}
       >
-        {done ? <CheckIcon /> : active ? "!" : ""}
-      </div>
-      <div className="min-w-0">
-        <p
-          className={`text-sm font-black ${
-            done || active ? "text-slate-950" : "text-slate-500"
-          }`}
-        >
-          {label}
-        </p>
-        <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-          {body}
-        </p>
-      </div>
+        {label}
+      </p>
     </div>
   );
 }
 
-function PreparationGuideCard({
+function ProgressCard({
   order,
-  locale,
   copy,
 }: {
   order: OrderDetail;
-  locale: "ja" | "en";
-  copy: Record<string, string>;
+  copy: Copy;
 }) {
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
   const address = getShippingAddress(order);
@@ -980,47 +920,38 @@ function PreparationGuideCard({
     const addressDone = Boolean(address && order.shipping_address_shared_at);
     const shippedDone = Boolean(order.shipped_at || order.shipping_tracking_number);
     const receivedDone = Boolean(order.received_at);
-    const activeAddress = !addressDone;
-    const activeShipping = addressDone && !shippedDone;
-    const activeReceive = shippedDone && !receivedDone;
-    const activeDelivery = receivedDone && !delivered;
-    const activeReview = delivered && !completed;
 
     return (
-      <CompactCard title={copy.productGuideTitle}>
-        <div className="grid gap-2">
+      <Panel className="p-5">
+        <SectionTitle title={copy.productGuideTitle} />
+        <div className="mt-4 grid gap-2">
           <StepItem
             done={addressDone}
-            active={activeAddress}
+            active={!addressDone}
             label={copy.stepAddressTitle}
-            body={copy.stepAddressBody}
           />
           <StepItem
             done={shippedDone}
-            active={activeShipping}
+            active={addressDone && !shippedDone}
             label={copy.stepShipmentTitle}
-            body={copy.stepShipmentBody}
           />
           <StepItem
             done={receivedDone}
-            active={activeReceive}
+            active={shippedDone && !receivedDone}
             label={copy.stepReceiveTitle}
-            body={copy.stepReceiveBody}
           />
           <StepItem
             done={delivered}
-            active={activeDelivery}
+            active={receivedDone && !delivered}
             label={copy.stepDeliveryTitle}
-            body={copy.stepDeliveryBody}
           />
           <StepItem
             done={completed}
-            active={activeReview}
+            active={delivered && !completed}
             label={copy.stepReviewTitle}
-            body={copy.stepReviewBody}
           />
         </div>
-      </CompactCard>
+      </Panel>
     );
   }
 
@@ -1029,35 +960,26 @@ function PreparationGuideCard({
     const deliveredDone = Boolean(order.delivered_at || order.delivered_post_url);
 
     return (
-      <CompactCard title={copy.visitGuideTitle}>
-        <div className="grid gap-2">
+      <Panel className="p-5">
+        <SectionTitle title={copy.visitGuideTitle} />
+        <div className="mt-4 grid gap-2">
           <StepItem
             done={scheduled}
             active={!scheduled && !deliveredDone}
             label={copy.stepScheduleTitle}
-            body={
-              order.visit_scheduled_at
-                ? `${copy.stepScheduleDonePrefix}${formatDateTime(
-                    order.visit_scheduled_at,
-                    locale
-                  )}`
-                : copy.stepScheduleBody
-            }
           />
           <StepItem
             done={deliveredDone}
             active={scheduled && !deliveredDone}
             label={copy.stepDeliveryTitle}
-            body={copy.stepVisitDeliveryBody}
           />
           <StepItem
             done={completed}
             active={deliveredDone && !completed}
             label={copy.stepReviewTitle}
-            body={copy.stepReviewBody}
           />
         </div>
-      </CompactCard>
+      </Panel>
     );
   }
 
@@ -1065,28 +987,26 @@ function PreparationGuideCard({
   const deliveredDone = Boolean(order.delivered_at || order.delivered_post_url);
 
   return (
-    <CompactCard title={copy.materialGuideTitle}>
-      <div className="grid gap-2">
+    <Panel className="p-5">
+      <SectionTitle title={copy.materialGuideTitle} />
+      <div className="mt-4 grid gap-2">
         <StepItem
           done={materialsConfirmed}
           active={!materialsConfirmed && !deliveredDone}
           label={copy.stepMaterialTitle}
-          body={copy.stepMaterialBody}
         />
         <StepItem
           done={deliveredDone}
           active={materialsConfirmed && !deliveredDone}
           label={copy.stepDeliveryTitle}
-          body={copy.stepMaterialDeliveryBody}
         />
         <StepItem
           done={completed}
           active={deliveredDone && !completed}
           label={copy.stepReviewTitle}
-          body={copy.stepReviewBody}
         />
       </div>
-    </CompactCard>
+    </Panel>
   );
 }
 
@@ -1105,7 +1025,7 @@ function ProductShipmentCard({
   actionLoading: ActionLoading;
   onSubmit: () => void;
   locale: "ja" | "en";
-  copy: Record<string, string>;
+  copy: Copy;
 }) {
   const address = getShippingAddress(order);
   const canSubmit = canRegisterShipment(order);
@@ -1116,51 +1036,43 @@ function ProductShipmentCard({
   }
 
   return (
-    <ActionCard
-      title={copy.productShippingTitle}
-      body={copy.productShippingBody}
-      accentClassName={
-        order.received_at
-          ? "bg-emerald-500"
-          : order.shipped_at
-            ? "bg-amber-500"
-            : "bg-[#ff5f67]"
-      }
-    >
+    <Panel className="p-5">
+      <SectionTitle title={copy.productShippingTitle} />
+
       {!address ? (
-        <div className="rounded-[24px] bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-800 ring-1 ring-amber-100">
+        <div className="mt-4 rounded-[20px] bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-800 ring-1 ring-amber-100">
           {copy.shippingAddressWaiting}
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="rounded-[24px] bg-slate-950 p-5 text-white">
-            <div className="flex items-center justify-between gap-4">
+        <div className="mt-4 grid gap-4">
+          <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-black text-white/50">
+                <p className="text-xs font-black text-slate-400">
                   {copy.shippingAddressTitle}
                 </p>
-                <p className="mt-1 text-lg font-black">
+                <p className="mt-1 text-lg font-black text-slate-950">
                   {address.recipient_name || copy.notSet}
                 </p>
               </div>
 
               {order.shipping_address_shared_at ? (
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white">
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-100">
                   {formatDate(order.shipping_address_shared_at, locale)}
                 </span>
               ) : null}
             </div>
 
-            <div className="mt-4 grid gap-2 text-sm font-bold leading-7 text-white/90">
-              <div>
-                <span className="font-black text-white/45">
+            <div className="mt-4 grid gap-2 text-sm font-bold leading-7 text-slate-700">
+              <p>
+                <span className="font-black text-slate-400">
                   {copy.shippingPostalCode}：
                 </span>
                 {address.postal_code || copy.notSet}
-              </div>
+              </p>
 
-              <div>
-                <span className="font-black text-white/45">
+              <p>
+                <span className="font-black text-slate-400">
                   {copy.shippingAddress}：
                 </span>
                 {[
@@ -1171,27 +1083,27 @@ function ProductShipmentCard({
                 ]
                   .filter(Boolean)
                   .join(" ") || copy.notSet}
-              </div>
+              </p>
 
-              <div>
-                <span className="font-black text-white/45">
+              <p>
+                <span className="font-black text-slate-400">
                   {copy.shippingPhoneNumber}：
                 </span>
                 {address.phone_number || copy.notSet}
-              </div>
+              </p>
 
               {address.notes ? (
-                <div>
-                  <span className="font-black text-white/45">
+                <p>
+                  <span className="font-black text-slate-400">
                     {copy.shippingNotes}：
                   </span>
                   {address.notes}
-                </div>
+                </p>
               ) : null}
             </div>
           </div>
 
-          <div className="rounded-[24px] bg-white p-5 ring-1 ring-slate-100">
+          <div className="rounded-[22px] bg-white p-4 ring-1 ring-slate-100">
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm font-black text-slate-950">
                 {copy.shippingStatus}
@@ -1212,7 +1124,7 @@ function ProductShipmentCard({
               )}
             </div>
 
-            <div className="mt-3 grid gap-2 text-sm font-bold text-slate-700">
+            <div className="mt-3">
               <DetailRow
                 label={copy.shippingCarrier}
                 value={order.shipping_carrier || copy.notSet}
@@ -1243,16 +1155,13 @@ function ProductShipmentCard({
           </div>
 
           {order.received_at ? (
-            <div className="rounded-[24px] bg-emerald-50 p-5 text-sm font-bold leading-7 text-emerald-800 ring-1 ring-emerald-100">
+            <div className="rounded-[20px] bg-emerald-50 p-4 text-sm font-bold leading-7 text-emerald-800 ring-1 ring-emerald-100">
               {copy.shipmentLockedReceived}
             </div>
           ) : canSubmit ? (
-            <div className="rounded-[24px] bg-slate-50 p-5 ring-1 ring-slate-100">
+            <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
               <p className="text-sm font-black text-slate-950">
                 {copy.shipmentFormTitle}
-              </p>
-              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                {copy.shipmentFormBody}
               </p>
 
               <div className="mt-4 grid gap-4">
@@ -1284,7 +1193,7 @@ function ProductShipmentCard({
                   type="button"
                   onClick={onSubmit}
                   disabled={actionLoading !== null}
-                  className="rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_26px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {actionLoading === "shipment"
                     ? copy.registeringShipment
@@ -1295,13 +1204,13 @@ function ProductShipmentCard({
               </div>
             </div>
           ) : (
-            <div className="rounded-[24px] bg-slate-50 p-5 text-sm font-semibold leading-7 text-slate-500 ring-1 ring-slate-100">
+            <div className="rounded-[20px] bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-500 ring-1 ring-slate-100">
               {copy.shipmentCannotEdit}
             </div>
           )}
         </div>
       )}
-    </ActionCard>
+    </Panel>
   );
 }
 
@@ -1328,87 +1237,84 @@ function DeliveryReviewCard({
   onComplete: () => void;
   onRequestRevision: () => void;
   canChat: boolean;
-  copy: Record<string, string>;
+  copy: Copy;
 }) {
   return (
-    <ActionCard
-      title={copy.completeTitle}
-      body={copy.completeBody}
-      accentClassName="bg-[#ff5f67]"
-    >
-      {order.delivered_post_url ? (
-        <a
-          href={order.delivered_post_url}
-          target="_blank"
-          rel="noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 active:scale-[0.98]"
-        >
-          <ExternalIcon />
-          {copy.openDelivery}
-        </a>
-      ) : (
-        <div className="rounded-[22px] bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-800 ring-1 ring-amber-100">
-          {copy.deliveryMissing}
-        </div>
-      )}
+    <Panel className="p-5">
+      <SectionTitle title={copy.completeTitle} body={copy.completeBody} />
 
-      {canReviewDelivery ? (
-        <div className="mt-4 grid gap-3">
-          <button
-            type="button"
-            onClick={onComplete}
-            disabled={actionLoading !== null}
-            className="rounded-full bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+      <div className="mt-4 grid gap-3">
+        {order.delivered_post_url ? (
+          <a
+            href={order.delivered_post_url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 active:scale-[0.98]"
           >
-            {actionLoading === "complete" ? copy.completing : copy.complete}
-          </button>
+            <ExternalIcon />
+            {copy.openDelivery}
+          </a>
+        ) : (
+          <div className="rounded-[20px] bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-800 ring-1 ring-amber-100">
+            {copy.deliveryMissing}
+          </div>
+        )}
 
-          {canRequestRevision ? (
-            <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
-              <p className="text-sm font-black text-slate-950">
-                {copy.revisionTitle}
-              </p>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                {copy.revisionBody}
-              </p>
+        {canReviewDelivery ? (
+          <>
+            <button
+              type="button"
+              onClick={onComplete}
+              disabled={actionLoading !== null}
+              className="rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_26px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading === "complete" ? copy.completing : copy.complete}
+            </button>
 
-              <textarea
-                value={revisionNote}
-                onChange={(event) => setRevisionNote(event.target.value)}
-                placeholder={copy.revisionPlaceholder}
-                rows={4}
-                className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 focus:ring-4 focus:ring-slate-100"
-              />
+            {canRequestRevision ? (
+              <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+                <p className="text-sm font-black text-slate-950">
+                  {copy.revisionTitle}
+                </p>
 
-              <button
-                type="button"
-                onClick={onRequestRevision}
-                disabled={actionLoading !== null}
-                className="mt-3 w-full rounded-full bg-white px-5 py-3 text-sm font-black text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {actionLoading === "revision"
-                  ? copy.requestingRevision
-                  : copy.requestRevision}
-              </button>
-            </div>
-          ) : revisionLimitReached ? (
-            <div className="rounded-[24px] bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-500 ring-1 ring-slate-100">
-              {copy.revisionLimitReached}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+                <textarea
+                  value={revisionNote}
+                  onChange={(event) => setRevisionNote(event.target.value)}
+                  placeholder={copy.revisionPlaceholder}
+                  rows={4}
+                  className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950 focus:ring-4 focus:ring-slate-100"
+                />
 
-      {canChat ? (
-        <Link
-          href={`/b/orders/${order.id}/chat`}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-4 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
-        >
-          <MessageIcon />
-          {copy.chatCtaButton}
-        </Link>
-      ) : null}
-    </ActionCard>
+                <button
+                  type="button"
+                  onClick={onRequestRevision}
+                  disabled={actionLoading !== null}
+                  className="mt-3 w-full rounded-full bg-white px-5 py-3 text-sm font-black text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {actionLoading === "revision"
+                    ? copy.requestingRevision
+                    : copy.requestRevision}
+                </button>
+              </div>
+            ) : revisionLimitReached ? (
+              <div className="rounded-[20px] bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-500 ring-1 ring-slate-100">
+                {copy.revisionLimitReached}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {canChat ? (
+          <Link
+            href={`/b/orders/${order.id}/chat`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
+          >
+            <MessageIcon />
+            {copy.chatCtaButton}
+          </Link>
+        ) : null}
+      </div>
+    </Panel>
   );
 }
 
@@ -1420,7 +1326,7 @@ export default function CompanyOrderDetailPage() {
   const safeLocale = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
-  const copy = useMemo(
+  const copy = useMemo<Copy>(
     () =>
       safeLocale === "ja"
         ? {
@@ -1429,33 +1335,26 @@ export default function CompanyOrderDetailPage() {
             authFailed: "ログイン情報を取得できませんでした。",
             backOrders: "注文へ戻る",
             titleFallback: "注文詳細",
-            pageSubtitle: "現在の状態と、企業側で必要な対応を確認できます。",
-            influencer: "クリエイター",
-            influencerProfile: "クリエイター詳細を見る",
+            pageSubtitle: "企業側で必要な対応だけを確認できます。",
+            influencer: "インフルエンサー",
+            influencerProfile: "インフルエンサー詳細を見る",
             payment: "支払い金額",
-            nextAction: "次にやること",
-            chatCtaTitle: "クリエイターとやり取りできます",
-            chatCtaBody:
-              "注文開始後の確認や連絡は、専用チャットページで行えます。",
-            chatCtaButton: "クリエイターとやり取りする",
-            waitingSummaryTitle: "注文内容の要約",
-            waitingSummaryBody:
-              "クリエイターの承認後にチャットが利用できます。返答をお待ちください。",
-            deliveryTitle: "納品URL",
+            chatCtaTitle: "インフルエンサーとやり取り",
+            chatCtaBody: "確認事項がある場合はチャットで連絡できます。",
+            chatCtaButton: "チャットを開く",
             openDelivery: "納品URLを開く",
             completeTitle: "納品確認",
-            completeBody:
-              "納品内容を確認し、問題なければ注文を完了してください。完了後は原則として修正依頼・返金はできません。",
-            complete: "内容を承認して完了する",
+            completeBody: "内容を確認し、問題なければ完了してください。",
+            complete: "承認して完了する",
             completing: "完了処理中...",
             confirmComplete:
               "この注文を完了しますか？納品内容を確認済みの場合のみ実行してください。",
             completeFailed: "完了処理に失敗しました。",
             revisionTitle: "修正依頼",
             revisionBody:
-              "元の注文内容に沿う範囲でのみ修正依頼できます。追加依頼は新しい注文として相談してください。",
+              "元の注文内容に沿う範囲でのみ修正依頼できます。",
             revisionPlaceholder:
-              "例：注文時に依頼した内容のうち、〇〇が反映されていないため修正してください。",
+              "例：依頼内容の〇〇が反映されていないため修正してください。",
             requestRevision: "修正依頼を送信",
             requestingRevision: "送信中...",
             confirmRevision:
@@ -1464,17 +1363,14 @@ export default function CompanyOrderDetailPage() {
             revisionNoteRequired:
               "修正依頼内容は10文字以上で入力してください。",
             revisionLimitReached:
-              "修正依頼の上限回数に達しています。追加修正が必要な場合はチャットで相談するか、新しい注文として依頼してください。",
+              "修正依頼の上限回数に達しています。必要な場合はチャットで相談してください。",
             revisionNoteLabel: "修正依頼内容",
             currentRevisionNote: "現在の修正依頼",
-            deliveryMissing:
-              "納品URLがまだ登録されていません。必要に応じてチャットで確認してください。",
+            deliveryMissing: "納品URLがまだ登録されていません。",
 
             productShippingTitle: "商品発送",
-            productShippingBody:
-              "クリエイターから配送先が共有されたら、商品を発送して配送会社・追跡番号を登録してください。",
             shippingAddressWaiting:
-              "クリエイターの配送先共有を待っています。配送先が共有されると、この画面に表示されます。",
+              "インフルエンサーの配送先共有を待っています。",
             shippingAddressTitle: "配送先",
             shippingRecipientName: "宛名",
             shippingPostalCode: "郵便番号",
@@ -1495,51 +1391,30 @@ export default function CompanyOrderDetailPage() {
             registeringShipment: "登録中...",
             shipmentRequired: "配送会社と追跡番号を入力してください。",
             shipmentConfirm:
-              "発送情報を登録しますか？クリエイター側に発送済みとして表示されます。",
+              "発送情報を登録しますか？インフルエンサー側に発送済みとして表示されます。",
             shipmentFailed: "発送情報の登録に失敗しました。",
             productReceived: "受取済み",
             shipmentFormTitle: "発送情報を登録",
-            shipmentFormBody:
-              "登録するとクリエイター側に発送済みとして通知されます。",
             shipmentLockedReceived:
-              "クリエイターが商品を受け取り済みです。発送情報の編集は不要です。",
+              "インフルエンサーが商品を受け取り済みです。",
             shipmentCannotEdit:
-              "現在この注文では発送情報を編集できません。必要な場合はチャットで確認してください。",
+              "現在この注文では発送情報を編集できません。",
 
-            productGuideTitle: "商品提供型の進行状況",
-            materialGuideTitle: "素材提供型の進行状況",
-            visitGuideTitle: "来店型の進行状況",
+            productGuideTitle: "進捗",
+            materialGuideTitle: "進捗",
+            visitGuideTitle: "進捗",
             stepAddressTitle: "配送先共有",
-            stepAddressBody:
-              "クリエイターが商品発送に必要な配送先を共有します。",
             stepShipmentTitle: "商品発送",
-            stepShipmentBody:
-              "企業側で商品を発送し、配送会社・追跡番号を登録します。",
             stepReceiveTitle: "商品受取",
-            stepReceiveBody:
-              "クリエイターが商品を受け取ったら、受取済みに更新されます。",
             stepDeliveryTitle: "納品",
-            stepDeliveryBody:
-              "クリエイターから投稿URL・確認URLが提出されます。",
             stepReviewTitle: "確認・完了",
-            stepReviewBody:
-              "納品内容を確認し、問題なければ注文を完了してください。",
             stepScheduleTitle: "日程調整",
-            stepScheduleBody:
-              "来店日時や場所はチャットで確認してください。",
-            stepScheduleDonePrefix: "来店予定：",
-            stepVisitDeliveryBody:
-              "来店後、クリエイターから実施内容・確認URLが提出されます。",
             stepMaterialTitle: "素材確認",
-            stepMaterialBody:
-              "クリエイターが提供素材や投稿情報を確認します。",
-            stepMaterialDeliveryBody:
-              "素材確認後、クリエイターから納品URLが提出されます。",
 
             orderContent: "注文内容",
             orderContentSub: "必要な時だけ確認できます",
             menuContent: "メニュー詳細",
-            menuContentSub: "注文時点のメニュー内容",
+            menuContentSub: "注文時点の内容",
             paymentContent: "支払い詳細",
             paymentContentSub: "金額の内訳",
             productName: "商品名・案件名",
@@ -1574,9 +1449,10 @@ export default function CompanyOrderDetailPage() {
             createdAt: "注文日時",
             acceptedAt: "受注日時",
             capturedAt: "決済確定日時",
-            statusLabel: "ステータス",
-            creatorPayout: "クリエイター報酬",
-            platformRevenue: "プラットフォーム収益",
+            statusLabel: "状態",
+            creatorPayout: "インフルエンサー報酬",
+            visitLocation: "来店場所",
+            visitSchedule: "来店予定",
           }
         : {
             loading: "Loading...",
@@ -1584,23 +1460,16 @@ export default function CompanyOrderDetailPage() {
             authFailed: "Could not retrieve your login session.",
             backOrders: "Back to orders",
             titleFallback: "Order details",
-            pageSubtitle: "Check the current status and the next action.",
-            influencer: "Creator",
-            influencerProfile: "View creator profile",
+            pageSubtitle: "Only the required actions are shown here.",
+            influencer: "Influencer",
+            influencerProfile: "View influencer profile",
             payment: "Payment",
-            nextAction: "Next action",
-            chatCtaTitle: "You can message the creator",
-            chatCtaBody:
-              "Use the dedicated chat page for progress checks and communication.",
-            chatCtaButton: "Message the creator",
-            waitingSummaryTitle: "Order summary",
-            waitingSummaryBody:
-              "Chat becomes available after the creator accepts.",
-            deliveryTitle: "Delivery URL",
+            chatCtaTitle: "Message the influencer",
+            chatCtaBody: "Use chat when you need confirmation.",
+            chatCtaButton: "Open chat",
             openDelivery: "Open delivery URL",
             completeTitle: "Review delivery",
-            completeBody:
-              "Complete the order if everything is okay. Revisions and refunds are generally unavailable after completion.",
+            completeBody: "Review the delivery and complete if everything is okay.",
             complete: "Approve and complete",
             completing: "Completing...",
             confirmComplete:
@@ -1608,7 +1477,7 @@ export default function CompanyOrderDetailPage() {
             completeFailed: "Failed to complete this order.",
             revisionTitle: "Request revision",
             revisionBody:
-              "Revisions should stay within the original order requirements. Additional work should be handled as a new order.",
+              "Revisions should stay within the original order requirements.",
             revisionPlaceholder:
               "Example: Please revise the missing point from the original requirements.",
             requestRevision: "Send revision request",
@@ -1619,17 +1488,14 @@ export default function CompanyOrderDetailPage() {
             revisionNoteRequired:
               "Please enter at least 10 characters for the revision request.",
             revisionLimitReached:
-              "The revision request limit has been reached. Please use chat or place a new order for additional work.",
+              "The revision request limit has been reached. Please use chat if needed.",
             revisionNoteLabel: "Revision request",
             currentRevisionNote: "Current revision request",
-            deliveryMissing:
-              "The delivery URL has not been registered yet. Please confirm in chat if needed.",
+            deliveryMissing: "The delivery URL has not been registered yet.",
 
             productShippingTitle: "Product shipment",
-            productShippingBody:
-              "After the creator shares a delivery address, ship the product and register the carrier and tracking number.",
             shippingAddressWaiting:
-              "Waiting for the creator to share a delivery address. It will appear here once shared.",
+              "Waiting for the influencer to share a delivery address.",
             shippingAddressTitle: "Delivery address",
             shippingRecipientName: "Recipient",
             shippingPostalCode: "Postal code",
@@ -1650,51 +1516,30 @@ export default function CompanyOrderDetailPage() {
             registeringShipment: "Registering...",
             shipmentRequired: "Please enter the carrier and tracking number.",
             shipmentConfirm:
-              "Register this shipment? It will be shown to the creator as shipped.",
+              "Register this shipment? It will be shown to the influencer as shipped.",
             shipmentFailed: "Failed to register shipment.",
             productReceived: "Received",
-            shipmentFormTitle: "Register shipment details",
-            shipmentFormBody:
-              "The creator will be notified after shipment details are registered.",
+            shipmentFormTitle: "Register shipment",
             shipmentLockedReceived:
-              "The creator has received the product. Shipment editing is no longer necessary.",
+              "The influencer has received the product.",
             shipmentCannotEdit:
-              "Shipment details cannot be edited right now. Please confirm via chat if needed.",
+              "Shipment details cannot be edited right now.",
 
-            productGuideTitle: "Product shipping progress",
-            materialGuideTitle: "Material provided progress",
-            visitGuideTitle: "Visit progress",
-            stepAddressTitle: "Delivery address",
-            stepAddressBody:
-              "The creator shares the address needed for product shipment.",
-            stepShipmentTitle: "Shipment",
-            stepShipmentBody:
-              "Ship the product and register the carrier and tracking number.",
-            stepReceiveTitle: "Product received",
-            stepReceiveBody:
-              "The creator marks the product as received after it arrives.",
-            stepDeliveryTitle: "Delivery",
-            stepDeliveryBody:
-              "The creator submits the post URL or review URL.",
-            stepReviewTitle: "Review and complete",
-            stepReviewBody:
-              "Review the delivery and complete the order if everything is okay.",
+            productGuideTitle: "Progress",
+            materialGuideTitle: "Progress",
+            visitGuideTitle: "Progress",
+            stepAddressTitle: "Address shared",
+            stepShipmentTitle: "Shipped",
+            stepReceiveTitle: "Received",
+            stepDeliveryTitle: "Delivered",
+            stepReviewTitle: "Review",
             stepScheduleTitle: "Schedule",
-            stepScheduleBody:
-              "Confirm visit date, time, and location via chat.",
-            stepScheduleDonePrefix: "Scheduled visit: ",
-            stepVisitDeliveryBody:
-              "After the visit, the creator submits the report or review URL.",
             stepMaterialTitle: "Material check",
-            stepMaterialBody:
-              "The creator confirms the provided materials and posting information.",
-            stepMaterialDeliveryBody:
-              "After confirming materials, the creator submits the delivery URL.",
 
             orderContent: "Order details",
             orderContentSub: "Available when needed",
             menuContent: "Menu details",
-            menuContentSub: "Menu snapshot at purchase",
+            menuContentSub: "Snapshot at purchase",
             paymentContent: "Payment details",
             paymentContentSub: "Amount breakdown",
             productName: "Product / Campaign",
@@ -1730,8 +1575,9 @@ export default function CompanyOrderDetailPage() {
             acceptedAt: "Accepted at",
             capturedAt: "Captured at",
             statusLabel: "Status",
-            creatorPayout: "Creator payout",
-            platformRevenue: "Platform revenue",
+            creatorPayout: "Influencer payout",
+            visitLocation: "Visit location",
+            visitSchedule: "Visit schedule",
           },
     [safeLocale]
   );
@@ -1887,7 +1733,7 @@ export default function CompanyOrderDetailPage() {
       );
 
       if (influencerResult?.error) {
-        console.error("company order creator load error:", influencerResult.error);
+        console.error("company order influencer load error:", influencerResult.error);
         setInfluencer(null);
       } else {
         setInfluencer((influencerResult?.data as InfluencerLite | null) ?? null);
@@ -2077,11 +1923,11 @@ export default function CompanyOrderDetailPage() {
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
-        <div className="mx-auto max-w-6xl space-y-5">
-          <div className="h-36 animate-pulse rounded-[28px] bg-white shadow-sm" />
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="mx-auto max-w-6xl space-y-4">
+          <div className="h-28 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="h-96 animate-pulse rounded-[28px] bg-white shadow-sm" />
-            <div className="h-80 animate-pulse rounded-[28px] bg-white shadow-sm" />
+            <div className="h-72 animate-pulse rounded-[28px] bg-white shadow-sm" />
           </div>
         </div>
       </div>
@@ -2137,111 +1983,104 @@ export default function CompanyOrderDetailPage() {
     !isCanceledStatus(order.status);
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-gradient-to-b from-white via-rose-50/40 to-transparent" />
-      <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/25 blur-[150px]" />
+    <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
+      <div className="mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
+        <section className="rounded-[30px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:px-6 md:py-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Pill className={meta.className}>{meta.label}</Pill>
 
-      <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
-        <section className="overflow-hidden rounded-[30px] bg-white shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
-          <div className={`h-1.5 w-full ${meta.accent}`} />
+                <Pill className="bg-white text-slate-700 ring-slate-200">
+                  {fulfillmentLabel(order.fulfillment_type, safeLocale)}
+                </Pill>
 
-          <div className="px-6 py-6 md:px-7 md:py-7">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Pill className={meta.className}>{meta.label}</Pill>
+                {order.creator_accept_deadline && isWaitingStatus(order.status) ? (
+                  <DeadlineBadge
+                    deadline={order.creator_accept_deadline}
+                    label={copy.acceptDeadline}
+                    expiredLabel={copy.acceptDeadline}
+                    locale={safeLocale}
+                    urgentHours={12}
+                    warningHours={24}
+                  />
+                ) : null}
 
-                  <Pill className="bg-white text-slate-700 ring-slate-200">
-                    {fulfillmentLabel(order.fulfillment_type, safeLocale)}
-                  </Pill>
-
-                  {order.creator_accept_deadline && isWaitingStatus(order.status) ? (
-                    <DeadlineBadge
-                      deadline={order.creator_accept_deadline}
-                      label={copy.acceptDeadline}
-                      expiredLabel={copy.acceptDeadline}
-                      locale={safeLocale}
-                      urgentHours={12}
-                      warningHours={24}
-                    />
-                  ) : null}
-
-                  {order.auto_complete_at && isDeliveredStatus(order.status) ? (
-                    <DeadlineBadge
-                      deadline={order.auto_complete_at}
-                      label={copy.autoComplete}
-                      expiredLabel={copy.autoCompleteExpired}
-                      locale={safeLocale}
-                      urgentHours={12}
-                      warningHours={24}
-                    />
-                  ) : null}
-                </div>
-
-                <h1 className="mt-4 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
-                  {order.product_name || order.menu_title_snapshot || copy.titleFallback}
-                </h1>
-
-                <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                  {copy.pageSubtitle}
-                </p>
+                {order.auto_complete_at && isDeliveredStatus(order.status) ? (
+                  <DeadlineBadge
+                    deadline={order.auto_complete_at}
+                    label={copy.autoComplete}
+                    expiredLabel={copy.autoCompleteExpired}
+                    locale={safeLocale}
+                    urgentHours={12}
+                    warningHours={24}
+                  />
+                ) : null}
               </div>
 
-              <Link
-                href={backHref}
-                className="inline-flex w-fit items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
-              >
-                <BackIcon />
-                {copy.backOrders}
-              </Link>
+              <h1 className="mt-4 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[36px]">
+                {order.product_name || order.menu_title_snapshot || copy.titleFallback}
+              </h1>
+
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                {copy.pageSubtitle}
+              </p>
             </div>
+
+            <Link
+              href={backHref}
+              className="inline-flex w-fit items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
+            >
+              <BackIcon />
+              {copy.backOrders}
+            </Link>
           </div>
         </section>
 
         {error ? (
-          <div className="mt-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
+          <div className="mt-4 rounded-[22px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
             {error}
           </div>
         ) : null}
 
-        <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <main className="space-y-5">
-            <ActionCard
-              title={meta.title}
-              body={meta.body}
-              accentClassName={meta.accent}
-            >
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
-                  <p className="text-xs font-black text-slate-400">
-                    {copy.statusLabel}
-                  </p>
-                  <p className="mt-2 text-sm font-black text-slate-950">
-                    {meta.label}
-                  </p>
-                </div>
+        <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <main className="space-y-4">
+            <Panel className="p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <SectionTitle title={meta.title} body={meta.body} />
 
-                <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
-                  <p className="text-xs font-black text-slate-400">
-                    {copy.projectType}
-                  </p>
-                  <p className="mt-2 text-sm font-black text-slate-950">
-                    {fulfillmentLabel(order.fulfillment_type, safeLocale)}
-                  </p>
-                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:min-w-[420px]">
+                  <div className="rounded-[20px] bg-slate-50 p-3 ring-1 ring-slate-100">
+                    <p className="text-[11px] font-black text-slate-400">
+                      {copy.statusLabel}
+                    </p>
+                    <p className="mt-1 text-sm font-black text-slate-950">
+                      {meta.label}
+                    </p>
+                  </div>
 
-                <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
-                  <p className="text-xs font-black text-slate-400">
-                    {copy.total}
-                  </p>
-                  <p className="mt-2 text-sm font-black text-slate-950">
-                    {formatPrice(buyerTotal, order.currency, safeLocale)}
-                  </p>
+                  <div className="rounded-[20px] bg-slate-50 p-3 ring-1 ring-slate-100">
+                    <p className="text-[11px] font-black text-slate-400">
+                      {copy.projectType}
+                    </p>
+                    <p className="mt-1 text-sm font-black text-slate-950">
+                      {fulfillmentLabel(order.fulfillment_type, safeLocale)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[20px] bg-slate-50 p-3 ring-1 ring-slate-100">
+                    <p className="text-[11px] font-black text-slate-400">
+                      {copy.total}
+                    </p>
+                    <p className="mt-1 text-sm font-black text-slate-950">
+                      {formatPrice(buyerTotal, order.currency, safeLocale)}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </ActionCard>
+            </Panel>
 
-            <PreparationGuideCard order={order} locale={safeLocale} copy={copy} />
+            <ProgressCard order={order} copy={copy} />
 
             {showShipmentCard ? (
               <ProductShipmentCard
@@ -2281,29 +2120,33 @@ export default function CompanyOrderDetailPage() {
             ) : null}
 
             {isCompletedStatus(order.status) || isCanceledStatus(order.status) ? (
-              <ActionCard title={meta.title} body={meta.body} accentClassName={meta.accent}>
+              <Panel className="p-5">
+                <SectionTitle title={meta.title} body={meta.body} />
                 {order.delivered_post_url ? (
                   <a
                     href={order.delivered_post_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 underline-offset-4 transition hover:bg-slate-200 hover:underline"
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 underline-offset-4 transition hover:bg-slate-200 hover:underline"
                   >
                     <ExternalIcon />
                     {copy.openDelivery}
                   </a>
                 ) : null}
-              </ActionCard>
+              </Panel>
             ) : null}
 
             {order.revision_note ? (
-              <CompactCard title={copy.currentRevisionNote}>
-                <TextBlock
-                  label={copy.revisionNoteLabel}
-                  value={order.revision_note}
-                  emptyLabel={copy.notSet}
-                />
-              </CompactCard>
+              <Panel className="p-5">
+                <SectionTitle title={copy.currentRevisionNote} />
+                <div className="mt-4">
+                  <TextBlock
+                    label={copy.revisionNoteLabel}
+                    value={order.revision_note}
+                    emptyLabel={copy.notSet}
+                  />
+                </div>
+              </Panel>
             ) : null}
 
             <div className="space-y-3">
@@ -2358,11 +2201,11 @@ export default function CompanyOrderDetailPage() {
                 {fulfillmentType === "visit" ? (
                   <>
                     <DetailRow
-                      label="来店場所"
+                      label={copy.visitLocation}
                       value={order.visit_location || copy.notSet}
                     />
                     <DetailRow
-                      label="来店予定"
+                      label={copy.visitSchedule}
                       value={
                         order.visit_scheduled_at
                           ? formatDateTime(order.visit_scheduled_at, safeLocale)
@@ -2476,9 +2319,11 @@ export default function CompanyOrderDetailPage() {
             </div>
           </main>
 
-          <aside className="space-y-5">
-            <CompactCard title={copy.influencer}>
-              <div className="flex items-center gap-4">
+          <aside className="space-y-4">
+            <Panel className="p-5">
+              <SectionTitle title={copy.influencer} />
+
+              <div className="mt-4 flex items-center gap-4">
                 <InfluencerAvatar influencer={influencer} />
                 <div className="min-w-0">
                   <p className="truncate text-lg font-black text-slate-950">
@@ -2493,18 +2338,16 @@ export default function CompanyOrderDetailPage() {
               {influencer?.id ? (
                 <Link
                   href={`/b/creators/${influencer.id}`}
-                  className="mt-5 inline-flex w-full justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
+                  className="mt-4 inline-flex w-full justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
                 >
                   {copy.influencerProfile}
                 </Link>
               ) : null}
-            </CompactCard>
+            </Panel>
 
             {canChat ? (
-              <CompactCard title={copy.chatCtaTitle}>
-                <p className="text-sm font-semibold leading-7 text-slate-500">
-                  {copy.chatCtaBody}
-                </p>
+              <Panel className="p-5">
+                <SectionTitle title={copy.chatCtaTitle} body={copy.chatCtaBody} />
                 <Link
                   href={`/b/orders/${order.id}/chat`}
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
@@ -2512,52 +2355,58 @@ export default function CompanyOrderDetailPage() {
                   <MessageIcon />
                   {copy.chatCtaButton}
                 </Link>
-              </CompactCard>
+              </Panel>
             ) : null}
 
-            <CompactCard title={copy.payment}>
-              <DetailRow
-                label={copy.menuPrice}
-                value={formatPrice(
-                  order.menu_price_amount,
-                  order.currency,
-                  safeLocale
-                )}
-              />
-              <DetailRow
-                label={copy.serviceFee}
-                value={formatPrice(buyerFee, order.currency, safeLocale)}
-              />
-              <DetailRow
-                label={copy.total}
-                value={formatPrice(buyerTotal, order.currency, safeLocale)}
-                strong
-              />
-            </CompactCard>
+            <Panel className="p-5">
+              <SectionTitle title={copy.payment} />
+              <div className="mt-4">
+                <DetailRow
+                  label={copy.menuPrice}
+                  value={formatPrice(
+                    order.menu_price_amount,
+                    order.currency,
+                    safeLocale
+                  )}
+                />
+                <DetailRow
+                  label={copy.serviceFee}
+                  value={formatPrice(buyerFee, order.currency, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.total}
+                  value={formatPrice(buyerTotal, order.currency, safeLocale)}
+                  strong
+                />
+              </div>
+            </Panel>
 
-            <CompactCard title={copy.orderContent}>
-              <DetailRow label={copy.orderId} value={order.id} />
-              <DetailRow
-                label={copy.createdAt}
-                value={formatDateTime(order.created_at, safeLocale)}
-              />
-              <DetailRow
-                label={copy.acceptedAt}
-                value={
-                  order.accepted_at
-                    ? formatDateTime(order.accepted_at, safeLocale)
-                    : copy.notSet
-                }
-              />
-              <DetailRow
-                label={copy.capturedAt}
-                value={
-                  order.captured_at
-                    ? formatDateTime(order.captured_at, safeLocale)
-                    : copy.notSet
-                }
-              />
-            </CompactCard>
+            <Panel className="p-5">
+              <SectionTitle title={copy.orderContent} />
+              <div className="mt-4">
+                <DetailRow label={copy.orderId} value={order.id} />
+                <DetailRow
+                  label={copy.createdAt}
+                  value={formatDateTime(order.created_at, safeLocale)}
+                />
+                <DetailRow
+                  label={copy.acceptedAt}
+                  value={
+                    order.accepted_at
+                      ? formatDateTime(order.accepted_at, safeLocale)
+                      : copy.notSet
+                  }
+                />
+                <DetailRow
+                  label={copy.capturedAt}
+                  value={
+                    order.captured_at
+                      ? formatDateTime(order.captured_at, safeLocale)
+                      : copy.notSet
+                  }
+                />
+              </div>
+            </Panel>
           </aside>
         </section>
       </div>
