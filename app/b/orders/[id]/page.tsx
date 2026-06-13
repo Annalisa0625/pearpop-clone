@@ -1445,10 +1445,6 @@ export default function CompanyOrderDetailPage() {
             acceptDeadline: "返答期限",
             autoComplete: "自動完了",
             autoCompleteExpired: "自動完了期限超過",
-            orderId: "注文ID",
-            createdAt: "注文日時",
-            acceptedAt: "受注日時",
-            capturedAt: "決済確定日時",
             statusLabel: "状態",
             creatorPayout: "インフルエンサー報酬",
             visitLocation: "来店場所",
@@ -1570,10 +1566,6 @@ export default function CompanyOrderDetailPage() {
             acceptDeadline: "Reply deadline",
             autoComplete: "Auto complete",
             autoCompleteExpired: "Auto-complete overdue",
-            orderId: "Order ID",
-            createdAt: "Created at",
-            acceptedAt: "Accepted at",
-            capturedAt: "Captured at",
             statusLabel: "Status",
             creatorPayout: "Influencer payout",
             visitLocation: "Visit location",
@@ -2307,14 +2299,6 @@ export default function CompanyOrderDetailPage() {
                   value={formatPrice(buyerTotal, order.currency, safeLocale)}
                   strong
                 />
-                <DetailRow
-                  label={copy.creatorPayout}
-                  value={formatPrice(
-                    order.creator_payout_amount,
-                    order.currency,
-                    safeLocale
-                  )}
-                />
               </CollapsibleCard>
             </div>
           </main>
@@ -2377,33 +2361,6 @@ export default function CompanyOrderDetailPage() {
                   label={copy.total}
                   value={formatPrice(buyerTotal, order.currency, safeLocale)}
                   strong
-                />
-              </div>
-            </Panel>
-
-            <Panel className="p-5">
-              <SectionTitle title={copy.orderContent} />
-              <div className="mt-4">
-                <DetailRow label={copy.orderId} value={order.id} />
-                <DetailRow
-                  label={copy.createdAt}
-                  value={formatDateTime(order.created_at, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.acceptedAt}
-                  value={
-                    order.accepted_at
-                      ? formatDateTime(order.accepted_at, safeLocale)
-                      : copy.notSet
-                  }
-                />
-                <DetailRow
-                  label={copy.capturedAt}
-                  value={
-                    order.captured_at
-                      ? formatDateTime(order.captured_at, safeLocale)
-                      : copy.notSet
-                  }
                 />
               </div>
             </Panel>
