@@ -23,6 +23,14 @@ type PreparationStatus =
   | "schedule_confirmed"
   | "ready_to_start";
 
+type PayoutMethod = "manual_bank_transfer" | "stripe_connect";
+
+type PayoutProfileStatus =
+  | "not_submitted"
+  | "submitted"
+  | "verified"
+  | "rejected";
+
 type ReferenceAssetInput = {
   storage_path?: unknown;
   file_name?: unknown;
@@ -116,7 +124,6 @@ function withTimeout<T = any>(
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const promise = Promise.resolve(promiseLike);
-
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       reject(new Error(timeoutMessage));
@@ -647,6 +654,31 @@ function normalizeReferenceAssets(value: unknown, userId: string) {
   return { assets: result, error: null };
 }
 
+function isManualPayoutReady(profile: {
+  payout_method?: PayoutMethod | null;
+  status?: PayoutProfileStatus | null;
+}) {
+  const payoutMethod = profile.payout_method ?? "manual_bank_transfer";
+  const status = profile.status ?? "not_submitted";
+
+  return (
+    payoutMethod === "manual_bank_transfer" &&
+    (status === "submitted" || status === "verified")
+  );
+}
+
+function isStripeConnectPayoutReady(args: {
+  payoutMethod: PayoutMethod;
+  stripeAccountId?: string | null;
+  stripeOnboardingCompleted?: boolean | null;
+}) {
+  return (
+    args.payoutMethod === "stripe_connect" &&
+    !!args.stripeAccountId &&
+    args.stripeOnboardingCompleted === true
+  );
+}
+
 async function safeInsertOrderEvent(args: {
   supabaseAdmin: any;
   orderId: string;
@@ -961,7 +993,6 @@ export async function POST(req: NextRequest) {
         .eq("id", creatorId)
         .eq("approval_status", "approved")
         .eq("is_public", true)
-        .eq("stripe_onboarding_completed", true)
         .maybeSingle(),
       DB_TIMEOUT_MS,
       "クリエイター情報の取得に時間がかかっています"
@@ -980,14 +1011,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (
-      !creator.stripe_account_id ||
-      creator.stripe_onboarding_completed !== true
-    ) {
+    const payoutProfileResult: any = await withTimeout(
+      supabaseAdmin
+        .from("creator_payout_profiles")
+        .select("payout_method, status")
+        .eq("creator_id", creator.id)
+        .maybeSingle(),
+      DB_TIMEOUT_MS,
+      "報酬受け取り設定の確認に時間がかかっています"
+    );
+
+    if (payoutProfileResult?.error) {
+      throw payoutProfileResult.error;
+    }
+
+    const payoutProfile = payoutProfileResult?.data ?? null;
+    const payoutMethod: PayoutMethod =
+      payoutProfile?.payout_method === "stripe_connect"
+        ? "stripe_connect"
+        : "manual_bank_transfer";
+
+    const manualPayoutReady = payoutProfile
+      ? isManualPayoutReady({
+          payout_method: payoutMethod,
+          status: payoutProfile.status,
+        })
+      : false;
+
+    const stripeConnectPayoutReady = isStripeConnectPayoutReady({
+      payoutMethod,
+      stripeAccountId: creator.stripe_account_id,
+      stripeOnboardingCompleted: creator.stripe_onboarding_completed,
+    });
+
+    if (!manualPayoutReady && !stripeConnectPayoutReady) {
       return NextResponse.json(
         {
           error:
-            "このクリエイターは現在、報酬受け取り設定が未完了のため注文できません。",
+            "このインフルエンサーは現在、報酬受け取り設定が未完了のため注文できません。",
         },
         { status: 403 }
       );
@@ -1122,6 +1183,9 @@ export async function POST(req: NextRequest) {
       payment_status: "checkout_pending",
       payment_flow: "manual_capture",
 
+      payout_method: payoutMethod,
+      payout_status: "unpaid",
+
       project_type: projectType,
       fulfillment_type: fulfillmentType,
       preparation_status: initialPreparationStatus,
@@ -1170,10 +1234,12 @@ export async function POST(req: NextRequest) {
       stripe_payment_status: "checkout_pending",
 
       metadata: {
-        source: "orders_checkout_api_v4_lazy_imports",
+        source: "orders_checkout_api_v5_manual_bank_payout",
         plan_code: planCode,
         plan_public_name: fees.buyerPlanPublicNameSnapshot,
         payment_flow: "manual_capture",
+        payout_method: payoutMethod,
+        payout_profile_status: payoutProfile?.status ?? null,
         project_type: projectType,
         fulfillment_type: fulfillmentType,
         preparation_status: initialPreparationStatus,
@@ -1265,6 +1331,8 @@ export async function POST(req: NextRequest) {
             creator_user_id: creator.user_id,
             creator_menu_id: menu.id,
             payment_flow: "manual_capture",
+            payout_method: payoutMethod,
+            payout_profile_status: payoutProfile?.status ?? null,
             project_type: projectType,
             fulfillment_type: fulfillmentType,
             preparation_status: initialPreparationStatus,
@@ -1290,6 +1358,8 @@ export async function POST(req: NextRequest) {
           creator_user_id: creator.user_id,
           creator_menu_id: menu.id,
           payment_flow: "manual_capture",
+          payout_method: payoutMethod,
+          payout_profile_status: payoutProfile?.status ?? null,
           project_type: projectType,
           fulfillment_type: fulfillmentType,
           preparation_status: initialPreparationStatus,
@@ -1348,6 +1418,8 @@ export async function POST(req: NextRequest) {
         creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
         creator_payout_amount: fees.creatorPayoutAmount,
         platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
+        payout_method: payoutMethod,
+        payout_profile_status: payoutProfile?.status ?? null,
         project_type: projectType,
         fulfillment_type: fulfillmentType,
         preparation_status: initialPreparationStatus,
@@ -1362,6 +1434,7 @@ export async function POST(req: NextRequest) {
       fulfillment_type: fulfillmentType,
       preparation_status: initialPreparationStatus,
       reference_assets_count: referenceAssets.length,
+      payout_method: payoutMethod,
       amount: {
         currency,
         menu_price_amount: fees.menuPriceAmount,

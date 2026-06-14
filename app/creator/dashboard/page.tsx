@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
-  CreatorBadge,
   CreatorCard,
   CreatorChevron,
   CreatorEmptyState,
@@ -69,12 +68,16 @@ type CreatorProfile = {
   avatar_url: string | null;
   category: string | null;
   approval_status: string;
-  stripe_onboarding_completed: boolean | null;
+};
+
+type PayoutProfileStatus = {
+  status: "not_submitted" | "submitted" | "verified" | "rejected" | null;
+  payout_method: "manual_bank_transfer" | "stripe_connect" | null;
 };
 
 type PayoutSummary = {
   completedPayoutAmount: number;
-  transferredAmount: number;
+  paidAmount: number;
   pendingAmount: number;
 };
 
@@ -189,6 +192,20 @@ function PayoutIcon() {
   );
 }
 
+function BankIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h16M6 10v8M10 10v8M14 10v8M18 10v8M5 18h14M12 4l8 4H4l8-4Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function EmptyOrderIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
@@ -218,7 +235,8 @@ function LoadingView() {
         <CreatorSkeleton className="h-24" />
         <CreatorSkeleton className="h-24" />
       </div>
-      <CreatorSkeleton className="h-44" />
+      <CreatorSkeleton className="h-36" />
+      <CreatorSkeleton className="h-48" />
     </CreatorPage>
   );
 }
@@ -237,6 +255,7 @@ function MainActionCard({
   tone: "red" | "blue" | "slate";
 }) {
   const iconTone = tone === "red" ? "red" : tone === "blue" ? "blue" : "slate";
+  const Icon = href === "/creator/payouts" ? BankIcon : OrderIcon;
 
   return (
     <CreatorCard className="creator-appear-delay-1 p-5">
@@ -250,7 +269,7 @@ function MainActionCard({
                 : "bg-slate-50 text-slate-500 ring-slate-100"
           }`}
         >
-          <OrderIcon />
+          <Icon />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -324,7 +343,12 @@ function ActivityRow({
       title={item.product_name || productUnset}
       meta={
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <CreatorMiniInfo label={dateLabel} value={dateText.replace(`${dateLabel}：`, "").replace(`${dateLabel}: `, "")} />
+          <CreatorMiniInfo
+            label={dateLabel}
+            value={dateText
+              .replace(`${dateLabel}：`, "")
+              .replace(`${dateLabel}: `, "")}
+          />
           <span className="text-xs font-black text-slate-300">
             {item.kind === "order" ? "Trendre" : ""}
           </span>
@@ -338,12 +362,14 @@ export default function CreatorDashboardPage() {
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const db = useMemo(() => supabase as any, [supabase]);
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
             defaultDisplayName: "インフルエンサー",
+            roleLabel: "Influencer",
             loadingError: "ホームの読み込み中にエラーが発生しました。",
             loadError: "ホーム情報の取得に失敗しました。",
             requestLoadError: "注文データの取得に失敗しました。",
@@ -361,10 +387,16 @@ export default function CreatorDashboardPage() {
               "一部機能を制限しています。確認が完了するまでお待ちください。",
             reviewPendingTitle: "審査中です",
             reviewPendingBody: "承認後に注文受付や進行機能を利用できます。",
+
             profilePromptTitle: "プロフィールを整えましょう",
             profilePromptBody:
               "写真・SNS・メニューを整えると、注文を受けやすくなります。",
             goToProfile: "プロフィールを編集",
+
+            payoutPromptTitle: "報酬受け取り設定を完了しましょう",
+            payoutPromptBody:
+              "注文を受けるには、報酬を受け取る銀行口座の登録が必要です。",
+            goToPayoutSettings: "報酬受け取り設定へ",
 
             nextPendingTitle: "新しい注文があります",
             nextPendingBody: "内容を確認して、受けるか相談できます。",
@@ -380,7 +412,7 @@ export default function CreatorDashboardPage() {
 
             payoutTitle: "受取予定",
             payoutBody: "報酬ページで詳細を確認",
-            transferredTitle: "送金済み",
+            paidTitle: "支払済み",
             completedTitle: "完了件数",
             countSuffix: "件",
 
@@ -393,6 +425,7 @@ export default function CreatorDashboardPage() {
           }
         : {
             defaultDisplayName: "Influencer",
+            roleLabel: "Influencer",
             loadingError: "An error occurred while loading home.",
             loadError: "Failed to load home information.",
             requestLoadError: "Failed to load order data.",
@@ -411,10 +444,16 @@ export default function CreatorDashboardPage() {
             reviewPendingTitle: "Your review is in progress",
             reviewPendingBody:
               "Order handling becomes available after approval.",
+
             profilePromptTitle: "Improve your profile",
             profilePromptBody:
               "Add photos, social accounts, and menus so brands can order easily.",
             goToProfile: "Edit profile",
+
+            payoutPromptTitle: "Complete payout setup",
+            payoutPromptBody:
+              "Register your bank account before accepting paid orders.",
+            goToPayoutSettings: "Set up payouts",
 
             nextPendingTitle: "You have a new order",
             nextPendingBody: "Review details and decide whether to accept.",
@@ -431,7 +470,7 @@ export default function CreatorDashboardPage() {
 
             payoutTitle: "Expected payout",
             payoutBody: "Check details on the payout page",
-            transferredTitle: "Transferred",
+            paidTitle: "Paid",
             completedTitle: "Completed",
             countSuffix: "",
 
@@ -448,12 +487,16 @@ export default function CreatorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
+  const [payoutProfile, setPayoutProfile] =
+    useState<PayoutProfileStatus | null>(null);
+
   const [gate, setGate] = useState<CreatorState>({
     isCreator: false,
     isSuspended: false,
     creatorProfileCompleted: false,
     creatorApprovalStatus: null,
   });
+
   const [counts, setCounts] = useState<DashboardCounts>({
     pendingRequests: 0,
     acceptedJobs: 0,
@@ -461,11 +504,13 @@ export default function CreatorDashboardPage() {
     completedJobs: 0,
     activeMenus: 0,
   });
+
   const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
+
   const [payoutSummary, setPayoutSummary] = useState<PayoutSummary>({
     completedPayoutAmount: 0,
-    transferredAmount: 0,
+    paidAmount: 0,
     pendingAmount: 0,
   });
 
@@ -490,21 +535,21 @@ export default function CreatorDashboardPage() {
           { data: activeSuspensions, error: suspensionsError },
           { data: creatorRow, error: creatorError },
         ] = await Promise.all([
-          supabase.from("user_roles").select("role").eq("user_id", user.id),
-          supabase
+          db.from("user_roles").select("role").eq("user_id", user.id),
+          db
             .from("user_states")
             .select("creator_profile_completed")
             .eq("user_id", user.id)
             .maybeSingle(),
-          supabase
+          db
             .from("user_suspensions")
             .select("id")
             .eq("user_id", user.id)
             .eq("is_active", true),
-          supabase
+          db
             .from("creators")
             .select(
-              "id, user_id, display_name, full_name, avatar_url, category, approval_status, stripe_onboarding_completed"
+              "id, user_id, display_name, full_name, avatar_url, category, approval_status"
             )
             .eq("user_id", user.id)
             .maybeSingle(),
@@ -546,12 +591,24 @@ export default function CreatorDashboardPage() {
           return;
         }
 
-        if (!typedCreatorRow.stripe_onboarding_completed) {
-          window.location.href = "/creator/payouts?required=connect";
+        setCreator(typedCreatorRow);
+
+        const { data: payoutProfileRow, error: payoutProfileError } = await db
+          .from("creator_payout_profiles")
+          .select("status, payout_method")
+          .eq("creator_id", typedCreatorRow.id)
+          .maybeSingle();
+
+        if (payoutProfileError) {
+          console.error({ payoutProfileError });
+          setErrorMsg(copy.loadError);
+          setLoading(false);
           return;
         }
 
-        setCreator(typedCreatorRow);
+        setPayoutProfile(
+          (payoutProfileRow ?? null) as PayoutProfileStatus | null
+        );
 
         const legacyCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
         const menuCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
@@ -572,61 +629,61 @@ export default function CreatorDashboardPage() {
           { data: recentOrderJobRows, error: recentOrderJobError },
           { data: completedPayoutRows, error: completedPayoutError },
         ] = await Promise.all([
-          supabase
+          db
             .from("requests")
             .select("id", { count: "exact", head: true })
             .in("creator_user_id", legacyCreatorKeys)
             .eq("status", "pending"),
 
-          supabase
+          db
             .from("requests")
             .select("id", { count: "exact", head: true })
             .in("creator_user_id", legacyCreatorKeys)
             .eq("status", "accepted"),
 
-          supabase
+          db
             .from("requests")
             .select("id", { count: "exact", head: true })
             .in("creator_user_id", legacyCreatorKeys)
             .eq("status", "delivered"),
 
-          supabase
+          db
             .from("requests")
             .select("id", { count: "exact", head: true })
             .in("creator_user_id", legacyCreatorKeys)
             .eq("status", "completed"),
 
-          supabase
+          db
             .from("orders")
             .select("id", { count: "exact", head: true })
             .eq("creator_user_id", user.id)
             .eq("status", "authorized_pending_creator"),
 
-          supabase
+          db
             .from("orders")
             .select("id", { count: "exact", head: true })
             .eq("creator_user_id", user.id)
             .in("status", ["accepted_captured", "in_progress"]),
 
-          supabase
+          db
             .from("orders")
             .select("id", { count: "exact", head: true })
             .eq("creator_user_id", user.id)
             .eq("status", "delivered"),
 
-          supabase
+          db
             .from("orders")
             .select("id", { count: "exact", head: true })
             .eq("creator_user_id", user.id)
             .eq("status", "completed"),
 
-          supabase
+          db
             .from("creator_menus")
             .select("id", { count: "exact", head: true })
             .in("creator_id", menuCreatorKeys)
             .eq("is_active", true),
 
-          supabase
+          db
             .from("requests")
             .select("id, product_name, status, created_at")
             .in("creator_user_id", legacyCreatorKeys)
@@ -634,7 +691,7 @@ export default function CreatorDashboardPage() {
             .order("created_at", { ascending: false })
             .limit(3),
 
-          supabase
+          db
             .from("orders")
             .select("id, product_name, status, created_at")
             .eq("creator_user_id", user.id)
@@ -642,7 +699,7 @@ export default function CreatorDashboardPage() {
             .order("created_at", { ascending: false })
             .limit(3),
 
-          supabase
+          db
             .from("requests")
             .select(
               "id, product_name, status, updated_at, created_at, delivered_post_url"
@@ -652,7 +709,7 @@ export default function CreatorDashboardPage() {
             .order("updated_at", { ascending: false, nullsFirst: false })
             .limit(3),
 
-          supabase
+          db
             .from("orders")
             .select(
               "id, product_name, status, updated_at, created_at, delivered_post_url"
@@ -667,9 +724,9 @@ export default function CreatorDashboardPage() {
             .order("updated_at", { ascending: false, nullsFirst: false })
             .limit(3),
 
-          supabase
+          db
             .from("orders")
-            .select("creator_payout_amount, transfer_status")
+            .select("creator_payout_amount, payout_status")
             .eq("creator_user_id", user.id)
             .eq("status", "completed")
             .eq("payment_status", "captured"),
@@ -712,7 +769,7 @@ export default function CreatorDashboardPage() {
 
         const payoutRows = (completedPayoutRows ?? []) as Array<{
           creator_payout_amount: number | null;
-          transfer_status: string | null;
+          payout_status: string | null;
         }>;
 
         const completedPayoutAmount = payoutRows.reduce(
@@ -720,14 +777,20 @@ export default function CreatorDashboardPage() {
           0
         );
 
-        const transferredAmount = payoutRows
-          .filter((row) => row.transfer_status === "transferred")
+        const paidAmount = payoutRows
+          .filter((row) => row.payout_status === "paid")
+          .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
+
+        const pendingAmount = payoutRows
+          .filter((row) =>
+            ["unpaid", "pending", null, undefined].includes(row.payout_status)
+          )
           .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
 
         setPayoutSummary({
           completedPayoutAmount,
-          transferredAmount,
-          pendingAmount: Math.max(completedPayoutAmount - transferredAmount, 0),
+          paidAmount,
+          pendingAmount,
         });
 
         const legacyPendingItems: RecentRequest[] = (
@@ -803,7 +866,13 @@ export default function CreatorDashboardPage() {
     };
 
     void load();
-  }, [copy.loadError, copy.loadingError, copy.requestLoadError, supabase]);
+  }, [
+    copy.loadError,
+    copy.loadingError,
+    copy.requestLoadError,
+    db,
+    supabase.auth,
+  ]);
 
   if (loading) {
     return <LoadingView />;
@@ -837,6 +906,9 @@ export default function CreatorDashboardPage() {
 
   const activeTodoCount = counts.acceptedJobs + counts.deliveredJobs;
 
+  const isPayoutReady =
+    payoutProfile?.status === "submitted" || payoutProfile?.status === "verified";
+
   const nextAction = !gate.creatorProfileCompleted
     ? {
         title: copy.profilePromptTitle,
@@ -845,29 +917,37 @@ export default function CreatorDashboardPage() {
         cta: copy.goToProfile,
         tone: "slate" as const,
       }
-    : counts.pendingRequests > 0
+    : !isPayoutReady
       ? {
-          title: copy.nextPendingTitle,
-          body: copy.nextPendingBody,
-          href: "/creator/requests",
-          cta: copy.nextPendingCta,
+          title: copy.payoutPromptTitle,
+          body: copy.payoutPromptBody,
+          href: "/creator/payouts",
+          cta: copy.goToPayoutSettings,
           tone: "red" as const,
         }
-      : activeTodoCount > 0
+      : counts.pendingRequests > 0
         ? {
-            title: copy.nextTodoTitle,
-            body: copy.nextTodoBody,
-            href: "/creator/jobs",
-            cta: copy.nextTodoCta,
-            tone: "blue" as const,
+            title: copy.nextPendingTitle,
+            body: copy.nextPendingBody,
+            href: "/creator/requests",
+            cta: copy.nextPendingCta,
+            tone: "red" as const,
           }
-        : {
-            title: copy.nextReadyTitle,
-            body: copy.nextReadyBody,
-            href: "/creator/profile",
-            cta: copy.nextReadyCta,
-            tone: "slate" as const,
-          };
+        : activeTodoCount > 0
+          ? {
+              title: copy.nextTodoTitle,
+              body: copy.nextTodoBody,
+              href: "/creator/jobs",
+              cta: copy.nextTodoCta,
+              tone: "blue" as const,
+            }
+          : {
+              title: copy.nextReadyTitle,
+              body: copy.nextReadyBody,
+              href: "/creator/profile",
+              cta: copy.nextReadyCta,
+              tone: "slate" as const,
+            };
 
   const requestActivityItems: ActivityItem[] = recentRequests.map((item) => ({
     kind: item.kind,
@@ -903,7 +983,7 @@ export default function CreatorDashboardPage() {
         <div className="flex items-center justify-between gap-3 rounded-[24px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
           <div className="min-w-0">
             <p className="text-xs font-black text-slate-400">
-              Creator
+              {copy.roleLabel}
             </p>
             <p className="mt-0.5 truncate text-[20px] font-black tracking-[-0.055em] text-slate-950">
               {displayName}
@@ -936,8 +1016,8 @@ export default function CreatorDashboardPage() {
 
       <div className="grid grid-cols-2 gap-3">
         <CreatorMetric
-          label={copy.transferredTitle}
-          value={formatMoney(payoutSummary.transferredAmount, safeLocale)}
+          label={copy.paidTitle}
+          value={formatMoney(payoutSummary.paidAmount, safeLocale)}
         />
 
         <CreatorMetric

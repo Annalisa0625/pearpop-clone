@@ -605,7 +605,7 @@ export default function AdminDashboardPage() {
             </h1>
 
             <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-              注文・ユーザー・要確認項目をここから確認できます。
+              注文・ユーザー・支払・要確認項目をここから確認できます。
             </p>
           </div>
 
@@ -617,6 +617,13 @@ export default function AdminDashboardPage() {
             >
               再読み込み
             </button>
+
+            <Link
+              href="/admin/payouts"
+              className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-[0_12px_26px_rgba(5,150,105,0.22)]"
+            >
+              支払管理へ
+            </Link>
 
             <Link
               href="/admin/orders"
@@ -675,11 +682,11 @@ export default function AdminDashboardPage() {
         />
 
         <StatCard
-          label="Connect未完了"
+          label="受取設定注意"
           value={stats.connectIncompleteCreators.length}
           href="/admin/users"
           tone={stats.connectIncompleteCreators.length > 0 ? "warning" : "default"}
-          body="Cの受取設定未完了"
+          body="Cの受取設定確認"
         />
       </section>
 
@@ -708,11 +715,11 @@ export default function AdminDashboardPage() {
         />
 
         <StatCard
-          label="C受取予定"
+          label="C支払管理"
           value={formatPrice(stats.creatorPayoutTotal, "JPY")}
-          href="/admin/orders"
+          href="/admin/payouts"
           tone="success"
-          body="成立済み注文ベース"
+          body="CSV出力・支払済み更新へ"
         />
       </section>
 
@@ -756,7 +763,7 @@ export default function AdminDashboardPage() {
                 ユーザー確認
               </h2>
               <p className="mt-1 text-sm font-semibold text-slate-400">
-                未承認・停止中・Connect未完了を表示します。
+                未承認・停止中・受取設定注意を表示します。
               </p>
             </div>
 
@@ -788,6 +795,14 @@ export default function AdminDashboardPage() {
           title="注文管理"
           body="注文・決済・C返答待ち・進行中・納品確認・要確認案件を確認します。"
           badge={orders.length}
+        />
+
+        <QuickLink
+          href="/admin/payouts"
+          title="支払管理"
+          body="C報酬の支払待ち確認、CSV出力、支払済み更新を行います。"
+          badge="CSV"
+          tone="success"
         />
 
         <QuickLink

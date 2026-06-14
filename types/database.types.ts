@@ -270,6 +270,80 @@ export type Database = {
         }
         Relationships: []
       }
+      creator_payout_profiles: {
+        Row: {
+          account_holder_kana: string | null
+          account_holder_name: string | null
+          account_number: string | null
+          account_type: string | null
+          admin_note: string | null
+          bank_code: string | null
+          bank_name: string | null
+          branch_code: string | null
+          branch_name: string | null
+          created_at: string
+          creator_id: string
+          id: string
+          payout_method: string
+          rejected_at: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          account_holder_kana?: string | null
+          account_holder_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          admin_note?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          created_at?: string
+          creator_id: string
+          id?: string
+          payout_method?: string
+          rejected_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          account_holder_kana?: string | null
+          account_holder_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          admin_note?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          payout_method?: string
+          rejected_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_payout_profiles_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_portfolio_assets: {
         Row: {
           asset_type: string
@@ -920,6 +994,12 @@ export type Database = {
           metadata: Json
           payment_flow: string | null
           payment_status: string
+          payout_batch_id: string | null
+          payout_due_at: string | null
+          payout_method: string
+          payout_note: string | null
+          payout_paid_at: string | null
+          payout_status: string
           platform_fee_amount: number
           platform_gross_revenue_amount: number | null
           post_notes: string | null
@@ -1010,6 +1090,12 @@ export type Database = {
           metadata?: Json
           payment_flow?: string | null
           payment_status?: string
+          payout_batch_id?: string | null
+          payout_due_at?: string | null
+          payout_method?: string
+          payout_note?: string | null
+          payout_paid_at?: string | null
+          payout_status?: string
           platform_fee_amount?: number
           platform_gross_revenue_amount?: number | null
           post_notes?: string | null
@@ -1100,6 +1186,12 @@ export type Database = {
           metadata?: Json
           payment_flow?: string | null
           payment_status?: string
+          payout_batch_id?: string | null
+          payout_due_at?: string | null
+          payout_method?: string
+          payout_note?: string | null
+          payout_paid_at?: string | null
+          payout_status?: string
           platform_fee_amount?: number
           platform_gross_revenue_amount?: number | null
           post_notes?: string | null
@@ -1157,6 +1249,157 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payout_batch_items: {
+        Row: {
+          account_holder_kana: string | null
+          account_holder_name: string | null
+          account_number: string | null
+          account_type: string | null
+          bank_code: string | null
+          bank_name: string | null
+          branch_code: string | null
+          branch_name: string | null
+          created_at: string
+          creator_id: string
+          creator_user_id: string
+          currency: string
+          failed_at: string | null
+          failure_reason: string | null
+          id: string
+          order_id: string
+          paid_at: string | null
+          payout_amount: number
+          payout_batch_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_holder_kana?: string | null
+          account_holder_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          created_at?: string
+          creator_id: string
+          creator_user_id: string
+          currency?: string
+          failed_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          order_id: string
+          paid_at?: string | null
+          payout_amount: number
+          payout_batch_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_holder_kana?: string | null
+          account_holder_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          created_at?: string
+          creator_id?: string
+          creator_user_id?: string
+          currency?: string
+          failed_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          order_id?: string
+          paid_at?: string | null
+          payout_amount?: number
+          payout_batch_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_batch_items_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_batch_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_batch_items_payout_batch_id_fkey"
+            columns: ["payout_batch_id"]
+            isOneToOne: false
+            referencedRelation: "payout_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payout_batches: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          created_by_user_id: string | null
+          csv_file_name: string | null
+          currency: string
+          exported_at: string | null
+          id: string
+          paid_at: string | null
+          payout_method: string
+          period_end: string
+          period_start: string
+          status: string
+          total_creators: number
+          total_orders: number
+          total_payout_amount: number
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          csv_file_name?: string | null
+          currency?: string
+          exported_at?: string | null
+          id?: string
+          paid_at?: string | null
+          payout_method?: string
+          period_end: string
+          period_start: string
+          status?: string
+          total_creators?: number
+          total_orders?: number
+          total_payout_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          csv_file_name?: string | null
+          currency?: string
+          exported_at?: string | null
+          id?: string
+          paid_at?: string | null
+          payout_method?: string
+          period_end?: string
+          period_start?: string
+          status?: string
+          total_creators?: number
+          total_orders?: number
+          total_payout_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

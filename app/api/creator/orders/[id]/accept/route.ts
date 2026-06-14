@@ -2,15 +2,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getStripe } from "@/lib/stripe";
+import type { Json } from "@/types/database.types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type CreatorConnectState = {
+type PayoutMethod = "manual_bank_transfer" | "stripe_connect";
+
+type PayoutProfileStatus =
+  | "not_submitted"
+  | "submitted"
+  | "verified"
+  | "rejected";
+
+type CreatorPayoutState = {
   id: string;
   user_id: string;
   stripe_account_id: string | null;
   stripe_onboarding_completed: boolean | null;
+};
+
+type PayoutProfile = {
+  payout_method: PayoutMethod | null;
+  status: PayoutProfileStatus | null;
+};
+
+type OrderForAccept = {
+  id: string;
+  b_user_id: string;
+  creator_id: string;
+  creator_user_id: string;
+  status: string;
+  payment_status: string;
+  stripe_payment_intent_id: string | null;
+  stripe_amount: number | null;
+  currency: string | null;
+  payout_method: PayoutMethod | null;
+  payout_status: string | null;
 };
 
 async function getAuthenticatedUser(req: NextRequest) {
@@ -35,6 +63,51 @@ async function getAuthenticatedUser(req: NextRequest) {
   return { user, error: null };
 }
 
+function normalizePayoutMethod(value: unknown): PayoutMethod {
+  return value === "stripe_connect" ? "stripe_connect" : "manual_bank_transfer";
+}
+
+function isManualPayoutReady(profile: PayoutProfile | null) {
+  if (!profile) return false;
+
+  const method = normalizePayoutMethod(profile.payout_method);
+  const status = profile.status ?? "not_submitted";
+
+  return (
+    method === "manual_bank_transfer" &&
+    (status === "submitted" || status === "verified")
+  );
+}
+
+function isStripeConnectReady(args: {
+  creator: CreatorPayoutState | null;
+  payoutMethod: PayoutMethod;
+}) {
+  return (
+    args.payoutMethod === "stripe_connect" &&
+    !!args.creator?.stripe_account_id &&
+    args.creator?.stripe_onboarding_completed === true
+  );
+}
+
+async function safeInsertOrderEvent(args: {
+  orderId: string;
+  actorUserId: string | null;
+  eventType: string;
+  eventData: Json;
+}) {
+  try {
+    await supabaseAdmin.from("order_events").insert({
+      order_id: args.orderId,
+      actor_user_id: args.actorUserId,
+      event_type: args.eventType,
+      event_data: args.eventData,
+    });
+  } catch (error) {
+    console.warn("order event insert skipped", error);
+  }
+}
+
 // ルート存在確認用。
 // ブラウザで直接 /api/creator/orders/[id]/accept を開いた時に、
 // 404ではなくこのJSONが出れば、Next.jsがAPIルートを認識できています。
@@ -48,7 +121,8 @@ export async function GET(
     ok: true,
     route: "creator order accept",
     order_id: id,
-    message: "POST this route to accept and capture the order.",
+    message:
+      "POST this route to accept and capture the order. Manual bank payout is supported.",
   });
 }
 
@@ -65,7 +139,7 @@ export async function POST(
       return NextResponse.json({ error: authError }, { status: 401 });
     }
 
-    const { data: order, error: orderError } = await supabaseAdmin
+    const { data: orderRow, error: orderError } = await supabaseAdmin
       .from("orders")
       .select(
         `
@@ -77,7 +151,9 @@ export async function POST(
         payment_status,
         stripe_payment_intent_id,
         stripe_amount,
-        currency
+        currency,
+        payout_method,
+        payout_status
       `
       )
       .eq("id", orderId)
@@ -86,6 +162,8 @@ export async function POST(
     if (orderError) {
       throw orderError;
     }
+
+    const order = orderRow as OrderForAccept | null;
 
     if (!order) {
       return NextResponse.json(
@@ -101,7 +179,7 @@ export async function POST(
       );
     }
 
-    const { data: creator, error: creatorError } = await supabaseAdmin
+    const { data: creatorRow, error: creatorError } = await supabaseAdmin
       .from("creators")
       .select(
         `
@@ -118,18 +196,45 @@ export async function POST(
       throw creatorError;
     }
 
-    const creatorConnectState = (creator ?? null) as CreatorConnectState | null;
+    const creator = (creatorRow ?? null) as CreatorPayoutState | null;
 
-    if (
-      !creatorConnectState ||
-      !creatorConnectState.stripe_account_id ||
-      creatorConnectState.stripe_onboarding_completed !== true
-    ) {
+    if (!creator || creator.id !== order.creator_id) {
+      return NextResponse.json(
+        { error: "インフルエンサー情報が見つかりませんでした" },
+        { status: 404 }
+      );
+    }
+
+    const payoutMethod = normalizePayoutMethod(order.payout_method);
+
+    const { data: payoutProfileRow, error: payoutProfileError } =
+      await supabaseAdmin
+        .from("creator_payout_profiles")
+        .select("payout_method, status")
+        .eq("creator_id", creator.id)
+        .maybeSingle();
+
+    if (payoutProfileError) {
+      throw payoutProfileError;
+    }
+
+    const payoutProfile = (payoutProfileRow ?? null) as PayoutProfile | null;
+
+    const manualPayoutReady =
+      payoutMethod === "manual_bank_transfer" &&
+      isManualPayoutReady(payoutProfile);
+
+    const stripeConnectReady = isStripeConnectReady({
+      creator,
+      payoutMethod,
+    });
+
+    if (!manualPayoutReady && !stripeConnectReady) {
       return NextResponse.json(
         {
           error:
-            "報酬受け取り設定が未完了です。Stripe Expressの本人確認・振込先登録を完了してから注文を承認してください。",
-          redirect_to: "/creator/payouts?required=connect",
+            "報酬受け取り設定が未完了です。銀行口座を登録してから注文を承認してください。",
+          redirect_to: "/creator/payouts",
         },
         { status: 403 }
       );
@@ -179,13 +284,14 @@ export async function POST(
         })
         .eq("id", order.id);
 
-      await supabaseAdmin.from("order_events").insert({
-        order_id: order.id,
-        actor_user_id: user.id,
-        event_type: "stripe_capture_failed",
-        event_data: {
+      await safeInsertOrderEvent({
+        orderId: order.id,
+        actorUserId: user.id,
+        eventType: "stripe_capture_failed",
+        eventData: {
           stripe_payment_intent_id: order.stripe_payment_intent_id,
           stripe_payment_intent_status: capturedPaymentIntent.status,
+          payout_method: payoutMethod,
         },
       });
 
@@ -201,6 +307,8 @@ export async function POST(
         status: "accepted_captured",
         payment_status: "captured",
         stripe_payment_status: capturedPaymentIntent.status,
+        payout_method: payoutMethod,
+        payout_status: order.payout_status || "unpaid",
         accepted_at: nowIso,
         captured_at: nowIso,
         updated_at: nowIso,
@@ -211,14 +319,21 @@ export async function POST(
       throw updateError;
     }
 
-    await supabaseAdmin.from("order_events").insert({
-      order_id: order.id,
-      actor_user_id: user.id,
-      event_type: "creator_accepted_and_stripe_captured",
-      event_data: {
+    await safeInsertOrderEvent({
+      orderId: order.id,
+      actorUserId: user.id,
+      eventType: "creator_accepted_and_stripe_captured",
+      eventData: {
         stripe_payment_intent_id: order.stripe_payment_intent_id,
         stripe_payment_intent_status: capturedPaymentIntent.status,
-        creator_stripe_account_id: creatorConnectState.stripe_account_id,
+        payout_method: payoutMethod,
+        payout_profile_status: payoutProfile?.status ?? null,
+        manual_bank_transfer_ready: manualPayoutReady,
+        stripe_connect_ready: stripeConnectReady,
+        creator_stripe_account_id:
+          payoutMethod === "stripe_connect"
+            ? creator.stripe_account_id
+            : null,
       },
     });
 
@@ -228,6 +343,8 @@ export async function POST(
       status: "accepted_captured",
       payment_status: "captured",
       stripe_payment_status: capturedPaymentIntent.status,
+      payout_method: payoutMethod,
+      payout_status: order.payout_status || "unpaid",
     });
   } catch (error) {
     console.error("creator order accept error", error);
