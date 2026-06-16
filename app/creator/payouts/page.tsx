@@ -73,6 +73,22 @@ type FormState = {
   account_holder_kana: string;
 };
 
+type BankOption = {
+  code: string;
+  name: string;
+  kana: string | null;
+  hira: string | null;
+  roma: string | null;
+};
+
+type BranchOption = {
+  code: string;
+  name: string;
+  kana: string | null;
+  hira: string | null;
+  roma: string | null;
+};
+
 function createEmptyForm(): FormState {
   return {
     bank_name: "",
@@ -100,7 +116,25 @@ function profileToForm(profile: PayoutProfile | null): FormState {
 }
 
 function normalizeDigits(value: string) {
-  return value.replace(/[^\d]/g, "");
+  return value.normalize("NFKC").replace(/[^\d]/g, "");
+}
+
+function normalizeName(value: string) {
+  return value.normalize("NFKC").replace(/\s+/g, " ").trim();
+}
+
+function normalizeHolderKana(value: string) {
+  return value
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function isValidHolderKana(value: string) {
+  if (!value) return false;
+
+  return /^[ァ-ヶー・（）()Ａ-ＺA-Z０-９0-9 　]+$/.test(value);
 }
 
 function formatMoney(
@@ -273,20 +307,6 @@ function BankIcon() {
   );
 }
 
-function YenIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function EmptyIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
@@ -354,9 +374,38 @@ function PayoutHistoryRow({
   );
 }
 
+function OptionButton({
+  title,
+  subtitle,
+  selected,
+  onClick,
+}: {
+  title: string;
+  subtitle?: string;
+  selected?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-2xl p-3 text-left ring-1 transition ${
+        selected
+          ? "bg-emerald-50 ring-emerald-200"
+          : "bg-white ring-slate-100 hover:bg-slate-50"
+      }`}
+    >
+      <p className="text-sm font-black text-slate-950">{title}</p>
+      {subtitle ? (
+        <p className="mt-1 text-xs font-bold text-slate-400">{subtitle}</p>
+      ) : null}
+    </button>
+  );
+}
+
 export default function CreatorPayoutsPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const db = supabase as any;
+  const db = useMemo(() => supabase as any, [supabase]);
 
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
@@ -365,8 +414,19 @@ export default function CreatorPayoutsPage() {
   const [profile, setProfile] = useState<PayoutProfile | null>(null);
   const [form, setForm] = useState<FormState>(createEmptyForm());
   const [orders, setOrders] = useState<PayoutOrderRow[]>([]);
+
+  const [bankQuery, setBankQuery] = useState("");
+  const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
+
+  const [branchQuery, setBranchQuery] = useState("");
+  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -387,19 +447,27 @@ export default function CreatorPayoutsPage() {
 
             setupTitle: "銀行口座を登録",
             setupDescription:
-              "初期版ではStripe Connectではなく、月末締めの銀行振込で報酬をお支払いします。",
+              "銀行名・支店名は検索して選択できます。手入力ミスを防ぐため、金融機関コードと支店コードは自動入力されます。",
             requiredNoticeTitle: "注文を受ける前に必要です",
             requiredNoticeBody:
               "銀行口座が未登録の場合、有料案件を受けることができません。先に振込先を登録してください。",
 
-            bankName: "金融機関名",
-            bankNamePlaceholder: "例：GMOあおぞらネット銀行",
+            bankSearch: "金融機関を検索",
+            bankSearchPlaceholder: "銀行名・銀行コードで検索",
+            bankSearchHelp: "銀行を選択すると金融機関コードが自動入力されます。",
             bankCode: "金融機関コード",
-            bankCodePlaceholder: "例：0310",
-            branchName: "支店名",
-            branchNamePlaceholder: "例：法人営業部",
+            branchSearch: "支店を検索",
+            branchSearchPlaceholder: "支店名・支店コードで検索",
+            branchSearchHelp: "先に金融機関を選択してください。",
             branchCode: "支店コード",
-            branchCodePlaceholder: "例：101",
+
+            selectedBank: "選択中の金融機関",
+            selectedBranch: "選択中の支店",
+            notSelected: "未選択",
+            noBankResults: "該当する金融機関がありません",
+            noBranchResults: "該当する支店がありません",
+            searching: "検索中...",
+
             accountType: "口座種別",
             ordinary: "普通",
             checking: "当座",
@@ -410,13 +478,18 @@ export default function CreatorPayoutsPage() {
             accountHolderKana: "口座名義カナ",
             accountHolderKanaPlaceholder: "例：ヤマダ タロウ",
 
-            bankNameHelp: "銀行名・信用金庫名などを入力してください。",
-            bankCodeHelp: "分かる場合のみ入力してください。後からでも変更できます。",
-            branchCodeHelp: "分かる場合のみ入力してください。",
+            accountNumberHelp: "通常は7桁です。数字のみ入力できます。",
             accountHolderHelp:
               "振込エラー防止のため、銀行口座に登録されている名義と同じ表記で入力してください。",
+            accountHolderKanaHelp:
+              "カタカナ・英数字・スペースのみ使用できます。半角カナは自動で全角に整えます。",
 
-            save: "保存する",
+            save: "確認して保存",
+            confirmTitle: "登録内容を確認",
+            confirmBody:
+              "この内容で報酬の振込先として登録します。銀行名・支店名・口座番号・名義に誤りがないか確認してください。",
+            confirmSave: "この内容で保存する",
+            cancel: "戻る",
             saving: "保存中...",
 
             currentTitle: "現在の登録内容",
@@ -441,7 +514,7 @@ export default function CreatorPayoutsPage() {
 
             privacyTitle: "口座情報の取り扱い",
             privacyBody:
-              "登録された銀行口座情報は、報酬支払いのためにのみ使用します。変更がある場合は、振込前に必ず更新してください。",
+              "登録された銀行口座情報は、報酬支払いのためにのみ使用します。銀行・支店マスターで入力ミスを防ぎますが、口座番号と名義の実在確認はできません。変更がある場合は、振込前に必ず更新してください。",
           }
         : {
             loginRequired: "Please log in.",
@@ -457,19 +530,27 @@ export default function CreatorPayoutsPage() {
 
             setupTitle: "Register bank account",
             setupDescription:
-              "For the initial release, payouts are processed by monthly bank transfer instead of Stripe Connect.",
+              "Search and select your bank and branch. Bank and branch codes are filled automatically.",
             requiredNoticeTitle: "Required before accepting orders",
             requiredNoticeBody:
               "You need to register a bank account before accepting paid orders.",
 
-            bankName: "Bank name",
-            bankNamePlaceholder: "Example: GMO Aozora Net Bank",
+            bankSearch: "Search bank",
+            bankSearchPlaceholder: "Search by bank name or code",
+            bankSearchHelp: "Select a bank to fill the bank code automatically.",
             bankCode: "Bank code",
-            bankCodePlaceholder: "Example: 0310",
-            branchName: "Branch name",
-            branchNamePlaceholder: "Example: Main branch",
+            branchSearch: "Search branch",
+            branchSearchPlaceholder: "Search by branch name or code",
+            branchSearchHelp: "Please select a bank first.",
             branchCode: "Branch code",
-            branchCodePlaceholder: "Example: 101",
+
+            selectedBank: "Selected bank",
+            selectedBranch: "Selected branch",
+            notSelected: "Not selected",
+            noBankResults: "No banks found",
+            noBranchResults: "No branches found",
+            searching: "Searching...",
+
             accountType: "Account type",
             ordinary: "Ordinary",
             checking: "Checking",
@@ -480,13 +561,18 @@ export default function CreatorPayoutsPage() {
             accountHolderKana: "Account holder kana",
             accountHolderKanaPlaceholder: "Example: TARO YAMADA",
 
-            bankNameHelp: "Enter your bank or credit union name.",
-            bankCodeHelp: "Optional. You can update it later.",
-            branchCodeHelp: "Optional. You can update it later.",
+            accountNumberHelp: "Usually 7 digits. Numbers only.",
             accountHolderHelp:
               "Use the exact account holder name registered with your bank.",
+            accountHolderKanaHelp:
+              "Katakana, alphanumeric characters, and spaces are allowed.",
 
-            save: "Save",
+            save: "Review and save",
+            confirmTitle: "Confirm payout account",
+            confirmBody:
+              "Please confirm your bank, branch, account number, and account holder before saving.",
+            confirmSave: "Save this account",
+            cancel: "Back",
             saving: "Saving...",
 
             currentTitle: "Current bank account",
@@ -511,7 +597,7 @@ export default function CreatorPayoutsPage() {
 
             privacyTitle: "Bank account handling",
             privacyBody:
-              "Your bank account is used only for payout processing. Please update it before payout if anything changes.",
+              "Your bank account is used only for payout processing. Bank and branch master data helps prevent input mistakes, but account existence and holder matching are not verified.",
           },
     [safeLocale]
   );
@@ -586,8 +672,12 @@ export default function CreatorPayoutsPage() {
         }
 
         const typedProfile = (payoutProfileRow ?? null) as PayoutProfile | null;
+        const nextForm = profileToForm(typedProfile);
+
         setProfile(typedProfile);
-        setForm(profileToForm(typedProfile));
+        setForm(nextForm);
+        setBankQuery(nextForm.bank_name);
+        setBranchQuery(nextForm.branch_name);
 
         const { data: payoutOrderRows, error: payoutOrdersError } = await db
           .from("orders")
@@ -619,6 +709,100 @@ export default function CreatorPayoutsPage() {
     void load();
   }, [copy.creatorNotFound, copy.loadFailed, copy.loginRequired, db, supabase.auth]);
 
+  useEffect(() => {
+    let active = true;
+
+    const run = async () => {
+      setBankLoading(true);
+
+      try {
+        const params = new URLSearchParams({
+          q: bankQuery,
+          limit: "25",
+        });
+
+        const res = await fetch(`/api/banks/search?${params.toString()}`, {
+          cache: "no-store",
+        });
+
+        const json = await res.json().catch(() => ({}));
+
+        if (!active) return;
+
+        if (!res.ok) {
+          setBankOptions([]);
+          return;
+        }
+
+        setBankOptions((json?.banks ?? []) as BankOption[]);
+      } catch {
+        if (active) setBankOptions([]);
+      } finally {
+        if (active) setBankLoading(false);
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      void run();
+    }, 180);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [bankQuery]);
+
+  useEffect(() => {
+    let active = true;
+
+    const run = async () => {
+      if (!form.bank_code) {
+        setBranchOptions([]);
+        return;
+      }
+
+      setBranchLoading(true);
+
+      try {
+        const params = new URLSearchParams({
+          q: branchQuery,
+          limit: "40",
+        });
+
+        const res = await fetch(
+          `/api/banks/${encodeURIComponent(form.bank_code)}/branches?${params.toString()}`,
+          {
+            cache: "no-store",
+          }
+        );
+
+        const json = await res.json().catch(() => ({}));
+
+        if (!active) return;
+
+        if (!res.ok) {
+          setBranchOptions([]);
+          return;
+        }
+
+        setBranchOptions((json?.branches ?? []) as BranchOption[]);
+      } catch {
+        if (active) setBranchOptions([]);
+      } finally {
+        if (active) setBranchLoading(false);
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      void run();
+    }, 180);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [branchQuery, form.bank_code]);
+
   const updateForm = (key: keyof FormState, value: string) => {
     setForm((current) => ({
       ...current,
@@ -626,12 +810,90 @@ export default function CreatorPayoutsPage() {
     }));
   };
 
+  const selectBank = (bank: BankOption) => {
+    setForm((current) => ({
+      ...current,
+      bank_name: bank.name,
+      bank_code: bank.code,
+      branch_name: "",
+      branch_code: "",
+    }));
+    setBankQuery(bank.name);
+    setBranchQuery("");
+    setBranchOptions([]);
+    setConfirmOpen(false);
+  };
+
+  const selectBranch = (branch: BranchOption) => {
+    setForm((current) => ({
+      ...current,
+      branch_name: branch.name,
+      branch_code: branch.code,
+    }));
+    setBranchQuery(branch.name);
+    setConfirmOpen(false);
+  };
+
   const validateForm = () => {
-    if (!form.bank_name.trim()) return copy.bankName;
-    if (!form.branch_name.trim()) return copy.branchName;
-    if (!form.account_number.trim()) return copy.accountNumber;
-    if (!form.account_holder_name.trim()) return copy.accountHolderName;
+    if (!form.bank_name.trim() || normalizeDigits(form.bank_code).length !== 4) {
+      return safeLocale === "ja"
+        ? "金融機関を検索して選択してください。"
+        : "Please search and select a bank.";
+    }
+
+    if (!form.branch_name.trim() || normalizeDigits(form.branch_code).length !== 3) {
+      return safeLocale === "ja"
+        ? "支店を検索して選択してください。"
+        : "Please search and select a branch.";
+    }
+
+    if (normalizeDigits(form.account_number).length !== 7) {
+      return safeLocale === "ja"
+        ? "口座番号は7桁で入力してください。"
+        : "Please enter a 7-digit account number.";
+    }
+
+    if (!form.account_holder_name.trim()) {
+      return safeLocale === "ja"
+        ? "口座名義を入力してください。"
+        : "Please enter the account holder name.";
+    }
+
+    const kana = normalizeHolderKana(form.account_holder_kana);
+
+    if (!isValidHolderKana(kana)) {
+      return safeLocale === "ja"
+        ? "口座名義カナはカタカナ・英数字・スペースのみで入力してください。"
+        : "Please enter a valid account holder kana.";
+    }
+
     return null;
+  };
+
+  const handleReview = () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const validationMessage = validateForm();
+
+    if (validationMessage) {
+      setErrorMsg(validationMessage);
+      setConfirmOpen(false);
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      bank_name: normalizeName(current.bank_name),
+      bank_code: normalizeDigits(current.bank_code).slice(0, 4),
+      branch_name: normalizeName(current.branch_name),
+      branch_code: normalizeDigits(current.branch_code).slice(0, 3),
+      account_number: normalizeDigits(current.account_number).slice(0, 7),
+      account_holder_name: normalizeName(current.account_holder_name),
+      account_holder_kana: normalizeHolderKana(current.account_holder_kana),
+    }));
+
+    setConfirmOpen(true);
   };
 
   const handleSave = async () => {
@@ -641,14 +903,12 @@ export default function CreatorPayoutsPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const missingLabel = validateForm();
-    if (missingLabel) {
-      setErrorMsg(
-        safeLocale === "ja"
-          ? `${missingLabel}を入力してください。`
-          : `Please enter ${missingLabel}.`
-      );
+    const validationMessage = validateForm();
+
+    if (validationMessage) {
+      setErrorMsg(validationMessage);
       setSaving(false);
+      setConfirmOpen(false);
       return;
     }
 
@@ -660,14 +920,14 @@ export default function CreatorPayoutsPage() {
         user_id: creator.user_id,
         payout_method: "manual_bank_transfer",
         status: "submitted",
-        bank_name: form.bank_name.trim(),
-        bank_code: normalizeDigits(form.bank_code),
-        branch_name: form.branch_name.trim(),
-        branch_code: normalizeDigits(form.branch_code),
+        bank_name: normalizeName(form.bank_name),
+        bank_code: normalizeDigits(form.bank_code).slice(0, 4),
+        branch_name: normalizeName(form.branch_name),
+        branch_code: normalizeDigits(form.branch_code).slice(0, 3),
         account_type: form.account_type,
-        account_number: normalizeDigits(form.account_number),
-        account_holder_name: form.account_holder_name.trim(),
-        account_holder_kana: form.account_holder_kana.trim(),
+        account_number: normalizeDigits(form.account_number).slice(0, 7),
+        account_holder_name: normalizeName(form.account_holder_name),
+        account_holder_kana: normalizeHolderKana(form.account_holder_kana),
         submitted_at: nowIso,
         rejected_at: null,
         admin_note: null,
@@ -703,8 +963,12 @@ export default function CreatorPayoutsPage() {
       }
 
       const savedProfile = result.data as PayoutProfile;
+
       setProfile(savedProfile);
       setForm(profileToForm(savedProfile));
+      setBankQuery(savedProfile.bank_name ?? "");
+      setBranchQuery(savedProfile.branch_name ?? "");
+      setConfirmOpen(false);
       setSuccessMsg(copy.saved);
       setSaving(false);
     } catch (e) {
@@ -744,11 +1008,19 @@ export default function CreatorPayoutsPage() {
       </CreatorHero>
 
       {errorMsg ? (
-        <CreatorNotice tone="red" title={safeLocale === "ja" ? "エラー" : "Error"} description={errorMsg} />
+        <CreatorNotice
+          tone="red"
+          title={safeLocale === "ja" ? "エラー" : "Error"}
+          description={errorMsg}
+        />
       ) : null}
 
       {successMsg ? (
-        <CreatorNotice tone="green" title={safeLocale === "ja" ? "保存しました" : "Saved"} description={successMsg} />
+        <CreatorNotice
+          tone="green"
+          title={safeLocale === "ja" ? "保存しました" : "Saved"}
+          description={successMsg}
+        />
       ) : null}
 
       {profile?.status === "not_submitted" || !profile ? (
@@ -760,72 +1032,143 @@ export default function CreatorPayoutsPage() {
       ) : null}
 
       <CreatorSection title={copy.setupTitle} description={copy.setupDescription}>
-        <div className="space-y-4">
-          <CreatorField label={copy.bankName} help={copy.bankNameHelp}>
+        <div className="space-y-5">
+          <CreatorField label={copy.bankSearch} help={copy.bankSearchHelp}>
             <CreatorInput
-              value={form.bank_name}
-              placeholder={copy.bankNamePlaceholder}
-              onChange={(event) => updateForm("bank_name", event.target.value)}
-              autoComplete="organization"
+              value={bankQuery}
+              placeholder={copy.bankSearchPlaceholder}
+              onChange={(event) => {
+                setBankQuery(event.target.value);
+                setConfirmOpen(false);
+              }}
+              autoComplete="off"
             />
+
+            <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="mb-2 text-xs font-black text-slate-400">
+                {bankLoading ? copy.searching : copy.selectedBank}
+              </p>
+
+              {form.bank_code && form.bank_name ? (
+                <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
+                  <p className="text-sm font-black text-emerald-800">
+                    {form.bank_name}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-emerald-600">
+                    {copy.bankCode}: {form.bank_code}
+                  </p>
+                </div>
+              ) : (
+                <p className="mb-3 text-sm font-bold text-slate-400">
+                  {copy.notSelected}
+                </p>
+              )}
+
+              <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                {bankOptions.length > 0 ? (
+                  bankOptions.map((bank) => (
+                    <OptionButton
+                      key={bank.code}
+                      title={`${bank.name}（${bank.code}）`}
+                      subtitle={bank.kana || bank.hira || bank.roma || undefined}
+                      selected={form.bank_code === bank.code}
+                      onClick={() => selectBank(bank)}
+                    />
+                  ))
+                ) : (
+                  <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
+                    {bankLoading ? copy.searching : copy.noBankResults}
+                  </p>
+                )}
+              </div>
+            </div>
           </CreatorField>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <CreatorField label={copy.bankCode} help={copy.bankCodeHelp}>
-              <CreatorInput
-                value={form.bank_code}
-                placeholder={copy.bankCodePlaceholder}
-                inputMode="numeric"
-                onChange={(event) =>
-                  updateForm("bank_code", normalizeDigits(event.target.value).slice(0, 4))
-                }
-              />
-            </CreatorField>
-
-            <CreatorField label={copy.branchCode} help={copy.branchCodeHelp}>
-              <CreatorInput
-                value={form.branch_code}
-                placeholder={copy.branchCodePlaceholder}
-                inputMode="numeric"
-                onChange={(event) =>
-                  updateForm("branch_code", normalizeDigits(event.target.value).slice(0, 3))
-                }
-              />
-            </CreatorField>
-          </div>
-
-          <CreatorField label={copy.branchName}>
+          <CreatorField label={copy.branchSearch} help={copy.branchSearchHelp}>
             <CreatorInput
-              value={form.branch_name}
-              placeholder={copy.branchNamePlaceholder}
-              onChange={(event) => updateForm("branch_name", event.target.value)}
+              value={branchQuery}
+              placeholder={copy.branchSearchPlaceholder}
+              onChange={(event) => {
+                setBranchQuery(event.target.value);
+                setConfirmOpen(false);
+              }}
+              disabled={!form.bank_code}
+              autoComplete="off"
             />
+
+            <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="mb-2 text-xs font-black text-slate-400">
+                {branchLoading ? copy.searching : copy.selectedBranch}
+              </p>
+
+              {form.branch_code && form.branch_name ? (
+                <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
+                  <p className="text-sm font-black text-emerald-800">
+                    {form.branch_name}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-emerald-600">
+                    {copy.branchCode}: {form.branch_code}
+                  </p>
+                </div>
+              ) : (
+                <p className="mb-3 text-sm font-bold text-slate-400">
+                  {copy.notSelected}
+                </p>
+              )}
+
+              <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                {!form.bank_code ? (
+                  <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
+                    {copy.branchSearchHelp}
+                  </p>
+                ) : branchOptions.length > 0 ? (
+                  branchOptions.map((branch) => (
+                    <OptionButton
+                      key={branch.code}
+                      title={`${branch.name}（${branch.code}）`}
+                      subtitle={branch.kana || branch.hira || branch.roma || undefined}
+                      selected={form.branch_code === branch.code}
+                      onClick={() => selectBranch(branch)}
+                    />
+                  ))
+                ) : (
+                  <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
+                    {branchLoading ? copy.searching : copy.noBranchResults}
+                  </p>
+                )}
+              </div>
+            </div>
           </CreatorField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <CreatorField label={copy.accountType}>
               <CreatorSelect
                 value={form.account_type}
-                onChange={(event) =>
+                onChange={(event) => {
                   updateForm(
                     "account_type",
                     event.target.value === "checking" ? "checking" : "ordinary"
-                  )
-                }
+                  );
+                  setConfirmOpen(false);
+                }}
               >
                 <option value="ordinary">{copy.ordinary}</option>
                 <option value="checking">{copy.checking}</option>
               </CreatorSelect>
             </CreatorField>
 
-            <CreatorField label={copy.accountNumber}>
+            <CreatorField label={copy.accountNumber} help={copy.accountNumberHelp}>
               <CreatorInput
                 value={form.account_number}
                 placeholder={copy.accountNumberPlaceholder}
                 inputMode="numeric"
-                onChange={(event) =>
-                  updateForm("account_number", normalizeDigits(event.target.value).slice(0, 8))
-                }
+                onChange={(event) => {
+                  updateForm(
+                    "account_number",
+                    normalizeDigits(event.target.value).slice(0, 7)
+                  );
+                  setConfirmOpen(false);
+                }}
               />
             </CreatorField>
           </div>
@@ -834,22 +1177,95 @@ export default function CreatorPayoutsPage() {
             <CreatorInput
               value={form.account_holder_name}
               placeholder={copy.accountHolderNamePlaceholder}
-              onChange={(event) => updateForm("account_holder_name", event.target.value)}
+              onChange={(event) => {
+                updateForm("account_holder_name", event.target.value);
+                setConfirmOpen(false);
+              }}
             />
           </CreatorField>
 
-          <CreatorField label={copy.accountHolderKana}>
+          <CreatorField label={copy.accountHolderKana} help={copy.accountHolderKanaHelp}>
             <CreatorInput
               value={form.account_holder_kana}
               placeholder={copy.accountHolderKanaPlaceholder}
-              onChange={(event) => updateForm("account_holder_kana", event.target.value)}
+              onChange={(event) => {
+                updateForm("account_holder_kana", normalizeHolderKana(event.target.value));
+                setConfirmOpen(false);
+              }}
             />
           </CreatorField>
+
+          {confirmOpen ? (
+            <CreatorCard tone="soft" className="space-y-4">
+              <div>
+                <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
+                  {copy.confirmTitle}
+                </p>
+                <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
+                  {copy.confirmBody}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <CreatorMiniInfo
+                  label={copy.selectedBank}
+                  value={`${form.bank_name} / ${form.bank_code}`}
+                  strong
+                />
+                <CreatorMiniInfo
+                  label={copy.selectedBranch}
+                  value={`${form.branch_name} / ${form.branch_code}`}
+                  strong
+                />
+                <CreatorMiniInfo
+                  label={copy.accountType}
+                  value={form.account_type === "checking" ? copy.checking : copy.ordinary}
+                  strong
+                />
+                <CreatorMiniInfo
+                  label={copy.accountNumber}
+                  value={form.account_number}
+                  strong
+                />
+                <CreatorMiniInfo
+                  label={copy.accountHolderName}
+                  value={form.account_holder_name}
+                  strong
+                />
+                <CreatorMiniInfo
+                  label={copy.accountHolderKana}
+                  value={form.account_holder_kana}
+                  strong
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <CreatorButton
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setConfirmOpen(false)}
+                  disabled={saving}
+                  className="w-full"
+                >
+                  {copy.cancel}
+                </CreatorButton>
+
+                <CreatorButton
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full"
+                >
+                  {saving ? copy.saving : copy.confirmSave}
+                </CreatorButton>
+              </div>
+            </CreatorCard>
+          ) : null}
 
           <CreatorStickyFooter>
             <CreatorButton
               type="button"
-              onClick={handleSave}
+              onClick={handleReview}
               disabled={saving}
               className="w-full"
             >
@@ -864,13 +1280,21 @@ export default function CreatorPayoutsPage() {
           <CreatorCard tone="soft" className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <CreatorMiniInfo
-                label={copy.bankName}
-                value={profile.bank_name || "-"}
+                label={copy.selectedBank}
+                value={
+                  profile.bank_code
+                    ? `${profile.bank_name || "-"} / ${profile.bank_code}`
+                    : profile.bank_name || "-"
+                }
                 strong
               />
               <CreatorMiniInfo
-                label={copy.branchName}
-                value={profile.branch_name || "-"}
+                label={copy.selectedBranch}
+                value={
+                  profile.branch_code
+                    ? `${profile.branch_name || "-"} / ${profile.branch_code}`
+                    : profile.branch_name || "-"
+                }
                 strong
               />
               <CreatorMiniInfo
@@ -942,11 +1366,6 @@ export default function CreatorPayoutsPage() {
       <CreatorSection
         title={copy.historyTitle}
         description={copy.historyDescription}
-        right={
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-[#FF3B5C] ring-1 ring-rose-100">
-            <YenIcon />
-          </span>
-        }
       >
         {orders.length > 0 ? (
           <div className="space-y-3">
@@ -964,7 +1383,7 @@ export default function CreatorPayoutsPage() {
       </CreatorSection>
 
       <CreatorNotice
-        tone="slate"
+        tone="blue"
         title={copy.privacyTitle}
         description={copy.privacyBody}
       />
