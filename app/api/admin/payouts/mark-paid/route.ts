@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireAdminApi } from "@/lib/admin/guard";
 import type { Json } from "@/types/database.types";
+import {
+  buildManualBankInvalidMessage,
+  validateManualBankPayoutProfile,
+  type ManualBankPayoutProfile,
+} from "@/lib/payouts/manualBankTransfer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -33,8 +38,28 @@ type OrderPayoutRow = {
   currency: string | null;
 };
 
+type CreatorRow = {
+  id: string;
+  user_id: string;
+  display_name: string | null;
+  full_name: string | null;
+};
+
+type PayoutProfileRow = ManualBankPayoutProfile & {
+  creator_id: string;
+  user_id: string;
+  payout_method: PayoutMethod | null;
+  status: string | null;
+};
+
 function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function uniqueStrings(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value)))
+  );
 }
 
 function normalizeOrderIds(value: unknown) {
@@ -199,6 +224,101 @@ export async function POST(req: NextRequest) {
             "支払済みにできない注文が含まれています。completed / captured / manual_bank_transfer / pending の注文のみ対象です。",
           invalid_order_ids: invalidOrders.map((order) => order.id),
           missing_order_ids: missingOrderIds,
+        },
+        { status: 409 }
+      );
+    }
+
+    const creatorIds = uniqueStrings(safeOrders.map((order) => order.creator_id));
+
+    const [
+      { data: creators, error: creatorsError },
+      { data: payoutProfiles, error: payoutProfilesError },
+    ] = await Promise.all([
+      creatorIds.length > 0
+        ? supabaseAdmin
+            .from("creators")
+            .select("id, user_id, display_name, full_name")
+            .in("id", creatorIds)
+        : Promise.resolve({ data: [], error: null }),
+
+      creatorIds.length > 0
+        ? supabaseAdmin
+            .from("creator_payout_profiles")
+            .select(
+              `
+              creator_id,
+              user_id,
+              payout_method,
+              status,
+              bank_name,
+              bank_code,
+              branch_name,
+              branch_code,
+              account_type,
+              account_number,
+              account_holder_name,
+              account_holder_kana
+            `
+            )
+            .in("creator_id", creatorIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (creatorsError) {
+      console.error("admin mark paid creators error:", creatorsError);
+      throw creatorsError;
+    }
+
+    if (payoutProfilesError) {
+      console.error("admin mark paid payout profiles error:", payoutProfilesError);
+      throw payoutProfilesError;
+    }
+
+    const creatorMap = new Map(
+      ((creators ?? []) as CreatorRow[]).map((creator) => [creator.id, creator])
+    );
+
+    const payoutProfileMap = new Map(
+      ((payoutProfiles ?? []) as PayoutProfileRow[]).map((profile) => [
+        profile.creator_id,
+        profile,
+      ])
+    );
+
+    const invalidPayoutAccounts = safeOrders
+      .map((order) => {
+        const creator = order.creator_id
+          ? creatorMap.get(order.creator_id) ?? null
+          : null;
+        const payoutProfile = order.creator_id
+          ? payoutProfileMap.get(order.creator_id) ?? null
+          : null;
+        const validation = validateManualBankPayoutProfile(payoutProfile);
+
+        return {
+          order,
+          creator_name:
+            creator?.display_name || creator?.full_name || order.creator_user_id,
+          validation,
+        };
+      })
+      .filter((item) => !item.validation.ready);
+
+    if (invalidPayoutAccounts.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "口座情報に不備がある注文が含まれているため、支払済みに更新できません。先にCの口座情報を修正してください。",
+          invalid_order_ids: invalidPayoutAccounts.map((item) => item.order.id),
+          messages: invalidPayoutAccounts.map((item) =>
+            buildManualBankInvalidMessage({
+              creator_name: item.creator_name,
+              creator_user_id: item.order.creator_user_id,
+              order_ids: [item.order.id],
+              warnings: item.validation.warnings,
+            })
+          ),
         },
         { status: 409 }
       );

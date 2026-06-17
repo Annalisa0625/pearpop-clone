@@ -120,21 +120,48 @@ function normalizeDigits(value: string) {
 }
 
 function normalizeName(value: string) {
-  return value.normalize("NFKC").replace(/\s+/g, " ").trim();
+  return value.normalize("NFKC").replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function normalizeHolderKana(value: string) {
-  return value
+function hiraganaToKatakana(value: string) {
+  return value.replace(/[ぁ-ゖ]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) + 0x60)
+  );
+}
+
+function normalizeTransferName(value: string) {
+  return hiraganaToKatakana(value)
     .normalize("NFKC")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toUpperCase();
+    .toUpperCase()
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/[　\s]+/g, " ")
+    .trim();
 }
 
-function isValidHolderKana(value: string) {
-  if (!value) return false;
+function isUnsafeDisplayName(value: string) {
+  if (!value.trim()) return true;
+  if (value.length > 80) return true;
+  if (/[\u0000-\u001F\u007F]/.test(value)) return true;
+  return false;
+}
 
-  return /^[ァ-ヶー・（）()Ａ-ＺA-Z０-９0-9 　]+$/.test(value);
+function isValidTransferName(value: string) {
+  const normalized = normalizeTransferName(value);
+
+  if (!normalized) return false;
+  if (normalized.length > 48) return false;
+
+  return /^[ァ-ヶー・A-Z0-9 ()().,\-\/&]+$/.test(normalized);
+}
+
+function isInvalidAccountNumber(value: string) {
+  const digits = normalizeDigits(value);
+
+  if (digits.length !== 7) return true;
+  if (digits === "0000000") return true;
+  if (/^(\d)\1{6}$/.test(digits)) return true;
+
+  return false;
 }
 
 function formatMoney(
@@ -475,20 +502,21 @@ export default function CreatorPayoutsPage() {
             accountNumber: "口座番号",
             accountNumberPlaceholder: "例：1234567",
             accountHolderName: "口座名義",
-            accountHolderNamePlaceholder: "例：ヤマダ タロウ",
-            accountHolderKana: "口座名義カナ",
-            accountHolderKanaPlaceholder: "例：ヤマダ タロウ",
+            accountHolderNamePlaceholder: "例：山田 太郎 / ヤマダ タロウ / TARO YAMADA",
+            transferName: "振込用口座名義",
+            transferNamePlaceholder: "例：ヤマダ タロウ / カ)トレンドル",
 
-            accountNumberHelp: "通常は7桁です。数字のみ入力できます。",
+            accountNumberHelp:
+              "7桁の数字で入力してください。0000000など明らかに無効な番号は登録できません。",
             accountHolderHelp:
-              "振込エラー防止のため、銀行口座に登録されている名義と同じ表記で入力してください。",
-            accountHolderKanaHelp:
-              "カタカナ・英数字・スペースのみ使用できます。半角カナは自動で全角に整えます。",
+              "銀行口座に登録されている名義を入力してください。漢字・カナ・英字など、通帳や銀行アプリ上の表記に合わせてください。",
+            transferNameHelp:
+              "CSV振込に使用します。カナ・英数字・スペース・一部記号のみ使用できます。ひらがな、半角カナ、全角スペースは自動で整形します。",
 
             save: "確認して保存",
             confirmTitle: "登録内容を確認",
             confirmBody:
-              "この内容で報酬の振込先として登録します。銀行名・支店名・口座番号・名義に誤りがないか確認してください。",
+              "この内容で報酬の振込先として登録します。銀行名・支店名・口座番号・振込用名義に誤りがないか確認してください。",
             confirmSave: "この内容で保存する",
             cancel: "戻る",
             cancelEdit: "編集をやめる",
@@ -561,19 +589,19 @@ export default function CreatorPayoutsPage() {
             accountNumberPlaceholder: "Example: 1234567",
             accountHolderName: "Account holder name",
             accountHolderNamePlaceholder: "Example: TARO YAMADA",
-            accountHolderKana: "Account holder kana",
-            accountHolderKanaPlaceholder: "Example: TARO YAMADA",
+            transferName: "Transfer account name",
+            transferNamePlaceholder: "Example: TARO YAMADA",
 
-            accountNumberHelp: "Usually 7 digits. Numbers only.",
+            accountNumberHelp: "Enter exactly 7 digits.",
             accountHolderHelp:
-              "Use the exact account holder name registered with your bank.",
-            accountHolderKanaHelp:
-              "Katakana, alphanumeric characters, and spaces are allowed.",
+              "Enter the name registered with your bank account.",
+            transferNameHelp:
+              "Used for bank transfer CSV. Kana, alphanumeric characters, spaces, and limited symbols are allowed.",
 
             save: "Review and save",
             confirmTitle: "Confirm payout account",
             confirmBody:
-              "Please confirm your bank, branch, account number, and account holder before saving.",
+              "Please confirm your bank, branch, account number, and transfer account name before saving.",
             confirmSave: "Save this account",
             cancel: "Back",
             cancelEdit: "Cancel edit",
@@ -720,9 +748,7 @@ export default function CreatorPayoutsPage() {
   }, [copy.creatorNotFound, copy.loadFailed, copy.loginRequired, db, supabase.auth]);
 
   useEffect(() => {
-    if (!showSetupForm) {
-      return;
-    }
+    if (!showSetupForm) return;
 
     let active = true;
 
@@ -767,9 +793,7 @@ export default function CreatorPayoutsPage() {
   }, [bankQuery, showSetupForm]);
 
   useEffect(() => {
-    if (!showSetupForm) {
-      return;
-    }
+    if (!showSetupForm) return;
 
     let active = true;
 
@@ -879,24 +903,22 @@ export default function CreatorPayoutsPage() {
         : "Please search and select a branch.";
     }
 
-    if (normalizeDigits(form.account_number).length !== 7) {
+    if (isInvalidAccountNumber(form.account_number)) {
       return safeLocale === "ja"
-        ? "口座番号は7桁で入力してください。"
-        : "Please enter a 7-digit account number.";
+        ? "口座番号は7桁の数字で入力してください。0000000や同じ数字のみの番号は登録できません。"
+        : "Please enter a valid 7-digit account number.";
     }
 
-    if (!form.account_holder_name.trim()) {
+    if (isUnsafeDisplayName(normalizeName(form.account_holder_name))) {
       return safeLocale === "ja"
-        ? "口座名義を入力してください。"
-        : "Please enter the account holder name.";
+        ? "口座名義を入力してください。長すぎる名義や改行は使用できません。"
+        : "Please enter a valid account holder name.";
     }
 
-    const kana = normalizeHolderKana(form.account_holder_kana);
-
-    if (!isValidHolderKana(kana)) {
+    if (!isValidTransferName(form.account_holder_kana)) {
       return safeLocale === "ja"
-        ? "口座名義カナはカタカナ・英数字・スペースのみで入力してください。"
-        : "Please enter a valid account holder kana.";
+        ? "振込用口座名義は、カナ・英数字・スペース・一部記号のみで48文字以内にしてください。"
+        : "Please enter a valid transfer account name.";
     }
 
     return null;
@@ -906,13 +928,7 @@ export default function CreatorPayoutsPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const validationMessage = validateForm();
-
-    if (validationMessage) {
-      setErrorMsg(validationMessage);
-      setConfirmOpen(false);
-      return;
-    }
+    const normalizedTransferName = normalizeTransferName(form.account_holder_kana);
 
     setForm((current) => ({
       ...current,
@@ -922,8 +938,16 @@ export default function CreatorPayoutsPage() {
       branch_code: normalizeDigits(current.branch_code).slice(0, 3),
       account_number: normalizeDigits(current.account_number).slice(0, 7),
       account_holder_name: normalizeName(current.account_holder_name),
-      account_holder_kana: normalizeHolderKana(current.account_holder_kana),
+      account_holder_kana: normalizedTransferName,
     }));
+
+    const validationMessage = validateForm();
+
+    if (validationMessage) {
+      setErrorMsg(validationMessage);
+      setConfirmOpen(false);
+      return;
+    }
 
     setConfirmOpen(true);
   };
@@ -959,7 +983,7 @@ export default function CreatorPayoutsPage() {
         account_type: form.account_type,
         account_number: normalizeDigits(form.account_number).slice(0, 7),
         account_holder_name: normalizeName(form.account_holder_name),
-        account_holder_kana: normalizeHolderKana(form.account_holder_kana),
+        account_holder_kana: normalizeTransferName(form.account_holder_kana),
         submitted_at: nowIso,
         rejected_at: null,
         admin_note: null,
@@ -1220,12 +1244,12 @@ export default function CreatorPayoutsPage() {
               />
             </CreatorField>
 
-            <CreatorField label={copy.accountHolderKana} help={copy.accountHolderKanaHelp}>
+            <CreatorField label={copy.transferName} help={copy.transferNameHelp}>
               <CreatorInput
                 value={form.account_holder_kana}
-                placeholder={copy.accountHolderKanaPlaceholder}
+                placeholder={copy.transferNamePlaceholder}
                 onChange={(event) => {
-                  updateForm("account_holder_kana", normalizeHolderKana(event.target.value));
+                  updateForm("account_holder_kana", normalizeTransferName(event.target.value));
                   setConfirmOpen(false);
                 }}
               />
@@ -1269,7 +1293,7 @@ export default function CreatorPayoutsPage() {
                     strong
                   />
                   <CreatorMiniInfo
-                    label={copy.accountHolderKana}
+                    label={copy.transferName}
                     value={form.account_holder_kana}
                     strong
                   />
@@ -1299,7 +1323,11 @@ export default function CreatorPayoutsPage() {
             ) : null}
 
             <CreatorStickyFooter>
-              <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+              <div
+                className={`grid w-full grid-cols-1 gap-3 ${
+                  hasSavedBankAccount && editing ? "sm:grid-cols-2" : ""
+                }`}
+              >
                 {hasSavedBankAccount && editing ? (
                   <CreatorButton
                     type="button"
@@ -1363,6 +1391,11 @@ export default function CreatorPayoutsPage() {
               <CreatorMiniInfo
                 label={copy.accountHolderName}
                 value={profile.account_holder_name || "-"}
+                strong
+              />
+              <CreatorMiniInfo
+                label={copy.transferName}
+                value={profile.account_holder_kana || "-"}
                 strong
               />
               <CreatorMiniInfo

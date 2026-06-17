@@ -83,6 +83,11 @@ type PayoutListResponse = {
   items: PayoutItem[];
 };
 
+type PayoutAccountValidation = {
+  ready: boolean;
+  warnings: string[];
+};
+
 const EMPTY_SUMMARY: PayoutSummary = {
   total_count: 0,
   pending_count: 0,
@@ -174,11 +179,120 @@ function getStatusClass(status: PayoutStatus) {
   return "bg-slate-50 text-slate-500 ring-slate-100";
 }
 
+function normalizeDigits(value: string | null | undefined) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[^\d]/g, "");
+}
+
+function normalizeDisplayName(value: string | null | undefined) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hiraganaToKatakana(value: string) {
+  return value.replace(/[ぁ-ゖ]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) + 0x60)
+  );
+}
+
+function normalizeTransferName(value: string | null | undefined) {
+  return hiraganaToKatakana(String(value ?? ""))
+    .normalize("NFKC")
+    .toUpperCase()
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/[　\s]+/g, " ")
+    .trim();
+}
+
+function isInvalidAccountNumber(value: string | null | undefined) {
+  const digits = normalizeDigits(value);
+
+  if (digits.length !== 7) return true;
+  if (digits === "0000000") return true;
+  if (/^(\d)\1{6}$/.test(digits)) return true;
+
+  return false;
+}
+
+function isUnsafeDisplayName(value: string | null | undefined) {
+  const normalized = normalizeDisplayName(value);
+
+  if (!normalized) return true;
+  if (normalized.length > 80) return true;
+  if (/[\u0000-\u001F\u007F]/.test(normalized)) return true;
+
+  return false;
+}
+
+function isValidTransferName(value: string | null | undefined) {
+  const normalized = normalizeTransferName(value);
+
+  if (!normalized) return false;
+  if (normalized.length > 48) return false;
+
+  return /^[ァ-ヶー・A-Z0-9 ()().,\-\/&]+$/.test(normalized);
+}
+
+function validatePayoutAccount(item: PayoutItem): PayoutAccountValidation {
+  const warnings: string[] = [];
+
+  const bankName = normalizeDisplayName(item.bank_name);
+  const bankCode = normalizeDigits(item.bank_code);
+  const branchName = normalizeDisplayName(item.branch_name);
+  const branchCode = normalizeDigits(item.branch_code);
+  const accountNumber = normalizeDigits(item.account_number);
+  const accountHolderName = normalizeDisplayName(item.account_holder_name);
+  const transferName = normalizeTransferName(item.account_holder_kana);
+
+  if (!bankName) {
+    warnings.push("金融機関名なし");
+  }
+
+  if (bankCode.length !== 4) {
+    warnings.push("金融機関コード不備");
+  }
+
+  if (!branchName) {
+    warnings.push("支店名なし");
+  }
+
+  if (branchCode.length !== 3) {
+    warnings.push("支店コード不備");
+  }
+
+  if (item.account_type !== "ordinary" && item.account_type !== "checking") {
+    warnings.push("口座種別不備");
+  }
+
+  if (isInvalidAccountNumber(accountNumber)) {
+    warnings.push("口座番号不備");
+  }
+
+  if (isUnsafeDisplayName(accountHolderName)) {
+    warnings.push("口座名義不備");
+  }
+
+  if (!isValidTransferName(transferName)) {
+    warnings.push("振込用名義不備");
+  }
+
+  return {
+    ready: warnings.length === 0,
+    warnings,
+  };
+}
+
 function isSelectableForPaid(item: PayoutItem) {
+  const validation = validatePayoutAccount(item);
+
   return (
     item.payout_status === "pending" &&
     item.payout_method === "manual_bank_transfer" &&
-    item.has_bank_account
+    validation.ready
   );
 }
 
@@ -340,6 +454,7 @@ function PayoutCard({
     item.menu_title_snapshot?.trim() ||
     "注文名未設定";
 
+  const validation = validatePayoutAccount(item);
   const selectable = isSelectableForPaid(item);
 
   return (
@@ -355,13 +470,13 @@ function PayoutCard({
               {getPayoutMethodLabel(item.payout_method)}
             </Pill>
 
-            {item.has_bank_account ? (
+            {validation.ready ? (
               <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-100">
-                口座あり
+                口座OK
               </Pill>
             ) : (
               <Pill className="bg-red-50 text-red-700 ring-red-100">
-                口座不足
+                口座不備
               </Pill>
             )}
 
@@ -379,6 +494,17 @@ function PayoutCard({
           <p className="mt-1 text-sm font-semibold text-slate-400">
             注文ID：{shortId(item.order_id)}
           </p>
+
+          {!validation.ready ? (
+            <div className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-bold leading-6 text-red-700 ring-1 ring-red-100">
+              <p className="font-black">CSV出力・支払済み更新の前に修正が必要です</p>
+              <ul className="mt-1 list-disc pl-5">
+                {validation.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
@@ -421,6 +547,9 @@ function PayoutCard({
               <p className="mt-1 truncate font-black text-slate-800">
                 {item.bank_name || "-"} / {item.branch_name || "-"}
               </p>
+              <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                {item.bank_code || "-"} / {item.branch_code || "-"}
+              </p>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
@@ -434,8 +563,10 @@ function PayoutCard({
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100 sm:col-span-2">
               <p className="text-xs font-black text-slate-400">名義</p>
               <p className="mt-1 truncate font-black text-slate-800">
-                {item.account_holder_name || "-"} /{" "}
-                {item.account_holder_kana || "-"}
+                {item.account_holder_name || "-"}
+              </p>
+              <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                振込用：{item.account_holder_kana || "-"}
               </p>
             </div>
           </div>
@@ -458,6 +589,12 @@ function PayoutCard({
               />
               支払対象
             </label>
+          ) : null}
+
+          {!selectable && item.payout_status === "pending" ? (
+            <span className="rounded-full bg-red-50 px-4 py-2.5 text-center text-xs font-black text-red-700 ring-1 ring-red-100">
+              支払対象外
+            </span>
           ) : null}
 
           <Link
@@ -490,11 +627,14 @@ export default function AdminPayoutsPage() {
   const [note, setNote] = useState("Admin manual payout marked as paid");
   const [loading, setLoading] = useState(true);
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string[]>([]);
 
   const load = async () => {
     setLoading(true);
     setError(null);
+    setErrorDetails([]);
 
     try {
       const res = await fetch("/api/admin/payouts/list", {
@@ -539,6 +679,16 @@ export default function AdminPayoutsPage() {
     };
   }, [items]);
 
+  const invalidPendingItems = useMemo(() => {
+    return items.filter((item) => {
+      return (
+        item.payout_status === "pending" &&
+        item.payout_method === "manual_bank_transfer" &&
+        !validatePayoutAccount(item).ready
+      );
+    });
+  }, [items]);
+
   const filteredItems = useMemo(() => {
     const normalizedQ = q.trim().toLowerCase();
 
@@ -557,7 +707,9 @@ export default function AdminPayoutsPage() {
         item.creator_name,
         item.creator_user_id,
         item.bank_name,
+        item.bank_code,
         item.branch_name,
+        item.branch_code,
         item.account_holder_name,
         item.account_holder_kana,
         item.payout_status,
@@ -615,8 +767,56 @@ export default function AdminPayoutsPage() {
     });
   };
 
-  const downloadCsv = () => {
-    window.location.href = "/api/admin/payouts/export";
+  const downloadCsv = async () => {
+    setDownloadingCsv(true);
+    setError(null);
+    setErrorDetails([]);
+
+    try {
+      const res = await fetch("/api/admin/payouts/export", {
+        cache: "no-store",
+      });
+
+      const contentType = res.headers.get("content-type") ?? "";
+
+      if (!res.ok) {
+        if (contentType.includes("application/json")) {
+          const json = (await res.json().catch(() => ({}))) as {
+            error?: string;
+            messages?: string[];
+          };
+
+          setError(json.error ?? "CSV出力に失敗しました");
+          setErrorDetails(Array.isArray(json.messages) ? json.messages : []);
+          return;
+        }
+
+        throw new Error("CSV出力に失敗しました");
+      }
+
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get("content-disposition") ?? "";
+      const fileNameMatch = contentDisposition.match(/filename="([^"]+)"/);
+      const fileName = fileNameMatch?.[1] ?? "trendre-payouts.csv";
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("admin payout CSV download error:", error);
+      setError(
+        error instanceof Error ? error.message : "CSV出力に失敗しました"
+      );
+    } finally {
+      setDownloadingCsv(false);
+    }
   };
 
   const markSelectedPaid = async () => {
@@ -624,6 +824,24 @@ export default function AdminPayoutsPage() {
 
     if (orderIds.length === 0) {
       alert("支払済みにする注文を選択してください");
+      return;
+    }
+
+    const selectedItems = items.filter((item) => selectedIds.has(item.order_id));
+    const invalidSelectedItems = selectedItems.filter(
+      (item) => !isSelectableForPaid(item)
+    );
+
+    if (invalidSelectedItems.length > 0) {
+      setError("口座情報に不備がある注文、または支払対象外の注文が含まれています。");
+      setErrorDetails(
+        invalidSelectedItems.map((item) => {
+          const validation = validatePayoutAccount(item);
+          return `${item.creator_name} / 注文 ${item.order_id}: ${validation.warnings.join(
+            "、"
+          )}`;
+        })
+      );
       return;
     }
 
@@ -638,6 +856,7 @@ export default function AdminPayoutsPage() {
 
     setMarkingPaid(true);
     setError(null);
+    setErrorDetails([]);
 
     try {
       const res = await fetch("/api/admin/payouts/mark-paid", {
@@ -655,6 +874,7 @@ export default function AdminPayoutsPage() {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        setErrorDetails(Array.isArray(json?.messages) ? json.messages : []);
         throw new Error(json?.error ?? "支払済み更新に失敗しました");
       }
 
@@ -716,10 +936,11 @@ export default function AdminPayoutsPage() {
 
             <button
               type="button"
-              onClick={downloadCsv}
-              className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]"
+              onClick={() => void downloadCsv()}
+              disabled={downloadingCsv}
+              className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              CSV出力
+              {downloadingCsv ? "CSV確認中..." : "CSV出力"}
             </button>
           </div>
         </div>
@@ -727,8 +948,26 @@ export default function AdminPayoutsPage() {
 
       {error ? (
         <div className="mb-5 rounded-[24px] bg-red-50 p-4 text-sm font-bold text-red-700 ring-1 ring-red-100">
-          {error}
+          <p className="font-black">{error}</p>
+          {errorDetails.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {errorDetails.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
+      ) : null}
+
+      {invalidPendingItems.length > 0 ? (
+        <section className="mb-5 rounded-[24px] bg-amber-50 p-4 text-sm font-bold text-amber-800 ring-1 ring-amber-100">
+          <p className="font-black">
+            口座情報に不備がある支払待ちデータが {invalidPendingItems.length} 件あります。
+          </p>
+          <p className="mt-1">
+            不備があるデータはCSV出力・支払済み更新の対象外です。Cの口座情報を修正してください。
+          </p>
+        </section>
       ) : null}
 
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -838,7 +1077,7 @@ export default function AdminPayoutsPage() {
               {formatPrice(selectedTotalAmount, "JPY")}
             </p>
             <p className="mt-1 text-xs font-bold text-slate-400">
-              支払待ち・銀行振込・口座情報ありの注文だけ支払済みに更新できます。
+              支払待ち・銀行振込・口座OKの注文だけ支払済みに更新できます。
             </p>
           </div>
 

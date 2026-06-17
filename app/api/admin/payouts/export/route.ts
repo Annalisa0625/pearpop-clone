@@ -2,6 +2,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireAdminApi } from "@/lib/admin/guard";
+import {
+  buildManualBankInvalidMessage,
+  validateManualBankPayoutProfile,
+  type ManualBankPayoutProfile,
+} from "@/lib/payouts/manualBankTransfer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,19 +41,11 @@ type CreatorRow = {
   full_name: string | null;
 };
 
-type PayoutProfileRow = {
+type PayoutProfileRow = ManualBankPayoutProfile & {
   creator_id: string;
   user_id: string;
   payout_method: PayoutMethod | null;
   status: string | null;
-  bank_name: string | null;
-  bank_code: string | null;
-  branch_name: string | null;
-  branch_code: string | null;
-  account_type: string | null;
-  account_number: string | null;
-  account_holder_name: string | null;
-  account_holder_kana: string | null;
 };
 
 type CsvTransferRow = {
@@ -67,6 +64,14 @@ type CsvTransferRow = {
   currency: string;
   order_count: number;
   order_ids: string[];
+};
+
+type InvalidTransferRow = {
+  creator_id: string | null;
+  creator_user_id: string;
+  creator_name: string;
+  order_ids: string[];
+  warnings: string[];
 };
 
 function uniqueStrings(values: Array<string | null | undefined>) {
@@ -90,11 +95,6 @@ function normalizePayoutStatus(value: unknown): PayoutStatus {
 function getAmount(value: number | null | undefined) {
   const amount = Number(value ?? 0);
   return Number.isFinite(amount) ? Math.round(amount) : 0;
-}
-
-function normalizeAccountType(value: string | null | undefined) {
-  if (value === "checking") return "当座";
-  return "普通";
 }
 
 function escapeCsvCell(value: string | number | null | undefined) {
@@ -136,6 +136,7 @@ function buildCsvTransferRows(args: {
   payoutProfileMap: Map<string, PayoutProfileRow>;
 }) {
   const transferMap = new Map<string, CsvTransferRow>();
+  const invalidMap = new Map<string, InvalidTransferRow>();
 
   for (const order of args.orders) {
     const payoutMethod = normalizePayoutMethod(order.payout_method);
@@ -161,6 +162,26 @@ function buildCsvTransferRows(args: {
     const creatorName =
       creator?.display_name || creator?.full_name || order.creator_user_id;
 
+    const validation = validateManualBankPayoutProfile(payoutProfile);
+
+    if (!validation.ready) {
+      const existingInvalid = invalidMap.get(creatorKey);
+
+      if (existingInvalid) {
+        existingInvalid.order_ids.push(order.id);
+        continue;
+      }
+
+      invalidMap.set(creatorKey, {
+        creator_id: order.creator_id,
+        creator_user_id: order.creator_user_id,
+        creator_name: creatorName,
+        order_ids: [order.id],
+        warnings: validation.warnings,
+      });
+      continue;
+    }
+
     const existing = transferMap.get(creatorKey);
 
     if (existing) {
@@ -174,14 +195,14 @@ function buildCsvTransferRows(args: {
       creator_id: order.creator_id,
       creator_user_id: order.creator_user_id,
       creator_name: creatorName,
-      bank_code: payoutProfile?.bank_code ?? "",
-      bank_name: payoutProfile?.bank_name ?? "",
-      branch_code: payoutProfile?.branch_code ?? "",
-      branch_name: payoutProfile?.branch_name ?? "",
-      account_type: normalizeAccountType(payoutProfile?.account_type),
-      account_number: payoutProfile?.account_number ?? "",
-      account_holder_name: payoutProfile?.account_holder_name ?? "",
-      account_holder_kana: payoutProfile?.account_holder_kana ?? "",
+      bank_code: validation.normalized.bank_code,
+      bank_name: validation.normalized.bank_name,
+      branch_code: validation.normalized.branch_code,
+      branch_name: validation.normalized.branch_name,
+      account_type: validation.normalized.account_type_label,
+      account_number: validation.normalized.account_number,
+      account_holder_name: validation.normalized.account_holder_name,
+      account_holder_kana: validation.normalized.account_holder_kana,
       payout_amount: payoutAmount,
       currency: order.currency || "JPY",
       order_count: 1,
@@ -189,9 +210,14 @@ function buildCsvTransferRows(args: {
     });
   }
 
-  return Array.from(transferMap.values()).sort(
-    (a, b) => b.payout_amount - a.payout_amount
-  );
+  return {
+    transferRows: Array.from(transferMap.values()).sort(
+      (a, b) => b.payout_amount - a.payout_amount
+    ),
+    invalidRows: Array.from(invalidMap.values()).sort((a, b) =>
+      a.creator_name.localeCompare(b.creator_name, "ja")
+    ),
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -241,7 +267,6 @@ export async function GET(req: NextRequest) {
     }
 
     const safeOrders = ((orders ?? []) as OrderPayoutRow[]).filter(Boolean);
-
     const creatorIds = uniqueStrings(safeOrders.map((order) => order.creator_id));
 
     const [
@@ -299,11 +324,31 @@ export async function GET(req: NextRequest) {
       ])
     );
 
-    const transferRows = buildCsvTransferRows({
+    const { transferRows, invalidRows } = buildCsvTransferRows({
       orders: safeOrders,
       creatorMap,
       payoutProfileMap,
     });
+
+    if (invalidRows.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "口座情報に不備がある支払データが含まれているため、CSVを出力できません。先にCの口座情報を修正してください。",
+          invalid_count: invalidRows.length,
+          invalid_rows: invalidRows,
+          messages: invalidRows.map((row) =>
+            buildManualBankInvalidMessage({
+              creator_name: row.creator_name,
+              creator_user_id: row.creator_user_id,
+              order_ids: row.order_ids,
+              warnings: row.warnings,
+            })
+          ),
+        },
+        { status: 409 }
+      );
+    }
 
     const csvRows: Array<Array<string | number | null | undefined>> = [];
 
