@@ -424,6 +424,7 @@ export default function CreatorPayoutsPage() {
   const [branchLoading, setBranchLoading] = useState(false);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -490,6 +491,8 @@ export default function CreatorPayoutsPage() {
               "この内容で報酬の振込先として登録します。銀行名・支店名・口座番号・名義に誤りがないか確認してください。",
             confirmSave: "この内容で保存する",
             cancel: "戻る",
+            cancelEdit: "編集をやめる",
+            edit: "登録内容を変更する",
             saving: "保存中...",
 
             currentTitle: "現在の登録内容",
@@ -573,6 +576,8 @@ export default function CreatorPayoutsPage() {
               "Please confirm your bank, branch, account number, and account holder before saving.",
             confirmSave: "Save this account",
             cancel: "Back",
+            cancelEdit: "Cancel edit",
+            edit: "Edit bank account",
             saving: "Saving...",
 
             currentTitle: "Current bank account",
@@ -616,6 +621,9 @@ export default function CreatorPayoutsPage() {
     (sum, order) => sum + Number(order.creator_payout_amount ?? 0),
     0
   );
+
+  const hasSavedBankAccount = Boolean(profile?.bank_name || profile?.account_number);
+  const showSetupForm = !hasSavedBankAccount || editing;
 
   useEffect(() => {
     const load = async () => {
@@ -678,6 +686,8 @@ export default function CreatorPayoutsPage() {
         setForm(nextForm);
         setBankQuery(nextForm.bank_name);
         setBranchQuery(nextForm.branch_name);
+        setEditing(false);
+        setConfirmOpen(false);
 
         const { data: payoutOrderRows, error: payoutOrdersError } = await db
           .from("orders")
@@ -710,6 +720,10 @@ export default function CreatorPayoutsPage() {
   }, [copy.creatorNotFound, copy.loadFailed, copy.loginRequired, db, supabase.auth]);
 
   useEffect(() => {
+    if (!showSetupForm) {
+      return;
+    }
+
     let active = true;
 
     const run = async () => {
@@ -750,9 +764,13 @@ export default function CreatorPayoutsPage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [bankQuery]);
+  }, [bankQuery, showSetupForm]);
 
   useEffect(() => {
+    if (!showSetupForm) {
+      return;
+    }
+
     let active = true;
 
     const run = async () => {
@@ -801,13 +819,27 @@ export default function CreatorPayoutsPage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [branchQuery, form.bank_code]);
+  }, [branchQuery, form.bank_code, showSetupForm]);
 
   const updateForm = (key: keyof FormState, value: string) => {
     setForm((current) => ({
       ...current,
       [key]: value,
     }));
+  };
+
+  const resetFormToSavedProfile = () => {
+    const nextForm = profileToForm(profile);
+
+    setForm(nextForm);
+    setBankQuery(nextForm.bank_name);
+    setBranchQuery(nextForm.branch_name);
+    setBankOptions([]);
+    setBranchOptions([]);
+    setConfirmOpen(false);
+    setEditing(false);
+    setErrorMsg(null);
+    setSuccessMsg(null);
   };
 
   const selectBank = (bank: BankOption) => {
@@ -968,7 +1000,10 @@ export default function CreatorPayoutsPage() {
       setForm(profileToForm(savedProfile));
       setBankQuery(savedProfile.bank_name ?? "");
       setBranchQuery(savedProfile.branch_name ?? "");
+      setBankOptions([]);
+      setBranchOptions([]);
       setConfirmOpen(false);
+      setEditing(false);
       setSuccessMsg(copy.saved);
       setSaving(false);
     } catch (e) {
@@ -1031,249 +1066,265 @@ export default function CreatorPayoutsPage() {
         />
       ) : null}
 
-      <CreatorSection title={copy.setupTitle} description={copy.setupDescription}>
-        <div className="space-y-5">
-          <CreatorField label={copy.bankSearch} help={copy.bankSearchHelp}>
-            <CreatorInput
-              value={bankQuery}
-              placeholder={copy.bankSearchPlaceholder}
-              onChange={(event) => {
-                setBankQuery(event.target.value);
-                setConfirmOpen(false);
-              }}
-              autoComplete="off"
-            />
-
-            <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="mb-2 text-xs font-black text-slate-400">
-                {bankLoading ? copy.searching : copy.selectedBank}
-              </p>
-
-              {form.bank_code && form.bank_name ? (
-                <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
-                  <p className="text-sm font-black text-emerald-800">
-                    {form.bank_name}
-                  </p>
-                  <p className="mt-1 text-xs font-bold text-emerald-600">
-                    {copy.bankCode}: {form.bank_code}
-                  </p>
-                </div>
-              ) : (
-                <p className="mb-3 text-sm font-bold text-slate-400">
-                  {copy.notSelected}
-                </p>
-              )}
-
-              <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
-                {bankOptions.length > 0 ? (
-                  bankOptions.map((bank) => (
-                    <OptionButton
-                      key={bank.code}
-                      title={`${bank.name}（${bank.code}）`}
-                      subtitle={bank.kana || bank.hira || bank.roma || undefined}
-                      selected={form.bank_code === bank.code}
-                      onClick={() => selectBank(bank)}
-                    />
-                  ))
-                ) : (
-                  <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
-                    {bankLoading ? copy.searching : copy.noBankResults}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CreatorField>
-
-          <CreatorField label={copy.branchSearch} help={copy.branchSearchHelp}>
-            <CreatorInput
-              value={branchQuery}
-              placeholder={copy.branchSearchPlaceholder}
-              onChange={(event) => {
-                setBranchQuery(event.target.value);
-                setConfirmOpen(false);
-              }}
-              disabled={!form.bank_code}
-              autoComplete="off"
-            />
-
-            <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="mb-2 text-xs font-black text-slate-400">
-                {branchLoading ? copy.searching : copy.selectedBranch}
-              </p>
-
-              {form.branch_code && form.branch_name ? (
-                <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
-                  <p className="text-sm font-black text-emerald-800">
-                    {form.branch_name}
-                  </p>
-                  <p className="mt-1 text-xs font-bold text-emerald-600">
-                    {copy.branchCode}: {form.branch_code}
-                  </p>
-                </div>
-              ) : (
-                <p className="mb-3 text-sm font-bold text-slate-400">
-                  {copy.notSelected}
-                </p>
-              )}
-
-              <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
-                {!form.bank_code ? (
-                  <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
-                    {copy.branchSearchHelp}
-                  </p>
-                ) : branchOptions.length > 0 ? (
-                  branchOptions.map((branch) => (
-                    <OptionButton
-                      key={branch.code}
-                      title={`${branch.name}（${branch.code}）`}
-                      subtitle={branch.kana || branch.hira || branch.roma || undefined}
-                      selected={form.branch_code === branch.code}
-                      onClick={() => selectBranch(branch)}
-                    />
-                  ))
-                ) : (
-                  <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
-                    {branchLoading ? copy.searching : copy.noBranchResults}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CreatorField>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <CreatorField label={copy.accountType}>
-              <CreatorSelect
-                value={form.account_type}
+      {showSetupForm ? (
+        <CreatorSection title={copy.setupTitle} description={copy.setupDescription}>
+          <div className="space-y-5">
+            <CreatorField label={copy.bankSearch} help={copy.bankSearchHelp}>
+              <CreatorInput
+                value={bankQuery}
+                placeholder={copy.bankSearchPlaceholder}
                 onChange={(event) => {
-                  updateForm(
-                    "account_type",
-                    event.target.value === "checking" ? "checking" : "ordinary"
-                  );
+                  setBankQuery(event.target.value);
                   setConfirmOpen(false);
                 }}
-              >
-                <option value="ordinary">{copy.ordinary}</option>
-                <option value="checking">{copy.checking}</option>
-              </CreatorSelect>
+                autoComplete="off"
+              />
+
+              <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
+                <p className="mb-2 text-xs font-black text-slate-400">
+                  {bankLoading ? copy.searching : copy.selectedBank}
+                </p>
+
+                {form.bank_code && form.bank_name ? (
+                  <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
+                    <p className="text-sm font-black text-emerald-800">
+                      {form.bank_name}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-emerald-600">
+                      {copy.bankCode}: {form.bank_code}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mb-3 text-sm font-bold text-slate-400">
+                    {copy.notSelected}
+                  </p>
+                )}
+
+                <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                  {bankOptions.length > 0 ? (
+                    bankOptions.map((bank) => (
+                      <OptionButton
+                        key={bank.code}
+                        title={`${bank.name}（${bank.code}）`}
+                        subtitle={bank.kana || bank.hira || bank.roma || undefined}
+                        selected={form.bank_code === bank.code}
+                        onClick={() => selectBank(bank)}
+                      />
+                    ))
+                  ) : (
+                    <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
+                      {bankLoading ? copy.searching : copy.noBankResults}
+                    </p>
+                  )}
+                </div>
+              </div>
             </CreatorField>
 
-            <CreatorField label={copy.accountNumber} help={copy.accountNumberHelp}>
+            <CreatorField label={copy.branchSearch} help={copy.branchSearchHelp}>
               <CreatorInput
-                value={form.account_number}
-                placeholder={copy.accountNumberPlaceholder}
-                inputMode="numeric"
+                value={branchQuery}
+                placeholder={copy.branchSearchPlaceholder}
                 onChange={(event) => {
-                  updateForm(
-                    "account_number",
-                    normalizeDigits(event.target.value).slice(0, 7)
-                  );
+                  setBranchQuery(event.target.value);
+                  setConfirmOpen(false);
+                }}
+                disabled={!form.bank_code}
+                autoComplete="off"
+              />
+
+              <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
+                <p className="mb-2 text-xs font-black text-slate-400">
+                  {branchLoading ? copy.searching : copy.selectedBranch}
+                </p>
+
+                {form.branch_code && form.branch_name ? (
+                  <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
+                    <p className="text-sm font-black text-emerald-800">
+                      {form.branch_name}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-emerald-600">
+                      {copy.branchCode}: {form.branch_code}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mb-3 text-sm font-bold text-slate-400">
+                    {copy.notSelected}
+                  </p>
+                )}
+
+                <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                  {!form.bank_code ? (
+                    <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
+                      {copy.branchSearchHelp}
+                    </p>
+                  ) : branchOptions.length > 0 ? (
+                    branchOptions.map((branch) => (
+                      <OptionButton
+                        key={branch.code}
+                        title={`${branch.name}（${branch.code}）`}
+                        subtitle={branch.kana || branch.hira || branch.roma || undefined}
+                        selected={form.branch_code === branch.code}
+                        onClick={() => selectBranch(branch)}
+                      />
+                    ))
+                  ) : (
+                    <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
+                      {branchLoading ? copy.searching : copy.noBranchResults}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CreatorField>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <CreatorField label={copy.accountType}>
+                <CreatorSelect
+                  value={form.account_type}
+                  onChange={(event) => {
+                    updateForm(
+                      "account_type",
+                      event.target.value === "checking" ? "checking" : "ordinary"
+                    );
+                    setConfirmOpen(false);
+                  }}
+                >
+                  <option value="ordinary">{copy.ordinary}</option>
+                  <option value="checking">{copy.checking}</option>
+                </CreatorSelect>
+              </CreatorField>
+
+              <CreatorField label={copy.accountNumber} help={copy.accountNumberHelp}>
+                <CreatorInput
+                  value={form.account_number}
+                  placeholder={copy.accountNumberPlaceholder}
+                  inputMode="numeric"
+                  onChange={(event) => {
+                    updateForm(
+                      "account_number",
+                      normalizeDigits(event.target.value).slice(0, 7)
+                    );
+                    setConfirmOpen(false);
+                  }}
+                />
+              </CreatorField>
+            </div>
+
+            <CreatorField label={copy.accountHolderName} help={copy.accountHolderHelp}>
+              <CreatorInput
+                value={form.account_holder_name}
+                placeholder={copy.accountHolderNamePlaceholder}
+                onChange={(event) => {
+                  updateForm("account_holder_name", event.target.value);
                   setConfirmOpen(false);
                 }}
               />
             </CreatorField>
+
+            <CreatorField label={copy.accountHolderKana} help={copy.accountHolderKanaHelp}>
+              <CreatorInput
+                value={form.account_holder_kana}
+                placeholder={copy.accountHolderKanaPlaceholder}
+                onChange={(event) => {
+                  updateForm("account_holder_kana", normalizeHolderKana(event.target.value));
+                  setConfirmOpen(false);
+                }}
+              />
+            </CreatorField>
+
+            {confirmOpen ? (
+              <CreatorCard tone="soft" className="space-y-4">
+                <div>
+                  <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
+                    {copy.confirmTitle}
+                  </p>
+                  <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
+                    {copy.confirmBody}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <CreatorMiniInfo
+                    label={copy.selectedBank}
+                    value={`${form.bank_name} / ${form.bank_code}`}
+                    strong
+                  />
+                  <CreatorMiniInfo
+                    label={copy.selectedBranch}
+                    value={`${form.branch_name} / ${form.branch_code}`}
+                    strong
+                  />
+                  <CreatorMiniInfo
+                    label={copy.accountType}
+                    value={form.account_type === "checking" ? copy.checking : copy.ordinary}
+                    strong
+                  />
+                  <CreatorMiniInfo
+                    label={copy.accountNumber}
+                    value={form.account_number}
+                    strong
+                  />
+                  <CreatorMiniInfo
+                    label={copy.accountHolderName}
+                    value={form.account_holder_name}
+                    strong
+                  />
+                  <CreatorMiniInfo
+                    label={copy.accountHolderKana}
+                    value={form.account_holder_kana}
+                    strong
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <CreatorButton
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setConfirmOpen(false)}
+                    disabled={saving}
+                    className="w-full"
+                  >
+                    {copy.cancel}
+                  </CreatorButton>
+
+                  <CreatorButton
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="w-full"
+                  >
+                    {saving ? copy.saving : copy.confirmSave}
+                  </CreatorButton>
+                </div>
+              </CreatorCard>
+            ) : null}
+
+            <CreatorStickyFooter>
+              <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+                {hasSavedBankAccount && editing ? (
+                  <CreatorButton
+                    type="button"
+                    variant="secondary"
+                    onClick={resetFormToSavedProfile}
+                    disabled={saving}
+                    className="w-full"
+                  >
+                    {copy.cancelEdit}
+                  </CreatorButton>
+                ) : null}
+
+                <CreatorButton
+                  type="button"
+                  onClick={handleReview}
+                  disabled={saving}
+                  className="w-full"
+                >
+                  {saving ? copy.saving : copy.save}
+                </CreatorButton>
+              </div>
+            </CreatorStickyFooter>
           </div>
-
-          <CreatorField label={copy.accountHolderName} help={copy.accountHolderHelp}>
-            <CreatorInput
-              value={form.account_holder_name}
-              placeholder={copy.accountHolderNamePlaceholder}
-              onChange={(event) => {
-                updateForm("account_holder_name", event.target.value);
-                setConfirmOpen(false);
-              }}
-            />
-          </CreatorField>
-
-          <CreatorField label={copy.accountHolderKana} help={copy.accountHolderKanaHelp}>
-            <CreatorInput
-              value={form.account_holder_kana}
-              placeholder={copy.accountHolderKanaPlaceholder}
-              onChange={(event) => {
-                updateForm("account_holder_kana", normalizeHolderKana(event.target.value));
-                setConfirmOpen(false);
-              }}
-            />
-          </CreatorField>
-
-          {confirmOpen ? (
-            <CreatorCard tone="soft" className="space-y-4">
-              <div>
-                <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
-                  {copy.confirmTitle}
-                </p>
-                <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
-                  {copy.confirmBody}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <CreatorMiniInfo
-                  label={copy.selectedBank}
-                  value={`${form.bank_name} / ${form.bank_code}`}
-                  strong
-                />
-                <CreatorMiniInfo
-                  label={copy.selectedBranch}
-                  value={`${form.branch_name} / ${form.branch_code}`}
-                  strong
-                />
-                <CreatorMiniInfo
-                  label={copy.accountType}
-                  value={form.account_type === "checking" ? copy.checking : copy.ordinary}
-                  strong
-                />
-                <CreatorMiniInfo
-                  label={copy.accountNumber}
-                  value={form.account_number}
-                  strong
-                />
-                <CreatorMiniInfo
-                  label={copy.accountHolderName}
-                  value={form.account_holder_name}
-                  strong
-                />
-                <CreatorMiniInfo
-                  label={copy.accountHolderKana}
-                  value={form.account_holder_kana}
-                  strong
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <CreatorButton
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setConfirmOpen(false)}
-                  disabled={saving}
-                  className="w-full"
-                >
-                  {copy.cancel}
-                </CreatorButton>
-
-                <CreatorButton
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="w-full"
-                >
-                  {saving ? copy.saving : copy.confirmSave}
-                </CreatorButton>
-              </div>
-            </CreatorCard>
-          ) : null}
-
-          <CreatorStickyFooter>
-            <CreatorButton
-              type="button"
-              onClick={handleReview}
-              disabled={saving}
-              className="w-full"
-            >
-              {saving ? copy.saving : copy.save}
-            </CreatorButton>
-          </CreatorStickyFooter>
-        </div>
-      </CreatorSection>
+        </CreatorSection>
+      ) : null}
 
       <CreatorSection title={copy.currentTitle}>
         {profile?.bank_name || profile?.account_number ? (
@@ -1320,6 +1371,24 @@ export default function CreatorPayoutsPage() {
                 strong
               />
             </div>
+
+            {hasSavedBankAccount && !showSetupForm ? (
+              <div className="pt-2">
+                <CreatorButton
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setEditing(true);
+                    setConfirmOpen(false);
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="w-full"
+                >
+                  {copy.edit}
+                </CreatorButton>
+              </div>
+            ) : null}
           </CreatorCard>
         ) : (
           <CreatorEmptyState title={copy.noBankInfo} icon={<BankIcon />} />
