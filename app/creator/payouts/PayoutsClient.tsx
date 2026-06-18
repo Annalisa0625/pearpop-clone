@@ -1,7 +1,14 @@
 // File: app/creator/payouts/PayoutsClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -136,16 +143,20 @@ function isUnsafeDisplayName(value: string) {
 
 function isValidTransferName(value: string) {
   const normalized = normalizeTransferName(value);
+
   if (!normalized) return false;
   if (normalized.length > 48) return false;
+
   return /^[ァ-ヶー・A-Z0-9 ()().,\-\/&]+$/.test(normalized);
 }
 
 function isInvalidAccountNumber(value: string) {
   const digits = normalizeDigits(value);
+
   if (digits.length !== 7) return true;
   if (digits === "0000000") return true;
   if (/^(\d)\1{6}$/.test(digits)) return true;
+
   return false;
 }
 
@@ -197,8 +208,11 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
 
 function maskAccountNumber(value: string | null | undefined) {
   if (!value) return "-";
+
   const digits = value.replace(/[^\d]/g, "");
+
   if (digits.length <= 3) return "•••";
+
   return `••••${digits.slice(-3)}`;
 }
 
@@ -236,7 +250,7 @@ function Field({
 }: {
   label: string;
   help?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className="block">
@@ -254,11 +268,11 @@ function Field({
 function Input({
   className = "",
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-bold text-slate-950 outline-none placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
+      className={`h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-bold text-slate-950 outline-none placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 disabled:bg-slate-50 disabled:text-slate-400 ${className}`}
     />
   );
 }
@@ -267,7 +281,7 @@ function Select({
   className = "",
   children,
   ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
@@ -333,13 +347,7 @@ function OptionButton({
   );
 }
 
-function SmallInfo({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function SmallInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
       <p className="text-[11px] font-black text-slate-400">{label}</p>
@@ -400,6 +408,10 @@ export default function PayoutsClient() {
 
   const hasSavedBankAccount = Boolean(profile?.bank_name || profile?.account_number);
   const showSetupForm = !hasSavedBankAccount || editing || fromSignup;
+  const showNormalSections = hasSavedBankAccount && !fromSignup;
+
+  const bankSearchReady = bankQuery.trim().length >= 2;
+  const branchSearchReady = Boolean(form.bank_code) && branchQuery.trim().length >= 1;
 
   const pendingAmount = orders
     .filter((order) => order.payout_status === "pending")
@@ -477,6 +489,8 @@ export default function PayoutsClient() {
         setBranchQuery(nextForm.branch_name);
         setEditing(false);
         setConfirmOpen(false);
+        setBankOptions([]);
+        setBranchOptions([]);
 
         const { data: payoutOrderRows, error: payoutOrdersError } = await db
           .from("orders")
@@ -511,6 +525,12 @@ export default function PayoutsClient() {
     let active = true;
 
     const run = async () => {
+      if (!bankSearchReady) {
+        setBankOptions([]);
+        setBankLoading(false);
+        return;
+      }
+
       setBankLoading(true);
 
       try {
@@ -548,7 +568,7 @@ export default function PayoutsClient() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [bankQuery, showSetupForm]);
+  }, [bankQuery, bankSearchReady, showSetupForm]);
 
   useEffect(() => {
     if (!showSetupForm) return;
@@ -556,8 +576,9 @@ export default function PayoutsClient() {
     let active = true;
 
     const run = async () => {
-      if (!form.bank_code) {
+      if (!branchSearchReady) {
         setBranchOptions([]);
+        setBranchLoading(false);
         return;
       }
 
@@ -601,7 +622,7 @@ export default function PayoutsClient() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [branchQuery, form.bank_code, showSetupForm]);
+  }, [branchQuery, branchSearchReady, form.bank_code, showSetupForm]);
 
   const updateForm = (key: keyof FormState, value: string) => {
     setForm((current) => ({
@@ -634,6 +655,7 @@ export default function PayoutsClient() {
     }));
     setBankQuery(bank.name);
     setBranchQuery("");
+    setBankOptions([]);
     setBranchOptions([]);
     setConfirmOpen(false);
   };
@@ -645,6 +667,7 @@ export default function PayoutsClient() {
       branch_code: branch.code,
     }));
     setBranchQuery(branch.name);
+    setBranchOptions([]);
     setConfirmOpen(false);
   };
 
@@ -847,89 +870,113 @@ export default function PayoutsClient() {
           </div>
 
           <div className="space-y-4">
-            <Field label="金融機関" help="銀行名または銀行コードで検索">
+            <Field label="金融機関" help="2文字以上入力すると候補が出ます">
               <Input
                 value={bankQuery}
                 placeholder="例：三菱UFJ / 0005"
                 onChange={(event) => {
-                  setBankQuery(event.target.value);
+                  const nextValue = event.target.value;
+
+                  setBankQuery(nextValue);
                   setConfirmOpen(false);
+
+                  if (form.bank_name && nextValue !== form.bank_name) {
+                    setForm((current) => ({
+                      ...current,
+                      bank_name: "",
+                      bank_code: "",
+                      branch_name: "",
+                      branch_code: "",
+                    }));
+                    setBranchQuery("");
+                    setBranchOptions([]);
+                  }
                 }}
                 autoComplete="off"
               />
 
-              <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
-                {form.bank_code && form.bank_name ? (
-                  <div className="mb-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                    <p className="text-xs font-black text-emerald-800">
-                      選択中：{form.bank_name} / {form.bank_code}
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
-                  {bankOptions.length > 0 ? (
-                    bankOptions.map((bank) => (
-                      <OptionButton
-                        key={bank.code}
-                        title={`${bank.name}（${bank.code}）`}
-                        subtitle={bank.kana || bank.hira || bank.roma || undefined}
-                        selected={form.bank_code === bank.code}
-                        onClick={() => selectBank(bank)}
-                      />
-                    ))
-                  ) : (
-                    <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
-                      {bankLoading ? "検索中..." : "候補がありません"}
-                    </p>
-                  )}
+              {form.bank_code && form.bank_name ? (
+                <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-800">
+                    選択中：{form.bank_name} / {form.bank_code}
+                  </p>
                 </div>
-              </div>
+              ) : null}
+
+              {bankSearchReady ? (
+                <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+                  <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
+                    {bankOptions.length > 0 ? (
+                      bankOptions.map((bank) => (
+                        <OptionButton
+                          key={bank.code}
+                          title={`${bank.name}（${bank.code}）`}
+                          subtitle={bank.kana || bank.hira || bank.roma || undefined}
+                          selected={form.bank_code === bank.code}
+                          onClick={() => selectBank(bank)}
+                        />
+                      ))
+                    ) : (
+                      <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                        {bankLoading ? "検索中..." : "候補がありません"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </Field>
 
-            <Field label="支店" help="支店名または支店コードで検索">
+            <Field label="支店" help="銀行選択後、1文字以上入力すると候補が出ます">
               <Input
                 value={branchQuery}
                 placeholder="例：渋谷 / 135"
                 disabled={!form.bank_code}
                 onChange={(event) => {
-                  setBranchQuery(event.target.value);
+                  const nextValue = event.target.value;
+
+                  setBranchQuery(nextValue);
                   setConfirmOpen(false);
+
+                  if (form.branch_name && nextValue !== form.branch_name) {
+                    setForm((current) => ({
+                      ...current,
+                      branch_name: "",
+                      branch_code: "",
+                    }));
+                  }
                 }}
                 autoComplete="off"
               />
 
-              <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
-                {form.branch_code && form.branch_name ? (
-                  <div className="mb-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                    <p className="text-xs font-black text-emerald-800">
-                      選択中：{form.branch_name} / {form.branch_code}
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
-                  {!form.bank_code ? (
-                    <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
-                      先に金融機関を選択してください
-                    </p>
-                  ) : branchOptions.length > 0 ? (
-                    branchOptions.map((branch) => (
-                      <OptionButton
-                        key={branch.code}
-                        title={`${branch.name}（${branch.code}）`}
-                        subtitle={branch.kana || branch.hira || branch.roma || undefined}
-                        selected={form.branch_code === branch.code}
-                        onClick={() => selectBranch(branch)}
-                      />
-                    ))
-                  ) : (
-                    <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
-                      {branchLoading ? "検索中..." : "候補がありません"}
-                    </p>
-                  )}
+              {form.branch_code && form.branch_name ? (
+                <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-800">
+                    選択中：{form.branch_name} / {form.branch_code}
+                  </p>
                 </div>
-              </div>
+              ) : null}
+
+              {branchSearchReady ? (
+                <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+                  <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
+                    {branchOptions.length > 0 ? (
+                      branchOptions.map((branch) => (
+                        <OptionButton
+                          key={branch.code}
+                          title={`${branch.name}（${branch.code}）`}
+                          subtitle={branch.kana || branch.hira || branch.roma || undefined}
+                          selected={form.branch_code === branch.code}
+                          onClick={() => selectBranch(branch)}
+                        />
+                      ))
+                    ) : (
+                      <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                        {branchLoading ? "検索中..." : "候補がありません"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1064,7 +1111,7 @@ export default function PayoutsClient() {
         </section>
       ) : null}
 
-      {!fromSignup ? (
+      {showNormalSections ? (
         <>
           <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
             <div className="flex items-center justify-between gap-3">
@@ -1072,7 +1119,7 @@ export default function PayoutsClient() {
                 登録済み口座
               </h2>
 
-              {hasSavedBankAccount && !showSetupForm ? (
+              {!showSetupForm ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1088,42 +1135,34 @@ export default function PayoutsClient() {
               ) : null}
             </div>
 
-            {profile?.bank_name || profile?.account_number ? (
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <SmallInfo
-                  label="金融機関"
-                  value={
-                    profile.bank_code
-                      ? `${profile.bank_name || "-"} / ${profile.bank_code}`
-                      : profile.bank_name || "-"
-                  }
-                />
-                <SmallInfo
-                  label="支店"
-                  value={
-                    profile.branch_code
-                      ? `${profile.branch_name || "-"} / ${profile.branch_code}`
-                      : profile.branch_name || "-"
-                  }
-                />
-                <SmallInfo
-                  label="種別"
-                  value={profile.account_type === "checking" ? "当座" : "普通"}
-                />
-                <SmallInfo label="口座番号" value={maskAccountNumber(profile.account_number)} />
-                <SmallInfo label="口座名義" value={profile.account_holder_name || "-"} />
-                <SmallInfo label="振込用名義" value={profile.account_holder_kana || "-"} />
-              </div>
-            ) : (
-              <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-center ring-1 ring-slate-100">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-300 ring-1 ring-slate-100">
-                  <BankIcon />
-                </div>
-                <p className="mt-3 text-sm font-black text-slate-950">
-                  まだ銀行口座が登録されていません
-                </p>
-              </div>
-            )}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <SmallInfo
+                label="金融機関"
+                value={
+                  profile?.bank_code
+                    ? `${profile.bank_name || "-"} / ${profile.bank_code}`
+                    : profile?.bank_name || "-"
+                }
+              />
+              <SmallInfo
+                label="支店"
+                value={
+                  profile?.branch_code
+                    ? `${profile.branch_name || "-"} / ${profile.branch_code}`
+                    : profile?.branch_name || "-"
+                }
+              />
+              <SmallInfo
+                label="種別"
+                value={profile?.account_type === "checking" ? "当座" : "普通"}
+              />
+              <SmallInfo
+                label="口座番号"
+                value={maskAccountNumber(profile?.account_number)}
+              />
+              <SmallInfo label="口座名義" value={profile?.account_holder_name || "-"} />
+              <SmallInfo label="振込用名義" value={profile?.account_holder_kana || "-"} />
+            </div>
           </section>
 
           <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">

@@ -47,7 +47,7 @@ type DraftState = {
   agreedToPrivacy: boolean;
 };
 
-const STORAGE_KEY = "trendre_creator_signup_draft_v7";
+const STORAGE_KEY = "trendre_creator_signup_draft_v8_compact";
 
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
@@ -56,7 +56,7 @@ const TOTAL_STEPS = 7;
 const COUNTRY_DEFAULT = "日本";
 
 const GENDER_OPTIONS = [
-  { value: "", ja: "選択してください", en: "Select" },
+  { value: "", ja: "選択", en: "Select" },
   { value: "女性", ja: "女性", en: "Female" },
   { value: "男性", ja: "男性", en: "Male" },
   { value: "その他", ja: "その他", en: "Other" },
@@ -115,7 +115,7 @@ const PREFECTURE_OPTIONS = [
 const GENRE_GROUPS = [
   {
     key: "beauty",
-    ja: "ビューティ",
+    ja: "美容",
     en: "Beauty",
     items: [
       "美容サロン",
@@ -134,7 +134,7 @@ const GENRE_GROUPS = [
   },
   {
     key: "fitness",
-    ja: "フィットネス",
+    ja: "健康",
     en: "Fitness",
     items: [
       "ジム",
@@ -172,7 +172,7 @@ const GENRE_GROUPS = [
   },
   {
     key: "travel",
-    ja: "トラベル",
+    ja: "旅行",
     en: "Travel",
     items: [
       "国内旅行",
@@ -191,7 +191,7 @@ const GENRE_GROUPS = [
   },
   {
     key: "life",
-    ja: "ライフスタイル",
+    ja: "暮らし",
     en: "Lifestyle",
     items: [
       "ファッション",
@@ -210,7 +210,7 @@ const GENRE_GROUPS = [
   },
   {
     key: "creative",
-    ja: "クリエイティブ",
+    ja: "制作",
     en: "Creative",
     items: [
       "写真撮影",
@@ -346,15 +346,15 @@ const MENU_OPTIONS = [
   },
   {
     value: "投稿なし・動画素材のみ納品",
-    labelJa: "投稿なし・動画素材のみ納品",
-    labelEn: "Video asset only, no posting",
+    labelJa: "動画素材のみ納品",
+    labelEn: "Video asset only",
     helpJa: "広告やSNSで使える動画素材だけを納品します。",
     helpEn: "Deliver video assets only. You do not post on your own account.",
   },
   {
     value: "投稿なし・写真素材のみ納品",
-    labelJa: "投稿なし・写真素材のみ納品",
-    labelEn: "Photo asset only, no posting",
+    labelJa: "写真素材のみ納品",
+    labelEn: "Photo asset only",
     helpJa: "広告やSNSで使える写真素材だけを納品します。",
     helpEn: "Deliver photo assets only. You do not post on your own account.",
   },
@@ -500,45 +500,33 @@ function getAgeFromBirthDate(value: string) {
 function getSocialConfig(platform: string, locale: Locale) {
   if (platform === "Instagram") {
     return {
-      prefix: "https://www.instagram.com/",
-      placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
-      guide:
-        locale === "ja"
-          ? "@は不要です。ユーザーネームだけ入力してください。"
-          : "You do not need @. Enter your username only.",
+      prefix: "instagram.com/",
+      placeholder: locale === "ja" ? "yourname" : "yourname",
+      guide: locale === "ja" ? "@なしで入力" : "No @ needed.",
     };
   }
 
   if (platform === "TikTok") {
     return {
-      prefix: "https://www.tiktok.com/@",
-      placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
-      guide:
-        locale === "ja"
-          ? "@は不要です。ユーザーネームだけ入力してください。"
-          : "You do not need @. Enter your username only.",
+      prefix: "tiktok.com/@",
+      placeholder: locale === "ja" ? "yourname" : "yourname",
+      guide: locale === "ja" ? "@なしで入力" : "No @ needed.",
     };
   }
 
   if (platform === "YouTube") {
     return {
-      prefix: "https://www.youtube.com/@",
-      placeholder: locale === "ja" ? "例：yourchannel" : "e.g. yourchannel",
-      guide:
-        locale === "ja"
-          ? "YouTubeのハンドル名を入力してください。"
-          : "Enter your YouTube handle.",
+      prefix: "youtube.com/@",
+      placeholder: locale === "ja" ? "yourchannel" : "yourchannel",
+      guide: locale === "ja" ? "ハンドル名を入力" : "Enter handle.",
     };
   }
 
   if (platform === "X") {
     return {
-      prefix: "https://x.com/",
-      placeholder: locale === "ja" ? "例：yourname" : "e.g. yourname",
-      guide:
-        locale === "ja"
-          ? "Xのユーザー名を入力してください。"
-          : "Enter your X username.",
+      prefix: "x.com/",
+      placeholder: locale === "ja" ? "yourname" : "yourname",
+      guide: locale === "ja" ? "ユーザー名を入力" : "Enter username.",
     };
   }
 
@@ -546,20 +534,14 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "",
       placeholder: "https://example.com",
-      guide:
-        locale === "ja"
-          ? "WebサイトやポートフォリオURLを入力してください。"
-          : "Enter your website or portfolio URL.",
+      guide: locale === "ja" ? "URLを入力" : "Enter URL.",
     };
   }
 
   return {
     prefix: "",
-    placeholder: locale === "ja" ? "ユーザーネームを入力" : "Enter username",
-    guide:
-      locale === "ja"
-        ? "媒体を選ぶと入力方法が表示されます。"
-        : "Select a platform to see input guidance.",
+    placeholder: locale === "ja" ? "ユーザー名" : "Username",
+    guide: locale === "ja" ? "媒体を選択してください" : "Select platform.",
   };
 }
 
@@ -601,10 +583,6 @@ function fileExtension(file: File) {
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
-function FieldLabel({ children }: { children: ReactNode }) {
-  return <label className="text-sm font-black text-slate-900">{children}</label>;
-}
-
 function TextInput({
   className = "",
   ...props
@@ -612,7 +590,7 @@ function TextInput({
   return (
     <input
       {...props}
-      className={`w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-[16px] font-bold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
+      className={`h-11 w-full rounded-2xl border border-slate-200 bg-white px-3.5 text-[15px] font-bold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 disabled:bg-slate-50 disabled:text-slate-400 ${className}`}
     />
   );
 }
@@ -625,37 +603,32 @@ function SelectInput({
   return (
     <select
       {...props}
-      className={`w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-[16px] font-bold text-slate-950 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
+      className={`h-11 w-full rounded-2xl border border-slate-200 bg-white px-3.5 text-[15px] font-bold text-slate-950 outline-none transition focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
     >
       {children}
     </select>
   );
 }
 
-function ChoiceButton({
-  selected,
+function Field({
+  label,
+  help,
   children,
-  onClick,
-  disabled,
 }: {
-  selected: boolean;
+  label: string;
+  help?: string;
   children: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`rounded-full px-4 py-2.5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
-        selected
-          ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.22)]"
-          : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-      }`}
-    >
+    <label className="block">
+      <p className="mb-1.5 text-[13px] font-black text-slate-900">{label}</p>
       {children}
-    </button>
+      {help ? (
+        <p className="mt-1.5 text-[11px] font-bold leading-5 text-slate-400">
+          {help}
+        </p>
+      ) : null}
+    </label>
   );
 }
 
@@ -672,7 +645,7 @@ function FilePickerButton({
 }) {
   return (
     <label
-      className={`inline-flex cursor-pointer items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3 text-sm font-black text-white shadow-[0_12px_26px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4f58] ${className}`}
+      className={`inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#ff3860] px-4 text-xs font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.20)] transition hover:bg-[#ff4f58] ${className}`}
     >
       {children}
       <input
@@ -701,26 +674,26 @@ function StepShell({
 }) {
   return (
     <div>
-      <h1 className="text-[26px] font-black leading-tight tracking-[-0.045em] text-slate-950 md:text-[32px]">
+      <h1 className="text-[24px] font-black leading-tight tracking-[-0.055em] text-slate-950">
         {title}
       </h1>
 
       {body ? (
-        <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+        <p className="mt-1.5 text-[13px] font-bold leading-6 text-slate-500">
           {body}
         </p>
       ) : null}
 
-      <div className="mt-6">{children}</div>
+      <div className="mt-4">{children}</div>
     </div>
   );
 }
 
 function ProgressBar({ current }: { current: number }) {
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
       <div
-        className="h-full rounded-full bg-[#ff5f67] transition-all duration-300"
+        className="h-full rounded-full bg-[#ff3860] transition-all duration-300"
         style={{ width: `${((current + 1) / TOTAL_STEPS) * 100}%` }}
       />
     </div>
@@ -741,15 +714,14 @@ export default function SignupCreatorClient() {
             step: "STEP",
 
             displayTitle: "基本情報",
-            displayBody:
-              "ユーザーネームは、SNSのアカウント名と同じにするのがおすすめです。",
+            displayBody: "あとから変更できます。",
             displayName: "ユーザーネーム",
             displayNamePlaceholder: "例：Yuna Beauty",
             gender: "性別",
             birthDate: "生年月日",
 
-            accountTitle: "ログイン方法",
-            accountBody: "Google、またはメールアドレスで登録できます。",
+            accountTitle: "ログイン",
+            accountBody: "Google、またはメールで登録します。",
             oauthConnected: "Google連携済み",
             email: "メールアドレス",
             password: "パスワード（8文字以上）",
@@ -757,22 +729,19 @@ export default function SignupCreatorClient() {
             orText: "または",
 
             categoryTitle: "ジャンル",
-            categoryBody:
-              "大きなジャンルを選び、得意または興味のある詳細ジャンルを5つまで選択してください。",
+            categoryBody: "得意なジャンルを5つまで選んでください。",
             categoryCount: "選択中",
 
-            areaTitle: "体験対応エリア",
-            areaBody:
-              "来店・体験に対応できるエリアと、商品配送によるPRが可能かを選択してください。",
-            prefecture: "体験対応できるエリア",
+            areaTitle: "対応エリア",
+            areaBody: "体験対応エリアと商品配送PRの可否を選んでください。",
+            prefecture: "体験対応エリア",
             selectPrefecture: "都道府県を選択",
-            productPr: "商品配送によるPR",
-            productPrYes: "商品を受け取ってPRできます",
-            productPrNo: "商品配送のPRは受け付けません",
+            productPr: "商品配送PR",
+            productPrYes: "商品を受け取ってPRできる",
+            productPrNo: "商品配送PRは受け付けない",
 
-            socialTitle: "SNSアカウント",
-            socialBody:
-              "1つ以上のSNSを登録してください。企業が確認するために使います。",
+            socialTitle: "SNS",
+            socialBody: "企業が確認するSNSを1つ以上登録してください。",
             platform: "媒体",
             socialHandle: "ユーザーネーム",
             followerRange: "フォロワー数",
@@ -782,19 +751,16 @@ export default function SignupCreatorClient() {
             remove: "削除",
 
             imagesTitle: "写真",
-            imagesBody:
-              "プロフィール画像1枚と、ポートフォリオ画像3枚以上を追加してください。",
+            imagesBody: "プロフィール画像1枚とポートフォリオ画像3枚以上が必要です。",
             avatar: "プロフィール画像",
-            avatarHelp: "丸いアイコンとして表示されます。",
-            avatarChoose: "プロフィール画像を選択",
+            avatarHelp: "アイコンとして表示されます。",
+            avatarChoose: "画像を選択",
             portfolio: "ポートフォリオ画像",
-            portfolioHelp:
-              "3枚以上必須です。あなたの雰囲気が伝わる写真を選んでください。",
+            portfolioHelp: "最低3枚。雰囲気が伝わる写真を選んでください。",
             portfolioChoose: "画像を追加",
 
             menuTitle: "メニュー",
-            menuBody:
-              "企業が注文できるメニューを1つ以上作成してください。あとから変更できます。",
+            menuBody: "企業が購入できるメニューを1つ以上作成してください。",
             menuType: "メニュー内容",
             price: "金額（円）",
             addMenu: "メニューを追加",
@@ -805,13 +771,13 @@ export default function SignupCreatorClient() {
             termsLink: "利用規約",
             privacyLink: "プライバシーポリシー",
 
-            continue: "続ける",
+            continue: "次へ",
             back: "戻る",
-            finish: "登録を完了する",
+            finish: "登録する",
             loading: "処理中...",
             selectPlease: "選択してください",
             login: "ログイン",
-            reset: "最初からやり直す",
+            reset: "最初から",
 
             displayNameRequired: "ユーザーネームを入力してください",
             genderRequired: "性別を選択してください",
@@ -823,7 +789,7 @@ export default function SignupCreatorClient() {
             categoryRequired: "ジャンルを1つ以上選択してください",
             categoryLimit: "ジャンルは5つまで選択できます",
             areaRequired: "体験対応できるエリアを選択してください",
-            productPrRequired: "商品配送によるPR可否を選択してください",
+            productPrRequired: "商品配送PRの可否を選択してください",
             socialRequired: "SNSを少なくとも1件、正しく入力してください",
             avatarRequired: "プロフィール画像を追加してください",
             portfolioRequired: "ポートフォリオ画像を3枚以上追加してください",
@@ -838,16 +804,15 @@ export default function SignupCreatorClient() {
         : {
             step: "STEP",
 
-            displayTitle: "Basic information",
-            displayBody:
-              "We recommend using the same username as your social account.",
+            displayTitle: "Basic info",
+            displayBody: "You can edit this later.",
             displayName: "Username",
             displayNamePlaceholder: "Example: Yuna Beauty",
             gender: "Gender",
             birthDate: "Date of birth",
 
-            accountTitle: "Login method",
-            accountBody: "Continue with Google or sign up with email.",
+            accountTitle: "Login",
+            accountBody: "Continue with Google or email.",
             oauthConnected: "Google connected",
             email: "Email",
             password: "Password",
@@ -855,61 +820,55 @@ export default function SignupCreatorClient() {
             orText: "or",
 
             categoryTitle: "Categories",
-            categoryBody:
-              "Choose a broad category, then select up to 5 detailed genres.",
+            categoryBody: "Select up to 5 categories.",
             categoryCount: "Selected",
 
-            areaTitle: "Experience area",
-            areaBody:
-              "Select the area where you can visit or experience services, and whether you can receive products.",
+            areaTitle: "Area",
+            areaBody: "Select your available area and product PR setting.",
             prefecture: "Available area",
             selectPrefecture: "Select prefecture",
             productPr: "Product shipping PR",
-            productPrYes: "I can receive products for PR",
+            productPrYes: "I can receive products",
             productPrNo: "I do not accept shipped product PR",
 
-            socialTitle: "Social accounts",
-            socialBody:
-              "Add at least one social account so brands can review it.",
+            socialTitle: "Socials",
+            socialBody: "Add at least one social account.",
             platform: "Platform",
             socialHandle: "Username",
             followerRange: "Follower range",
             audienceCountry: "Main audience country",
             urlPreview: "URL",
-            addSocial: "Add social account",
+            addSocial: "Add social",
             remove: "Remove",
 
             imagesTitle: "Images",
-            imagesBody:
-              "Add one profile image and at least three portfolio images.",
+            imagesBody: "Add one profile image and at least three portfolio images.",
             avatar: "Profile image",
-            avatarHelp: "Displayed as your round icon.",
-            avatarChoose: "Choose profile image",
+            avatarHelp: "Displayed as your icon.",
+            avatarChoose: "Choose image",
             portfolio: "Portfolio images",
-            portfolioHelp:
-              "At least 3 are required. Choose images that show your style.",
+            portfolioHelp: "At least 3 images are required.",
             portfolioChoose: "Add images",
 
             menuTitle: "Menus",
-            menuBody:
-              "Create at least one menu that brands can order. You can edit it later.",
+            menuBody: "Create at least one menu brands can order.",
             menuType: "Menu content",
             price: "Price (JPY)",
             addMenu: "Add menu",
 
             termsTitle: "Confirm",
-            termsLabel: "I agree to the Terms of Service",
+            termsLabel: "I agree to the Terms",
             privacyLabel: "I agree to the Privacy Policy",
             termsLink: "Terms",
             privacyLink: "Privacy Policy",
 
-            continue: "Continue",
+            continue: "Next",
             back: "Back",
-            finish: "Complete registration",
+            finish: "Sign up",
             loading: "Processing...",
             selectPlease: "Please select",
             login: "Login",
-            reset: "Start over",
+            reset: "Reset",
 
             displayNameRequired: "Please enter your username",
             genderRequired: "Please select your gender",
@@ -938,15 +897,7 @@ export default function SignupCreatorClient() {
   const stepTitles = useMemo(
     () =>
       appLocale === "ja"
-        ? [
-            "基本情報",
-            "ログイン",
-            "ジャンル",
-            "対応エリア",
-            "SNS",
-            "写真",
-            "メニュー",
-          ]
+        ? ["基本", "ログイン", "ジャンル", "エリア", "SNS", "写真", "メニュー"]
         : ["Basic", "Login", "Categories", "Area", "Socials", "Images", "Menus"],
     [appLocale]
   );
@@ -992,7 +943,9 @@ export default function SignupCreatorClient() {
   const shouldResetDraft = searchParams.get("reset") === "1";
 
   const activeGenre = useMemo(
-    () => GENRE_GROUPS.find((group) => group.key === activeGenreGroup) ?? GENRE_GROUPS[0],
+    () =>
+      GENRE_GROUPS.find((group) => group.key === activeGenreGroup) ??
+      GENRE_GROUPS[0],
     [activeGenreGroup]
   );
 
@@ -1188,28 +1141,26 @@ export default function SignupCreatorClient() {
 
       const { data: existingCreator } = await supabase
         .from("creators")
-        .select("id, stripe_onboarding_completed")
+        .select("id")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
       if (existingCreator) {
-        const { count } = await supabase
-          .from("creator_portfolio_assets")
-          .select("id", { count: "exact", head: true })
+        const { data: payoutProfile } = await supabase
+          .from("creator_payout_profiles")
+          .select("id, status")
           .eq("creator_id", existingCreator.id)
-          .eq("asset_type", "image")
-          .eq("is_public", true);
+          .maybeSingle();
 
-        if ((count ?? 0) < 3) {
-          router.replace("/creator/profile?from=signup&required=portfolio");
+        if (
+          payoutProfile?.status === "submitted" ||
+          payoutProfile?.status === "verified"
+        ) {
+          router.replace("/creator/dashboard");
           return;
         }
 
-        router.replace(
-          existingCreator.stripe_onboarding_completed
-            ? "/creator/dashboard"
-            : "/creator/payouts?from=signup"
-        );
+        router.replace("/creator/payouts?from=signup&required=1");
         return;
       }
 
@@ -1752,42 +1703,36 @@ export default function SignupCreatorClient() {
     if (step === 0) {
       return (
         <StepShell title={copy.displayTitle} body={copy.displayBody}>
-          <div className="grid gap-5">
-            <div>
-              <FieldLabel>{copy.displayName}</FieldLabel>
+          <div className="grid gap-3">
+            <Field label={copy.displayName}>
               <TextInput
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder={copy.displayNamePlaceholder}
-                className="mt-2"
               />
-            </div>
+            </Field>
 
-            <div>
-              <FieldLabel>{copy.gender}</FieldLabel>
-              <SelectInput
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                className="mt-2"
-              >
-                {GENDER_OPTIONS.map((item) => (
-                  <option key={item.value || "empty"} value={item.value}>
-                    {appLocale === "ja" ? item.ja : item.en}
-                  </option>
-                ))}
-              </SelectInput>
-            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={copy.gender}>
+                <SelectInput
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                >
+                  {GENDER_OPTIONS.map((item) => (
+                    <option key={item.value || "empty"} value={item.value}>
+                      {appLocale === "ja" ? item.ja : item.en}
+                    </option>
+                  ))}
+                </SelectInput>
+              </Field>
 
-            <div>
-              <FieldLabel>{copy.birthDate}</FieldLabel>
-              <div className="mt-2 rounded-[22px] border border-slate-200 bg-white px-4 py-1 transition focus-within:border-[#ff5f67] focus-within:ring-4 focus-within:ring-rose-100">
-                <input
+              <Field label={copy.birthDate}>
+                <TextInput
                   type="date"
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full bg-transparent py-3 text-[16px] font-bold text-slate-950 outline-none"
                 />
-              </div>
+              </Field>
             </div>
           </div>
         </StepShell>
@@ -1800,29 +1745,29 @@ export default function SignupCreatorClient() {
           <button
             type="button"
             onClick={handleGoogleSignup}
-            className="flex w-full items-center justify-center gap-3 rounded-full bg-white px-5 py-4 text-sm font-black text-slate-950 shadow-[0_14px_34px_rgba(15,23,42,0.08)] ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-slate-50"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-black text-slate-950 ring-1 ring-slate-200 transition hover:bg-slate-50"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-50 text-base font-black text-[#ff5f67] ring-1 ring-slate-100">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-sm font-black text-[#ff3860] ring-1 ring-slate-100">
               G
             </span>
             {copy.signUpWithGoogle}
           </button>
 
-          <div className="my-5 flex items-center gap-4">
+          <div className="my-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-black text-slate-300">
+            <span className="text-[11px] font-black text-slate-300">
               {copy.orText}
             </span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
           {oauthSessionEmail ? (
-            <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 ring-1 ring-emerald-100">
+            <div className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
               {copy.oauthConnected}: {oauthSessionEmail}
             </div>
           ) : null}
 
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             <TextInput
               type="email"
               value={email}
@@ -1847,8 +1792,8 @@ export default function SignupCreatorClient() {
     if (step === 2) {
       return (
         <StepShell title={copy.categoryTitle} body={copy.categoryBody}>
-          <div className="rounded-[26px] bg-slate-50 p-3 ring-1 ring-slate-100">
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {GENRE_GROUPS.map((group) => {
                 const active = activeGenreGroup === group.key;
 
@@ -1857,9 +1802,9 @@ export default function SignupCreatorClient() {
                     key={group.key}
                     type="button"
                     onClick={() => setActiveGenreGroup(group.key)}
-                    className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-black transition ${
+                    className={`shrink-0 rounded-full px-3 py-2 text-xs font-black transition ${
                       active
-                        ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.22)]"
+                        ? "bg-[#ff3860] text-white"
                         : "bg-white text-slate-600 ring-1 ring-slate-200"
                     }`}
                   >
@@ -1870,16 +1815,16 @@ export default function SignupCreatorClient() {
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100">
-            <span className="text-sm font-black text-slate-500">
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
+            <span className="text-xs font-black text-slate-500">
               {copy.categoryCount}
             </span>
-            <span className="text-sm font-black text-slate-950">
+            <span className="text-xs font-black text-slate-950">
               {selectedCategories.length}/5
             </span>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {activeGenre.items.map((item) => {
               const selected = selectedCategories.includes(item);
               const disabled = !selected && selectedCategories.length >= 5;
@@ -1890,9 +1835,9 @@ export default function SignupCreatorClient() {
                   type="button"
                   disabled={disabled}
                   onClick={() => toggleCategory(item)}
-                  className={`min-h-[48px] rounded-2xl px-3 py-3 text-left text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                  className={`min-h-[38px] rounded-xl px-2.5 py-2 text-left text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
                     selected
-                      ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.22)]"
+                      ? "bg-[#ff3860] text-white"
                       : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
                   }`}
                 >
@@ -1903,13 +1848,13 @@ export default function SignupCreatorClient() {
           </div>
 
           {selectedCategories.length > 0 ? (
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {selectedCategories.map((item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => toggleCategory(item)}
-                  className="rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-[#ff5f67] ring-1 ring-rose-100"
+                  className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-[#ff3860] ring-1 ring-rose-100"
                 >
                   {item} ×
                 </button>
@@ -1923,13 +1868,11 @@ export default function SignupCreatorClient() {
     if (step === 3) {
       return (
         <StepShell title={copy.areaTitle} body={copy.areaBody}>
-          <div className="grid gap-5">
-            <div>
-              <FieldLabel>{copy.prefecture}</FieldLabel>
+          <div className="grid gap-3">
+            <Field label={copy.prefecture}>
               <SelectInput
                 value={prefecture}
                 onChange={(e) => setPrefecture(e.target.value)}
-                className="mt-2"
               >
                 <option value="">{copy.selectPrefecture}</option>
                 {PREFECTURE_OPTIONS.map((item) => (
@@ -1938,15 +1881,14 @@ export default function SignupCreatorClient() {
                   </option>
                 ))}
               </SelectInput>
-            </div>
+            </Field>
 
-            <div>
-              <FieldLabel>{copy.productPr}</FieldLabel>
-              <div className="mt-3 grid gap-3">
+            <Field label={copy.productPr}>
+              <div className="grid gap-2">
                 <button
                   type="button"
                   onClick={() => setCanReceiveProductsChoice("yes")}
-                  className={`rounded-[22px] px-4 py-4 text-left text-sm font-black ring-1 transition ${
+                  className={`rounded-2xl px-3 py-3 text-left text-sm font-black ring-1 transition ${
                     canReceiveProductsChoice === "yes"
                       ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
                       : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
@@ -1958,16 +1900,16 @@ export default function SignupCreatorClient() {
                 <button
                   type="button"
                   onClick={() => setCanReceiveProductsChoice("no")}
-                  className={`rounded-[22px] px-4 py-4 text-left text-sm font-black ring-1 transition ${
+                  className={`rounded-2xl px-3 py-3 text-left text-sm font-black ring-1 transition ${
                     canReceiveProductsChoice === "no"
-                      ? "bg-rose-50 text-[#ff5f67] ring-rose-200"
+                      ? "bg-rose-50 text-[#ff3860] ring-rose-200"
                       : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
                   }`}
                 >
                   {copy.productPrNo}
                 </button>
               </div>
-            </div>
+            </Field>
           </div>
         </StepShell>
       );
@@ -1976,7 +1918,7 @@ export default function SignupCreatorClient() {
     if (step === 4) {
       return (
         <StepShell title={copy.socialTitle} body={copy.socialBody}>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {socialAccounts.map((social, index) => {
               const config = getSocialConfig(social.platform, appLocale);
               const previewUrl = buildSocialPreview(
@@ -1987,20 +1929,22 @@ export default function SignupCreatorClient() {
               return (
                 <div
                   key={index}
-                  className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100"
+                  className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100"
                 >
-                  <div className="mb-4 flex items-center justify-between">
-                    <p className="font-black text-slate-950">SNS {index + 1}</p>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-black text-slate-950">
+                      SNS {index + 1}
+                    </p>
                     <button
                       type="button"
                       onClick={() => removeSocial(index)}
-                      className="text-sm font-black text-[#ff5f67]"
+                      className="text-xs font-black text-[#ff3860]"
                     >
                       {copy.remove}
                     </button>
                   </div>
 
-                  <div className="grid gap-3">
+                  <div className="grid gap-2.5">
                     <SelectInput
                       value={social.platform}
                       onChange={(e) =>
@@ -2016,9 +1960,9 @@ export default function SignupCreatorClient() {
                     </SelectInput>
 
                     <div>
-                      <div className="flex overflow-hidden rounded-[22px] border border-slate-200 bg-white focus-within:border-[#ff5f67] focus-within:ring-4 focus-within:ring-rose-100">
+                      <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-[#ff5f67] focus-within:ring-4 focus-within:ring-rose-100">
                         {config.prefix ? (
-                          <div className="flex max-w-[45%] items-center bg-slate-50 px-3 text-xs font-black text-slate-400">
+                          <div className="flex max-w-[42%] items-center bg-slate-50 px-2 text-[11px] font-black text-slate-400">
                             <span className="truncate">{config.prefix}</span>
                           </div>
                         ) : null}
@@ -2032,57 +1976,59 @@ export default function SignupCreatorClient() {
                               e.target.value
                             )
                           }
-                          className="min-w-0 flex-1 px-4 py-4 text-[16px] font-bold outline-none"
+                          className="h-11 min-w-0 flex-1 px-3 text-[15px] font-bold outline-none"
                           placeholder={config.placeholder}
                         />
                       </div>
 
-                      <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
-                        {config.guide}
-                      </p>
-
                       {previewUrl ? (
-                        <p className="mt-2 break-all rounded-2xl bg-white px-4 py-3 text-xs font-bold text-slate-500 ring-1 ring-slate-100">
+                        <p className="mt-1.5 truncate rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100">
                           {copy.urlPreview}: {previewUrl}
                         </p>
-                      ) : null}
+                      ) : (
+                        <p className="mt-1.5 text-[11px] font-bold text-slate-400">
+                          {config.guide}
+                        </p>
+                      )}
                     </div>
 
-                    <SelectInput
-                      value={social.follower_range}
-                      onChange={(e) =>
-                        updateSocial(index, "follower_range", e.target.value)
-                      }
-                    >
-                      <option value="">{copy.followerRange}</option>
-                      {FOLLOWER_RANGE_OPTIONS.map((item) => (
-                        <option key={item} value={item}>
-                          {formatOption(
-                            item,
-                            appLocale,
-                            FOLLOWER_RANGE_OPTIONS_EN
-                          )}
-                        </option>
-                      ))}
-                    </SelectInput>
+                    <div className="grid grid-cols-2 gap-2">
+                      <SelectInput
+                        value={social.follower_range}
+                        onChange={(e) =>
+                          updateSocial(index, "follower_range", e.target.value)
+                        }
+                      >
+                        <option value="">{copy.followerRange}</option>
+                        {FOLLOWER_RANGE_OPTIONS.map((item) => (
+                          <option key={item} value={item}>
+                            {formatOption(
+                              item,
+                              appLocale,
+                              FOLLOWER_RANGE_OPTIONS_EN
+                            )}
+                          </option>
+                        ))}
+                      </SelectInput>
 
-                    <SelectInput
-                      value={social.audience_country}
-                      onChange={(e) =>
-                        updateSocial(index, "audience_country", e.target.value)
-                      }
-                    >
-                      <option value="">{copy.audienceCountry}</option>
-                      {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
-                        <option key={item} value={item}>
-                          {formatOption(
-                            item,
-                            appLocale,
-                            AUDIENCE_COUNTRY_OPTIONS_EN
-                          )}
-                        </option>
-                      ))}
-                    </SelectInput>
+                      <SelectInput
+                        value={social.audience_country}
+                        onChange={(e) =>
+                          updateSocial(index, "audience_country", e.target.value)
+                        }
+                      >
+                        <option value="">{copy.audienceCountry}</option>
+                        {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
+                          <option key={item} value={item}>
+                            {formatOption(
+                              item,
+                              appLocale,
+                              AUDIENCE_COUNTRY_OPTIONS_EN
+                            )}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </div>
                   </div>
                 </div>
               );
@@ -2092,7 +2038,7 @@ export default function SignupCreatorClient() {
           <button
             type="button"
             onClick={addSocial}
-            className="mt-5 w-full rounded-full bg-white px-4 py-4 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
+            className="mt-3 h-10 w-full rounded-full bg-white text-xs font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
           >
             + {copy.addSocial}
           </button>
@@ -2103,10 +2049,10 @@ export default function SignupCreatorClient() {
     if (step === 5) {
       return (
         <StepShell title={copy.imagesTitle} body={copy.imagesBody}>
-          <div className="space-y-5">
-            <div className="rounded-[26px] bg-slate-50 p-5 ring-1 ring-slate-100">
-              <div className="flex items-center gap-5">
-                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white ring-1 ring-slate-200">
+          <div className="space-y-3">
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
                   {avatarPreview ? (
                     <img
                       src={avatarPreview}
@@ -2114,18 +2060,20 @@ export default function SignupCreatorClient() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs font-black text-slate-300">
+                    <div className="flex h-full w-full items-center justify-center text-[11px] font-black text-slate-300">
                       Icon
                     </div>
                   )}
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="font-black text-slate-950">{copy.avatar}</p>
-                  <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
+                  <p className="text-sm font-black text-slate-950">
+                    {copy.avatar}
+                  </p>
+                  <p className="mt-1 text-[11px] font-bold leading-5 text-slate-400">
                     {copy.avatarHelp}
                   </p>
-                  <div className="mt-3">
+                  <div className="mt-2">
                     <FilePickerButton onChange={handleAvatarSelect}>
                       {copy.avatarChoose}
                     </FilePickerButton>
@@ -2134,20 +2082,22 @@ export default function SignupCreatorClient() {
               </div>
             </div>
 
-            <div className="rounded-[26px] bg-slate-50 p-5 ring-1 ring-slate-100">
-              <div className="flex items-start justify-between gap-4">
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-black text-slate-950">{copy.portfolio}</p>
-                  <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
+                  <p className="text-sm font-black text-slate-950">
+                    {copy.portfolio}
+                  </p>
+                  <p className="mt-1 text-[11px] font-bold leading-5 text-slate-400">
                     {copy.portfolioHelp}
                   </p>
                 </div>
-                <div className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
+                <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-700 ring-1 ring-slate-200">
                   {portfolioPreviews.length}/3
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-3">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 {Array.from({
                   length: Math.max(3, portfolioPreviews.length),
                 }).map((_, index) => {
@@ -2157,7 +2107,7 @@ export default function SignupCreatorClient() {
                     return (
                       <div
                         key={preview}
-                        className="group relative aspect-square overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200"
+                        className="relative aspect-square overflow-hidden rounded-xl bg-white ring-1 ring-slate-200"
                       >
                         <img
                           src={preview}
@@ -2167,7 +2117,7 @@ export default function SignupCreatorClient() {
                         <button
                           type="button"
                           onClick={() => removePortfolioFile(index)}
-                          className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs font-black text-white"
+                          className="absolute right-1.5 top-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-black text-white"
                         >
                           ×
                         </button>
@@ -2178,7 +2128,7 @@ export default function SignupCreatorClient() {
                   return (
                     <div
                       key={`empty-${index}`}
-                      className="flex aspect-square items-center justify-center rounded-2xl bg-white text-xs font-black text-slate-300 ring-1 ring-dashed ring-slate-200"
+                      className="flex aspect-square items-center justify-center rounded-xl bg-white text-[11px] font-black text-slate-300 ring-1 ring-dashed ring-slate-200"
                     >
                       {index + 1}
                     </div>
@@ -2186,7 +2136,7 @@ export default function SignupCreatorClient() {
                 })}
               </div>
 
-              <div className="mt-5">
+              <div className="mt-3">
                 <FilePickerButton multiple onChange={handlePortfolioSelect}>
                   {copy.portfolioChoose}
                 </FilePickerButton>
@@ -2199,24 +2149,26 @@ export default function SignupCreatorClient() {
 
     return (
       <StepShell title={copy.menuTitle} body={copy.menuBody}>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {menus.map((menu, index) => (
             <div
               key={index}
-              className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100"
+              className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100"
             >
-              <div className="mb-4 flex items-center justify-between">
-                <p className="font-black text-slate-950">Menu {index + 1}</p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-black text-slate-950">
+                  Menu {index + 1}
+                </p>
                 <button
                   type="button"
                   onClick={() => removeMenu(index)}
-                  className="text-sm font-black text-[#ff5f67]"
+                  className="text-xs font-black text-[#ff3860]"
                 >
                   {copy.remove}
                 </button>
               </div>
 
-              <div className="grid gap-3">
+              <div className="grid gap-2.5">
                 <SelectInput
                   value={menu.menu_type}
                   onChange={(e) =>
@@ -2232,8 +2184,7 @@ export default function SignupCreatorClient() {
                 </SelectInput>
 
                 {menu.menu_type ? (
-                  <p className="rounded-2xl bg-white px-4 py-3 text-xs font-bold leading-6 text-slate-500 ring-1 ring-slate-100">
-                    {getMenuLabel(menu.menu_type, appLocale)}：{" "}
+                  <p className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold leading-5 text-slate-500 ring-1 ring-slate-100">
                     {getMenuHelp(menu.menu_type, appLocale)}
                   </p>
                 ) : null}
@@ -2253,15 +2204,15 @@ export default function SignupCreatorClient() {
         <button
           type="button"
           onClick={addMenu}
-          className="mt-5 w-full rounded-full bg-white px-4 py-4 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
+          className="mt-3 h-10 w-full rounded-full bg-white text-xs font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
         >
           + {copy.addMenu}
         </button>
 
-        <div className="mt-6 space-y-3 rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100">
+        <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
           <p className="text-sm font-black text-slate-950">{copy.termsTitle}</p>
 
-          <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
+          <label className="flex items-center gap-2 text-xs font-bold leading-5 text-slate-700">
             <input
               type="checkbox"
               checked={agreedToTerms}
@@ -2273,14 +2224,14 @@ export default function SignupCreatorClient() {
               <Link
                 href="/terms"
                 target="_blank"
-                className="text-[#ff5f67] underline underline-offset-4"
+                className="text-[#ff3860] underline underline-offset-4"
               >
                 {copy.termsLink}
               </Link>
             </span>
           </label>
 
-          <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
+          <label className="flex items-center gap-2 text-xs font-bold leading-5 text-slate-700">
             <input
               type="checkbox"
               checked={agreedToPrivacy}
@@ -2292,7 +2243,7 @@ export default function SignupCreatorClient() {
               <Link
                 href="/privacy"
                 target="_blank"
-                className="text-[#ff5f67] underline underline-offset-4"
+                className="text-[#ff3860] underline underline-offset-4"
               >
                 {copy.privacyLink}
               </Link>
@@ -2304,156 +2255,117 @@ export default function SignupCreatorClient() {
   };
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f6f8fb] text-slate-950">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-[-180px] top-[-120px] h-[420px] w-[420px] rounded-full bg-rose-100/45 blur-[120px]" />
-        <div className="absolute right-[-180px] top-[180px] h-[420px] w-[420px] rounded-full bg-emerald-100/35 blur-[120px]" />
-      </div>
+    <main className="min-h-screen bg-[#f6f8fb] text-slate-950">
+      <header className="mx-auto flex w-full max-w-[760px] items-center justify-between px-4 py-3">
+        <Link href="/for-creators" className="inline-flex items-center">
+          <img
+            src="/brand/trendre-logo-full.png"
+            alt="Trendre"
+            className="h-7 w-auto object-contain"
+          />
+        </Link>
 
-      <div className="relative z-10">
-        <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 md:px-6">
-          <Link href="/for-creators" className="inline-flex items-center">
-            <img
-              src="/brand/trendre-logo-full.png"
-              alt="Trendre"
-              className="h-8 w-auto object-contain md:h-9"
-            />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLocale(appLocale === "ja" ? "en" : "ja")}
+            className="rounded-full bg-white px-3 py-2 text-[11px] font-black text-slate-700 ring-1 ring-slate-100"
+          >
+            {appLocale === "ja" ? "EN" : "日本語"}
+          </button>
+
+          <Link
+            href="/login"
+            className="rounded-full bg-white px-3 py-2 text-[11px] font-black text-slate-700 ring-1 ring-slate-100"
+          >
+            {copy.login}
           </Link>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setLocale(appLocale === "ja" ? "en" : "ja")}
-              className="rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
-            >
-              {appLocale === "ja" ? "EN" : "日本語"}
-            </button>
-
-            <Link
-              href="/login"
-              className="rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
-            >
-              {copy.login}
-            </Link>
-          </div>
-        </header>
-
-        <div className="mx-auto flex w-full max-w-5xl px-3 pb-8 pt-2 md:px-6 md:pb-14 md:pt-8">
-          <section className="w-full overflow-hidden rounded-[32px] bg-white/95 shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-white backdrop-blur-xl md:rounded-[40px]">
-            <div className="grid md:grid-cols-[300px_minmax(0,1fr)]">
-              <aside className="hidden border-r border-slate-100 bg-slate-50/70 p-7 md:block">
-                <div className="sticky top-8">
-                  <p className="text-xs font-black tracking-[0.22em] text-slate-400">
-                    {copy.step} {step + 1}/{TOTAL_STEPS}
-                  </p>
-
-                  <h2 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.05em] text-slate-950">
-                    {stepTitles[step]}
-                  </h2>
-
-                  <div className="mt-7 space-y-2">
-                    {stepTitles.map((title, index) => (
-                      <button
-                        key={title}
-                        type="button"
-                        onClick={() => {
-                          if (index <= step) goToStep(index);
-                        }}
-                        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
-                          index === step
-                            ? "bg-[#ff5f67] text-white shadow-[0_12px_24px_rgba(255,95,103,0.18)]"
-                            : index < step
-                              ? "bg-white text-slate-800 ring-1 ring-slate-100"
-                              : "text-slate-400"
-                        }`}
-                      >
-                        <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${
-                            index === step
-                              ? "bg-white text-[#ff5f67]"
-                              : index < step
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-slate-100 text-slate-400"
-                          }`}
-                        >
-                          {index < step ? "✓" : index + 1}
-                        </span>
-                        <span>{title}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="mt-6 text-xs font-black text-slate-400 underline underline-offset-4"
-                  >
-                    {copy.reset}
-                  </button>
-                </div>
-              </aside>
-
-              <div className="p-5 md:p-8">
-                <div className="mb-6 md:hidden">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-xs font-black tracking-[0.2em] text-slate-400">
-                      {copy.step} {step + 1}/{TOTAL_STEPS}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="text-xs font-black text-slate-400 underline underline-offset-4"
-                    >
-                      {copy.reset}
-                    </button>
-                  </div>
-                  <ProgressBar current={step} />
-                </div>
-
-                <div className="min-h-[520px] md:min-h-[560px]">
-                  {renderStep()}
-                </div>
-
-                {error ? (
-                  <div className="mt-6 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black leading-6 text-rose-700 ring-1 ring-rose-100">
-                    {error}
-                  </div>
-                ) : null}
-
-                <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <button
-                    type="button"
-                    onClick={goBack}
-                    disabled={step === 0 || loading}
-                    className="rounded-full bg-white px-6 py-4 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {copy.back}
-                  </button>
-
-                  {step < TOTAL_STEPS - 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => void goNext()}
-                      disabled={loading}
-                      className="rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {copy.continue}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void handleFinish()}
-                      disabled={loading}
-                      className="rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {loading ? copy.loading : copy.finish}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
+      </header>
+
+      <div className="mx-auto w-full max-w-[760px] px-3 pb-24">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-100">
+          <div className="border-b border-slate-100 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[11px] font-black tracking-[0.18em] text-slate-400">
+                {copy.step} {step + 1}/{TOTAL_STEPS}
+              </p>
+
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-[11px] font-black text-slate-400 underline underline-offset-4"
+              >
+                {copy.reset}
+              </button>
+            </div>
+
+            <ProgressBar current={step} />
+
+            <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {stepTitles.map((title, index) => (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={() => {
+                    if (index <= step) goToStep(index);
+                  }}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black transition ${
+                    index === step
+                      ? "bg-[#ff3860] text-white"
+                      : index < step
+                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                        : "bg-slate-50 text-slate-400 ring-1 ring-slate-100"
+                  }`}
+                >
+                  {index < step ? "✓ " : ""}
+                  {title}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4">
+            {renderStep()}
+
+            {error ? (
+              <div className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-xs font-black leading-5 text-rose-700 ring-1 ring-rose-100">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid grid-cols-[96px_minmax(0,1fr)] gap-2">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={step === 0 || loading}
+                className="h-11 rounded-full bg-white text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {copy.back}
+              </button>
+
+              {step < TOTAL_STEPS - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => void goNext()}
+                  disabled={loading}
+                  className="h-11 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.22)] transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {copy.continue}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleFinish()}
+                  disabled={loading}
+                  className="h-11 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.22)] transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? copy.loading : copy.finish}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
