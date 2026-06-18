@@ -5,22 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-import {
-  CreatorBadge,
-  CreatorButton,
-  CreatorCard,
-  CreatorEmptyState,
-  CreatorField,
-  CreatorHero,
-  CreatorInput,
-  CreatorMiniInfo,
-  CreatorNotice,
-  CreatorPage,
-  CreatorSection,
-  CreatorSelect,
-  CreatorSkeleton,
-  CreatorStickyFooter,
-} from "@/app/creator/_components/CreatorDesignSystem";
 
 type CreatorRow = {
   id: string;
@@ -152,20 +136,16 @@ function isUnsafeDisplayName(value: string) {
 
 function isValidTransferName(value: string) {
   const normalized = normalizeTransferName(value);
-
   if (!normalized) return false;
   if (normalized.length > 48) return false;
-
   return /^[ァ-ヶー・A-Z0-9 ()().,\-\/&]+$/.test(normalized);
 }
 
 function isInvalidAccountNumber(value: string) {
   const digits = normalizeDigits(value);
-
   if (digits.length !== 7) return true;
   if (digits === "0000000") return true;
   if (/^(\d)\1{6}$/.test(digits)) return true;
-
   return false;
 }
 
@@ -215,112 +195,6 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
-function getProfileStatusMeta(
-  status: PayoutProfile["status"] | null | undefined,
-  locale: "ja" | "en"
-): {
-  label: string;
-  title: string;
-  body: string;
-  tone: "green" | "blue" | "amber" | "red" | "slate";
-} {
-  const normalized = status || "not_submitted";
-
-  if (locale === "ja") {
-    if (normalized === "verified") {
-      return {
-        label: "登録済み",
-        title: "報酬受け取り設定は完了しています",
-        body: "案件完了後の報酬は、登録済みの銀行口座へ月末締めでお支払いします。",
-        tone: "green",
-      };
-    }
-
-    if (normalized === "submitted") {
-      return {
-        label: "登録済み",
-        title: "銀行口座情報を受け付けました",
-        body: "報酬の振込先として保存されています。変更がある場合はこの画面から更新できます。",
-        tone: "blue",
-      };
-    }
-
-    if (normalized === "rejected") {
-      return {
-        label: "修正が必要",
-        title: "銀行口座情報の確認が必要です",
-        body: "口座情報に誤りがある可能性があります。内容を確認して再登録してください。",
-        tone: "red",
-      };
-    }
-
-    return {
-      label: "未登録",
-      title: "報酬受け取り設定が未完了です",
-      body: "注文を受けるには、報酬を受け取る銀行口座の登録が必要です。",
-      tone: "amber",
-    };
-  }
-
-  if (normalized === "verified") {
-    return {
-      label: "Ready",
-      title: "Payout setup is complete",
-      body: "Your completed order payouts will be sent to your registered bank account.",
-      tone: "green",
-    };
-  }
-
-  if (normalized === "submitted") {
-    return {
-      label: "Submitted",
-      title: "Bank account saved",
-      body: "Your bank account is saved for manual payout processing.",
-      tone: "blue",
-    };
-  }
-
-  if (normalized === "rejected") {
-    return {
-      label: "Needs update",
-      title: "Please review your bank account",
-      body: "There may be an issue with your bank account information.",
-      tone: "red",
-    };
-  }
-
-  return {
-    label: "Not set",
-    title: "Payout setup is not complete",
-    body: "Please register your bank account before accepting paid orders.",
-    tone: "amber",
-  };
-}
-
-function getPayoutStatusMeta(
-  status: PayoutOrderRow["payout_status"],
-  locale: "ja" | "en"
-): {
-  label: string;
-  tone: "green" | "blue" | "amber" | "red" | "slate";
-} {
-  const normalized = status || "unpaid";
-
-  if (locale === "ja") {
-    if (normalized === "paid") return { label: "支払済み", tone: "green" };
-    if (normalized === "pending") return { label: "支払予定", tone: "blue" };
-    if (normalized === "withheld") return { label: "保留中", tone: "amber" };
-    if (normalized === "failed") return { label: "確認が必要", tone: "red" };
-    return { label: "未確定", tone: "slate" };
-  }
-
-  if (normalized === "paid") return { label: "Paid", tone: "green" };
-  if (normalized === "pending") return { label: "Scheduled", tone: "blue" };
-  if (normalized === "withheld") return { label: "On hold", tone: "amber" };
-  if (normalized === "failed") return { label: "Needs check", tone: "red" };
-  return { label: "Not ready", tone: "slate" };
-}
-
 function maskAccountNumber(value: string | null | undefined) {
   if (!value) return "-";
   const digits = value.replace(/[^\d]/g, "");
@@ -328,94 +202,104 @@ function maskAccountNumber(value: string | null | undefined) {
   return `••••${digits.slice(-3)}`;
 }
 
+function getProfileLabel(status: PayoutProfile["status"] | null | undefined) {
+  if (status === "verified" || status === "submitted") return "登録済み";
+  if (status === "rejected") return "修正必要";
+  return "未登録";
+}
+
+function getProfileTone(status: PayoutProfile["status"] | null | undefined) {
+  if (status === "verified" || status === "submitted") {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  }
+
+  if (status === "rejected") {
+    return "bg-red-50 text-red-700 ring-red-100";
+  }
+
+  return "bg-amber-50 text-amber-700 ring-amber-100";
+}
+
 function LoadingView() {
   return (
-    <CreatorPage>
-      <CreatorSkeleton className="h-40" />
-      <CreatorSkeleton className="h-52" />
-      <CreatorSkeleton className="h-56" />
-    </CreatorPage>
+    <main className="mx-auto max-w-[760px] px-4 py-5">
+      <div className="h-24 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      <div className="mt-3 h-72 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+    </main>
   );
 }
 
-function BankIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M4 10h16M6 10v8M10 10v8M14 10v8M18 10v8M5 18h14M12 4l8 4H4l8-4Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function EmptyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
-      <path
-        d="M12 3v18M17 6.5c-.9-1-2.5-1.7-4.2-1.7-2.4 0-4.3 1.2-4.3 3.1 0 2.2 2.2 2.8 4.5 3.3 2.2.5 4.2 1.1 4.2 3.4 0 2-1.9 3.3-4.5 3.3-2.1 0-3.9-.8-4.9-2"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function PayoutHistoryRow({
-  order,
-  locale,
+function Field({
+  label,
+  help,
+  children,
 }: {
-  order: PayoutOrderRow;
-  locale: "ja" | "en";
+  label: string;
+  help?: string;
+  children: React.ReactNode;
 }) {
-  const statusMeta = getPayoutStatusMeta(order.payout_status, locale);
+  return (
+    <label className="block">
+      <p className="mb-1.5 text-[13px] font-black text-slate-900">{label}</p>
+      {children}
+      {help ? (
+        <p className="mt-1.5 text-[11px] font-bold leading-5 text-slate-400">
+          {help}
+        </p>
+      ) : null}
+    </label>
+  );
+}
+
+function Input({
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-bold text-slate-950 outline-none placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
+    />
+  );
+}
+
+function Select({
+  className = "",
+  children,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-bold text-slate-950 outline-none focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
+    >
+      {children}
+    </select>
+  );
+}
+
+function Alert({
+  tone,
+  title,
+  body,
+}: {
+  tone: "blue" | "amber" | "green" | "red";
+  title: string;
+  body: string;
+}) {
+  const cls =
+    tone === "blue"
+      ? "bg-blue-50 text-blue-900 ring-blue-100"
+      : tone === "green"
+        ? "bg-emerald-50 text-emerald-900 ring-emerald-100"
+        : tone === "red"
+          ? "bg-red-50 text-red-900 ring-red-100"
+          : "bg-amber-50 text-amber-900 ring-amber-100";
 
   return (
-    <div className="rounded-[24px] bg-[#F8F9FA] p-4 ring-1 ring-slate-100">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex flex-wrap gap-2">
-            <CreatorBadge tone={statusMeta.tone}>{statusMeta.label}</CreatorBadge>
-          </div>
-
-          <p className="truncate text-[16px] font-black tracking-[-0.04em] text-slate-950">
-            {order.product_name ||
-              (locale === "ja" ? "案件名未設定" : "Untitled order")}
-          </p>
-
-          <p className="mt-1.5 text-xs font-bold text-slate-400">
-            {locale === "ja" ? "完了日" : "Completed"}：
-            {formatDate(order.completed_at || order.created_at, locale)}
-          </p>
-
-          {order.payout_due_at ? (
-            <p className="mt-1 text-xs font-bold text-slate-400">
-              {locale === "ja" ? "振込予定日" : "Payout due"}：
-              {formatDate(order.payout_due_at, locale)}
-            </p>
-          ) : null}
-
-          {order.payout_paid_at ? (
-            <p className="mt-1 text-xs font-bold text-slate-400">
-              {locale === "ja" ? "支払日" : "Paid at"}：
-              {formatDate(order.payout_paid_at, locale)}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="shrink-0 text-right">
-          <p className="text-[17px] font-black tracking-[-0.05em] text-slate-950">
-            {formatMoney(order.creator_payout_amount, order.currency, locale)}
-          </p>
-          <p className="mt-1 text-[11px] font-black text-slate-400">
-            {locale === "ja" ? "報酬" : "Payout"}
-          </p>
-        </div>
-      </div>
+    <div className={`rounded-2xl p-3 ring-1 ${cls}`}>
+      <p className="text-sm font-black">{title}</p>
+      <p className="mt-1 text-xs font-bold leading-5 opacity-80">{body}</p>
     </div>
   );
 }
@@ -435,17 +319,48 @@ function OptionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-2xl p-3 text-left ring-1 transition ${
+      className={`w-full rounded-xl p-2.5 text-left ring-1 transition ${
         selected
           ? "bg-emerald-50 ring-emerald-200"
           : "bg-white ring-slate-100 hover:bg-slate-50"
       }`}
     >
-      <p className="text-sm font-black text-slate-950">{title}</p>
+      <p className="text-[13px] font-black text-slate-950">{title}</p>
       {subtitle ? (
-        <p className="mt-1 text-xs font-bold text-slate-400">{subtitle}</p>
+        <p className="mt-0.5 text-[11px] font-bold text-slate-400">{subtitle}</p>
       ) : null}
     </button>
+  );
+}
+
+function SmallInfo({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+      <p className="text-[11px] font-black text-slate-400">{label}</p>
+      <p className="mt-1 break-words text-sm font-black text-slate-950">
+        {value || "-"}
+      </p>
+    </div>
+  );
+}
+
+function BankIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h16M6 10v8M10 10v8M14 10v8M18 10v8M5 18h14M12 4l8 4H4l8-4Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -483,199 +398,8 @@ export default function PayoutsClient() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const copy = useMemo(
-    () =>
-      safeLocale === "ja"
-        ? {
-            loginRequired: "ログインしてください。",
-            creatorNotFound: "インフルエンサー情報が見つかりませんでした。",
-            loadFailed: "報酬受け取り情報の取得に失敗しました。",
-            saveFailed:
-              "保存に失敗しました。入力内容を確認して、もう一度お試しください。",
-            saved: "報酬受け取り設定を保存しました。",
-
-            title: "報酬受け取り設定",
-            subtitle:
-              "案件完了後の報酬を受け取るため、振込先の銀行口座を登録してください。",
-            heroEyebrow: "Payout settings",
-
-            signupFinalStepTitle: "登録の最終ステップです",
-            signupFinalStepBody:
-              "銀行口座を登録すると、あなたのメニューが企業向けに公開されます。報酬を受け取るために必要な情報です。",
-            signupRequiredBody:
-              "Creator登録を完了するには、報酬受け取り用の銀行口座登録が必要です。",
-
-            setupTitle: "銀行口座を登録",
-            setupDescription:
-              "銀行名・支店名は検索して選択できます。手入力ミスを防ぐため、金融機関コードと支店コードは自動入力されます。",
-            requiredNoticeTitle: "注文を受ける前に必要です",
-            requiredNoticeBody:
-              "銀行口座が未登録の場合、有料案件を受けることができません。先に振込先を登録してください。",
-
-            bankSearch: "金融機関を検索",
-            bankSearchPlaceholder: "銀行名・銀行コードで検索",
-            bankSearchHelp: "銀行を選択すると金融機関コードが自動入力されます。",
-            bankCode: "金融機関コード",
-            branchSearch: "支店を検索",
-            branchSearchPlaceholder: "支店名・支店コードで検索",
-            branchSearchHelp: "先に金融機関を選択してください。",
-            branchCode: "支店コード",
-
-            selectedBank: "選択中の金融機関",
-            selectedBranch: "選択中の支店",
-            notSelected: "未選択",
-            noBankResults: "該当する金融機関がありません",
-            noBranchResults: "該当する支店がありません",
-            searching: "検索中...",
-
-            accountType: "口座種別",
-            ordinary: "普通",
-            checking: "当座",
-            accountNumber: "口座番号",
-            accountNumberPlaceholder: "例：1234567",
-            accountHolderName: "口座名義",
-            accountHolderNamePlaceholder:
-              "例：山田 太郎 / ヤマダ タロウ / TARO YAMADA",
-            transferName: "振込用口座名義",
-            transferNamePlaceholder: "例：ヤマダ タロウ / カ)トレンドル",
-
-            accountNumberHelp:
-              "7桁の数字で入力してください。0000000など明らかに無効な番号は登録できません。",
-            accountHolderHelp:
-              "銀行口座に登録されている名義を入力してください。漢字・カナ・英字など、通帳や銀行アプリ上の表記に合わせてください。",
-            transferNameHelp:
-              "CSV振込に使用します。カナ・英数字・スペース・一部記号のみ使用できます。ひらがな、半角カナ、全角スペースは自動で整形します。",
-
-            save: "確認して保存",
-            confirmTitle: "登録内容を確認",
-            confirmBody:
-              "この内容で報酬の振込先として登録します。銀行名・支店名・口座番号・振込用名義に誤りがないか確認してください。",
-            confirmSave: "この内容で保存する",
-            cancel: "戻る",
-            cancelEdit: "編集をやめる",
-            edit: "登録内容を変更する",
-            saving: "保存中...",
-
-            currentTitle: "現在の登録内容",
-            noBankInfo: "まだ銀行口座が登録されていません。",
-            maskedAccount: "口座番号",
-            submittedAt: "登録日",
-
-            summaryTitle: "報酬サマリー",
-            pendingAmount: "支払予定",
-            paidAmount: "支払済み",
-            totalAmount: "完了報酬",
-            pendingHelper: "月末締めで支払い予定",
-            paidHelper: "支払済みに更新された金額",
-            totalHelper: "完了済み案件の報酬合計",
-
-            historyTitle: "報酬履歴",
-            historyDescription:
-              "完了済み案件の報酬と支払い状況を確認できます。",
-            noHistoryTitle: "まだ報酬履歴はありません",
-            noHistoryBody:
-              "案件が完了し、企業が承認すると報酬予定として表示されます。",
-
-            privacyTitle: "口座情報の取り扱い",
-            privacyBody:
-              "登録された銀行口座情報は、報酬支払いのためにのみ使用します。銀行・支店マスターで入力ミスを防ぎますが、口座番号と名義の実在確認はできません。変更がある場合は、振込前に必ず更新してください。",
-          }
-        : {
-            loginRequired: "Please log in.",
-            creatorNotFound: "Influencer profile was not found.",
-            loadFailed: "Failed to load payout information.",
-            saveFailed:
-              "Failed to save payout settings. Please check your input.",
-            saved: "Payout settings saved.",
-
-            title: "Payout settings",
-            subtitle:
-              "Register your bank account to receive payouts after completed orders.",
-            heroEyebrow: "Payout settings",
-
-            signupFinalStepTitle: "Final step",
-            signupFinalStepBody:
-              "Register your bank account to publish your menus to brands and receive payouts.",
-            signupRequiredBody:
-              "Please register your bank account to complete your influencer registration.",
-
-            setupTitle: "Register bank account",
-            setupDescription:
-              "Search and select your bank and branch. Bank and branch codes are filled automatically.",
-            requiredNoticeTitle: "Required before accepting orders",
-            requiredNoticeBody:
-              "You need to register a bank account before accepting paid orders.",
-
-            bankSearch: "Search bank",
-            bankSearchPlaceholder: "Search by bank name or code",
-            bankSearchHelp: "Select a bank to fill the bank code automatically.",
-            bankCode: "Bank code",
-            branchSearch: "Search branch",
-            branchSearchPlaceholder: "Search by branch name or code",
-            branchSearchHelp: "Please select a bank first.",
-            branchCode: "Branch code",
-
-            selectedBank: "Selected bank",
-            selectedBranch: "Selected branch",
-            notSelected: "Not selected",
-            noBankResults: "No banks found",
-            noBranchResults: "No branches found",
-            searching: "Searching...",
-
-            accountType: "Account type",
-            ordinary: "Ordinary",
-            checking: "Checking",
-            accountNumber: "Account number",
-            accountNumberPlaceholder: "Example: 1234567",
-            accountHolderName: "Account holder name",
-            accountHolderNamePlaceholder: "Example: TARO YAMADA",
-            transferName: "Transfer account name",
-            transferNamePlaceholder: "Example: TARO YAMADA",
-
-            accountNumberHelp: "Enter exactly 7 digits.",
-            accountHolderHelp:
-              "Enter the name registered with your bank account.",
-            transferNameHelp:
-              "Used for bank transfer CSV. Kana, alphanumeric characters, spaces, and limited symbols are allowed.",
-
-            save: "Review and save",
-            confirmTitle: "Confirm payout account",
-            confirmBody:
-              "Please confirm your bank, branch, account number, and transfer account name before saving.",
-            confirmSave: "Save this account",
-            cancel: "Back",
-            cancelEdit: "Cancel edit",
-            edit: "Edit bank account",
-            saving: "Saving...",
-
-            currentTitle: "Current bank account",
-            noBankInfo: "No bank account has been registered yet.",
-            maskedAccount: "Account number",
-            submittedAt: "Submitted",
-
-            summaryTitle: "Payout summary",
-            pendingAmount: "Scheduled",
-            paidAmount: "Paid",
-            totalAmount: "Completed payout",
-            pendingHelper: "Scheduled for monthly payout",
-            paidHelper: "Amount marked as paid",
-            totalHelper: "Total payout from completed orders",
-
-            historyTitle: "Payout history",
-            historyDescription:
-              "Check completed order payouts and payment status.",
-            noHistoryTitle: "No payout history yet",
-            noHistoryBody:
-              "Completed and approved orders will appear here as scheduled payouts.",
-
-            privacyTitle: "Bank account handling",
-            privacyBody:
-              "Your bank account is used only for payout processing. Bank and branch master data helps prevent input mistakes, but account existence and holder matching are not verified.",
-          },
-    [safeLocale]
-  );
-
-  const profileMeta = getProfileStatusMeta(profile?.status, safeLocale);
+  const hasSavedBankAccount = Boolean(profile?.bank_name || profile?.account_number);
+  const showSetupForm = !hasSavedBankAccount || editing || fromSignup;
 
   const pendingAmount = orders
     .filter((order) => order.payout_status === "pending")
@@ -690,9 +414,6 @@ export default function PayoutsClient() {
     0
   );
 
-  const hasSavedBankAccount = Boolean(profile?.bank_name || profile?.account_number);
-  const showSetupForm = !hasSavedBankAccount || editing || fromSignup;
-
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -705,7 +426,7 @@ export default function PayoutsClient() {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          setErrorMsg(copy.loginRequired);
+          setErrorMsg("ログインしてください。");
           setLoading(false);
           return;
         }
@@ -718,13 +439,13 @@ export default function PayoutsClient() {
 
         if (creatorError) {
           console.error({ creatorError });
-          setErrorMsg(copy.loadFailed);
+          setErrorMsg("報酬受け取り情報の取得に失敗しました。");
           setLoading(false);
           return;
         }
 
         if (!creatorRow) {
-          setErrorMsg(copy.creatorNotFound);
+          setErrorMsg("インフルエンサー情報が見つかりませんでした。");
           setLoading(false);
           return;
         }
@@ -742,7 +463,7 @@ export default function PayoutsClient() {
 
         if (payoutProfileError) {
           console.error({ payoutProfileError });
-          setErrorMsg(copy.loadFailed);
+          setErrorMsg("報酬受け取り情報の取得に失敗しました。");
           setLoading(false);
           return;
         }
@@ -766,32 +487,23 @@ export default function PayoutsClient() {
           .eq("status", "completed")
           .eq("payment_status", "captured")
           .order("completed_at", { ascending: false, nullsFirst: false })
-          .limit(50);
+          .limit(20);
 
         if (payoutOrdersError) {
           console.error({ payoutOrdersError });
-          setErrorMsg(copy.loadFailed);
-          setLoading(false);
-          return;
         }
 
         setOrders((payoutOrderRows ?? []) as PayoutOrderRow[]);
         setLoading(false);
       } catch (e) {
         console.error(e);
-        setErrorMsg(copy.loadFailed);
+        setErrorMsg("報酬受け取り情報の取得に失敗しました。");
         setLoading(false);
       }
     };
 
     void load();
-  }, [
-    copy.creatorNotFound,
-    copy.loadFailed,
-    copy.loginRequired,
-    db,
-    supabase.auth,
-  ]);
+  }, [db, supabase.auth]);
 
   useEffect(() => {
     if (!showSetupForm) return;
@@ -804,7 +516,7 @@ export default function PayoutsClient() {
       try {
         const params = new URLSearchParams({
           q: bankQuery,
-          limit: "25",
+          limit: "15",
         });
 
         const res = await fetch(`/api/banks/search?${params.toString()}`, {
@@ -854,7 +566,7 @@ export default function PayoutsClient() {
       try {
         const params = new URLSearchParams({
           q: branchQuery,
-          limit: "40",
+          limit: "20",
         });
 
         const res = await fetch(
@@ -940,33 +652,23 @@ export default function PayoutsClient() {
     const normalized = normalizeFormState(targetForm);
 
     if (!normalized.bank_name || normalized.bank_code.length !== 4) {
-      return safeLocale === "ja"
-        ? "金融機関を検索して選択してください。"
-        : "Please search and select a bank.";
+      return "金融機関を検索して選択してください。";
     }
 
     if (!normalized.branch_name || normalized.branch_code.length !== 3) {
-      return safeLocale === "ja"
-        ? "支店を検索して選択してください。"
-        : "Please search and select a branch.";
+      return "支店を検索して選択してください。";
     }
 
     if (isInvalidAccountNumber(normalized.account_number)) {
-      return safeLocale === "ja"
-        ? "口座番号は7桁の数字で入力してください。0000000や同じ数字のみの番号は登録できません。"
-        : "Please enter a valid 7-digit account number.";
+      return "口座番号は7桁の数字で入力してください。";
     }
 
     if (isUnsafeDisplayName(normalized.account_holder_name)) {
-      return safeLocale === "ja"
-        ? "口座名義を入力してください。長すぎる名義や改行は使用できません。"
-        : "Please enter a valid account holder name.";
+      return "口座名義を入力してください。";
     }
 
     if (!isValidTransferName(normalized.account_holder_kana)) {
-      return safeLocale === "ja"
-        ? "振込用口座名義は、カナ・英数字・スペース・一部記号のみで48文字以内にしてください。"
-        : "Please enter a valid transfer account name.";
+      return "振込用口座名義は、カナ・英数字・スペース・一部記号のみで48文字以内にしてください。";
     }
 
     return null;
@@ -1053,7 +755,7 @@ export default function PayoutsClient() {
 
       if (result.error) {
         console.error({ saveError: result.error });
-        setErrorMsg(copy.saveFailed);
+        setErrorMsg("保存に失敗しました。入力内容を確認してください。");
         setSaving(false);
         return;
       }
@@ -1068,7 +770,7 @@ export default function PayoutsClient() {
       setBranchOptions([]);
       setConfirmOpen(false);
       setEditing(false);
-      setSuccessMsg(copy.saved);
+      setSuccessMsg("報酬受け取り設定を保存しました。");
       setSaving(false);
 
       if (fromSignup) {
@@ -1076,7 +778,7 @@ export default function PayoutsClient() {
       }
     } catch (e) {
       console.error(e);
-      setErrorMsg(copy.saveFailed);
+      setErrorMsg("保存に失敗しました。入力内容を確認してください。");
       setSaving(false);
     }
   };
@@ -1086,71 +788,69 @@ export default function PayoutsClient() {
   }
 
   return (
-    <CreatorPage>
-      <CreatorHero
-        title={copy.title}
-        description={copy.subtitle}
-        eyebrow={copy.heroEyebrow}
-        right={<CreatorBadge tone={profileMeta.tone}>{profileMeta.label}</CreatorBadge>}
-      >
-        <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-[#FF3B5C] ring-1 ring-rose-100">
-              <BankIcon />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[16px] font-black tracking-[-0.04em] text-slate-950">
-                {profileMeta.title}
-              </p>
-              <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
-                {profileMeta.body}
-              </p>
-            </div>
+    <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+      <section className="mb-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#ff5f67]">
+              Payout settings
+            </p>
+            <h1 className="mt-1 text-[26px] font-black leading-tight tracking-[-0.06em] text-slate-950">
+              報酬受け取り設定
+            </h1>
+            <p className="mt-2 text-[13px] font-bold leading-6 text-slate-500">
+              銀行口座を登録すると、メニューが企業向けに公開されます。
+            </p>
           </div>
+
+          <span
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black ring-1 ${getProfileTone(
+              profile?.status
+            )}`}
+          >
+            {getProfileLabel(profile?.status)}
+          </span>
         </div>
-      </CreatorHero>
+      </section>
 
       {fromSignup ? (
-        <CreatorNotice
-          tone={requiredFromSignup ? "amber" : "blue"}
-          title={copy.signupFinalStepTitle}
-          description={
-            requiredFromSignup ? copy.signupRequiredBody : copy.signupFinalStepBody
-          }
-        />
+        <div className="mb-3">
+          <Alert
+            tone={requiredFromSignup ? "amber" : "blue"}
+            title="登録の最終ステップ"
+            body="報酬を受け取る銀行口座を登録してください。登録後、ホームへ進みます。"
+          />
+        </div>
       ) : null}
 
       {errorMsg ? (
-        <CreatorNotice
-          tone="red"
-          title={safeLocale === "ja" ? "エラー" : "Error"}
-          description={errorMsg}
-        />
+        <div className="mb-3">
+          <Alert tone="red" title="エラー" body={errorMsg} />
+        </div>
       ) : null}
 
-      {successMsg ? (
-        <CreatorNotice
-          tone="green"
-          title={safeLocale === "ja" ? "保存しました" : "Saved"}
-          description={successMsg}
-        />
-      ) : null}
-
-      {profile?.status === "not_submitted" || !profile ? (
-        <CreatorNotice
-          tone="amber"
-          title={copy.requiredNoticeTitle}
-          description={copy.requiredNoticeBody}
-        />
+      {successMsg && !fromSignup ? (
+        <div className="mb-3">
+          <Alert tone="green" title="保存しました" body={successMsg} />
+        </div>
       ) : null}
 
       {showSetupForm ? (
-        <CreatorSection title={copy.setupTitle} description={copy.setupDescription}>
-          <div className="space-y-5">
-            <CreatorField label={copy.bankSearch} help={copy.bankSearchHelp}>
-              <CreatorInput
+        <section className="rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+          <div className="mb-4">
+            <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
+              銀行口座
+            </h2>
+            <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+              銀行・支店は検索して選択してください。
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <Field label="金融機関" help="銀行名または銀行コードで検索">
+              <Input
                 value={bankQuery}
-                placeholder={copy.bankSearchPlaceholder}
+                placeholder="例：三菱UFJ / 0005"
                 onChange={(event) => {
                   setBankQuery(event.target.value);
                   setConfirmOpen(false);
@@ -1158,27 +858,16 @@ export default function PayoutsClient() {
                 autoComplete="off"
               />
 
-              <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
-                <p className="mb-2 text-xs font-black text-slate-400">
-                  {bankLoading ? copy.searching : copy.selectedBank}
-                </p>
-
+              <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
                 {form.bank_code && form.bank_name ? (
-                  <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
-                    <p className="text-sm font-black text-emerald-800">
-                      {form.bank_name}
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-emerald-600">
-                      {copy.bankCode}: {form.bank_code}
+                  <div className="mb-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                    <p className="text-xs font-black text-emerald-800">
+                      選択中：{form.bank_name} / {form.bank_code}
                     </p>
                   </div>
-                ) : (
-                  <p className="mb-3 text-sm font-bold text-slate-400">
-                    {copy.notSelected}
-                  </p>
-                )}
+                ) : null}
 
-                <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
                   {bankOptions.length > 0 ? (
                     bankOptions.map((bank) => (
                       <OptionButton
@@ -1190,50 +879,39 @@ export default function PayoutsClient() {
                       />
                     ))
                   ) : (
-                    <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
-                      {bankLoading ? copy.searching : copy.noBankResults}
+                    <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                      {bankLoading ? "検索中..." : "候補がありません"}
                     </p>
                   )}
                 </div>
               </div>
-            </CreatorField>
+            </Field>
 
-            <CreatorField label={copy.branchSearch} help={copy.branchSearchHelp}>
-              <CreatorInput
+            <Field label="支店" help="支店名または支店コードで検索">
+              <Input
                 value={branchQuery}
-                placeholder={copy.branchSearchPlaceholder}
+                placeholder="例：渋谷 / 135"
+                disabled={!form.bank_code}
                 onChange={(event) => {
                   setBranchQuery(event.target.value);
                   setConfirmOpen(false);
                 }}
-                disabled={!form.bank_code}
                 autoComplete="off"
               />
 
-              <div className="mt-3 rounded-[24px] bg-slate-50 p-3 ring-1 ring-slate-100">
-                <p className="mb-2 text-xs font-black text-slate-400">
-                  {branchLoading ? copy.searching : copy.selectedBranch}
-                </p>
-
+              <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
                 {form.branch_code && form.branch_name ? (
-                  <div className="mb-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
-                    <p className="text-sm font-black text-emerald-800">
-                      {form.branch_name}
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-emerald-600">
-                      {copy.branchCode}: {form.branch_code}
+                  <div className="mb-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                    <p className="text-xs font-black text-emerald-800">
+                      選択中：{form.branch_name} / {form.branch_code}
                     </p>
                   </div>
-                ) : (
-                  <p className="mb-3 text-sm font-bold text-slate-400">
-                    {copy.notSelected}
-                  </p>
-                )}
+                ) : null}
 
-                <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
                   {!form.bank_code ? (
-                    <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
-                      {copy.branchSearchHelp}
+                    <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                      先に金融機関を選択してください
                     </p>
                   ) : branchOptions.length > 0 ? (
                     branchOptions.map((branch) => (
@@ -1246,17 +924,17 @@ export default function PayoutsClient() {
                       />
                     ))
                   ) : (
-                    <p className="rounded-2xl bg-white p-3 text-sm font-bold text-slate-400 ring-1 ring-slate-100">
-                      {branchLoading ? copy.searching : copy.noBranchResults}
+                    <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                      {branchLoading ? "検索中..." : "候補がありません"}
                     </p>
                   )}
                 </div>
               </div>
-            </CreatorField>
+            </Field>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <CreatorField label={copy.accountType}>
-                <CreatorSelect
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="口座種別">
+                <Select
                   value={form.account_type}
                   onChange={(event) => {
                     updateForm(
@@ -1266,15 +944,15 @@ export default function PayoutsClient() {
                     setConfirmOpen(false);
                   }}
                 >
-                  <option value="ordinary">{copy.ordinary}</option>
-                  <option value="checking">{copy.checking}</option>
-                </CreatorSelect>
-              </CreatorField>
+                  <option value="ordinary">普通</option>
+                  <option value="checking">当座</option>
+                </Select>
+              </Field>
 
-              <CreatorField label={copy.accountNumber} help={copy.accountNumberHelp}>
-                <CreatorInput
+              <Field label="口座番号">
+                <Input
                   value={form.account_number}
-                  placeholder={copy.accountNumberPlaceholder}
+                  placeholder="1234567"
                   inputMode="numeric"
                   onChange={(event) => {
                     updateForm(
@@ -1284,24 +962,27 @@ export default function PayoutsClient() {
                     setConfirmOpen(false);
                   }}
                 />
-              </CreatorField>
+              </Field>
             </div>
 
-            <CreatorField label={copy.accountHolderName} help={copy.accountHolderHelp}>
-              <CreatorInput
+            <Field label="口座名義">
+              <Input
                 value={form.account_holder_name}
-                placeholder={copy.accountHolderNamePlaceholder}
+                placeholder="例：山田 太郎"
                 onChange={(event) => {
                   updateForm("account_holder_name", event.target.value);
                   setConfirmOpen(false);
                 }}
               />
-            </CreatorField>
+            </Field>
 
-            <CreatorField label={copy.transferName} help={copy.transferNameHelp}>
-              <CreatorInput
+            <Field
+              label="振込用口座名義"
+              help="カナ・英数字・スペース中心。ひらがなは自動変換します。"
+            >
+              <Input
                 value={form.account_holder_kana}
-                placeholder={copy.transferNamePlaceholder}
+                placeholder="例：ヤマダ タロウ"
                 onChange={(event) => {
                   updateForm(
                     "account_holder_kana",
@@ -1310,244 +991,199 @@ export default function PayoutsClient() {
                   setConfirmOpen(false);
                 }}
               />
-            </CreatorField>
+            </Field>
 
             {confirmOpen ? (
-              <CreatorCard tone="soft" className="space-y-4">
-                <div>
-                  <p className="text-[18px] font-black tracking-[-0.04em] text-slate-950">
-                    {copy.confirmTitle}
-                  </p>
-                  <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
-                    {copy.confirmBody}
-                  </p>
+              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                <p className="text-sm font-black text-slate-950">
+                  この内容で保存します
+                </p>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <SmallInfo label="金融機関" value={`${form.bank_name} / ${form.bank_code}`} />
+                  <SmallInfo label="支店" value={`${form.branch_name} / ${form.branch_code}`} />
+                  <SmallInfo
+                    label="種別"
+                    value={form.account_type === "checking" ? "当座" : "普通"}
+                  />
+                  <SmallInfo label="口座番号" value={form.account_number} />
+                  <SmallInfo label="口座名義" value={form.account_holder_name} />
+                  <SmallInfo label="振込用名義" value={form.account_holder_kana} />
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <CreatorMiniInfo
-                    label={copy.selectedBank}
-                    value={`${form.bank_name} / ${form.bank_code}`}
-                    strong
-                  />
-                  <CreatorMiniInfo
-                    label={copy.selectedBranch}
-                    value={`${form.branch_name} / ${form.branch_code}`}
-                    strong
-                  />
-                  <CreatorMiniInfo
-                    label={copy.accountType}
-                    value={
-                      form.account_type === "checking" ? copy.checking : copy.ordinary
-                    }
-                    strong
-                  />
-                  <CreatorMiniInfo
-                    label={copy.accountNumber}
-                    value={form.account_number}
-                    strong
-                  />
-                  <CreatorMiniInfo
-                    label={copy.accountHolderName}
-                    value={form.account_holder_name}
-                    strong
-                  />
-                  <CreatorMiniInfo
-                    label={copy.transferName}
-                    value={form.account_holder_kana}
-                    strong
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <CreatorButton
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
                     type="button"
-                    variant="secondary"
                     onClick={() => setConfirmOpen(false)}
                     disabled={saving}
-                    className="w-full"
+                    className="h-12 rounded-full bg-white text-sm font-black text-slate-700 ring-1 ring-slate-200 disabled:opacity-50"
                   >
-                    {copy.cancel}
-                  </CreatorButton>
+                    戻る
+                  </button>
 
-                  <CreatorButton
+                  <button
                     type="button"
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full"
+                    className="h-12 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.24)] disabled:opacity-50"
                   >
-                    {saving ? copy.saving : copy.confirmSave}
-                  </CreatorButton>
+                    {saving ? "保存中..." : "保存する"}
+                  </button>
                 </div>
-              </CreatorCard>
+              </div>
             ) : null}
 
-            <CreatorStickyFooter>
+            <div className="sticky bottom-[78px] z-20 rounded-[22px] bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 backdrop-blur">
               <div
-                className={`grid w-full grid-cols-1 gap-3 ${
-                  hasSavedBankAccount && editing && !fromSignup ? "sm:grid-cols-2" : ""
+                className={`grid gap-2 ${
+                  hasSavedBankAccount && editing && !fromSignup ? "grid-cols-2" : "grid-cols-1"
                 }`}
               >
                 {hasSavedBankAccount && editing && !fromSignup ? (
-                  <CreatorButton
+                  <button
                     type="button"
-                    variant="secondary"
                     onClick={resetFormToSavedProfile}
                     disabled={saving}
-                    className="w-full"
+                    className="h-12 rounded-full bg-white text-sm font-black text-slate-700 ring-1 ring-slate-200 disabled:opacity-50"
                   >
-                    {copy.cancelEdit}
-                  </CreatorButton>
+                    やめる
+                  </button>
                 ) : null}
 
-                <CreatorButton
+                <button
                   type="button"
                   onClick={handleReview}
                   disabled={saving}
-                  className="w-full"
+                  className="h-12 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.24)] disabled:opacity-50"
                 >
-                  {saving ? copy.saving : copy.save}
-                </CreatorButton>
+                  {saving ? "保存中..." : "確認して保存"}
+                </button>
               </div>
-            </CreatorStickyFooter>
+            </div>
           </div>
-        </CreatorSection>
+        </section>
       ) : null}
 
-      <CreatorSection title={copy.currentTitle}>
-        {profile?.bank_name || profile?.account_number ? (
-          <CreatorCard tone="soft" className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <CreatorMiniInfo
-                label={copy.selectedBank}
-                value={
-                  profile.bank_code
-                    ? `${profile.bank_name || "-"} / ${profile.bank_code}`
-                    : profile.bank_name || "-"
-                }
-                strong
-              />
-              <CreatorMiniInfo
-                label={copy.selectedBranch}
-                value={
-                  profile.branch_code
-                    ? `${profile.branch_name || "-"} / ${profile.branch_code}`
-                    : profile.branch_name || "-"
-                }
-                strong
-              />
-              <CreatorMiniInfo
-                label={copy.accountType}
-                value={
-                  profile.account_type === "checking" ? copy.checking : copy.ordinary
-                }
-                strong
-              />
-              <CreatorMiniInfo
-                label={copy.maskedAccount}
-                value={maskAccountNumber(profile.account_number)}
-                strong
-              />
-              <CreatorMiniInfo
-                label={copy.accountHolderName}
-                value={profile.account_holder_name || "-"}
-                strong
-              />
-              <CreatorMiniInfo
-                label={copy.transferName}
-                value={profile.account_holder_kana || "-"}
-                strong
-              />
-              <CreatorMiniInfo
-                label={copy.submittedAt}
-                value={formatDate(profile.submitted_at, safeLocale)}
-                strong
-              />
-            </div>
+      {!fromSignup ? (
+        <>
+          <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
+                登録済み口座
+              </h2>
 
-            {hasSavedBankAccount && !showSetupForm ? (
-              <div className="pt-2">
-                <CreatorButton
+              {hasSavedBankAccount && !showSetupForm ? (
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={() => {
                     setEditing(true);
                     setConfirmOpen(false);
                     setErrorMsg(null);
                     setSuccessMsg(null);
                   }}
-                  className="w-full"
+                  className="rounded-full bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 ring-1 ring-slate-100"
                 >
-                  {copy.edit}
-                </CreatorButton>
+                  変更
+                </button>
+              ) : null}
+            </div>
+
+            {profile?.bank_name || profile?.account_number ? (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <SmallInfo
+                  label="金融機関"
+                  value={
+                    profile.bank_code
+                      ? `${profile.bank_name || "-"} / ${profile.bank_code}`
+                      : profile.bank_name || "-"
+                  }
+                />
+                <SmallInfo
+                  label="支店"
+                  value={
+                    profile.branch_code
+                      ? `${profile.branch_name || "-"} / ${profile.branch_code}`
+                      : profile.branch_name || "-"
+                  }
+                />
+                <SmallInfo
+                  label="種別"
+                  value={profile.account_type === "checking" ? "当座" : "普通"}
+                />
+                <SmallInfo label="口座番号" value={maskAccountNumber(profile.account_number)} />
+                <SmallInfo label="口座名義" value={profile.account_holder_name || "-"} />
+                <SmallInfo label="振込用名義" value={profile.account_holder_kana || "-"} />
               </div>
-            ) : null}
-          </CreatorCard>
-        ) : (
-          <CreatorEmptyState title={copy.noBankInfo} icon={<BankIcon />} />
-        )}
-      </CreatorSection>
+            ) : (
+              <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-center ring-1 ring-slate-100">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-300 ring-1 ring-slate-100">
+                  <BankIcon />
+                </div>
+                <p className="mt-3 text-sm font-black text-slate-950">
+                  まだ銀行口座が登録されていません
+                </p>
+              </div>
+            )}
+          </section>
 
-      <CreatorSection title={copy.summaryTitle}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <CreatorCard tone="soft">
-            <CreatorMiniInfo
-              label={copy.pendingAmount}
-              value={formatMoney(pendingAmount, "JPY", safeLocale)}
-              strong
-            />
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
-              {copy.pendingHelper}
-            </p>
-          </CreatorCard>
+          <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+            <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
+              報酬
+            </h2>
 
-          <CreatorCard tone="soft">
-            <CreatorMiniInfo
-              label={copy.paidAmount}
-              value={formatMoney(paidAmount, "JPY", safeLocale)}
-              strong
-            />
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
-              {copy.paidHelper}
-            </p>
-          </CreatorCard>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <SmallInfo
+                label="予定"
+                value={formatMoney(pendingAmount, "JPY", safeLocale)}
+              />
+              <SmallInfo
+                label="支払済"
+                value={formatMoney(paidAmount, "JPY", safeLocale)}
+              />
+              <SmallInfo
+                label="合計"
+                value={formatMoney(totalAmount, "JPY", safeLocale)}
+              />
+            </div>
+          </section>
 
-          <CreatorCard tone="soft">
-            <CreatorMiniInfo
-              label={copy.totalAmount}
-              value={formatMoney(totalAmount, "JPY", safeLocale)}
-              strong
-            />
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
-              {copy.totalHelper}
-            </p>
-          </CreatorCard>
-        </div>
-      </CreatorSection>
+          {orders.length > 0 ? (
+            <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+              <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
+                報酬履歴
+              </h2>
 
-      <CreatorSection
-        title={copy.historyTitle}
-        description={copy.historyDescription}
-      >
-        {orders.length > 0 ? (
-          <div className="space-y-3">
-            {orders.map((order) => (
-              <PayoutHistoryRow key={order.id} order={order} locale={safeLocale} />
-            ))}
-          </div>
-        ) : (
-          <CreatorEmptyState
-            icon={<EmptyIcon />}
-            title={copy.noHistoryTitle}
-            description={copy.noHistoryBody}
-          />
-        )}
-      </CreatorSection>
+              <div className="mt-3 space-y-2">
+                {orders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-950">
+                          {order.product_name || "案件名未設定"}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-400">
+                          {formatDate(order.completed_at || order.created_at, safeLocale)}
+                        </p>
+                      </div>
 
-      <CreatorNotice
-        tone="blue"
-        title={copy.privacyTitle}
-        description={copy.privacyBody}
-      />
-    </CreatorPage>
+                      <p className="shrink-0 text-sm font-black text-slate-950">
+                        {formatMoney(
+                          order.creator_payout_amount,
+                          order.currency,
+                          safeLocale
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </>
+      ) : null}
+    </main>
   );
 }
