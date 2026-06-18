@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
@@ -95,6 +96,7 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
@@ -255,7 +257,7 @@ function MainActionCard({
   tone: "red" | "blue" | "slate";
 }) {
   const iconTone = tone === "red" ? "red" : tone === "blue" ? "blue" : "slate";
-  const Icon = href === "/creator/payouts" ? BankIcon : OrderIcon;
+  const Icon = href.startsWith("/creator/payouts") ? BankIcon : OrderIcon;
 
   return (
     <CreatorCard className="creator-appear-delay-1 p-5">
@@ -359,6 +361,7 @@ function ActivityRow({
 }
 
 export default function CreatorDashboardPage() {
+  const router = useRouter();
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -393,10 +396,10 @@ export default function CreatorDashboardPage() {
               "写真・SNS・メニューを整えると、注文を受けやすくなります。",
             goToProfile: "プロフィールを編集",
 
-            payoutPromptTitle: "報酬受け取り設定を完了しましょう",
+            payoutPromptTitle: "銀行口座登録を完了しましょう",
             payoutPromptBody:
-              "注文を受けるには、報酬を受け取る銀行口座の登録が必要です。",
-            goToPayoutSettings: "報酬受け取り設定へ",
+              "Creator登録を完了するには、報酬を受け取る銀行口座の登録が必要です。登録後、あなたのメニューが企業向けに公開されます。",
+            goToPayoutSettings: "銀行口座を登録する",
 
             nextPendingTitle: "新しい注文があります",
             nextPendingBody: "内容を確認して、受けるか相談できます。",
@@ -450,10 +453,10 @@ export default function CreatorDashboardPage() {
               "Add photos, social accounts, and menus so brands can order easily.",
             goToProfile: "Edit profile",
 
-            payoutPromptTitle: "Complete payout setup",
+            payoutPromptTitle: "Complete bank account setup",
             payoutPromptBody:
-              "Register your bank account before accepting paid orders.",
-            goToPayoutSettings: "Set up payouts",
+              "Register your bank account to complete your influencer registration and publish your menus to brands.",
+            goToPayoutSettings: "Register bank account",
 
             nextPendingTitle: "You have a new order",
             nextPendingBody: "Review details and decide whether to accept.",
@@ -606,9 +609,19 @@ export default function CreatorDashboardPage() {
           return;
         }
 
-        setPayoutProfile(
-          (payoutProfileRow ?? null) as PayoutProfileStatus | null
-        );
+        const typedPayoutProfile =
+          (payoutProfileRow ?? null) as PayoutProfileStatus | null;
+
+        setPayoutProfile(typedPayoutProfile);
+
+        const payoutReady =
+          typedPayoutProfile?.status === "submitted" ||
+          typedPayoutProfile?.status === "verified";
+
+        if (!payoutReady) {
+          router.replace("/creator/payouts?from=signup&required=1");
+          return;
+        }
 
         const legacyCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
         const menuCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
@@ -871,6 +884,7 @@ export default function CreatorDashboardPage() {
     copy.loadingError,
     copy.requestLoadError,
     db,
+    router,
     supabase.auth,
   ]);
 
@@ -921,7 +935,7 @@ export default function CreatorDashboardPage() {
       ? {
           title: copy.payoutPromptTitle,
           body: copy.payoutPromptBody,
-          href: "/creator/payouts",
+          href: "/creator/payouts?from=signup&required=1",
           cta: copy.goToPayoutSettings,
           tone: "red" as const,
         }

@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
@@ -120,7 +121,11 @@ function normalizeDigits(value: string) {
 }
 
 function normalizeName(value: string) {
-  return value.normalize("NFKC").replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .normalize("NFKC")
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function hiraganaToKatakana(value: string) {
@@ -162,6 +167,19 @@ function isInvalidAccountNumber(value: string) {
   if (/^(\d)\1{6}$/.test(digits)) return true;
 
   return false;
+}
+
+function normalizeFormState(form: FormState): FormState {
+  return {
+    ...form,
+    bank_name: normalizeName(form.bank_name),
+    bank_code: normalizeDigits(form.bank_code).slice(0, 4),
+    branch_name: normalizeName(form.branch_name),
+    branch_code: normalizeDigits(form.branch_code).slice(0, 3),
+    account_number: normalizeDigits(form.account_number).slice(0, 7),
+    account_holder_name: normalizeName(form.account_holder_name),
+    account_holder_kana: normalizeTransferName(form.account_holder_kana),
+  };
 }
 
 function formatMoney(
@@ -431,8 +449,14 @@ function OptionButton({
 }
 
 export default function CreatorPayoutsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const db = useMemo(() => supabase as any, [supabase]);
+
+  const fromSignup = searchParams.get("from") === "signup";
+  const requiredFromSignup = searchParams.get("required") === "1";
 
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
@@ -472,6 +496,12 @@ export default function CreatorPayoutsPage() {
             subtitle:
               "案件完了後の報酬を受け取るため、振込先の銀行口座を登録してください。",
             heroEyebrow: "Payout settings",
+
+            signupFinalStepTitle: "登録の最終ステップです",
+            signupFinalStepBody:
+              "銀行口座を登録すると、あなたのメニューが企業向けに公開されます。報酬を受け取るために必要な情報です。",
+            signupRequiredBody:
+              "Creator登録を完了するには、報酬受け取り用の銀行口座登録が必要です。",
 
             setupTitle: "銀行口座を登録",
             setupDescription:
@@ -558,6 +588,12 @@ export default function CreatorPayoutsPage() {
             subtitle:
               "Register your bank account to receive payouts after completed orders.",
             heroEyebrow: "Payout settings",
+
+            signupFinalStepTitle: "Final step",
+            signupFinalStepBody:
+              "Register your bank account to publish your menus to brands and receive payouts.",
+            signupRequiredBody:
+              "Please register your bank account to complete your influencer registration.",
 
             setupTitle: "Register bank account",
             setupDescription:
@@ -651,7 +687,7 @@ export default function CreatorPayoutsPage() {
   );
 
   const hasSavedBankAccount = Boolean(profile?.bank_name || profile?.account_number);
-  const showSetupForm = !hasSavedBankAccount || editing;
+  const showSetupForm = !hasSavedBankAccount || editing || fromSignup;
 
   useEffect(() => {
     const load = async () => {
@@ -890,32 +926,34 @@ export default function CreatorPayoutsPage() {
     setConfirmOpen(false);
   };
 
-  const validateForm = () => {
-    if (!form.bank_name.trim() || normalizeDigits(form.bank_code).length !== 4) {
+  const validateForm = (targetForm: FormState = form) => {
+    const normalized = normalizeFormState(targetForm);
+
+    if (!normalized.bank_name || normalized.bank_code.length !== 4) {
       return safeLocale === "ja"
         ? "金融機関を検索して選択してください。"
         : "Please search and select a bank.";
     }
 
-    if (!form.branch_name.trim() || normalizeDigits(form.branch_code).length !== 3) {
+    if (!normalized.branch_name || normalized.branch_code.length !== 3) {
       return safeLocale === "ja"
         ? "支店を検索して選択してください。"
         : "Please search and select a branch.";
     }
 
-    if (isInvalidAccountNumber(form.account_number)) {
+    if (isInvalidAccountNumber(normalized.account_number)) {
       return safeLocale === "ja"
         ? "口座番号は7桁の数字で入力してください。0000000や同じ数字のみの番号は登録できません。"
         : "Please enter a valid 7-digit account number.";
     }
 
-    if (isUnsafeDisplayName(normalizeName(form.account_holder_name))) {
+    if (isUnsafeDisplayName(normalized.account_holder_name)) {
       return safeLocale === "ja"
         ? "口座名義を入力してください。長すぎる名義や改行は使用できません。"
         : "Please enter a valid account holder name.";
     }
 
-    if (!isValidTransferName(form.account_holder_kana)) {
+    if (!isValidTransferName(normalized.account_holder_kana)) {
       return safeLocale === "ja"
         ? "振込用口座名義は、カナ・英数字・スペース・一部記号のみで48文字以内にしてください。"
         : "Please enter a valid transfer account name.";
@@ -928,20 +966,10 @@ export default function CreatorPayoutsPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const normalizedTransferName = normalizeTransferName(form.account_holder_kana);
+    const normalizedForm = normalizeFormState(form);
+    setForm(normalizedForm);
 
-    setForm((current) => ({
-      ...current,
-      bank_name: normalizeName(current.bank_name),
-      bank_code: normalizeDigits(current.bank_code).slice(0, 4),
-      branch_name: normalizeName(current.branch_name),
-      branch_code: normalizeDigits(current.branch_code).slice(0, 3),
-      account_number: normalizeDigits(current.account_number).slice(0, 7),
-      account_holder_name: normalizeName(current.account_holder_name),
-      account_holder_kana: normalizedTransferName,
-    }));
-
-    const validationMessage = validateForm();
+    const validationMessage = validateForm(normalizedForm);
 
     if (validationMessage) {
       setErrorMsg(validationMessage);
@@ -959,9 +987,11 @@ export default function CreatorPayoutsPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const validationMessage = validateForm();
+    const normalizedForm = normalizeFormState(form);
+    const validationMessage = validateForm(normalizedForm);
 
     if (validationMessage) {
+      setForm(normalizedForm);
       setErrorMsg(validationMessage);
       setSaving(false);
       setConfirmOpen(false);
@@ -976,14 +1006,14 @@ export default function CreatorPayoutsPage() {
         user_id: creator.user_id,
         payout_method: "manual_bank_transfer",
         status: "submitted",
-        bank_name: normalizeName(form.bank_name),
-        bank_code: normalizeDigits(form.bank_code).slice(0, 4),
-        branch_name: normalizeName(form.branch_name),
-        branch_code: normalizeDigits(form.branch_code).slice(0, 3),
-        account_type: form.account_type,
-        account_number: normalizeDigits(form.account_number).slice(0, 7),
-        account_holder_name: normalizeName(form.account_holder_name),
-        account_holder_kana: normalizeTransferName(form.account_holder_kana),
+        bank_name: normalizedForm.bank_name,
+        bank_code: normalizedForm.bank_code,
+        branch_name: normalizedForm.branch_name,
+        branch_code: normalizedForm.branch_code,
+        account_type: normalizedForm.account_type,
+        account_number: normalizedForm.account_number,
+        account_holder_name: normalizedForm.account_holder_name,
+        account_holder_kana: normalizedForm.account_holder_kana,
         submitted_at: nowIso,
         rejected_at: null,
         admin_note: null,
@@ -1030,6 +1060,10 @@ export default function CreatorPayoutsPage() {
       setEditing(false);
       setSuccessMsg(copy.saved);
       setSaving(false);
+
+      if (fromSignup) {
+        router.replace("/creator/dashboard");
+      }
     } catch (e) {
       console.error(e);
       setErrorMsg(copy.saveFailed);
@@ -1065,6 +1099,16 @@ export default function CreatorPayoutsPage() {
           </div>
         </div>
       </CreatorHero>
+
+      {fromSignup ? (
+        <CreatorNotice
+          tone={requiredFromSignup ? "amber" : "blue"}
+          title={copy.signupFinalStepTitle}
+          description={
+            requiredFromSignup ? copy.signupRequiredBody : copy.signupFinalStepBody
+          }
+        />
+      ) : null}
 
       {errorMsg ? (
         <CreatorNotice
@@ -1325,10 +1369,10 @@ export default function CreatorPayoutsPage() {
             <CreatorStickyFooter>
               <div
                 className={`grid w-full grid-cols-1 gap-3 ${
-                  hasSavedBankAccount && editing ? "sm:grid-cols-2" : ""
+                  hasSavedBankAccount && editing && !fromSignup ? "sm:grid-cols-2" : ""
                 }`}
               >
-                {hasSavedBankAccount && editing ? (
+                {hasSavedBankAccount && editing && !fromSignup ? (
                   <CreatorButton
                     type="button"
                     variant="secondary"
