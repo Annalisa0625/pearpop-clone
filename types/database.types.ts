@@ -1843,6 +1843,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_payout_ready_creator_ids: {
+        Args: never
+        Returns: {
+          creator_id: string
+        }[]
+      }
       is_limit_trading: { Args: { p_user_id: string }; Returns: boolean }
       mark_chat_read: {
         Args: { _chat_id: string; _user_id: string }

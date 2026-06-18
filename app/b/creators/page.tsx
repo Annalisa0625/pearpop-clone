@@ -964,33 +964,25 @@ export default function CompanyCreatorsPage() {
           setCurrentUserId(user?.id ?? null);
         }
 
-        const payoutResult = await supabase
-          .from("creator_payout_profiles")
-          .select("creator_id, status")
-          .in("status", ["submitted", "verified"]);
+        const payoutResult = await supabase.rpc("get_payout_ready_creator_ids");
 
-        if (payoutResult.error) {
-          console.error("creator payout profile load error", payoutResult.error);
-          if (isMounted) {
-            setCreators([]);
-            setSavedCreatorIds([]);
-            setError(copy.fetchError);
-          }
-          return;
-        }
+if (payoutResult.error) {
+  console.error("payout ready creator ids load error", payoutResult.error);
+  if (isMounted) {
+    setCreators([]);
+    setSavedCreatorIds([]);
+    setError(copy.fetchError);
+  }
+  return;
+}
 
-        const payoutRows = (payoutResult.data ?? []) as PayoutProfileRow[];
-
-        const payoutReadyCreatorIds = Array.from(
-          new Set(
-            payoutRows
-              .filter(
-                (row) => row.status === "submitted" || row.status === "verified"
-              )
-              .map((row) => row.creator_id)
-              .filter(Boolean)
-          )
-        );
+const payoutReadyCreatorIds = Array.from(
+  new Set(
+    ((payoutResult.data ?? []) as { creator_id: string | null }[])
+      .map((row) => row.creator_id)
+      .filter((id): id is string => Boolean(id))
+  )
+);
 
         let savedRows: SavedCreatorRow[] = [];
 
