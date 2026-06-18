@@ -2,19 +2,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
-
-type FilterMenu =
-  | "platform"
-  | "mainCategory"
-  | "categoryFilter"
-  | "location"
-  | "contentType"
-  | "followers"
-  | null;
 
 type SocialAccountRow = {
   platform?: string | null;
@@ -31,8 +22,16 @@ type CreatorRow = {
   category?: string | null;
   rating?: number | null;
   total_orders?: number | null;
-  stripe_onboarding_completed?: boolean | null;
   creator_social_accounts?: SocialAccountRow[] | SocialAccountRow | null;
+};
+
+type MenuRow = {
+  id: string;
+  creator_id: string | null;
+  title: string | null;
+  price: number | null;
+  currency: string | null;
+  is_active: boolean | null;
 };
 
 type PortfolioAssetRow = {
@@ -45,13 +44,9 @@ type PortfolioAssetRow = {
   created_at: string | null;
 };
 
-type MenuRow = {
-  id: string;
-  creator_id: string | null;
-  title: string | null;
-  price: number | null;
-  currency: string | null;
-  is_active: boolean | null;
+type PayoutProfileRow = {
+  creator_id: string;
+  status: "not_submitted" | "submitted" | "verified" | "rejected" | null;
 };
 
 type SavedCreatorRow = {
@@ -61,7 +56,6 @@ type SavedCreatorRow = {
 type CreatorCard = {
   id: string;
   displayName: string;
-  primaryAccountName: string | null;
   avatarUrl: string | null;
   cardImageUrl: string | null;
   category: string | null;
@@ -70,9 +64,11 @@ type CreatorCard = {
     platform: string;
     url: string | null;
   }[];
+  primaryAccountName: string | null;
   primaryAudienceCountry: string | null;
   followerRange: string | null;
   menuCount: number;
+  menuTitles: string[];
   startingPrice: number | null;
   startingCurrency: string | null;
   topMenuTitle: string | null;
@@ -80,42 +76,20 @@ type CreatorCard = {
   reviewCount: number;
 };
 
-const POPULAR_CATEGORIES = [
-  "Lifestyle",
-  "Beauty",
-  "Fashion",
-  "Travel",
-  "Health & Fitness",
-  "Family & Children",
-  "Food & Drink",
-  "Comedy & Entertainment",
-  "Animals & Pets",
-  "Music & Dance",
-  "Art & Photography",
-  "Model",
-  "Adventure & Outdoors",
-  "Education",
-  "Entrepreneur & Business",
-  "Athlete & Sports",
-  "Technology",
-  "Gaming",
-  "Healthcare",
-];
-
 const CONTENT_TYPE_OPTIONS = [
-  { value: "all", label: "Any" },
-  { value: "ugc", label: "UGC" },
-  { value: "post", label: "Post" },
-  { value: "video", label: "Video" },
-  { value: "short_video", label: "Short video" },
+  { value: "all", ja: "すべて", en: "Any" },
+  { value: "ugc", ja: "UGC", en: "UGC" },
+  { value: "post", ja: "投稿", en: "Post" },
+  { value: "video", ja: "動画", en: "Video" },
+  { value: "short_video", ja: "ショート動画", en: "Short video" },
 ];
 
 const FOLLOWER_OPTIONS = [
-  { value: "all", label: "Any" },
-  { value: "nano", label: "Nano" },
-  { value: "micro", label: "Micro" },
-  { value: "mid", label: "Mid-tier" },
-  { value: "macro", label: "Macro" },
+  { value: "all", ja: "すべて", en: "Any" },
+  { value: "nano", ja: "Nano", en: "Nano" },
+  { value: "micro", ja: "Micro", en: "Micro" },
+  { value: "mid", ja: "Mid", en: "Mid-tier" },
+  { value: "macro", ja: "Macro", en: "Macro" },
 ];
 
 function normalizeText(value: string | null | undefined) {
@@ -124,6 +98,18 @@ function normalizeText(value: string | null | undefined) {
 
 function normalizePlatform(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
+}
+
+function normalizeNumberInput(value: string) {
+  return value.replace(/[^\d]/g, "");
+}
+
+function toNumberOrNull(value: string) {
+  const cleaned = normalizeNumberInput(value);
+  if (!cleaned) return null;
+
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function cleanCountryInput(value: string | null | undefined) {
@@ -300,7 +286,7 @@ function getCountryLabel(
   };
 
   return locale === "ja"
-    ? jaMap[cleaned] ?? ((country ?? "").trim() || "不明")
+    ? jaMap[cleaned] ?? ((country ?? "").trim() || "未設定")
     : enMap[cleaned] ?? ((country ?? "").trim() || "Unknown");
 }
 
@@ -308,7 +294,7 @@ function formatPrice(
   value: number | null,
   currency: string | null | undefined
 ) {
-  if (value == null) return "価格未設定";
+  if (value == null) return "-";
 
   const safeCurrency = currency || "JPY";
 
@@ -395,6 +381,25 @@ function getPlatformIcon(value: string | null | undefined) {
   return "●";
 }
 
+function getSocialAccountName(social: SocialAccountRow | null | undefined) {
+  if (!social) return null;
+
+  const handle = social.handle?.trim();
+  if (handle) return handle.replace(/^@/, "");
+
+  const url = social.url?.trim();
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const last = parts[0] ?? parts.at(-1) ?? "";
+    return last.replace(/^@/, "") || null;
+  } catch {
+    return url.replace(/^@/, "") || null;
+  }
+}
+
 function formatFollowerLabel(followerRange: string | null | undefined) {
   const range = followerRange?.trim();
   if (!range) return null;
@@ -403,6 +408,12 @@ function formatFollowerLabel(followerRange: string | null | undefined) {
 
 function getCreatorInitial(name: string) {
   return (name || "I").trim().slice(0, 1).toUpperCase();
+}
+
+function getRatingValue(value: number | null | undefined) {
+  if (typeof value !== "number") return null;
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 function getFollowerBucket(value: string | null | undefined) {
@@ -434,7 +445,9 @@ function getFollowerBucket(value: string | null | undefined) {
   }
 
   if (
+    text.includes("300k") ||
     text.includes("500k") ||
+    text.includes("300,000") ||
     text.includes("500,000") ||
     text.includes("mid")
   ) {
@@ -444,7 +457,7 @@ function getFollowerBucket(value: string | null | undefined) {
   if (
     text.includes("1m") ||
     text.includes("1,000,000") ||
-    text.includes("million") ||
+    text.includes("100万") ||
     text.includes("macro")
   ) {
     return "macro";
@@ -453,80 +466,56 @@ function getFollowerBucket(value: string | null | undefined) {
   return "unknown";
 }
 
-function getContentTypeMatch(influencer: CreatorCard, filter: string) {
+function getContentTypeMatch(card: CreatorCard, filter: string) {
   if (filter === "all") return true;
 
   const haystack = [
-    influencer.category,
-    influencer.topMenuTitle,
-    ...influencer.platforms,
+    card.topMenuTitle,
+    ...card.menuTitles,
+    card.category,
+    ...card.platforms,
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 
   if (filter === "ugc") {
-    return haystack.includes("ugc") || haystack.includes("ユーザー生成");
+    return (
+      haystack.includes("ugc") ||
+      haystack.includes("素材") ||
+      haystack.includes("納品") ||
+      haystack.includes("photo asset") ||
+      haystack.includes("video asset")
+    );
   }
 
   if (filter === "post") {
     return (
-      haystack.includes("post") ||
       haystack.includes("投稿") ||
-      haystack.includes("instagram")
+      haystack.includes("post") ||
+      haystack.includes("feed")
     );
   }
 
   if (filter === "video") {
     return (
-      haystack.includes("video") ||
       haystack.includes("動画") ||
+      haystack.includes("video") ||
       haystack.includes("youtube")
     );
   }
 
   if (filter === "short_video") {
     return (
-      haystack.includes("short") ||
+      haystack.includes("リール") ||
       haystack.includes("reel") ||
-      haystack.includes("tiktok") ||
-      haystack.includes("ショート")
+      haystack.includes("short") ||
+      haystack.includes("ショート") ||
+      haystack.includes("tiktok")
     );
   }
 
   return true;
-}
-
-function toNumberOrNull(value: string) {
-  const cleaned = value.replace(/[^\d]/g, "");
-  if (!cleaned) return null;
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function getSocialAccountName(social: SocialAccountRow | null | undefined) {
-  if (!social) return null;
-
-  const handle = social.handle?.trim();
-  if (handle) return handle.replace(/^@/, "");
-
-  const url = social.url?.trim();
-  if (!url) return null;
-
-  try {
-    const parsed = new URL(url);
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    const last = parts[0] ?? parts.at(-1) ?? "";
-    return last.replace(/^@/, "") || null;
-  } catch {
-    return url.replace(/^@/, "") || null;
-  }
-}
-
-function getRatingValue(value: number | null | undefined) {
-  if (typeof value !== "number") return null;
-  if (!Number.isFinite(value) || value <= 0) return null;
-  return value;
 }
 
 function SearchIcon() {
@@ -552,25 +541,6 @@ function SearchIcon() {
   );
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className="h-4 w-4"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 7.5 10 12l5-4.5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function HeartIcon({ filled }: { filled: boolean }) {
   return (
     <svg
@@ -589,31 +559,15 @@ function HeartIcon({ filled }: { filled: boolean }) {
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className="h-4 w-4"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 5l10 10M15 5 5 15"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function InfluencerImage({
-  influencer,
+function CreatorImage({
+  creator,
   index,
 }: {
-  influencer: CreatorCard;
+  creator: CreatorCard;
   index: number;
 }) {
+  const src = creator.cardImageUrl || creator.avatarUrl;
+
   const gradients = [
     "from-rose-200 via-rose-100 to-white",
     "from-emerald-200 via-emerald-100 to-white",
@@ -621,13 +575,11 @@ function InfluencerImage({
     "from-orange-200 via-rose-100 to-white",
   ];
 
-  const src = influencer.cardImageUrl || influencer.avatarUrl;
-
   if (src) {
     return (
       <img
         src={src}
-        alt={influencer.displayName}
+        alt={creator.displayName}
         className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-105"
         loading={index < 4 ? "eager" : "lazy"}
         decoding="async"
@@ -641,283 +593,35 @@ function InfluencerImage({
         gradients[index % gradients.length]
       }`}
     >
-      <div className="text-center">
-        <span className="block text-6xl font-black text-slate-950/70">
-          {getCreatorInitial(influencer.displayName)}
-        </span>
-      </div>
+      <span className="text-6xl font-black text-slate-950/70">
+        {getCreatorInitial(creator.displayName)}
+      </span>
     </div>
   );
 }
 
-function FilterChip({
-  label,
+function FilterSelect({
   value,
-  active,
-  onClick,
-}: {
-  label: string;
-  value?: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition duration-150 ${
-        active
-          ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-          : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
-      }`}
-    >
-      <span>{label}</span>
-      {value ? (
-        <span className="max-w-[150px] truncate opacity-70">{value}</span>
-      ) : null}
-      <ChevronDownIcon />
-    </button>
-  );
-}
-
-function OptionDropdown({
-  widthClass = "w-72",
+  onChange,
   children,
 }: {
-  widthClass?: string;
-  children: ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
 }) {
   return (
-    <div
-      className={`absolute left-0 top-[calc(100%+10px)] z-[80] overflow-hidden rounded-[28px] border border-slate-100 bg-white p-2 shadow-[rgba(0,0,0,0.14)_0_24px_60px_-24px] ${widthClass}`}
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus:border-slate-950"
     >
       {children}
-    </div>
+    </select>
   );
 }
 
-function PlainOption({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`block w-full rounded-2xl px-4 py-3 text-left text-sm font-bold transition ${
-        active
-          ? "bg-slate-100 text-slate-950"
-          : "text-slate-700 hover:bg-slate-50"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function CategoryPanel({
-  categoryOptions,
-  categoryFilter,
-  setCategoryFilter,
-  setOpenFilter,
-  copy,
-}: {
-  categoryOptions: string[];
-  categoryFilter: string;
-  setCategoryFilter: (value: string) => void;
-  setOpenFilter: (value: FilterMenu) => void;
-  copy: {
-    any: string;
-    availableCategories: string;
-    popular: string;
-  };
-}) {
-  const available = categoryOptions.filter(Boolean);
-
-  return (
-    <div className="px-3 py-2">
-      {available.length > 0 ? (
-        <>
-          <p className="mb-3 text-xs font-black uppercase tracking-wide text-slate-400">
-            {copy.availableCategories}
-          </p>
-
-          <div className="mb-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setCategoryFilter("all");
-                setOpenFilter(null);
-              }}
-              className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
-                categoryFilter === "all"
-                  ? "bg-slate-950 text-white"
-                  : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-              }`}
-            >
-              {copy.any}
-            </button>
-
-            {available.map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => {
-                  setCategoryFilter(category);
-                  setOpenFilter(null);
-                }}
-                className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
-                  normalizeText(categoryFilter) === normalizeText(category)
-                    ? "bg-slate-950 text-white"
-                    : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      <p className="mb-3 text-xs font-black uppercase tracking-wide text-slate-400">
-        {copy.popular}
-      </p>
-
-      <div className="flex flex-wrap gap-2">
-        {POPULAR_CATEGORIES.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => {
-              setCategoryFilter(category);
-              setOpenFilter(null);
-            }}
-            className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
-              normalizeText(categoryFilter) === normalizeText(category)
-                ? "bg-slate-950 text-white"
-                : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-            }`}
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PriceModal({
-  minPrice,
-  maxPrice,
-  setMinPrice,
-  setMaxPrice,
-  onClose,
-  onSave,
-  copy,
-}: {
-  minPrice: string;
-  maxPrice: string;
-  setMinPrice: (value: string) => void;
-  setMaxPrice: (value: string) => void;
-  onClose: () => void;
-  onSave: () => void;
-  copy: {
-    price: string;
-    minPrice: string;
-    maxPrice: string;
-    save: string;
-    clear: string;
-  };
-}) {
-  return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-xl rounded-[32px] bg-white p-6 shadow-2xl transition duration-300 md:p-8">
-        <div className="mb-10 flex items-center justify-between">
-          <div className="w-10" />
-          <h2 className="text-xl font-black text-slate-950">{copy.price}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-800 transition hover:bg-slate-100"
-            aria-label="Close price filter"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        <div className="grid gap-5 md:grid-cols-2">
-          <label className="block">
-            <span className="text-sm font-bold text-slate-700">
-              {copy.minPrice}
-            </span>
-            <input
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-              inputMode="numeric"
-              placeholder="¥50"
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-4 text-2xl font-black outline-none transition focus:border-slate-950"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-bold text-slate-700">
-              {copy.maxPrice}
-            </span>
-            <input
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              inputMode="numeric"
-              placeholder="¥300,000+"
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-4 text-2xl font-black outline-none transition focus:border-slate-950"
-            />
-          </label>
-        </div>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          {[
-            ["", ""],
-            ["0", "50000"],
-            ["50000", "150000"],
-            ["150000", "300000"],
-            ["300000", ""],
-          ].map(([min, max]) => (
-            <button
-              key={`${min}-${max}`}
-              type="button"
-              onClick={() => {
-                setMinPrice(min);
-                setMaxPrice(max);
-              }}
-              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-            >
-              {!min && !max
-                ? copy.clear
-                : `${min ? `¥${Number(min).toLocaleString()}` : "¥0"} - ${
-                    max ? `¥${Number(max).toLocaleString()}` : "¥300,000+"
-                  }`}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onSave}
-          className="mt-10 w-full rounded-2xl bg-slate-950 px-6 py-4 text-base font-black text-white transition duration-150 hover:-translate-y-0.5 hover:shadow-xl"
-        >
-          {copy.save}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function InfluencerCardItem({
-  influencer,
+function CreatorCardItem({
+  creator,
   index,
   isSaved,
   isSaving,
@@ -925,7 +629,7 @@ function InfluencerCardItem({
   copy,
   onToggleSave,
 }: {
-  influencer: CreatorCard;
+  creator: CreatorCard;
   index: number;
   isSaved: boolean;
   isSaving: boolean;
@@ -937,24 +641,22 @@ function InfluencerCardItem({
   };
   onToggleSave: (creatorId: string) => void;
 }) {
-  const followerLabel = formatFollowerLabel(influencer.followerRange);
-  const accountName = influencer.primaryAccountName;
-  const rating = getRatingValue(influencer.rating);
-  const shouldShowRating = rating !== null && influencer.reviewCount > 0;
+  const followerLabel = formatFollowerLabel(creator.followerRange);
+  const rating = getRatingValue(creator.rating);
+  const shouldShowRating = rating !== null && creator.reviewCount > 0;
 
   return (
     <article className="group">
       <div className="relative overflow-hidden rounded-[22px] bg-slate-100 shadow-sm transition duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-[rgba(0,0,0,0.16)_0_18px_40px_-22px]">
-        <Link href={`/b/creators/${influencer.id}`} className="block">
+        <Link href={`/b/creators/${creator.id}`} className="block">
           <div className="relative aspect-[1.08/1] overflow-hidden">
-            <InfluencerImage influencer={influencer} index={index} />
-
+            <CreatorImage creator={creator} index={index} />
             <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
           </div>
         </Link>
 
-        <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-2">
-          {influencer.socialLinks.slice(0, 5).map((social, socialIndex) => {
+        <div className="absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-2">
+          {creator.socialLinks.slice(0, 5).map((social, socialIndex) => {
             const key = `${social.platform}-${social.url ?? "no-url"}-${socialIndex}`;
 
             if (social.url) {
@@ -965,8 +667,8 @@ function InfluencerCardItem({
                   target="_blank"
                   rel="noreferrer"
                   title={getPlatformLabel(social.platform)}
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                   }}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-xs font-black text-slate-900 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
                 >
@@ -995,10 +697,10 @@ function InfluencerCardItem({
 
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggleSave(influencer.id);
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleSave(creator.id);
           }}
           disabled={isSaving}
           className={`absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full text-white transition duration-150 hover:scale-105 disabled:opacity-60 ${
@@ -1010,23 +712,23 @@ function InfluencerCardItem({
         </button>
       </div>
 
-      <Link href={`/b/creators/${influencer.id}`} className="mt-3 block">
+      <Link href={`/b/creators/${creator.id}`} className="mt-3 block">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-[15px] font-black leading-tight text-slate-950">
-              {influencer.displayName}
+              {creator.displayName}
             </p>
 
-            {accountName ? (
+            {creator.primaryAccountName ? (
               <p className="mt-1 truncate text-sm font-bold text-slate-500">
-                @{accountName}
+                @{creator.primaryAccountName}
               </p>
             ) : null}
 
             <div className="mt-1 flex min-w-0 items-center gap-2">
               <p className="truncate text-sm text-slate-400">
-                {influencer.primaryAudienceCountry
-                  ? getCountryLabel(influencer.primaryAudienceCountry, safeLocale)
+                {creator.primaryAudienceCountry
+                  ? getCountryLabel(creator.primaryAudienceCountry, safeLocale)
                   : copy.noLocation}
               </p>
 
@@ -1044,14 +746,11 @@ function InfluencerCardItem({
 
           <div className="shrink-0 text-right">
             <p className="text-base font-black text-slate-950">
-              {formatStartingPrice(
-                influencer.startingPrice,
-                influencer.startingCurrency
-              )}
+              {formatStartingPrice(creator.startingPrice, creator.startingCurrency)}
             </p>
             <p className="mt-1 text-xs font-medium text-slate-400">
-              {influencer.menuCount}{" "}
-              {influencer.menuCount === 1 ? copy.menu : copy.menus}
+              {creator.menuCount}{" "}
+              {creator.menuCount === 1 ? copy.menu : copy.menus}
             </p>
           </div>
         </div>
@@ -1063,8 +762,7 @@ function InfluencerCardItem({
 export default function CompanyCreatorsPage() {
   const router = useRouter();
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
-  const filterRootRef = useRef<HTMLDivElement | null>(null);
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
@@ -1072,61 +770,45 @@ export default function CompanyCreatorsPage() {
         ? {
             loading: "読み込み中...",
             fetchError: "インフルエンサー一覧の取得に失敗しました。",
-            platform: "Platform",
-            category: "Category",
-            keywordPlaceholder: "キーワード、ニッチ、カテゴリで検索",
-            any: "Any",
-            clearAll: "Clear All",
-            clear: "Clear",
+            keywordPlaceholder: "名前・カテゴリ・SNSで検索",
+            platform: "媒体",
+            category: "カテゴリ",
+            location: "地域",
+            contentType: "内容",
+            followers: "フォロワー",
+            minPrice: "最低金額",
+            maxPrice: "最高金額",
+            any: "すべて",
+            clearAll: "条件をリセット",
             noCreatorsTitle: "表示できるインフルエンサーがいません",
             noCreatorsBody:
               "検索条件を変更するか、公開中のインフルエンサーが追加されるまでお待ちください。",
             creatorFallback: "Influencer",
-            noSns: "SNS未設定",
-            contentType: "Content Type",
-            followers: "Followers",
-            location: "Location",
-            price: "Price",
-            minPrice: "Min Price",
-            maxPrice: "Max Price",
-            save: "Save",
-            popular: "Popular",
-            availableCategories: "Available categories",
-            allLocations: "All locations",
+            noLocation: "地域未設定",
             menu: "menu",
             menus: "menus",
-            noLocation: "Location not set",
-            search: "Search",
             signupRequired: "保存するには企業登録またはログインが必要です。",
           }
         : {
             loading: "Loading...",
             fetchError: "Failed to load influencers.",
+            keywordPlaceholder: "Search name, category or social",
             platform: "Platform",
             category: "Category",
-            keywordPlaceholder: "Enter keywords, niches or categories",
+            location: "Location",
+            contentType: "Content",
+            followers: "Followers",
+            minPrice: "Min price",
+            maxPrice: "Max price",
             any: "Any",
-            clearAll: "Clear All",
-            clear: "Clear",
+            clearAll: "Clear all",
             noCreatorsTitle: "No influencers found",
             noCreatorsBody:
               "Try changing your search filters or wait for more public influencers.",
             creatorFallback: "Influencer",
-            noSns: "SNS not set",
-            contentType: "Content Type",
-            followers: "Followers",
-            location: "Location",
-            price: "Price",
-            minPrice: "Min Price",
-            maxPrice: "Max Price",
-            save: "Save",
-            popular: "Popular",
-            availableCategories: "Available categories",
-            allLocations: "All locations",
+            noLocation: "Location not set",
             menu: "menu",
             menus: "menus",
-            noLocation: "Location not set",
-            search: "Search",
             signupRequired: "Please sign up or log in as a brand to save influencers.",
           },
     [safeLocale]
@@ -1135,6 +817,7 @@ export default function CompanyCreatorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
   const [creators, setCreators] = useState<CreatorCard[]>([]);
   const [savedCreatorIds, setSavedCreatorIds] = useState<string[]>([]);
   const [savingCreatorId, setSavingCreatorId] = useState<string | null>(null);
@@ -1148,9 +831,6 @@ export default function CompanyCreatorsPage() {
   const [followersFilter, setFollowersFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-
-  const [openFilter, setOpenFilter] = useState<FilterMenu>(null);
-  const [priceModalOpen, setPriceModalOpen] = useState(false);
 
   const platformOptions = useMemo(() => {
     const values = creators.flatMap((creator) => creator.platforms);
@@ -1181,53 +861,47 @@ export default function CompanyCreatorsPage() {
   const filteredCreators = useMemo(() => {
     const q = keyword.trim().toLowerCase();
 
-    return creators.filter((influencer) => {
+    return creators.filter((creator) => {
       const matchesKeyword =
         !q ||
-        influencer.displayName.toLowerCase().includes(q) ||
-        (influencer.primaryAccountName ?? "").toLowerCase().includes(q) ||
-        (influencer.category ?? "").toLowerCase().includes(q) ||
-        influencer.platforms.some((platform) =>
-          platform.toLowerCase().includes(q)
-        ) ||
-        (influencer.topMenuTitle ?? "").toLowerCase().includes(q) ||
-        getCountryLabel(influencer.primaryAudienceCountry, safeLocale)
+        creator.displayName.toLowerCase().includes(q) ||
+        (creator.primaryAccountName ?? "").toLowerCase().includes(q) ||
+        (creator.category ?? "").toLowerCase().includes(q) ||
+        creator.platforms.some((platform) => platform.toLowerCase().includes(q)) ||
+        creator.menuTitles.some((title) => title.toLowerCase().includes(q)) ||
+        getCountryLabel(creator.primaryAudienceCountry, safeLocale)
           .toLowerCase()
           .includes(q);
 
       const matchesPlatform =
         platformFilter === "all" ||
-        influencer.platforms.some(
+        creator.platforms.some(
           (platform) =>
             normalizePlatform(platform) === normalizePlatform(platformFilter)
         );
 
       const matchesCategory =
         categoryFilter === "all" ||
-        normalizeText(influencer.category) === normalizeText(categoryFilter);
+        normalizeText(creator.category) === normalizeText(categoryFilter);
 
       const matchesLocation =
         locationFilter === "all" ||
-        cleanCountryInput(influencer.primaryAudienceCountry) ===
+        cleanCountryInput(creator.primaryAudienceCountry) ===
           cleanCountryInput(locationFilter);
 
       const matchesFollowers =
         followersFilter === "all" ||
-        getFollowerBucket(influencer.followerRange) === followersFilter;
+        getFollowerBucket(creator.followerRange) === followersFilter;
 
-      const matchesContentType = getContentTypeMatch(
-        influencer,
-        contentTypeFilter
-      );
+      const matchesContentType = getContentTypeMatch(creator, contentTypeFilter);
 
       const hasPriceFilter = minPriceNumber !== null || maxPriceNumber !== null;
+
       const matchesPrice =
         !hasPriceFilter ||
-        (influencer.startingPrice !== null &&
-          (minPriceNumber === null ||
-            influencer.startingPrice >= minPriceNumber) &&
-          (maxPriceNumber === null ||
-            influencer.startingPrice <= maxPriceNumber));
+        (creator.startingPrice !== null &&
+          (minPriceNumber === null || creator.startingPrice >= minPriceNumber) &&
+          (maxPriceNumber === null || creator.startingPrice <= maxPriceNumber));
 
       return (
         matchesKeyword &&
@@ -1273,46 +947,6 @@ export default function CompanyCreatorsPage() {
     maxPriceNumber,
   ]);
 
-  const priceFilterLabel = useMemo(() => {
-    if (minPriceNumber === null && maxPriceNumber === null) return "";
-    if (minPriceNumber !== null && maxPriceNumber !== null) {
-      return `¥${minPriceNumber.toLocaleString()} - ¥${maxPriceNumber.toLocaleString()}`;
-    }
-    if (minPriceNumber !== null) return `¥${minPriceNumber.toLocaleString()}+`;
-    return `〜¥${maxPriceNumber?.toLocaleString()}`;
-  }, [minPriceNumber, maxPriceNumber]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-
-      if (!target) return;
-
-      const filterRoot = filterRootRef.current;
-
-      if (filterRoot && filterRoot.contains(target)) {
-        return;
-      }
-
-      setOpenFilter(null);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpenFilter(null);
-        setPriceModalOpen(false);
-      }
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
   useEffect(() => {
     let isMounted = true;
 
@@ -1330,43 +964,33 @@ export default function CompanyCreatorsPage() {
           setCurrentUserId(user?.id ?? null);
         }
 
-        const creatorsResult = await supabase
-          .from("creators")
-          .select(
-            `
-            id,
-            display_name,
-            avatar_url,
-            category,
-            rating,
-            total_orders,
-            stripe_onboarding_completed,
-            creator_social_accounts (
-              platform,
-              url,
-              handle,
-              follower_range,
-              audience_country
-            )
-            `
-          )
-          .eq("approval_status", "approved")
-          .eq("is_public", true)
-          .eq("stripe_onboarding_completed", true)
-          .order("created_at", { ascending: false });
+        const payoutResult = await supabase
+          .from("creator_payout_profiles")
+          .select("creator_id, status")
+          .in("status", ["submitted", "verified"]);
 
-        if (creatorsResult.error) {
-          console.error({
-            creatorsError: creatorsResult.error,
-          });
+        if (payoutResult.error) {
+          console.error("creator payout profile load error", payoutResult.error);
           if (isMounted) {
+            setCreators([]);
+            setSavedCreatorIds([]);
             setError(copy.fetchError);
           }
           return;
         }
 
-        const rows = (creatorsResult.data ?? []) as CreatorRow[];
-        const creatorIds = rows.map((row) => row.id);
+        const payoutRows = (payoutResult.data ?? []) as PayoutProfileRow[];
+
+        const payoutReadyCreatorIds = Array.from(
+          new Set(
+            payoutRows
+              .filter(
+                (row) => row.status === "submitted" || row.status === "verified"
+              )
+              .map((row) => row.creator_id)
+              .filter(Boolean)
+          )
+        );
 
         let savedRows: SavedCreatorRow[] = [];
 
@@ -1382,6 +1006,53 @@ export default function CompanyCreatorsPage() {
             savedRows = (savedResult.data ?? []) as SavedCreatorRow[];
           }
         }
+
+        if (payoutReadyCreatorIds.length === 0) {
+          if (isMounted) {
+            setCreators([]);
+            setSavedCreatorIds(savedRows.map((row) => row.creator_id));
+          }
+          return;
+        }
+
+        const creatorsResult = await supabase
+          .from("creators")
+          .select(
+            `
+            id,
+            display_name,
+            avatar_url,
+            category,
+            rating,
+            total_orders,
+            creator_social_accounts (
+              platform,
+              url,
+              handle,
+              follower_range,
+              audience_country
+            )
+            `
+          )
+          .eq("approval_status", "approved")
+          .eq("is_public", true)
+          .in("id", payoutReadyCreatorIds)
+          .order("created_at", { ascending: false });
+
+        if (creatorsResult.error) {
+          console.error({
+            creatorsError: creatorsResult.error,
+          });
+
+          if (isMounted) {
+            setError(copy.fetchError);
+          }
+
+          return;
+        }
+
+        const rows = (creatorsResult.data ?? []) as CreatorRow[];
+        const creatorIds = rows.map((row) => row.id);
 
         let menuRows: MenuRow[] = [];
         let portfolioRows: PortfolioAssetRow[] = [];
@@ -1440,7 +1111,6 @@ export default function CompanyCreatorsPage() {
         }
 
         const nextCreators: CreatorCard[] = rows
-          .filter((row) => row.stripe_onboarding_completed === true)
           .map((row) => {
             const socials = Array.isArray(row.creator_social_accounts)
               ? row.creator_social_accounts
@@ -1466,6 +1136,7 @@ export default function CompanyCreatorsPage() {
               .filter((social) => social.platform);
 
             const creatorMenus = menuMap.get(row.id) ?? [];
+
             const pricedMenus = creatorMenus
               .filter((menu) => typeof menu.price === "number")
               .sort((a, b) => Number(a.price) - Number(b.price));
@@ -1490,6 +1161,9 @@ export default function CompanyCreatorsPage() {
               primaryAudienceCountry: primary?.audience_country?.trim() || null,
               followerRange: primary?.follower_range?.trim() || null,
               menuCount: creatorMenus.length,
+              menuTitles: creatorMenus
+                .map((menu) => menu.title?.trim())
+                .filter((value): value is string => !!value),
               startingPrice:
                 typeof startingMenu?.price === "number"
                   ? Number(startingMenu.price)
@@ -1499,7 +1173,8 @@ export default function CompanyCreatorsPage() {
               rating,
               reviewCount,
             };
-          });
+          })
+          .filter((card) => card.menuCount > 0);
 
         if (isMounted) {
           setCreators(nextCreators);
@@ -1507,6 +1182,7 @@ export default function CompanyCreatorsPage() {
         }
       } catch (e) {
         console.error(e);
+
         if (isMounted) {
           setError(copy.fetchError);
         }
@@ -1529,12 +1205,10 @@ export default function CompanyCreatorsPage() {
     setPlatformFilter("all");
     setCategoryFilter("all");
     setLocationFilter("all");
-    setFollowersFilter("all");
     setContentTypeFilter("all");
+    setFollowersFilter("all");
     setMinPrice("");
     setMaxPrice("");
-    setOpenFilter(null);
-    setPriceModalOpen(false);
   };
 
   const toggleSaveCreator = async (creatorId: string) => {
@@ -1589,10 +1263,10 @@ export default function CompanyCreatorsPage() {
     return (
       <div className="space-y-8">
         <section className="mx-auto max-w-5xl rounded-[32px] border border-slate-100 bg-white p-5 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0]">
-          <div className="grid gap-3 md:grid-cols-[220px_1fr_64px]">
-            <div className="h-16 animate-pulse rounded-[24px] bg-slate-100" />
-            <div className="h-16 animate-pulse rounded-[24px] bg-slate-100" />
-            <div className="h-16 animate-pulse rounded-[24px] bg-slate-950/10" />
+          <div className="grid gap-3 md:grid-cols-[1fr_160px_160px]">
+            <div className="h-12 animate-pulse rounded-full bg-slate-100" />
+            <div className="h-12 animate-pulse rounded-full bg-slate-100" />
+            <div className="h-12 animate-pulse rounded-full bg-slate-100" />
           </div>
         </section>
 
@@ -1612,320 +1286,90 @@ export default function CompanyCreatorsPage() {
   }
 
   return (
-    <div className="space-y-9 pb-10">
-      <div ref={filterRootRef} className="relative z-40 space-y-7">
-        <section className="relative z-50 mx-auto max-w-5xl rounded-[32px] border border-slate-100 bg-white p-3 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0] md:p-4">
-          <div className="grid gap-0 md:grid-cols-[220px_1fr_64px]">
-            <div className="relative border-b border-slate-100 p-4 md:border-b-0 md:border-r">
-              <button
-                type="button"
-                onClick={() =>
-                  setOpenFilter((prev) =>
-                    prev === "platform" ? null : "platform"
-                  )
-                }
-                className="flex w-full items-center justify-between text-left"
-              >
-                <span>
-                  <span className="block text-sm font-black text-slate-950">
-                    {copy.platform}
-                  </span>
-                  <span className="mt-1 block text-base font-medium text-slate-900">
-                    {platformFilter === "all"
-                      ? copy.any
-                      : getPlatformLabel(platformFilter)}
-                  </span>
-                </span>
-                <ChevronDownIcon />
-              </button>
+    <div className="space-y-8 pb-10">
+      <section className="mx-auto max-w-5xl rounded-[32px] border border-slate-100 bg-white p-4 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0]">
+        <div className="grid gap-3 md:grid-cols-[1fr_150px_150px]">
+          <label className="flex h-12 items-center gap-3 rounded-full border border-slate-200 bg-white px-4">
+            <SearchIcon />
+            <input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder={copy.keywordPlaceholder}
+              className="min-w-0 flex-1 bg-transparent text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400"
+            />
+          </label>
 
-              {openFilter === "platform" ? (
-                <OptionDropdown widthClass="w-[min(520px,calc(100vw-48px))]">
-                  <PlainOption
-                    active={platformFilter === "all"}
-                    onClick={() => {
-                      setPlatformFilter("all");
-                      setOpenFilter(null);
-                    }}
-                  >
-                    {copy.any}
-                  </PlainOption>
+          <FilterSelect value={platformFilter} onChange={setPlatformFilter}>
+            <option value="all">{copy.platform}: {copy.any}</option>
+            {platformOptions.map((platform) => (
+              <option key={platform} value={platform}>
+                {getPlatformLabel(platform)}
+              </option>
+            ))}
+          </FilterSelect>
 
-                  {platformOptions.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-slate-400">
-                      {copy.noSns}
-                    </div>
-                  ) : (
-                    platformOptions.map((platform) => (
-                      <PlainOption
-                        key={platform}
-                        active={
-                          normalizePlatform(platformFilter) ===
-                          normalizePlatform(platform)
-                        }
-                        onClick={() => {
-                          setPlatformFilter(platform);
-                          setOpenFilter(null);
-                        }}
-                      >
-                        <span className="mr-2">
-                          {getPlatformIcon(platform)}
-                        </span>
-                        {getPlatformLabel(platform)}
-                      </PlainOption>
-                    ))
-                  )}
-                </OptionDropdown>
-              ) : null}
-            </div>
+          <FilterSelect value={categoryFilter} onChange={setCategoryFilter}>
+            <option value="all">{copy.category}: {copy.any}</option>
+            {categoryOptions.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </FilterSelect>
+        </div>
 
-            <div className="relative p-4">
-              <label className="block text-sm font-black text-slate-950">
-                {copy.category}
-              </label>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <FilterSelect value={contentTypeFilter} onChange={setContentTypeFilter}>
+            {CONTENT_TYPE_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {copy.contentType}: {safeLocale === "ja" ? item.ja : item.en}
+              </option>
+            ))}
+          </FilterSelect>
 
-              <div className="flex items-center gap-3">
-                <input
-                  value={keyword}
-                  onFocus={() => setOpenFilter("mainCategory")}
-                  onClick={() => setOpenFilter("mainCategory")}
-                  onChange={(e) => {
-                    setKeyword(e.target.value);
-                    setOpenFilter("mainCategory");
-                  }}
-                  placeholder={
-                    categoryFilter === "all"
-                      ? copy.keywordPlaceholder
-                      : categoryFilter
-                  }
-                  className="mt-1 w-full bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
-                />
+          <FilterSelect value={followersFilter} onChange={setFollowersFilter}>
+            {FOLLOWER_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {copy.followers}: {safeLocale === "ja" ? item.ja : item.en}
+              </option>
+            ))}
+          </FilterSelect>
 
-                {categoryFilter !== "all" ? (
-                  <button
-                    type="button"
-                    onClick={() => setCategoryFilter("all")}
-                    className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200 md:inline-flex"
-                  >
-                    {categoryFilter}
-                    <span className="ml-2">×</span>
-                  </button>
-                ) : null}
-              </div>
+          <FilterSelect value={locationFilter} onChange={setLocationFilter}>
+            <option value="all">{copy.location}: {copy.any}</option>
+            {locationOptions.map((location) => (
+              <option key={location} value={location}>
+                {getCountryLabel(location, safeLocale)}
+              </option>
+            ))}
+          </FilterSelect>
 
-              {openFilter === "mainCategory" ? (
-                <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
-                  <CategoryPanel
-                    categoryOptions={categoryOptions}
-                    categoryFilter={categoryFilter}
-                    setCategoryFilter={setCategoryFilter}
-                    setOpenFilter={setOpenFilter}
-                    copy={{
-                      any: copy.any,
-                      availableCategories: copy.availableCategories,
-                      popular: copy.popular,
-                    }}
-                  />
-                </OptionDropdown>
-              ) : null}
-            </div>
+          <input
+            value={minPrice}
+            onChange={(event) => setMinPrice(normalizeNumberInput(event.target.value))}
+            inputMode="numeric"
+            placeholder={copy.minPrice}
+            className="h-11 w-[130px] rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus:border-slate-950"
+          />
 
-            <button
-              type="button"
-              onClick={() => {
-                setOpenFilter(null);
-                setPriceModalOpen(false);
-              }}
-              className="flex min-h-[62px] items-center justify-center rounded-[22px] bg-slate-950 text-white transition duration-150 hover:-translate-y-0.5 hover:shadow-xl md:min-h-full"
-              aria-label={copy.search}
-            >
-              <SearchIcon />
-            </button>
-          </div>
-        </section>
+          <input
+            value={maxPrice}
+            onChange={(event) => setMaxPrice(normalizeNumberInput(event.target.value))}
+            inputMode="numeric"
+            placeholder={copy.maxPrice}
+            className="h-11 w-[130px] rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus:border-slate-950"
+          />
 
-        <section className="relative z-30">
-          <div className="flex flex-wrap gap-3">
-            <div className="relative shrink-0">
-              <FilterChip
-                label={copy.contentType}
-                value={
-                  contentTypeFilter === "all"
-                    ? ""
-                    : CONTENT_TYPE_OPTIONS.find(
-                        (item) => item.value === contentTypeFilter
-                      )?.label
-                }
-                active={contentTypeFilter !== "all"}
-                onClick={() =>
-                  setOpenFilter((prev) =>
-                    prev === "contentType" ? null : "contentType"
-                  )
-                }
-              />
-
-              {openFilter === "contentType" ? (
-                <OptionDropdown>
-                  {CONTENT_TYPE_OPTIONS.map((item) => (
-                    <PlainOption
-                      key={item.value}
-                      active={contentTypeFilter === item.value}
-                      onClick={() => {
-                        setContentTypeFilter(item.value);
-                        setOpenFilter(null);
-                      }}
-                    >
-                      {item.label}
-                    </PlainOption>
-                  ))}
-                </OptionDropdown>
-              ) : null}
-            </div>
-
-            <div className="relative shrink-0">
-              <FilterChip
-                label={copy.followers}
-                value={
-                  followersFilter === "all"
-                    ? ""
-                    : FOLLOWER_OPTIONS.find(
-                        (item) => item.value === followersFilter
-                      )?.label
-                }
-                active={followersFilter !== "all"}
-                onClick={() =>
-                  setOpenFilter((prev) =>
-                    prev === "followers" ? null : "followers"
-                  )
-                }
-              />
-
-              {openFilter === "followers" ? (
-                <OptionDropdown>
-                  {FOLLOWER_OPTIONS.map((item) => (
-                    <PlainOption
-                      key={item.value}
-                      active={followersFilter === item.value}
-                      onClick={() => {
-                        setFollowersFilter(item.value);
-                        setOpenFilter(null);
-                      }}
-                    >
-                      {item.label}
-                    </PlainOption>
-                  ))}
-                </OptionDropdown>
-              ) : null}
-            </div>
-
-            <div className="relative shrink-0">
-              <FilterChip
-                label={copy.location}
-                value={
-                  locationFilter === "all"
-                    ? ""
-                    : getCountryLabel(locationFilter, safeLocale)
-                }
-                active={locationFilter !== "all"}
-                onClick={() =>
-                  setOpenFilter((prev) =>
-                    prev === "location" ? null : "location"
-                  )
-                }
-              />
-
-              {openFilter === "location" ? (
-                <OptionDropdown>
-                  <PlainOption
-                    active={locationFilter === "all"}
-                    onClick={() => {
-                      setLocationFilter("all");
-                      setOpenFilter(null);
-                    }}
-                  >
-                    {copy.allLocations}
-                  </PlainOption>
-
-                  {locationOptions.map((location) => (
-                    <PlainOption
-                      key={location}
-                      active={
-                        cleanCountryInput(locationFilter) ===
-                        cleanCountryInput(location)
-                      }
-                      onClick={() => {
-                        setLocationFilter(location);
-                        setOpenFilter(null);
-                      }}
-                    >
-                      {getCountryLabel(location, safeLocale)}
-                    </PlainOption>
-                  ))}
-                </OptionDropdown>
-              ) : null}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setPriceModalOpen(true);
-                setOpenFilter(null);
-              }}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition duration-150 ${
-                priceFilterLabel
-                  ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                  : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
-              }`}
-            >
-              <span>{copy.price}</span>
-              {priceFilterLabel ? (
-                <span className="max-w-[170px] truncate text-xs opacity-80">
-                  {priceFilterLabel}
-                </span>
-              ) : null}
-              <ChevronDownIcon />
-            </button>
-
-            <div className="relative shrink-0">
-              <FilterChip
-                label={copy.category}
-                value={categoryFilter === "all" ? "" : categoryFilter}
-                active={categoryFilter !== "all"}
-                onClick={() =>
-                  setOpenFilter((prev) =>
-                    prev === "categoryFilter" ? null : "categoryFilter"
-                  )
-                }
-              />
-
-              {openFilter === "categoryFilter" ? (
-                <OptionDropdown widthClass="w-[min(560px,calc(100vw-48px))]">
-                  <CategoryPanel
-                    categoryOptions={categoryOptions}
-                    categoryFilter={categoryFilter}
-                    setCategoryFilter={setCategoryFilter}
-                    setOpenFilter={setOpenFilter}
-                    copy={{
-                      any: copy.any,
-                      availableCategories: copy.availableCategories,
-                      popular: copy.popular,
-                    }}
-                  />
-                </OptionDropdown>
-              ) : null}
-            </div>
-
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="shrink-0 px-2 py-2 text-sm font-bold text-slate-700 underline underline-offset-4 transition hover:text-slate-950"
-            >
-              {copy.clearAll}
-              {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-            </button>
-          </div>
-        </section>
-      </div>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="h-11 rounded-full bg-slate-50 px-4 text-sm font-black text-slate-700 ring-1 ring-slate-100 transition hover:bg-slate-100"
+          >
+            {copy.clearAll}
+            {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </button>
+        </div>
+      </section>
 
       {notice ? (
         <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-sm font-bold text-amber-800">
@@ -1939,7 +1383,7 @@ export default function CompanyCreatorsPage() {
         </section>
       ) : null}
 
-      <section className="relative z-0">
+      <section>
         {filteredCreators.length === 0 ? (
           <div className="rounded-[28px] border border-slate-100 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-black text-slate-950">
@@ -1948,6 +1392,7 @@ export default function CompanyCreatorsPage() {
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-500">
               {copy.noCreatorsBody}
             </p>
+
             {activeFilterCount > 0 ? (
               <button
                 type="button"
@@ -1960,13 +1405,13 @@ export default function CompanyCreatorsPage() {
           </div>
         ) : (
           <div className="grid gap-x-7 gap-y-10 sm:grid-cols-2 xl:grid-cols-4">
-            {filteredCreators.map((influencer, index) => (
-              <InfluencerCardItem
-                key={influencer.id}
-                influencer={influencer}
+            {filteredCreators.map((creator, index) => (
+              <CreatorCardItem
+                key={creator.id}
+                creator={creator}
                 index={index}
-                isSaved={savedCreatorIds.includes(influencer.id)}
-                isSaving={savingCreatorId === influencer.id}
+                isSaved={savedCreatorIds.includes(creator.id)}
+                isSaving={savingCreatorId === creator.id}
                 safeLocale={safeLocale}
                 copy={{
                   menu: copy.menu,
@@ -1979,24 +1424,6 @@ export default function CompanyCreatorsPage() {
           </div>
         )}
       </section>
-
-      {priceModalOpen ? (
-        <PriceModal
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          setMinPrice={setMinPrice}
-          setMaxPrice={setMaxPrice}
-          onClose={() => setPriceModalOpen(false)}
-          onSave={() => setPriceModalOpen(false)}
-          copy={{
-            price: copy.price,
-            minPrice: copy.minPrice,
-            maxPrice: copy.maxPrice,
-            save: copy.save,
-            clear: copy.clear,
-          }}
-        />
-      ) : null}
     </div>
   );
 }
