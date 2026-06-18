@@ -358,20 +358,6 @@ function SmallInfo({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BankIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M4 10h16M6 10v8M10 10v8M14 10v8M18 10v8M5 18h14M12 4l8 4H4l8-4Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function PayoutsClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1025,17 +1011,20 @@ export default function PayoutsClient() {
 
             <Field
               label="振込用口座名義"
-              help="カナ・英数字・スペース中心。ひらがなは自動変換します。"
+              help="入力中はそのまま。確認時にカタカナへ整形します。"
             >
               <Input
                 value={form.account_holder_kana}
                 placeholder="例：ヤマダ タロウ"
                 onChange={(event) => {
+                  updateForm("account_holder_kana", event.target.value);
+                  setConfirmOpen(false);
+                }}
+                onBlur={() => {
                   updateForm(
                     "account_holder_kana",
-                    normalizeTransferName(event.target.value)
+                    normalizeTransferName(form.account_holder_kana)
                   );
-                  setConfirmOpen(false);
                 }}
               />
             </Field>
