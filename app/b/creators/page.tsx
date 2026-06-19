@@ -16,7 +16,6 @@ import { useAppLocale } from "@/lib/i18n/locale";
 type FilterMenu =
   | "platform"
   | "category"
-  | "followers"
   | "dealType"
   | "menuContent"
   | "location"
@@ -90,23 +89,20 @@ type CreatorCard = {
   reviewCount: number;
 };
 
+const FOLLOWER_MIN = 0;
+const FOLLOWER_MAX = 100000;
+const FOLLOWER_STEP = 1000;
+
+const PRICE_MIN = 0;
+const PRICE_MAX = 300000;
+const PRICE_STEP = 10000;
+
 const PLATFORM_OPTIONS = [
   { value: "all", label: "すべて" },
   { value: "Instagram", label: "Instagram" },
   { value: "TikTok", label: "TikTok" },
   { value: "YouTube", label: "YouTube" },
   { value: "X", label: "X" },
-];
-
-const FOLLOWER_OPTIONS = [
-  { value: "all", label: "すべて" },
-  { value: "1,000未満", label: "1,000未満" },
-  { value: "1,000〜5,000", label: "1,000〜5,000" },
-  { value: "5,000〜10,000", label: "5,000〜10,000" },
-  { value: "10,000〜30,000", label: "10,000〜30,000" },
-  { value: "30,000〜50,000", label: "30,000〜50,000" },
-  { value: "50,000〜100,000", label: "50,000〜100,000" },
-  { value: "100,000以上", label: "100,000以上" },
 ];
 
 const DEAL_TYPE_OPTIONS = [
@@ -130,13 +126,24 @@ const MENU_CONTENT_OPTIONS = [
 ];
 
 const PRICE_PRESETS = [
-  { label: "すべて", min: "", max: "" },
-  { label: "〜1万円", min: "0", max: "10000" },
-  { label: "1万円〜3万円", min: "10000", max: "30000" },
-  { label: "3万円〜5万円", min: "30000", max: "50000" },
-  { label: "5万円〜10万円", min: "50000", max: "100000" },
-  { label: "10万円〜30万円", min: "100000", max: "300000" },
-  { label: "30万円〜", min: "300000", max: "" },
+  { label: "すべて", min: PRICE_MIN, max: PRICE_MAX },
+  { label: "〜1万円", min: 0, max: 10000 },
+  { label: "1万円〜3万円", min: 10000, max: 30000 },
+  { label: "3万円〜5万円", min: 30000, max: 50000 },
+  { label: "5万円〜10万円", min: 50000, max: 100000 },
+  { label: "10万円〜30万円", min: 100000, max: 300000 },
+  { label: "30万円〜", min: 300000, max: 300000 },
+];
+
+const FOLLOWER_PRESETS = [
+  { label: "すべて", min: FOLLOWER_MIN, max: FOLLOWER_MAX },
+  { label: "1,000未満", min: 0, max: 1000 },
+  { label: "1,000〜5,000", min: 1000, max: 5000 },
+  { label: "5,000〜10,000", min: 5000, max: 10000 },
+  { label: "10,000〜30,000", min: 10000, max: 30000 },
+  { label: "30,000〜50,000", min: 30000, max: 50000 },
+  { label: "50,000〜100,000", min: 50000, max: 100000 },
+  { label: "100,000以上", min: 100000, max: 100000 },
 ];
 
 const PREFECTURE_OPTIONS = [
@@ -308,16 +315,105 @@ function normalizePlatform(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
-function normalizeNumberInput(value: string) {
-  return value.replace(/[^\d]/g, "");
+function formatCompactNumber(value: number) {
+  return new Intl.NumberFormat("ja-JP").format(value);
 }
 
-function toNumberOrNull(value: string) {
-  const cleaned = normalizeNumberInput(value);
-  if (!cleaned) return null;
+function formatFollowerValue(value: number) {
+  if (value >= FOLLOWER_MAX) return `${formatCompactNumber(FOLLOWER_MAX)}+`;
+  return formatCompactNumber(value);
+}
 
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
+function formatPriceValue(value: number) {
+  if (value >= PRICE_MAX) return `¥${formatCompactNumber(PRICE_MAX)}+`;
+  return `¥${formatCompactNumber(value)}`;
+}
+
+function formatRangeLabel({
+  min,
+  max,
+  maxLimit,
+  prefix = "",
+  suffix = "",
+}: {
+  min: number;
+  max: number;
+  maxLimit: number;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const minLabel = `${prefix}${formatCompactNumber(min)}${suffix}`;
+  const maxLabel =
+    max >= maxLimit
+      ? `${prefix}${formatCompactNumber(maxLimit)}+${suffix}`
+      : `${prefix}${formatCompactNumber(max)}${suffix}`;
+
+  return `${minLabel} 〜 ${maxLabel}`;
+}
+
+function parseFollowerRange(value: string | null | undefined) {
+  const text = (value ?? "").normalize("NFKC").trim();
+
+  if (!text) return null;
+
+  const numbers = Array.from(text.matchAll(/\d[\d,]*/g)).map((match) =>
+    Number(match[0].replace(/,/g, ""))
+  );
+
+  if (numbers.length === 0) return null;
+
+  if (
+    text.includes("未満") ||
+    text.toLowerCase().includes("under") ||
+    text.includes("以下")
+  ) {
+    return {
+      min: 0,
+      max: numbers[0],
+    };
+  }
+
+  if (
+    text.includes("以上") ||
+    text.includes("+") ||
+    text.toLowerCase().includes("over")
+  ) {
+    return {
+      min: numbers[0],
+      max: Number.POSITIVE_INFINITY,
+    };
+  }
+
+  if (numbers.length >= 2) {
+    return {
+      min: Math.min(numbers[0], numbers[1]),
+      max: Math.max(numbers[0], numbers[1]),
+    };
+  }
+
+  return {
+    min: numbers[0],
+    max: numbers[0],
+  };
+}
+
+function getFollowerRangeMatch(
+  followerRange: string | null | undefined,
+  minFilter: number,
+  maxFilter: number
+) {
+  const isDefault =
+    minFilter === FOLLOWER_MIN && maxFilter === FOLLOWER_MAX;
+
+  if (isDefault) return true;
+
+  const parsed = parseFollowerRange(followerRange);
+  if (!parsed) return false;
+
+  const filterMax =
+    maxFilter >= FOLLOWER_MAX ? Number.POSITIVE_INFINITY : maxFilter;
+
+  return parsed.max >= minFilter && parsed.min <= filterMax;
 }
 
 function cleanCountryInput(value: string | null | undefined) {
@@ -624,32 +720,6 @@ function getRatingValue(value: number | null | undefined) {
   return value;
 }
 
-function getFollowerMatch(
-  followerRange: string | null | undefined,
-  filter: string
-) {
-  if (filter === "all") return true;
-
-  const text = normalizeText(followerRange);
-  if (!text) return false;
-
-  if (filter === "100,000以上") {
-    return (
-      text.includes("100,000") ||
-      text.includes("300,000") ||
-      text.includes("500,000") ||
-      text.includes("1,000,000") ||
-      text.includes("100000") ||
-      text.includes("300000") ||
-      text.includes("500000") ||
-      text.includes("100万") ||
-      text.includes("1m")
-    );
-  }
-
-  return text === normalizeText(filter) || text.includes(normalizeText(filter));
-}
-
 function getDealTypeMatch(card: CreatorCard, filter: string) {
   if (filter === "all") return true;
 
@@ -828,21 +898,18 @@ function DropdownShell({
 
 function DropdownOption({
   active,
-  disabled,
   children,
   onClick,
 }: {
   active: boolean;
-  disabled?: boolean;
   children: ReactNode;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      disabled={disabled}
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
         active
           ? "bg-slate-950 text-white"
           : "text-slate-800 hover:bg-slate-50"
@@ -857,31 +924,26 @@ function FilterPill({
   label,
   value,
   active,
-  disabled,
   onClick,
 }: {
   label: string;
   value?: string;
   active?: boolean;
-  disabled?: boolean;
   onClick?: () => void;
 }) {
   return (
     <button
       type="button"
-      disabled={disabled}
       onClick={onClick}
       className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-black transition ${
-        disabled
-          ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-          : active
-            ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-            : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+        active
+          ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+          : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
       }`}
     >
       <span>{label}</span>
       {value ? (
-        <span className="max-w-[160px] truncate text-xs opacity-75">{value}</span>
+        <span className="max-w-[180px] truncate text-xs opacity-75">{value}</span>
       ) : null}
       <ChevronDownIcon />
     </button>
@@ -905,7 +967,7 @@ function CategoryDropdown({
     GENRE_GROUPS.find((item) => item.key === activeGroup) ?? GENRE_GROUPS[0];
 
   return (
-    <DropdownShell className="w-[min(700px,calc(100vw-40px))] p-4">
+    <DropdownShell className="w-[min(720px,calc(100vw-40px))] p-4">
       <div className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {GENRE_GROUPS.map((item) => {
           const active = item.key === activeGroup;
@@ -965,75 +1027,200 @@ function CategoryDropdown({
   );
 }
 
-function PriceModal({
-  minPrice,
-  maxPrice,
-  setMinPrice,
-  setMaxPrice,
+function MultiPrefectureDropdown({
+  selectedPrefectures,
+  setSelectedPrefectures,
+  clear,
+}: {
+  selectedPrefectures: string[];
+  setSelectedPrefectures: (value: string[]) => void;
+  clear: () => void;
+}) {
+  const togglePrefecture = (prefecture: string) => {
+    if (selectedPrefectures.includes(prefecture)) {
+      setSelectedPrefectures(
+        selectedPrefectures.filter((item) => item !== prefecture)
+      );
+      return;
+    }
+
+    setSelectedPrefectures([...selectedPrefectures, prefecture]);
+  };
+
+  return (
+    <DropdownShell className="w-[min(520px,calc(100vw-40px))] p-4">
+      <p className="mb-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-500">
+        ※体験型での体験可能範囲です。複数選択できます。
+      </p>
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs font-black text-slate-400">
+          選択中：{selectedPrefectures.length}件
+        </p>
+        <button
+          type="button"
+          onClick={clear}
+          className="text-xs font-black text-slate-700 underline underline-offset-4"
+        >
+          すべて解除
+        </button>
+      </div>
+
+      <div className="grid max-h-[360px] grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3">
+        {PREFECTURE_OPTIONS.map((prefecture) => {
+          const checked = selectedPrefectures.includes(prefecture);
+
+          return (
+            <button
+              key={prefecture}
+              type="button"
+              onClick={() => togglePrefecture(prefecture)}
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-black transition ${
+                checked
+                  ? "bg-slate-950 text-white"
+                  : "bg-slate-50 text-slate-800 hover:bg-slate-100"
+              }`}
+            >
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
+                  checked
+                    ? "border-white bg-white text-slate-950"
+                    : "border-slate-300 bg-white text-transparent"
+                }`}
+              >
+                ✓
+              </span>
+              <span>{prefecture}</span>
+            </button>
+          );
+        })}
+      </div>
+    </DropdownShell>
+  );
+}
+
+function RangeFilterModal({
+  title,
+  minCaption,
+  maxCaption,
+  minValue,
+  maxValue,
+  minLimit,
+  maxLimit,
+  step,
+  minDisplay,
+  maxDisplay,
+  presets,
+  onMinChange,
+  onMaxChange,
   onClose,
 }: {
-  minPrice: string;
-  maxPrice: string;
-  setMinPrice: (value: string) => void;
-  setMaxPrice: (value: string) => void;
+  title: string;
+  minCaption: string;
+  maxCaption: string;
+  minValue: number;
+  maxValue: number;
+  minLimit: number;
+  maxLimit: number;
+  step: number;
+  minDisplay: (value: number) => string;
+  maxDisplay: (value: number) => string;
+  presets: {
+    label: string;
+    min: number;
+    max: number;
+  }[];
+  onMinChange: (value: number) => void;
+  onMaxChange: (value: number) => void;
   onClose: () => void;
 }) {
+  const safeMin = Math.max(minLimit, Math.min(minValue, maxLimit));
+  const safeMax = Math.max(minLimit, Math.min(maxValue, maxLimit));
+
+  const leftPercent = ((safeMin - minLimit) / (maxLimit - minLimit)) * 100;
+  const rightPercent = 100 - ((safeMax - minLimit) / (maxLimit - minLimit)) * 100;
+
+  const handleMinChange = (value: number) => {
+    const next = Math.min(value, safeMax);
+    onMinChange(next);
+  };
+
+  const handleMaxChange = (value: number) => {
+    const next = Math.max(value, safeMin);
+    onMaxChange(next);
+  };
+
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-[2px]">
       <div className="w-full max-w-xl rounded-[34px] bg-white p-6 shadow-2xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-black text-slate-950">価格</h2>
-            <p className="mt-1 text-sm font-bold text-slate-400">
-              下限は0円、上限は300,000円以上まで設定できます。
-            </p>
-          </div>
-
+        <div className="mb-8 flex items-center justify-between">
+          <div className="w-10" />
+          <h2 className="text-xl font-black text-slate-950">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-700 transition hover:bg-slate-200"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-xl font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+            aria-label="Close"
           >
             ×
           </button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="block">
-            <span className="text-sm font-black text-slate-700">下限</span>
-            <input
-              value={minPrice}
-              onChange={(event) =>
-                setMinPrice(normalizeNumberInput(event.target.value))
-              }
-              inputMode="numeric"
-              placeholder="0"
-              className="mt-2 h-14 w-full rounded-2xl border border-slate-200 px-4 text-2xl font-black outline-none transition focus:border-slate-950"
-            />
-          </label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm font-bold text-slate-500">{minCaption}</p>
+            <p className="mt-1 text-3xl font-black tracking-[-0.04em] text-slate-950">
+              {minDisplay(safeMin)}
+            </p>
+          </div>
 
-          <label className="block">
-            <span className="text-sm font-black text-slate-700">上限</span>
-            <input
-              value={maxPrice}
-              onChange={(event) =>
-                setMaxPrice(normalizeNumberInput(event.target.value))
-              }
-              inputMode="numeric"
-              placeholder="300,000+"
-              className="mt-2 h-14 w-full rounded-2xl border border-slate-200 px-4 text-2xl font-black outline-none transition focus:border-slate-950"
-            />
-          </label>
+          <div className="text-right">
+            <p className="text-sm font-bold text-slate-500">{maxCaption}</p>
+            <p className="mt-1 text-3xl font-black tracking-[-0.04em] text-slate-950">
+              {maxDisplay(safeMax)}
+            </p>
+          </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          {PRICE_PRESETS.map((preset) => (
+        <div className="relative mt-7 h-10">
+          <div className="absolute left-0 right-0 top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-slate-200" />
+          <div
+            className="absolute top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-slate-950"
+            style={{
+              left: `${leftPercent}%`,
+              right: `${rightPercent}%`,
+            }}
+          />
+
+          <input
+            type="range"
+            min={minLimit}
+            max={maxLimit}
+            step={step}
+            value={safeMin}
+            onChange={(event) => handleMinChange(Number(event.target.value))}
+            className="trendre-range-input absolute left-0 top-0 h-10 w-full"
+          />
+
+          <input
+            type="range"
+            min={minLimit}
+            max={maxLimit}
+            step={step}
+            value={safeMax}
+            onChange={(event) => handleMaxChange(Number(event.target.value))}
+            className="trendre-range-input absolute left-0 top-0 h-10 w-full"
+          />
+        </div>
+
+        <div className="mt-7 flex flex-wrap gap-2">
+          {presets.map((preset) => (
             <button
               key={preset.label}
               type="button"
               onClick={() => {
-                setMinPrice(preset.min);
-                setMaxPrice(preset.max);
+                onMinChange(preset.min);
+                onMaxChange(preset.max);
               }}
               className="rounded-full border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
             >
@@ -1045,10 +1232,51 @@ function PriceModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-7 h-12 w-full rounded-2xl bg-slate-950 text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
+          className="mt-8 h-14 w-full rounded-2xl bg-slate-950 text-base font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
         >
-          決定
+          適用する
         </button>
+
+        <style>{`
+          .trendre-range-input {
+            pointer-events: none;
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+          }
+
+          .trendre-range-input::-webkit-slider-thumb {
+            pointer-events: auto;
+            appearance: none;
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 9999px;
+            background: #0f172a;
+            border: 0;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+            cursor: pointer;
+          }
+
+          .trendre-range-input::-moz-range-thumb {
+            pointer-events: auto;
+            width: 22px;
+            height: 22px;
+            border-radius: 9999px;
+            background: #0f172a;
+            border: 0;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+            cursor: pointer;
+          }
+
+          .trendre-range-input::-webkit-slider-runnable-track {
+            background: transparent;
+          }
+
+          .trendre-range-input::-moz-range-track {
+            background: transparent;
+          }
+        `}</style>
       </div>
     </div>
   );
@@ -1213,9 +1441,13 @@ export default function CompanyCreatorsPage() {
             contentType: "メニュー内容",
             dealType: "案件タイプ",
             followers: "フォロワー数",
+            followersMin: "下限",
+            followersMax: "上限",
             price: "価格",
+            priceMin: "下限価格",
+            priceMax: "上限価格",
             any: "すべて",
-            clearAll: "Clear All",
+            clearAll: "条件をクリア",
             noCreatorsTitle: "表示できるインフルエンサーがいません",
             noCreatorsBody:
               "検索条件を変更するか、公開中のインフルエンサーが追加されるまでお待ちください。",
@@ -1236,9 +1468,13 @@ export default function CompanyCreatorsPage() {
             contentType: "Menu content",
             dealType: "Project type",
             followers: "Followers",
+            followersMin: "Min followers",
+            followersMax: "Max followers",
             price: "Price",
+            priceMin: "Min price",
+            priceMax: "Max price",
             any: "Any",
-            clearAll: "Clear All",
+            clearAll: "Clear all",
             noCreatorsTitle: "No influencers found",
             noCreatorsBody:
               "Try changing your search filters or wait for more public influencers.",
@@ -1265,32 +1501,39 @@ export default function CompanyCreatorsPage() {
   const [activeCategoryGroup, setActiveCategoryGroup] = useState(
     GENRE_GROUPS[0].key
   );
-  const [followersFilter, setFollowersFilter] = useState("all");
+  const [minFollowers, setMinFollowers] = useState(FOLLOWER_MIN);
+  const [maxFollowers, setMaxFollowers] = useState(FOLLOWER_MAX);
   const [dealTypeFilter, setDealTypeFilter] = useState("all");
   const [menuContentFilter, setMenuContentFilter] = useState("all");
-  const [locationFilter, setLocationFilter] = useState("all");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const [selectedPrefectures, setSelectedPrefectures] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState(PRICE_MIN);
+  const [maxPrice, setMaxPrice] = useState(PRICE_MAX);
 
   const [openFilter, setOpenFilter] = useState<FilterMenu>(null);
+  const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [priceModalOpen, setPriceModalOpen] = useState(false);
 
-  const minPriceNumber = useMemo(() => toNumberOrNull(minPrice), [minPrice]);
-  const maxPriceNumber = useMemo(() => toNumberOrNull(maxPrice), [maxPrice]);
+  const followersFilterLabel = useMemo(() => {
+    if (minFollowers === FOLLOWER_MIN && maxFollowers === FOLLOWER_MAX) {
+      return "";
+    }
+
+    return `${formatFollowerValue(minFollowers)} 〜 ${formatFollowerValue(maxFollowers)}`;
+  }, [minFollowers, maxFollowers]);
 
   const priceFilterLabel = useMemo(() => {
-    if (minPriceNumber === null && maxPriceNumber === null) return "";
-
-    if (minPriceNumber !== null && maxPriceNumber !== null) {
-      return `¥${minPriceNumber.toLocaleString()} - ¥${maxPriceNumber.toLocaleString()}`;
+    if (minPrice === PRICE_MIN && maxPrice === PRICE_MAX) {
+      return "";
     }
 
-    if (minPriceNumber !== null) {
-      return `¥${minPriceNumber.toLocaleString()}+`;
-    }
+    return `${formatPriceValue(minPrice)} 〜 ${formatPriceValue(maxPrice)}`;
+  }, [minPrice, maxPrice]);
 
-    return `〜¥${maxPriceNumber?.toLocaleString()}`;
-  }, [minPriceNumber, maxPriceNumber]);
+  const locationFilterLabel = useMemo(() => {
+    if (selectedPrefectures.length === 0) return "";
+    if (selectedPrefectures.length === 1) return selectedPrefectures[0];
+    return `${selectedPrefectures.length}件選択中`;
+  }, [selectedPrefectures]);
 
   const filteredCreators = useMemo(() => {
     return creators.filter((creator) => {
@@ -1305,9 +1548,10 @@ export default function CompanyCreatorsPage() {
         categoryFilter === "all" ||
         normalizeText(creator.category) === normalizeText(categoryFilter);
 
-      const matchesFollowers = getFollowerMatch(
+      const matchesFollowers = getFollowerRangeMatch(
         creator.followerRange,
-        followersFilter
+        minFollowers,
+        maxFollowers
       );
 
       const matchesDealType = getDealTypeMatch(creator, dealTypeFilter);
@@ -1318,16 +1562,22 @@ export default function CompanyCreatorsPage() {
       );
 
       const matchesLocation =
-        locationFilter === "all" ||
-        normalizeText(creator.prefecture) === normalizeText(locationFilter);
+        selectedPrefectures.length === 0 ||
+        selectedPrefectures.some(
+          (prefecture) =>
+            normalizeText(creator.prefecture) === normalizeText(prefecture)
+        );
 
-      const hasPriceFilter = minPriceNumber !== null || maxPriceNumber !== null;
+      const isDefaultPriceRange = minPrice === PRICE_MIN && maxPrice === PRICE_MAX;
+
+      const filterMaxPrice =
+        maxPrice >= PRICE_MAX ? Number.POSITIVE_INFINITY : maxPrice;
 
       const matchesPrice =
-        !hasPriceFilter ||
+        isDefaultPriceRange ||
         (creator.startingPrice !== null &&
-          (minPriceNumber === null || creator.startingPrice >= minPriceNumber) &&
-          (maxPriceNumber === null || creator.startingPrice <= maxPriceNumber));
+          creator.startingPrice >= minPrice &&
+          creator.startingPrice <= filterMaxPrice);
 
       return (
         matchesPlatform &&
@@ -1343,12 +1593,13 @@ export default function CompanyCreatorsPage() {
     creators,
     platformFilter,
     categoryFilter,
-    followersFilter,
+    minFollowers,
+    maxFollowers,
     dealTypeFilter,
     menuContentFilter,
-    locationFilter,
-    minPriceNumber,
-    maxPriceNumber,
+    selectedPrefectures,
+    minPrice,
+    maxPrice,
   ]);
 
   const activeFilterCount = useMemo(() => {
@@ -1356,22 +1607,23 @@ export default function CompanyCreatorsPage() {
 
     if (platformFilter !== "all") count += 1;
     if (categoryFilter !== "all") count += 1;
-    if (followersFilter !== "all") count += 1;
+    if (minFollowers !== FOLLOWER_MIN || maxFollowers !== FOLLOWER_MAX) count += 1;
     if (dealTypeFilter !== "all") count += 1;
     if (menuContentFilter !== "all") count += 1;
-    if (locationFilter !== "all") count += 1;
-    if (minPriceNumber !== null || maxPriceNumber !== null) count += 1;
+    if (selectedPrefectures.length > 0) count += 1;
+    if (minPrice !== PRICE_MIN || maxPrice !== PRICE_MAX) count += 1;
 
     return count;
   }, [
     platformFilter,
     categoryFilter,
-    followersFilter,
+    minFollowers,
+    maxFollowers,
     dealTypeFilter,
     menuContentFilter,
-    locationFilter,
-    minPriceNumber,
-    maxPriceNumber,
+    selectedPrefectures,
+    minPrice,
+    maxPrice,
   ]);
 
   useEffect(() => {
@@ -1392,6 +1644,7 @@ export default function CompanyCreatorsPage() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpenFilter(null);
+        setFollowersModalOpen(false);
         setPriceModalOpen(false);
       }
     };
@@ -1660,13 +1913,15 @@ export default function CompanyCreatorsPage() {
   const resetFilters = () => {
     setPlatformFilter("all");
     setCategoryFilter("all");
-    setFollowersFilter("all");
+    setMinFollowers(FOLLOWER_MIN);
+    setMaxFollowers(FOLLOWER_MAX);
     setDealTypeFilter("all");
     setMenuContentFilter("all");
-    setLocationFilter("all");
-    setMinPrice("");
-    setMaxPrice("");
+    setSelectedPrefectures([]);
+    setMinPrice(PRICE_MIN);
+    setMaxPrice(PRICE_MAX);
     setOpenFilter(null);
+    setFollowersModalOpen(false);
     setPriceModalOpen(false);
   };
 
@@ -1721,7 +1976,7 @@ export default function CompanyCreatorsPage() {
   if (loading) {
     return (
       <div className="space-y-8">
-        <section className="mx-auto max-w-5xl rounded-[34px] border border-slate-100 bg-white p-5 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0]">
+        <section className="mx-auto max-w-[1320px] rounded-[34px] border border-slate-100 bg-white p-5 shadow-[rgba(120,120,170,0.15)_0_2px_16px_0]">
           <div className="grid gap-3 md:grid-cols-[220px_1fr_64px]">
             <div className="h-16 animate-pulse rounded-[24px] bg-slate-100" />
             <div className="h-16 animate-pulse rounded-[24px] bg-slate-100" />
@@ -1729,7 +1984,7 @@ export default function CompanyCreatorsPage() {
           </div>
         </section>
 
-        <section>
+        <section className="mx-auto max-w-[1320px]">
           <div className="grid gap-x-7 gap-y-10 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="space-y-3">
@@ -1746,9 +2001,9 @@ export default function CompanyCreatorsPage() {
 
   return (
     <div className="space-y-9 pb-10">
-      <div ref={filterRootRef} className="relative z-50 mx-auto max-w-5xl">
-        <section className="rounded-[34px] border border-slate-100 bg-white p-4 shadow-[0_24px_70px_rgba(15,23,42,0.08)] md:p-5">
-          <div className="grid gap-0 overflow-visible rounded-[28px] border border-slate-100 md:grid-cols-[220px_minmax(0,1fr)_64px]">
+      <div ref={filterRootRef} className="relative z-50 mx-auto max-w-[1320px]">
+        <section className="mx-auto max-w-[1120px] rounded-[34px] border border-slate-100 bg-white p-4 shadow-[0_24px_70px_rgba(15,23,42,0.08)] md:p-5">
+          <div className="grid gap-0 overflow-visible rounded-[28px] border border-slate-100 md:grid-cols-[260px_minmax(0,1fr)_68px]">
             <div className="relative border-b border-slate-100 p-4 md:border-b-0 md:border-r">
               <button
                 type="button"
@@ -1761,7 +2016,7 @@ export default function CompanyCreatorsPage() {
                   <span className="block text-sm font-black text-slate-950">
                     {copy.platform}
                   </span>
-                  <span className="mt-1 flex items-center gap-2 text-base font-medium text-slate-900">
+                  <span className="mt-2 flex items-center gap-2 text-base font-medium text-slate-900">
                     {platformFilter === "all" ? null : getPlatformIcon(platformFilter)}
                     {platformFilter === "all"
                       ? copy.any
@@ -1772,7 +2027,7 @@ export default function CompanyCreatorsPage() {
               </button>
 
               {openFilter === "platform" ? (
-                <DropdownShell className="w-[min(360px,calc(100vw-40px))]">
+                <DropdownShell className="w-[min(380px,calc(100vw-40px))]">
                   {PLATFORM_OPTIONS.map((item) => (
                     <DropdownOption
                       key={item.value}
@@ -1808,7 +2063,7 @@ export default function CompanyCreatorsPage() {
                   <span className="block text-sm font-black text-slate-950">
                     {copy.category}
                   </span>
-                  <span className="mt-1 block truncate text-base font-medium text-slate-900">
+                  <span className="mt-2 block truncate text-base font-medium text-slate-900">
                     {categoryFilter === "all"
                       ? copy.categoryPlaceholder
                       : categoryFilter}
@@ -1832,52 +2087,38 @@ export default function CompanyCreatorsPage() {
               type="button"
               onClick={() => {
                 setOpenFilter(null);
+                setFollowersModalOpen(false);
                 setPriceModalOpen(false);
               }}
-              className="flex min-h-[62px] items-center justify-center rounded-full bg-slate-950 text-white transition duration-150 hover:-translate-y-0.5 hover:shadow-xl md:m-2 md:min-h-0"
+              className="flex min-h-[64px] items-center justify-center rounded-full bg-slate-950 text-white transition duration-150 hover:-translate-y-0.5 hover:shadow-xl md:m-2 md:min-h-0"
               aria-label="Search"
             >
               <SearchIcon />
             </button>
           </div>
-        </section>
 
-        <section className="mt-6">
-          <div className="flex flex-wrap gap-3">
-            <div className="relative shrink-0">
-              <FilterPill
-                label={copy.followers}
-                value={
-                  followersFilter === "all"
-                    ? ""
-                    : FOLLOWER_OPTIONS.find((item) => item.value === followersFilter)
-                        ?.label
-                }
-                active={followersFilter !== "all"}
-                onClick={() =>
-                  setOpenFilter((prev) =>
-                    prev === "followers" ? null : "followers"
-                  )
-                }
-              />
-
-              {openFilter === "followers" ? (
-                <DropdownShell className="w-[min(320px,calc(100vw-40px))]">
-                  {FOLLOWER_OPTIONS.map((item) => (
-                    <DropdownOption
-                      key={item.value}
-                      active={followersFilter === item.value}
-                      onClick={() => {
-                        setFollowersFilter(item.value);
-                        setOpenFilter(null);
-                      }}
-                    >
-                      {item.label}
-                    </DropdownOption>
-                  ))}
-                </DropdownShell>
+          <div className="mt-5 flex flex-wrap items-start justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setFollowersModalOpen(true);
+                setPriceModalOpen(false);
+                setOpenFilter(null);
+              }}
+              className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-black transition ${
+                followersFilterLabel
+                  ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+              }`}
+            >
+              <span>{copy.followers}</span>
+              {followersFilterLabel ? (
+                <span className="max-w-[180px] truncate text-xs opacity-75">
+                  {followersFilterLabel}
+                </span>
               ) : null}
-            </div>
+              <ChevronDownIcon />
+            </button>
 
             <div className="relative shrink-0">
               <FilterPill
@@ -1952,6 +2193,7 @@ export default function CompanyCreatorsPage() {
               type="button"
               onClick={() => {
                 setPriceModalOpen(true);
+                setFollowersModalOpen(false);
                 setOpenFilter(null);
               }}
               className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-black transition ${
@@ -1972,44 +2214,19 @@ export default function CompanyCreatorsPage() {
             <div className="relative shrink-0">
               <FilterPill
                 label={copy.location}
-                value={locationFilter === "all" ? "" : locationFilter}
-                active={locationFilter !== "all"}
+                value={locationFilterLabel}
+                active={selectedPrefectures.length > 0}
                 onClick={() =>
                   setOpenFilter((prev) => (prev === "location" ? null : "location"))
                 }
               />
 
               {openFilter === "location" ? (
-                <DropdownShell className="w-[min(360px,calc(100vw-40px))] p-4">
-                  <p className="mb-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-500">
-                    {copy.locationHelp}
-                  </p>
-
-                  <div className="max-h-[320px] space-y-1 overflow-y-auto">
-                    <DropdownOption
-                      active={locationFilter === "all"}
-                      onClick={() => {
-                        setLocationFilter("all");
-                        setOpenFilter(null);
-                      }}
-                    >
-                      すべて
-                    </DropdownOption>
-
-                    {PREFECTURE_OPTIONS.map((prefecture) => (
-                      <DropdownOption
-                        key={prefecture}
-                        active={locationFilter === prefecture}
-                        onClick={() => {
-                          setLocationFilter(prefecture);
-                          setOpenFilter(null);
-                        }}
-                      >
-                        {prefecture}
-                      </DropdownOption>
-                    ))}
-                  </div>
-                </DropdownShell>
+                <MultiPrefectureDropdown
+                  selectedPrefectures={selectedPrefectures}
+                  setSelectedPrefectures={setSelectedPrefectures}
+                  clear={() => setSelectedPrefectures([])}
+                />
               ) : null}
             </div>
 
@@ -2022,22 +2239,26 @@ export default function CompanyCreatorsPage() {
               {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
             </button>
           </div>
+
+          <p className="mt-3 text-center text-xs font-bold text-slate-400">
+            {copy.locationHelp}
+          </p>
         </section>
       </div>
 
       {notice ? (
-        <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-sm font-bold text-amber-800">
+        <section className="mx-auto max-w-[1320px] rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-sm font-bold text-amber-800">
           {notice}
         </section>
       ) : null}
 
       {error ? (
-        <section className="rounded-[24px] border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-700">
+        <section className="mx-auto max-w-[1320px] rounded-[24px] border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-700">
           {error}
         </section>
       ) : null}
 
-      <section className="relative z-0">
+      <section className="relative z-0 mx-auto max-w-[1320px]">
         {filteredCreators.length === 0 ? (
           <div className="rounded-[28px] border border-slate-100 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-black text-slate-950">
@@ -2079,12 +2300,40 @@ export default function CompanyCreatorsPage() {
         )}
       </section>
 
+      {followersModalOpen ? (
+        <RangeFilterModal
+          title={copy.followers}
+          minCaption={copy.followersMin}
+          maxCaption={copy.followersMax}
+          minValue={minFollowers}
+          maxValue={maxFollowers}
+          minLimit={FOLLOWER_MIN}
+          maxLimit={FOLLOWER_MAX}
+          step={FOLLOWER_STEP}
+          minDisplay={formatFollowerValue}
+          maxDisplay={formatFollowerValue}
+          presets={FOLLOWER_PRESETS}
+          onMinChange={setMinFollowers}
+          onMaxChange={setMaxFollowers}
+          onClose={() => setFollowersModalOpen(false)}
+        />
+      ) : null}
+
       {priceModalOpen ? (
-        <PriceModal
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          setMinPrice={setMinPrice}
-          setMaxPrice={setMaxPrice}
+        <RangeFilterModal
+          title={copy.price}
+          minCaption={copy.priceMin}
+          maxCaption={copy.priceMax}
+          minValue={minPrice}
+          maxValue={maxPrice}
+          minLimit={PRICE_MIN}
+          maxLimit={PRICE_MAX}
+          step={PRICE_STEP}
+          minDisplay={formatPriceValue}
+          maxDisplay={formatPriceValue}
+          presets={PRICE_PRESETS}
+          onMinChange={setMinPrice}
+          onMaxChange={setMaxPrice}
           onClose={() => setPriceModalOpen(false)}
         />
       ) : null}
