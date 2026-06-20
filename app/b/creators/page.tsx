@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -125,26 +126,7 @@ const MENU_CONTENT_OPTIONS = [
   { value: "イベント訪問", label: "イベント訪問" },
 ];
 
-const PRICE_PRESETS = [
-  { label: "すべて", min: PRICE_MIN, max: PRICE_MAX },
-  { label: "〜1万円", min: 0, max: 10000 },
-  { label: "1万円〜3万円", min: 10000, max: 30000 },
-  { label: "3万円〜5万円", min: 30000, max: 50000 },
-  { label: "5万円〜10万円", min: 50000, max: 100000 },
-  { label: "10万円〜30万円", min: 100000, max: 300000 },
-  { label: "30万円〜", min: 300000, max: 300000 },
-];
 
-const FOLLOWER_PRESETS = [
-  { label: "すべて", min: FOLLOWER_MIN, max: FOLLOWER_MAX },
-  { label: "1,000未満", min: 0, max: 1000 },
-  { label: "1,000〜5,000", min: 1000, max: 5000 },
-  { label: "5,000〜10,000", min: 5000, max: 10000 },
-  { label: "10,000〜30,000", min: 10000, max: 30000 },
-  { label: "30,000〜50,000", min: 30000, max: 50000 },
-  { label: "50,000〜100,000", min: 50000, max: 100000 },
-  { label: "100,000以上", min: 100000, max: 100000 },
-];
 
 const PREFECTURE_OPTIONS = [
   "北海道",
@@ -950,6 +932,20 @@ function FilterPill({
   );
 }
 
+function ModalPortal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(children, document.body);
+}
+
 function CategoryDropdown({
   activeGroup,
   setActiveGroup,
@@ -1050,7 +1046,7 @@ function MultiPrefectureDropdown({
   return (
     <DropdownShell className="w-[min(520px,calc(100vw-40px))] p-4">
       <p className="mb-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-500">
-        複数選択できます。
+        ※体験型での体験可能範囲です。複数選択できます。
       </p>
 
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -1145,11 +1141,12 @@ function RangeFilterModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex min-h-screen w-screen items-center justify-center bg-slate-950/65 px-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-[520px] rounded-[30px] bg-white p-5 shadow-2xl">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-[2px]">
+        <div className="w-full max-w-[520px] rounded-[30px] bg-white p-5 shadow-2xl sm:p-6">
         <div className="mb-6 flex items-center justify-between">
           <div className="w-10" />
-          <h2 className="text-lg font-black text-slate-950">{title}</h2>
+          <h2 className="text-xl font-black text-slate-950">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -1163,14 +1160,14 @@ function RangeFilterModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm font-bold text-slate-500">{minCaption}</p>
-            <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
+            <p className="mt-1 text-3xl font-black tracking-[-0.04em] text-slate-950">
               {minDisplay(safeMin)}
             </p>
           </div>
 
           <div className="text-right">
             <p className="text-sm font-bold text-slate-500">{maxCaption}</p>
-            <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
+            <p className="mt-1 text-3xl font-black tracking-[-0.04em] text-slate-950">
               {maxDisplay(safeMax)}
             </p>
           </div>
@@ -1207,10 +1204,11 @@ function RangeFilterModal({
           />
         </div>
 
+
         <button
           type="button"
           onClick={onClose}
-          className="mt-7 h-12 w-full rounded-2xl bg-slate-950 text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
+          className="mt-7 h-[52px] w-full rounded-2xl bg-slate-950 text-base font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
         >
           適用する
         </button>
@@ -1255,8 +1253,9 @@ function RangeFilterModal({
             background: transparent;
           }
         `}</style>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
@@ -2217,6 +2216,7 @@ export default function CompanyCreatorsPage() {
               {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
             </button>
           </div>
+
         </section>
       </div>
 
