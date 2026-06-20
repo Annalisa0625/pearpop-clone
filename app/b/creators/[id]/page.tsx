@@ -644,11 +644,17 @@ function PackageCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            {platform ? <PlatformPill platform={platform} /> : null}
+           {platform ? <PlatformPill platform={platform} /> : null}
 
-            <Badge tone="gray">
-              {menuTypeLabel(menu.menu_type, locale, menu.category || "Menu")}
-            </Badge>
+{menu.menu_type ? (
+  <Badge tone="gray">
+    {menuTypeLabel(
+      menu.menu_type,
+      locale,
+      locale === "ja" ? "メニュー" : "Menu"
+    )}
+  </Badge>
+) : null}
           </div>
 
           <h3 className="line-clamp-2 text-lg font-black leading-snug tracking-[-0.03em] text-slate-950">
