@@ -1050,7 +1050,7 @@ function MultiPrefectureDropdown({
   return (
     <DropdownShell className="w-[min(520px,calc(100vw-40px))] p-4">
       <p className="mb-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-500">
-        ※体験型での体験可能範囲です。複数選択できます。
+        複数選択できます。
       </p>
 
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -1110,7 +1110,6 @@ function RangeFilterModal({
   step,
   minDisplay,
   maxDisplay,
-  presets,
   onMinChange,
   onMaxChange,
   onClose,
@@ -1125,11 +1124,6 @@ function RangeFilterModal({
   step: number;
   minDisplay: (value: number) => string;
   maxDisplay: (value: number) => string;
-  presets: {
-    label: string;
-    min: number;
-    max: number;
-  }[];
   onMinChange: (value: number) => void;
   onMaxChange: (value: number) => void;
   onClose: () => void;
@@ -1151,11 +1145,11 @@ function RangeFilterModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-xl rounded-[34px] bg-white p-6 shadow-2xl">
-        <div className="mb-8 flex items-center justify-between">
+    <div className="fixed inset-0 z-[9999] flex min-h-screen w-screen items-center justify-center bg-slate-950/65 px-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-[520px] rounded-[30px] bg-white p-5 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
           <div className="w-10" />
-          <h2 className="text-xl font-black text-slate-950">{title}</h2>
+          <h2 className="text-lg font-black text-slate-950">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -1169,20 +1163,20 @@ function RangeFilterModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm font-bold text-slate-500">{minCaption}</p>
-            <p className="mt-1 text-3xl font-black tracking-[-0.04em] text-slate-950">
+            <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
               {minDisplay(safeMin)}
             </p>
           </div>
 
           <div className="text-right">
             <p className="text-sm font-bold text-slate-500">{maxCaption}</p>
-            <p className="mt-1 text-3xl font-black tracking-[-0.04em] text-slate-950">
+            <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
               {maxDisplay(safeMax)}
             </p>
           </div>
         </div>
 
-        <div className="relative mt-7 h-10">
+        <div className="relative mt-6 h-10">
           <div className="absolute left-0 right-0 top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-slate-200" />
           <div
             className="absolute top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-slate-950"
@@ -1213,26 +1207,10 @@ function RangeFilterModal({
           />
         </div>
 
-        <div className="mt-7 flex flex-wrap gap-2">
-          {presets.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => {
-                onMinChange(preset.min);
-                onMaxChange(preset.max);
-              }}
-              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-
         <button
           type="button"
           onClick={onClose}
-          className="mt-8 h-14 w-full rounded-2xl bg-slate-950 text-base font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
+          className="mt-7 h-12 w-full rounded-2xl bg-slate-950 text-sm font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl"
         >
           適用する
         </button>
@@ -2239,10 +2217,6 @@ export default function CompanyCreatorsPage() {
               {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
             </button>
           </div>
-
-          <p className="mt-3 text-center text-xs font-bold text-slate-400">
-            {copy.locationHelp}
-          </p>
         </section>
       </div>
 
@@ -2312,7 +2286,6 @@ export default function CompanyCreatorsPage() {
           step={FOLLOWER_STEP}
           minDisplay={formatFollowerValue}
           maxDisplay={formatFollowerValue}
-          presets={FOLLOWER_PRESETS}
           onMinChange={setMinFollowers}
           onMaxChange={setMaxFollowers}
           onClose={() => setFollowersModalOpen(false)}
@@ -2331,7 +2304,6 @@ export default function CompanyCreatorsPage() {
           step={PRICE_STEP}
           minDisplay={formatPriceValue}
           maxDisplay={formatPriceValue}
-          presets={PRICE_PRESETS}
           onMinChange={setMinPrice}
           onMaxChange={setMaxPrice}
           onClose={() => setPriceModalOpen(false)}
