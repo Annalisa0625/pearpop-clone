@@ -81,6 +81,9 @@ type BranchOption = {
   roma: string | null;
 };
 
+const DEFAULT_BANK_TRANSFER_FEE_AMOUNT = 165;
+const MIN_PAYOUT_AMOUNT = 3000;
+
 function createEmptyForm(): FormState {
   return {
     bank_name: "",
@@ -212,12 +215,38 @@ function maskAccountNumber(value: string | null | undefined) {
   const digits = value.replace(/[^\d]/g, "");
 
   if (digits.length <= 3) return "•••";
-
   return `••••${digits.slice(-3)}`;
 }
 
+function isPayablePayoutStatus(
+  status: PayoutOrderRow["payout_status"] | null | undefined
+) {
+  return !status || status === "unpaid" || status === "pending";
+}
+
+function getPayoutStatusLabel(
+  status: PayoutOrderRow["payout_status"] | null | undefined
+) {
+  if (status === "paid") return "支払済み";
+  if (status === "withheld") return "保留中";
+  if (status === "failed") return "振込失敗";
+  if (status === "pending") return "支払予定";
+  return "未払い";
+}
+
+function getPayoutStatusTone(
+  status: PayoutOrderRow["payout_status"] | null | undefined
+) {
+  if (status === "paid") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (status === "withheld") return "bg-amber-50 text-amber-700 ring-amber-100";
+  if (status === "failed") return "bg-red-50 text-red-700 ring-red-100";
+  if (status === "pending") return "bg-blue-50 text-blue-700 ring-blue-100";
+  return "bg-slate-100 text-slate-700 ring-slate-200";
+}
+
 function getProfileLabel(status: PayoutProfile["status"] | null | undefined) {
-  if (status === "verified" || status === "submitted") return "登録済み";
+  if (status === "verified") return "確認済み";
+  if (status === "submitted") return "登録済み";
   if (status === "rejected") return "修正必要";
   return "未登録";
 }
@@ -232,6 +261,14 @@ function getProfileTone(status: PayoutProfile["status"] | null | undefined) {
   }
 
   return "bg-amber-50 text-amber-700 ring-amber-100";
+}
+
+function getEstimatedPayoutScheduleText() {
+  return "月末締め・翌月末までにお支払い予定";
+}
+
+function getPayoutNoteText() {
+  return "表示金額は現時点の見込みです。正式な支払額は、案件状況・振込手数料・源泉徴収などの確認後に確定します。";
 }
 
 function LoadingView() {
@@ -358,6 +395,83 @@ function SmallInfo({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatCard({
+  label,
+  value,
+  help,
+}: {
+  label: string;
+  value: string;
+  help?: string;
+}) {
+  return (
+    <div className="rounded-[20px] bg-white p-3 shadow-sm ring-1 ring-slate-100">
+      <p className="text-[11px] font-black text-slate-400">{label}</p>
+      <p className="mt-1 text-[18px] font-black tracking-[-0.05em] text-slate-950">
+        {value}
+      </p>
+      {help ? <p className="mt-1 text-[10px] font-bold text-slate-400">{help}</p> : null}
+    </div>
+  );
+}
+
+function StatusPill({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className: string;
+}) {
+  return (
+    <span className={`inline-flex rounded-full px-3 py-1.5 text-[11px] font-black ring-1 ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+function CollapsibleCard({
+  title,
+  subtitle,
+  badge,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  subtitle?: string;
+  badge?: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group rounded-[22px] bg-white shadow-sm ring-1 ring-slate-100"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+        <div className="min-w-0">
+          <h2 className="text-[17px] font-black tracking-[-0.04em] text-slate-950">
+            {title}
+          </h2>
+          {subtitle ? (
+            <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {badge}
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-50 text-sm font-black text-slate-500 ring-1 ring-slate-100 transition group-open:rotate-180">
+            ↓
+          </span>
+        </div>
+      </summary>
+
+      <div className="border-t border-slate-100 p-4">{children}</div>
+    </details>
+  );
+}
+
 export default function PayoutsClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -394,23 +508,62 @@ export default function PayoutsClient() {
 
   const hasSavedBankAccount = Boolean(profile?.bank_name || profile?.account_number);
   const showSetupForm = !hasSavedBankAccount || editing || fromSignup;
-  const showNormalSections = hasSavedBankAccount && !fromSignup;
+  const showNormalSections = hasSavedBankAccount && !editing && !fromSignup;
 
   const bankSearchReady = bankQuery.trim().length >= 2;
   const branchSearchReady = Boolean(form.bank_code) && branchQuery.trim().length >= 1;
 
-  const pendingAmount = orders
-    .filter((order) => order.payout_status === "pending")
-    .reduce((sum, order) => sum + Number(order.creator_payout_amount ?? 0), 0);
+  const payableOrders = orders.filter((order) =>
+    isPayablePayoutStatus(order.payout_status)
+  );
 
-  const paidAmount = orders
-    .filter((order) => order.payout_status === "paid")
-    .reduce((sum, order) => sum + Number(order.creator_payout_amount ?? 0), 0);
+  const paidOrders = orders.filter((order) => order.payout_status === "paid");
+
+  const withheldOrders = orders.filter(
+    (order) => order.payout_status === "withheld" || order.payout_status === "failed"
+  );
+
+  const payableAmount = payableOrders.reduce(
+    (sum, order) => sum + Number(order.creator_payout_amount ?? 0),
+    0
+  );
+
+  const paidAmount = paidOrders.reduce(
+    (sum, order) => sum + Number(order.creator_payout_amount ?? 0),
+    0
+  );
+
+  const withheldAmount = withheldOrders.reduce(
+    (sum, order) => sum + Number(order.creator_payout_amount ?? 0),
+    0
+  );
 
   const totalAmount = orders.reduce(
     (sum, order) => sum + Number(order.creator_payout_amount ?? 0),
     0
   );
+
+  const estimatedBankFeeAmount =
+    payableAmount >= MIN_PAYOUT_AMOUNT ? DEFAULT_BANK_TRANSFER_FEE_AMOUNT : 0;
+
+  const estimatedWithholdingAmount = 0;
+
+  const estimatedNetPayoutAmount = Math.max(
+    payableAmount - estimatedBankFeeAmount - estimatedWithholdingAmount,
+    0
+  );
+
+  const canReceivePayout = profile?.status === "submitted" || profile?.status === "verified";
+
+  const payoutBlockedReason = !canReceivePayout
+    ? "銀行口座の登録が完了すると、報酬の支払い対象になります。"
+    : payableAmount > 0 && payableAmount < MIN_PAYOUT_AMOUNT
+      ? `未払い報酬が${formatMoney(
+          MIN_PAYOUT_AMOUNT,
+          "JPY",
+          safeLocale
+        )}未満のため、次回以降へ繰り越されます。`
+      : null;
 
   useEffect(() => {
     const load = async () => {
@@ -487,7 +640,7 @@ export default function PayoutsClient() {
           .eq("status", "completed")
           .eq("payment_status", "captured")
           .order("completed_at", { ascending: false, nullsFirst: false })
-          .limit(20);
+          .limit(50);
 
         if (payoutOrdersError) {
           console.error({ payoutOrdersError });
@@ -798,27 +951,40 @@ export default function PayoutsClient() {
 
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-      <section className="mb-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#ff5f67]">
-              Payout settings
-            </p>
-            <h1 className="mt-1 text-[26px] font-black leading-tight tracking-[-0.06em] text-slate-950">
-              報酬受け取り設定
-            </h1>
-            <p className="mt-2 text-[13px] font-bold leading-6 text-slate-500">
-              銀行口座を登録すると、メニューが企業向けに公開されます。
-            </p>
-          </div>
+      <section className="mb-3 overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-100">
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-[#3b1420] p-4 text-white">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#ff8da2]">
+                Creator payouts
+              </p>
+              <h1 className="mt-1 text-[26px] font-black leading-tight tracking-[-0.06em]">
+                報酬・振込管理
+              </h1>
+              <p className="mt-2 text-[13px] font-bold leading-6 text-white/65">
+                受け取り口座と、案件完了後の報酬状況を確認できます。
+              </p>
+            </div>
 
-          <span
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black ring-1 ${getProfileTone(
-              profile?.status
-            )}`}
-          >
-            {getProfileLabel(profile?.status)}
-          </span>
+            <StatusPill className={getProfileTone(profile?.status)}>
+              {getProfileLabel(profile?.status)}
+            </StatusPill>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 p-3">
+          <StatCard
+            label="未払い"
+            value={formatMoney(payableAmount, "JPY", safeLocale)}
+          />
+          <StatCard
+            label="支払済"
+            value={formatMoney(paidAmount, "JPY", safeLocale)}
+          />
+          <StatCard
+            label="案件数"
+            value={`${orders.length}件`}
+          />
         </div>
       </section>
 
@@ -844,190 +1010,222 @@ export default function PayoutsClient() {
         </div>
       ) : null}
 
+      {profile?.status === "rejected" && profile.admin_note ? (
+        <div className="mb-3">
+          <Alert
+            tone="red"
+            title="口座情報の修正が必要です"
+            body={profile.admin_note}
+          />
+        </div>
+      ) : null}
+
       {showSetupForm ? (
         <section className="rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
           <div className="mb-4">
             <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
-              銀行口座
+              銀行口座を登録
             </h2>
             <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
-              銀行・支店は検索して選択してください。
+              依頼元向けにメニューを公開し、報酬を受け取るために必要です。
             </p>
           </div>
 
-          <div className="space-y-4">
-            <Field label="金融機関" help="2文字以上入力すると候補が出ます">
-              <Input
-                value={bankQuery}
-                placeholder="例：三菱UFJ / 0005"
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-
-                  setBankQuery(nextValue);
-                  setConfirmOpen(false);
-
-                  if (form.bank_name && nextValue !== form.bank_name) {
-                    setForm((current) => ({
-                      ...current,
-                      bank_name: "",
-                      bank_code: "",
-                      branch_name: "",
-                      branch_code: "",
-                    }));
-                    setBranchQuery("");
-                    setBranchOptions([]);
-                  }
-                }}
-                autoComplete="off"
-              />
-
-              {form.bank_code && form.bank_name ? (
-                <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                  <p className="text-xs font-black text-emerald-800">
-                    選択中：{form.bank_name} / {form.bank_code}
-                  </p>
-                </div>
-              ) : null}
-
-              {bankSearchReady ? (
-                <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
-                  <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
-                    {bankOptions.length > 0 ? (
-                      bankOptions.map((bank) => (
-                        <OptionButton
-                          key={bank.code}
-                          title={`${bank.name}（${bank.code}）`}
-                          subtitle={bank.kana || bank.hira || bank.roma || undefined}
-                          selected={form.bank_code === bank.code}
-                          onClick={() => selectBank(bank)}
-                        />
-                      ))
-                    ) : (
-                      <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
-                        {bankLoading ? "検索中..." : "候補がありません"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </Field>
-
-            <Field label="支店" help="銀行選択後、1文字以上入力すると候補が出ます">
-              <Input
-                value={branchQuery}
-                placeholder="例：渋谷 / 135"
-                disabled={!form.bank_code}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-
-                  setBranchQuery(nextValue);
-                  setConfirmOpen(false);
-
-                  if (form.branch_name && nextValue !== form.branch_name) {
-                    setForm((current) => ({
-                      ...current,
-                      branch_name: "",
-                      branch_code: "",
-                    }));
-                  }
-                }}
-                autoComplete="off"
-              />
-
-              {form.branch_code && form.branch_name ? (
-                <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                  <p className="text-xs font-black text-emerald-800">
-                    選択中：{form.branch_name} / {form.branch_code}
-                  </p>
-                </div>
-              ) : null}
-
-              {branchSearchReady ? (
-                <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
-                  <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
-                    {branchOptions.length > 0 ? (
-                      branchOptions.map((branch) => (
-                        <OptionButton
-                          key={branch.code}
-                          title={`${branch.name}（${branch.code}）`}
-                          subtitle={branch.kana || branch.hira || branch.roma || undefined}
-                          selected={form.branch_code === branch.code}
-                          onClick={() => selectBranch(branch)}
-                        />
-                      ))
-                    ) : (
-                      <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
-                        {branchLoading ? "検索中..." : "候補がありません"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="口座種別">
-                <Select
-                  value={form.account_type}
-                  onChange={(event) => {
-                    updateForm(
-                      "account_type",
-                      event.target.value === "checking" ? "checking" : "ordinary"
-                    );
-                    setConfirmOpen(false);
-                  }}
-                >
-                  <option value="ordinary">普通</option>
-                  <option value="checking">当座</option>
-                </Select>
-              </Field>
-
-              <Field label="口座番号">
-                <Input
-                  value={form.account_number}
-                  placeholder="1234567"
-                  inputMode="numeric"
-                  onChange={(event) => {
-                    updateForm(
-                      "account_number",
-                      normalizeDigits(event.target.value).slice(0, 7)
-                    );
-                    setConfirmOpen(false);
-                  }}
-                />
-              </Field>
-            </div>
-
-            <Field label="口座名義">
-              <Input
-                value={form.account_holder_name}
-                placeholder="例：山田 太郎"
-                onChange={(event) => {
-                  updateForm("account_holder_name", event.target.value);
-                  setConfirmOpen(false);
-                }}
-              />
-            </Field>
-
-            <Field
-              label="振込用口座名義"
-              help="入力中はそのまま。確認時にカタカナへ整形します。"
+          <div className="space-y-3">
+            <CollapsibleCard
+              title="1. 金融機関・支店"
+              subtitle="銀行名と支店名を検索して選択します。"
+              defaultOpen
             >
-              <Input
-                value={form.account_holder_kana}
-                placeholder="例：ヤマダ タロウ"
-                onChange={(event) => {
-                  updateForm("account_holder_kana", event.target.value);
-                  setConfirmOpen(false);
-                }}
-                onBlur={() => {
-                  updateForm(
-                    "account_holder_kana",
-                    normalizeTransferName(form.account_holder_kana)
-                  );
-                }}
-              />
-            </Field>
+              <div className="space-y-4">
+                <Field label="金融機関" help="2文字以上入力すると候補が出ます">
+                  <Input
+                    value={bankQuery}
+                    placeholder="例：三菱UFJ / 0005"
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+
+                      setBankQuery(nextValue);
+                      setConfirmOpen(false);
+
+                      if (form.bank_name && nextValue !== form.bank_name) {
+                        setForm((current) => ({
+                          ...current,
+                          bank_name: "",
+                          bank_code: "",
+                          branch_name: "",
+                          branch_code: "",
+                        }));
+                        setBranchQuery("");
+                        setBranchOptions([]);
+                      }
+                    }}
+                    autoComplete="off"
+                  />
+
+                  {form.bank_code && form.bank_name ? (
+                    <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                      <p className="text-xs font-black text-emerald-800">
+                        選択中：{form.bank_name} / {form.bank_code}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {bankSearchReady ? (
+                    <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+                      <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
+                        {bankOptions.length > 0 ? (
+                          bankOptions.map((bank) => (
+                            <OptionButton
+                              key={bank.code}
+                              title={`${bank.name}（${bank.code}）`}
+                              subtitle={bank.kana || bank.hira || bank.roma || undefined}
+                              selected={form.bank_code === bank.code}
+                              onClick={() => selectBank(bank)}
+                            />
+                          ))
+                        ) : (
+                          <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                            {bankLoading ? "検索中..." : "候補がありません"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </Field>
+
+                <Field label="支店" help="銀行選択後、1文字以上入力すると候補が出ます">
+                  <Input
+                    value={branchQuery}
+                    placeholder="例：渋谷 / 135"
+                    disabled={!form.bank_code}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+
+                      setBranchQuery(nextValue);
+                      setConfirmOpen(false);
+
+                      if (form.branch_name && nextValue !== form.branch_name) {
+                        setForm((current) => ({
+                          ...current,
+                          branch_name: "",
+                          branch_code: "",
+                        }));
+                      }
+                    }}
+                    autoComplete="off"
+                  />
+
+                  {form.branch_code && form.branch_name ? (
+                    <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                      <p className="text-xs font-black text-emerald-800">
+                        選択中：{form.branch_name} / {form.branch_code}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {branchSearchReady ? (
+                    <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+                      <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
+                        {branchOptions.length > 0 ? (
+                          branchOptions.map((branch) => (
+                            <OptionButton
+                              key={branch.code}
+                              title={`${branch.name}（${branch.code}）`}
+                              subtitle={branch.kana || branch.hira || branch.roma || undefined}
+                              selected={form.branch_code === branch.code}
+                              onClick={() => selectBranch(branch)}
+                            />
+                          ))
+                        ) : (
+                          <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                            {branchLoading ? "検索中..." : "候補がありません"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </Field>
+              </div>
+            </CollapsibleCard>
+
+            <CollapsibleCard
+              title="2. 口座情報"
+              subtitle="口座種別と7桁の口座番号を入力します。"
+              defaultOpen
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="口座種別">
+                  <Select
+                    value={form.account_type}
+                    onChange={(event) => {
+                      updateForm(
+                        "account_type",
+                        event.target.value === "checking" ? "checking" : "ordinary"
+                      );
+                      setConfirmOpen(false);
+                    }}
+                  >
+                    <option value="ordinary">普通</option>
+                    <option value="checking">当座</option>
+                  </Select>
+                </Field>
+
+                <Field label="口座番号">
+                  <Input
+                    value={form.account_number}
+                    placeholder="1234567"
+                    inputMode="numeric"
+                    onChange={(event) => {
+                      updateForm(
+                        "account_number",
+                        normalizeDigits(event.target.value).slice(0, 7)
+                      );
+                      setConfirmOpen(false);
+                    }}
+                  />
+                </Field>
+              </div>
+            </CollapsibleCard>
+
+            <CollapsibleCard
+              title="3. 口座名義"
+              subtitle="振込用名義はカタカナで保存されます。"
+              defaultOpen
+            >
+              <div className="space-y-4">
+                <Field label="口座名義">
+                  <Input
+                    value={form.account_holder_name}
+                    placeholder="例：山田 太郎"
+                    onChange={(event) => {
+                      updateForm("account_holder_name", event.target.value);
+                      setConfirmOpen(false);
+                    }}
+                  />
+                </Field>
+
+                <Field
+                  label="振込用口座名義"
+                  help="入力中はそのまま。確認時にカタカナへ整形します。"
+                >
+                  <Input
+                    value={form.account_holder_kana}
+                    placeholder="例：ヤマダ タロウ"
+                    onChange={(event) => {
+                      updateForm("account_holder_kana", event.target.value);
+                      setConfirmOpen(false);
+                    }}
+                    onBlur={() => {
+                      updateForm(
+                        "account_holder_kana",
+                        normalizeTransferName(form.account_holder_kana)
+                      );
+                    }}
+                  />
+                </Field>
+              </div>
+            </CollapsibleCard>
 
             {confirmOpen ? (
               <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
@@ -1101,30 +1299,117 @@ export default function PayoutsClient() {
       ) : null}
 
       {showNormalSections ? (
-        <>
-          <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
-                登録済み口座
-              </h2>
+        <div className="space-y-3">
+          <section className="rounded-[24px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ff5f67]">
+                  Next payout
+                </p>
+                <h2 className="mt-1 text-[20px] font-black tracking-[-0.05em] text-slate-950">
+                  次回支払い見込み
+                </h2>
+                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                  {getEstimatedPayoutScheduleText()}
+                </p>
+              </div>
 
-              {!showSetupForm ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(true);
-                    setConfirmOpen(false);
-                    setErrorMsg(null);
-                    setSuccessMsg(null);
-                  }}
-                  className="rounded-full bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 ring-1 ring-slate-100"
-                >
-                  変更
-                </button>
-              ) : null}
+              <StatusPill
+                className={
+                  canReceivePayout
+                    ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                    : "bg-amber-50 text-amber-700 ring-amber-100"
+                }
+              >
+                {canReceivePayout ? "支払い対象" : "口座登録待ち"}
+              </StatusPill>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-4 rounded-[22px] bg-gradient-to-br from-slate-950 to-slate-800 p-4 text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]">
+              <p className="text-xs font-black text-white/60">未払い報酬</p>
+              <p className="mt-1 text-[34px] font-black tracking-[-0.07em]">
+                {formatMoney(payableAmount, "JPY", safeLocale)}
+              </p>
+              <p className="mt-2 text-xs font-bold leading-5 text-white/65">
+                案件完了後、支払い対象として集計されます。
+              </p>
+            </div>
+
+            {payoutBlockedReason ? (
+              <div className="mt-3">
+                <Alert tone="amber" title="支払いについて" body={payoutBlockedReason} />
+              </div>
+            ) : null}
+          </section>
+
+          <CollapsibleCard
+            title="支払い見込みの内訳"
+            subtitle="振込予定額・手数料・控除額を確認できます。"
+            badge={
+              <StatusPill className="bg-slate-100 text-slate-700 ring-slate-200">
+                仮計算
+              </StatusPill>
+            }
+          >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-bold text-slate-500">未払い報酬</span>
+                <span className="font-black text-slate-950">
+                  {formatMoney(payableAmount, "JPY", safeLocale)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-bold text-slate-500">振込手数料（仮）</span>
+                <span className="font-black text-slate-950">
+                  -{formatMoney(estimatedBankFeeAmount, "JPY", safeLocale)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-bold text-slate-500">源泉徴収（現時点）</span>
+                <span className="font-black text-slate-950">
+                  -{formatMoney(estimatedWithholdingAmount, "JPY", safeLocale)}
+                </span>
+              </div>
+
+              <div className="border-t border-slate-200 pt-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-black text-slate-950">
+                    振込予定額
+                  </span>
+                  <span className="text-lg font-black tracking-[-0.04em] text-slate-950">
+                    {formatMoney(estimatedNetPayoutAmount, "JPY", safeLocale)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400">
+              {getPayoutNoteText()}
+            </p>
+          </CollapsibleCard>
+
+          <CollapsibleCard
+            title="登録済み口座"
+            subtitle="現在の報酬振込先です。"
+            badge={
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setEditing(true);
+                  setConfirmOpen(false);
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                }}
+                className="rounded-full bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 ring-1 ring-slate-100"
+              >
+                変更
+              </button>
+            }
+          >
+            <div className="grid grid-cols-2 gap-2">
               <SmallInfo
                 label="金融機関"
                 value={
@@ -1152,36 +1437,19 @@ export default function PayoutsClient() {
               <SmallInfo label="口座名義" value={profile?.account_holder_name || "-"} />
               <SmallInfo label="振込用名義" value={profile?.account_holder_kana || "-"} />
             </div>
-          </section>
+          </CollapsibleCard>
 
-          <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-            <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
-              報酬
-            </h2>
-
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <SmallInfo
-                label="予定"
-                value={formatMoney(pendingAmount, "JPY", safeLocale)}
-              />
-              <SmallInfo
-                label="支払済"
-                value={formatMoney(paidAmount, "JPY", safeLocale)}
-              />
-              <SmallInfo
-                label="合計"
-                value={formatMoney(totalAmount, "JPY", safeLocale)}
-              />
-            </div>
-          </section>
-
-          {orders.length > 0 ? (
-            <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-              <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
-                報酬履歴
-              </h2>
-
-              <div className="mt-3 space-y-2">
+          <CollapsibleCard
+            title="報酬対象の案件"
+            subtitle="完了済みで支払い対象になった案件です。"
+            badge={
+              <StatusPill className="bg-slate-100 text-slate-700 ring-slate-200">
+                {orders.length}件
+              </StatusPill>
+            }
+          >
+            {orders.length > 0 ? (
+              <div className="space-y-2">
                 {orders.map((order) => (
                   <div
                     key={order.id}
@@ -1192,25 +1460,53 @@ export default function PayoutsClient() {
                         <p className="truncate text-sm font-black text-slate-950">
                           {order.product_name || "案件名未設定"}
                         </p>
-                        <p className="mt-1 text-xs font-bold text-slate-400">
-                          {formatDate(order.completed_at || order.created_at, safeLocale)}
-                        </p>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-400">
+                            完了日：{formatDate(order.completed_at || order.created_at, safeLocale)}
+                          </span>
+
+                          {order.payout_paid_at ? (
+                            <span className="text-xs font-bold text-slate-400">
+                              支払日：{formatDate(order.payout_paid_at, safeLocale)}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
 
-                      <p className="shrink-0 text-sm font-black text-slate-950">
-                        {formatMoney(
-                          order.creator_payout_amount,
-                          order.currency,
-                          safeLocale
-                        )}
-                      </p>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-black text-slate-950">
+                          {formatMoney(
+                            order.creator_payout_amount,
+                            order.currency,
+                            safeLocale
+                          )}
+                        </p>
+
+                        <span
+                          className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ring-1 ${getPayoutStatusTone(
+                            order.payout_status
+                          )}`}
+                        >
+                          {getPayoutStatusLabel(order.payout_status)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
-          ) : null}
-        </>
+            ) : (
+              <div className="rounded-2xl bg-slate-50 p-4 text-center ring-1 ring-slate-100">
+                <p className="text-sm font-black text-slate-700">
+                  まだ報酬対象の案件はありません
+                </p>
+                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                  案件が完了すると、ここに支払い予定の報酬が表示されます。
+                </p>
+              </div>
+            )}
+          </CollapsibleCard>
+        </div>
       ) : null}
     </main>
   );
