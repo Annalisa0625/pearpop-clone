@@ -1,7 +1,7 @@
 // File: app/b/creators/[id]/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -15,7 +15,6 @@ type Creator = {
   avatar_url: string | null;
   category: string | null;
   user_id: string;
-  stripe_onboarding_completed: boolean | null;
 };
 
 type MenuCard = {
@@ -67,6 +66,10 @@ type CompanyGateState = {
 };
 
 type SavedCreatorRow = {
+  creator_id: string;
+};
+
+type PayoutReadyCreatorRow = {
   creator_id: string;
 };
 
@@ -279,10 +282,10 @@ function menuTypeLabel(
   const labels: Record<string, { ja: string; en: string }> = {
     post: { ja: "投稿", en: "Post" },
     short_video: { ja: "ショート動画", en: "Short video" },
-    story: { ja: "ストーリー", en: "Story" },
+    story: { ja: "ストーリーズ", en: "Story" },
     video: { ja: "動画", en: "Video" },
-    ugc: { ja: "UGC制作", en: "UGC creation" },
-    package: { ja: "セットメニュー", en: "Package" },
+    ugc: { ja: "UGC", en: "UGC" },
+    package: { ja: "セット", en: "Package" },
     other: { ja: "その他", en: "Other" },
   };
 
@@ -331,7 +334,7 @@ function Badge({
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${styles[tone]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-black ${styles[tone]}`}
     >
       {children}
     </span>
@@ -363,7 +366,7 @@ function PlatformMetricBadge({
         onClick={(event) => {
           event.stopPropagation();
         }}
-        className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         title={getPlatformLabel(platform)}
       >
         {content}
@@ -372,7 +375,7 @@ function PlatformMetricBadge({
   }
 
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm">
+    <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm">
       {content}
     </span>
   );
@@ -380,7 +383,7 @@ function PlatformMetricBadge({
 
 function PlatformPill({ platform }: { platform: string | null | undefined }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-900 shadow-sm">
       <span>{getPlatformIcon(platform)}</span>
       <span>{getPlatformLabel(platform)}</span>
     </span>
@@ -520,12 +523,9 @@ function HeroGallery({
             alt={`${creator.display_name} main portfolio`}
           />
 
-          <button
-            type="button"
-            className="absolute bottom-4 right-4 rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-lg"
-          >
+          <div className="absolute bottom-4 right-4 rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-lg">
             {showAllLabel}
-          </button>
+          </div>
         </div>
       </div>
     </section>
@@ -635,15 +635,15 @@ function PackageCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`group w-full rounded-[26px] border p-5 text-left transition duration-200 md:p-6 ${
+      className={`group w-full rounded-[22px] border px-4 py-4 text-left transition duration-200 ${
         selected
-          ? "border-[#ff5f67]/60 bg-rose-50/45 shadow-[0_18px_45px_rgba(255,95,103,0.12)] ring-4 ring-rose-100/70"
-          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+          ? "border-[#ff5f67]/55 bg-rose-50/40 shadow-[0_16px_38px_rgba(255,95,103,0.10)] ring-3 ring-rose-100/70"
+          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_16px_38px_rgba(15,23,42,0.055)]"
       }`}
     >
-      <div className="flex min-h-[88px] flex-col justify-between gap-5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             {platform ? <PlatformPill platform={platform} /> : null}
 
             <Badge tone="gray">
@@ -651,18 +651,18 @@ function PackageCard({
             </Badge>
           </div>
 
-          <h3 className="line-clamp-2 text-xl font-black leading-snug tracking-[-0.03em] text-slate-950">
+          <h3 className="line-clamp-2 text-lg font-black leading-snug tracking-[-0.03em] text-slate-950">
             {menu.title}
           </h3>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-4 sm:min-w-[172px] sm:flex-col sm:items-end sm:self-stretch">
-          <p className="whitespace-nowrap text-xl font-black tracking-[-0.03em] text-slate-950">
+        <div className="flex shrink-0 items-center justify-between gap-3 sm:min-w-[140px] sm:flex-col sm:items-end">
+          <p className="whitespace-nowrap text-lg font-black tracking-[-0.03em] text-slate-950">
             {price}
           </p>
 
           <span
-            className={`inline-flex h-9 min-w-[86px] items-center justify-center gap-1 rounded-full px-3 text-xs font-black transition ${
+            className={`inline-flex h-8 min-w-[78px] items-center justify-center gap-1 rounded-full px-3 text-[11px] font-black transition ${
               selected
                 ? "bg-[#ff5f67] text-white shadow-lg shadow-rose-500/20"
                 : "bg-slate-100 text-slate-500 group-hover:bg-slate-950 group-hover:text-white"
@@ -690,6 +690,7 @@ export default function CreatorDetailPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
+  const orderSummaryAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const copy = useMemo(
     () =>
@@ -702,8 +703,6 @@ export default function CreatorDetailPage() {
             save: "Save",
             saved: "Saved",
             copied: "URL copied",
-            followers: "フォロワー",
-            mainAudience: "主な視聴者",
             packages: "メニュー",
             all: "All",
             noMenus: "公開中のメニューがありません。",
@@ -717,7 +716,6 @@ export default function CreatorDetailPage() {
             billingRequired:
               "このプランの注文機能を使うには、有料プランの有効化が必要です。",
             checkBilling: "料金プランを見る",
-            audience: "Audience",
             portfolio: "Portfolio",
             marketplaceFee: "Trendre手数料",
             menuPrice: "メニュー価格",
@@ -734,8 +732,6 @@ export default function CreatorDetailPage() {
             save: "Save",
             saved: "Saved",
             copied: "URL copied",
-            followers: "Followers",
-            mainAudience: "Main audience",
             packages: "Menus",
             all: "All",
             noMenus: "There are no public menus.",
@@ -749,7 +745,6 @@ export default function CreatorDetailPage() {
             billingRequired:
               "Your paid plan must be active before using this order flow.",
             checkBilling: "View billing plans",
-            audience: "Audience",
             portfolio: "Portfolio",
             marketplaceFee: "Trendre fee",
             menuPrice: "Menu price",
@@ -766,7 +761,7 @@ export default function CreatorDetailPage() {
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMenuId, setSelectedMenuId] = useState<string>("");
+  const [selectedMenuId, setSelectedMenuId] = useState("");
   const [activePackageTab, setActivePackageTab] = useState("all");
   const [gate, setGate] = useState<CompanyGateState>({
     isLoggedIn: false,
@@ -782,6 +777,7 @@ export default function CreatorDetailPage() {
   const [selectedPortfolioIndex, setSelectedPortfolioIndex] = useState<
     number | null
   >(null);
+  const [orderSummaryFloating, setOrderSummaryFloating] = useState(false);
 
   const openSignupGate = () => {
     const nextPath =
@@ -886,15 +882,41 @@ export default function CreatorDetailPage() {
         }
       }
 
+      const { data: payoutReadyRows, error: payoutReadyError } =
+        await supabase.rpc("get_payout_ready_creator_ids");
+
+      if (!isMounted) return;
+
+      if (payoutReadyError) {
+        console.error("payout ready creator rpc error:", payoutReadyError);
+        setCreator(null);
+        setMenuCards([]);
+        setSocialAccounts([]);
+        setPortfolioAssets([]);
+        setGate(nextGate);
+        setLoading(false);
+        return;
+      }
+
+      const isPayoutReady = ((payoutReadyRows ?? []) as PayoutReadyCreatorRow[]).some(
+  (row) => row.creator_id === creatorId
+);
+      if (!isPayoutReady) {
+        setCreator(null);
+        setMenuCards([]);
+        setSocialAccounts([]);
+        setPortfolioAssets([]);
+        setGate(nextGate);
+        setLoading(false);
+        return;
+      }
+
       const { data: creatorData, error: creatorError } = await supabase
         .from("creators")
-        .select(
-          "id, display_name, avatar_url, category, user_id, stripe_onboarding_completed"
-        )
+        .select("id, display_name, avatar_url, category, user_id")
         .eq("id", creatorId)
         .eq("is_public", true)
         .eq("approval_status", "approved")
-        .eq("stripe_onboarding_completed", true)
         .maybeSingle();
 
       if (!isMounted) return;
@@ -993,6 +1015,31 @@ export default function CreatorDetailPage() {
     };
   }, [creatorId, supabase]);
 
+  useEffect(() => {
+    if (!creator) return;
+
+    const updateFloatingState = () => {
+      const anchor = orderSummaryAnchorRef.current;
+      if (!anchor) {
+        setOrderSummaryFloating(false);
+        return;
+      }
+
+      const rect = anchor.getBoundingClientRect();
+      setOrderSummaryFloating(rect.top <= 112);
+    };
+
+    updateFloatingState();
+
+    window.addEventListener("scroll", updateFloatingState, { passive: true });
+    window.addEventListener("resize", updateFloatingState);
+
+    return () => {
+      window.removeEventListener("scroll", updateFloatingState);
+      window.removeEventListener("resize", updateFloatingState);
+    };
+  }, [creator]);
+
   const packageTabs = useMemo(() => {
     const platforms = uniqueNonEmpty(
       menuCards.map((menu) => menu.platform || menu.sns)
@@ -1028,7 +1075,6 @@ export default function CreatorDetailPage() {
     getCountryLabel(country, safeLocale)
   );
 
-  const primarySocial = socialAccounts[0] ?? null;
   const portfolioImageUrls = portfolioAssets.map((asset) => asset.asset_url);
 
   const selectedMenuPrice = selectedMenu?.price ?? null;
@@ -1198,6 +1244,81 @@ export default function CreatorDetailPage() {
     );
   }
 
+  const renderOrderSummaryCard = () => (
+    <div className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.10)] ring-1 ring-slate-100/80">
+      <p className="text-sm font-bold text-slate-500">{copy.selectedPackage}</p>
+
+      <h2 className="mt-2 text-2xl font-black leading-tight tracking-[-0.04em] text-slate-950">
+        {selectedMenu?.title || copy.choosePackage}
+      </h2>
+
+      <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm text-slate-500">{copy.menuPrice}</span>
+          <span className="text-sm font-black text-slate-950">
+            {selectedMenuPriceText}
+          </span>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-4">
+          <span className="text-sm text-slate-500">{copy.marketplaceFee}</span>
+          <span className="text-sm font-black text-slate-950">
+            {buyerMarketplaceFeeText}
+          </span>
+        </div>
+
+        <div className="mt-4 border-t border-slate-200 pt-4">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm font-bold text-slate-700">
+              {copy.total}
+            </span>
+            <span className="text-xl font-black text-slate-950">
+              {estimatedTotalText}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {selectedMenu ? (
+        <div className="mt-5 rounded-2xl bg-emerald-50/70 p-4 text-sm font-semibold leading-6 text-slate-700">
+          <div className="flex gap-2">
+            <span className="mt-0.5 text-emerald-600">
+              <CheckIcon />
+            </span>
+            <span>{copy.howItWorks}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {gate.needsBilling ? (
+        <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
+          {copy.billingRequired}
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={goToOrder}
+        disabled={!selectedMenu}
+        className="mt-6 w-full rounded-2xl bg-gradient-to-r from-[#ff3b5c] via-[#ff5f8a] to-[#7c3aed] px-5 py-4 text-base font-black text-white shadow-[0_18px_45px_rgba(255,59,92,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(124,58,237,0.28)] disabled:cursor-not-allowed disabled:from-slate-200 disabled:via-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:shadow-none"
+      >
+        {!gate.isLoggedIn
+          ? copy.signupToOrder
+          : gate.needsBilling
+            ? copy.checkBilling
+            : copy.orderButton}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => router.push("/b/creators")}
+        className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
+      >
+        {copy.backToCreators}
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-10 pb-12">
       <div className="flex justify-end">
@@ -1229,7 +1350,9 @@ export default function CreatorDetailPage() {
         showAllLabel={copy.showAllPhotos}
       />
 
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div ref={orderSummaryAnchorRef} className="h-px" />
+
+      <section className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-8">
           <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="-mt-14 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -1283,7 +1406,7 @@ export default function CreatorDetailPage() {
             </div>
 
             {packageTabs.length > 1 ? (
-              <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+              <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
                 {packageTabs.map((tab) => {
                   const active = activePackageTab === tab;
 
@@ -1312,7 +1435,7 @@ export default function CreatorDetailPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {filteredMenus.map((menu) => (
                   <PackageCard
                     key={menu.id}
@@ -1330,148 +1453,66 @@ export default function CreatorDetailPage() {
             )}
           </section>
 
-          <section className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
-              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                {copy.audience}
-              </h2>
+          <div className="lg:hidden">{renderOrderSummaryCard()}</div>
 
-              <div className="mt-6 grid gap-3">
-                <div className="rounded-[22px] border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-5">
-                  <p className="text-xs font-black tracking-[0.14em] text-slate-400">
-                    {copy.followers}
-                  </p>
-                  <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
-                    {primarySocial?.follower_range || "-"}
-                  </p>
-                </div>
+          <section className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+            <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
+              {copy.portfolio}
+            </h2>
 
-                <div className="rounded-[22px] border border-blue-100 bg-gradient-to-br from-blue-50/70 to-white p-5">
-                  <p className="text-xs font-black tracking-[0.14em] text-blue-300">
-                    {copy.mainAudience}
-                  </p>
-                  <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">
-                    {audienceCountryLabels.join(" / ") || "-"}
-                  </p>
-                </div>
+            {portfolioImageUrls.length > 0 ? (
+              <div className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+                {portfolioImageUrls.slice(0, 12).map((url, index) => (
+                  <button
+                    key={`${url}-${index}`}
+                    type="button"
+                    onClick={() => openPortfolio(index)}
+                    className="group relative aspect-square overflow-hidden rounded-2xl bg-slate-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
+                    aria-label={`Open portfolio image ${index + 1}`}
+                  >
+                    <img
+                      src={url}
+                      alt={`${creator.display_name} portfolio ${index + 1}`}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+                      loading="lazy"
+                      decoding="async"
+                    />
+
+                    <div className="absolute inset-0 bg-slate-950/0 transition group-hover:bg-slate-950/20" />
+                  </button>
+                ))}
               </div>
-            </div>
-
-            <div className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
-              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
-                {copy.portfolio}
-              </h2>
-
-              {portfolioImageUrls.length > 0 ? (
-                <div className="mt-6 grid grid-cols-3 gap-3">
-                  {portfolioImageUrls.slice(0, 6).map((url, index) => (
-                    <button
-                      key={`${url}-${index}`}
-                      type="button"
-                      onClick={() => openPortfolio(index)}
-                      className="group relative aspect-square overflow-hidden rounded-2xl bg-slate-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
-                      aria-label={`Open portfolio image ${index + 1}`}
-                    >
-                      <img
-                        src={url}
-                        alt={`${creator.display_name} portfolio ${index + 1}`}
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-                        loading="lazy"
-                        decoding="async"
-                      />
-
-                      <div className="absolute inset-0 bg-slate-950/0 transition group-hover:bg-slate-950/20" />
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-center text-sm font-semibold text-slate-400">
-                  {copy.noPortfolio}
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-center text-sm font-semibold text-slate-400">
+                {copy.noPortfolio}
+              </div>
+            )}
           </section>
         </div>
 
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-[rgba(120,120,170,0.18)_0_18px_50px_-24px]">
-            <p className="text-sm font-bold text-slate-500">
-              {copy.selectedPackage}
-            </p>
-
-            <h2 className="mt-2 text-2xl font-black leading-tight text-slate-950">
-              {selectedMenu?.title || copy.choosePackage}
-            </h2>
-
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-slate-500">{copy.menuPrice}</span>
-                <span className="text-sm font-black text-slate-950">
-                  {selectedMenuPriceText}
-                </span>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between gap-4">
-                <span className="text-sm text-slate-500">
-                  {copy.marketplaceFee}
-                </span>
-                <span className="text-sm font-black text-slate-950">
-                  {buyerMarketplaceFeeText}
-                </span>
-              </div>
-
-              <div className="mt-4 border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-bold text-slate-700">
-                    {copy.total}
-                  </span>
-                  <span className="text-xl font-black text-slate-950">
-                    {estimatedTotalText}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {selectedMenu ? (
-              <div className="mt-5 rounded-2xl bg-emerald-50/70 p-4 text-sm font-semibold leading-6 text-slate-700">
-                <div className="flex gap-2">
-                  <span className="mt-0.5 text-emerald-600">
-                    <CheckIcon />
-                  </span>
-                  <span>{copy.howItWorks}</span>
-                </div>
-              </div>
-            ) : null}
-
-            {gate.needsBilling ? (
-              <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
-                {copy.billingRequired}
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={goToOrder}
-              disabled={!selectedMenu}
-              className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-4 text-base font-black text-white transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {!gate.isLoggedIn
-                ? copy.signupToOrder
-                : gate.needsBilling
-                  ? copy.checkBilling
-                  : copy.orderButton}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => router.push("/b/creators")}
-              className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-            >
-              {copy.backToCreators}
-            </button>
+        <aside className="hidden lg:block">
+          <div
+            className={`transition-opacity duration-200 ${
+              orderSummaryFloating
+                ? "pointer-events-none opacity-0"
+                : "lg:sticky lg:top-[112px] lg:z-20"
+            }`}
+          >
+            {renderOrderSummaryCard()}
           </div>
         </aside>
       </section>
+
+      {orderSummaryFloating ? (
+        <div
+          className="fixed top-[112px] z-40 hidden w-[380px] lg:block"
+          style={{
+            right: "max(2rem, calc((100vw - 1280px) / 2 + 2rem))",
+          }}
+        >
+          {renderOrderSummaryCard()}
+        </div>
+      ) : null}
 
       {selectedPortfolioUrl ? (
         <div
