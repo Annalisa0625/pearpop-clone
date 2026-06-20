@@ -26,7 +26,6 @@ type Creator = {
   id: string;
   user_id: string;
   display_name: string;
-  stripe_onboarding_completed: boolean | null;
 };
 
 type CreatorMenu = {
@@ -93,7 +92,9 @@ type GateState = {
   canSendRequests: boolean;
   needsBilling: boolean;
 };
-
+type PayoutReadyCreatorRow = {
+  creator_id: string;
+};
 const MAX_HASHTAGS = 8;
 const MIN_VISIBLE_HASHTAG_INPUTS = 3;
 
@@ -1103,18 +1104,40 @@ export default function CreatorRequestClient() {
       const needsBilling =
         accountReady && paidPlan && companySubscriptionStatus !== "active";
 
-      const { data: creatorData } = await supabase
+      const { data: payoutReadyRows, error: payoutReadyError } =
+        await supabase.rpc("get_payout_ready_creator_ids");
+
+      if (!isMounted) return;
+
+      if (payoutReadyError) {
+        console.error("payout ready creator rpc error:", payoutReadyError);
+        setCreator(null);
+        setLoading(false);
+        return;
+      }
+
+      const isPayoutReady = ((payoutReadyRows ?? []) as PayoutReadyCreatorRow[]).some(
+        (row) => row.creator_id === creatorId
+      );
+
+      if (!isPayoutReady) {
+        setCreator(null);
+        setLoading(false);
+        return;
+      }
+
+      const { data: creatorData, error: creatorError } = await supabase
         .from("creators")
-        .select("id, user_id, display_name, stripe_onboarding_completed")
+        .select("id, user_id, display_name")
         .eq("id", creatorId)
         .eq("approval_status", "approved")
         .eq("is_public", true)
-        .eq("stripe_onboarding_completed", true)
         .maybeSingle();
 
       if (!isMounted) return;
 
-      if (!creatorData) {
+      if (creatorError || !creatorData) {
+        console.error("creator load error:", creatorError);
         setCreator(null);
         setLoading(false);
         return;
