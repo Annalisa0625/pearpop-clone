@@ -261,6 +261,77 @@ function formatPlanName(value: string | null | undefined) {
   return value;
 }
 
+function getBuyerPaymentStatusMeta(order: OrderDetail, locale: "ja" | "en") {
+  if (isCanceledStatus(order.status)) {
+    return {
+      label: locale === "ja" ? "キャンセル/終了" : "Canceled / ended",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+      title: locale === "ja" ? "この注文は終了しています" : "This order has ended",
+      body:
+        locale === "ja"
+          ? "キャンセルまたは期限切れにより、この注文は進行していません。返金状況は管理側で確認されます。"
+          : "This order is not active due to cancellation or expiry. Refund status is handled by the platform.",
+    };
+  }
+
+  if (order.payment_status === "captured" || order.captured_at) {
+    return {
+      label: locale === "ja" ? "支払い済み" : "Paid",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      title: locale === "ja" ? "支払いは確定しています" : "Payment is captured",
+      body:
+        locale === "ja"
+          ? "お支払いはTrendreが管理しています。案件完了後、クリエイター報酬はTrendreから支払われます。"
+          : "Your payment is managed by Trendre. After completion, the creator payout is handled by Trendre.",
+    };
+  }
+
+  if (order.payment_status === "authorized" || order.authorized_at) {
+    return {
+      label: locale === "ja" ? "承認待ち" : "Authorized",
+      className: "bg-amber-50 text-amber-800 ring-amber-100",
+      title: locale === "ja" ? "クリエイターの返答待ちです" : "Waiting for creator approval",
+      body:
+        locale === "ja"
+          ? "カード決済は確認済みです。クリエイターが承認すると案件が正式に進行します。"
+          : "The card payment has been authorized. The order proceeds when the creator accepts it.",
+    };
+  }
+
+  if (order.payment_status === "checkout_pending" || order.status === "checkout_pending") {
+    return {
+      label: locale === "ja" ? "支払い確認中" : "Payment pending",
+      className: "bg-blue-50 text-blue-700 ring-blue-100",
+      title: locale === "ja" ? "支払い確認中です" : "Payment is being confirmed",
+      body:
+        locale === "ja"
+          ? "Stripeでの支払い確認後、クリエイターの返答待ちに進みます。"
+          : "After Stripe confirms the payment, the order will wait for creator approval.",
+    };
+  }
+
+  return {
+    label: locale === "ja" ? "確認中" : "Checking",
+    className: "bg-slate-100 text-slate-700 ring-slate-200",
+    title: locale === "ja" ? "支払い状態を確認中です" : "Checking payment status",
+    body:
+      locale === "ja"
+        ? "支払い状態を確認しています。必要な情報はこの画面に表示されます。"
+        : "Payment status is being checked. Required information will appear here.",
+  };
+}
+
+function formatFeeRateBps(value: number | null | undefined) {
+  if (value == null) return "-";
+  return `${Number(value / 100).toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })}%`;
+}
+
+function getCancellationDate(order: OrderDetail) {
+  return order.canceled_at || order.declined_at || order.expired_at;
+}
+
 function formatDeliveryDays(
   value: number | null | undefined,
   locale: "ja" | "en",
@@ -804,6 +875,152 @@ function CollapsibleCard({
           {children}
         </div>
       ) : null}
+    </Panel>
+  );
+}
+
+function PaymentSummaryCard({
+  order,
+  buyerTotal,
+  buyerFee,
+  planName,
+  locale,
+}: {
+  order: OrderDetail;
+  buyerTotal: number | null | undefined;
+  buyerFee: number | null | undefined;
+  planName: string;
+  locale: "ja" | "en";
+}) {
+  const meta = getBuyerPaymentStatusMeta(order, locale);
+  const totalAmount = buyerTotal ?? order.menu_price_amount ?? 0;
+  const serviceFeeAmount = buyerFee ?? 0;
+  const currency = order.currency || "JPY";
+  const cancellationDate = getCancellationDate(order);
+
+  return (
+    <Panel className="overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-[#251020] p-5 text-white">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#ff9ab0]">
+              Payment
+            </p>
+            <h2 className="mt-1 text-xl font-black tracking-[-0.04em]">
+              {locale === "ja" ? "支払い情報" : "Payment details"}
+            </h2>
+            <p className="mt-2 text-sm font-semibold leading-6 text-white/65">
+              {meta.body}
+            </p>
+          </div>
+
+          <Pill className={meta.className}>{meta.label}</Pill>
+        </div>
+
+        <div className="mt-5 rounded-[24px] bg-white/10 p-4 ring-1 ring-white/10">
+          <p className="text-xs font-black text-white/55">
+            {locale === "ja" ? "支払い合計" : "Total paid"}
+          </p>
+          <p className="mt-1 text-[34px] font-black tracking-[-0.07em]">
+            {formatPrice(totalAmount, currency, locale)}
+          </p>
+          <p className="mt-2 text-xs font-bold leading-5 text-white/60">
+            {locale === "ja"
+              ? "メニュー価格とTrendre手数料を含む合計です。"
+              : "Includes the menu price and Trendre service fee."}
+          </p>
+        </div>
+      </div>
+
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left [&::-webkit-details-marker]:hidden">
+          <div>
+            <h3 className="text-base font-black text-slate-950">
+              {locale === "ja" ? "内訳・日付を確認" : "View breakdown and dates"}
+            </h3>
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
+              {locale === "ja"
+                ? "必要な時だけ詳細を開けます。"
+                : "Open this only when you need the full details."}
+            </p>
+          </div>
+
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-50 text-sm font-black text-slate-500 ring-1 ring-slate-100 transition group-open:rotate-180">
+            ↓
+          </span>
+        </summary>
+
+        <div className="border-t border-slate-100 px-5 pb-5 pt-2">
+          <DetailRow
+            label={locale === "ja" ? "支払い状態" : "Payment status"}
+            value={meta.label}
+            strong
+          />
+          <DetailRow
+            label={locale === "ja" ? "プラン" : "Plan"}
+            value={planName || "-"}
+          />
+          <DetailRow
+            label={locale === "ja" ? "メニュー価格" : "Menu price"}
+            value={formatPrice(order.menu_price_amount, currency, locale)}
+          />
+          <DetailRow
+            label={locale === "ja" ? "Trendre手数料" : "Trendre fee"}
+            value={
+              <span>
+                {formatPrice(serviceFeeAmount, currency, locale)}
+                {order.buyer_marketplace_fee_rate_bps != null ? (
+                  <span className="ml-1 text-xs text-slate-400">
+                    ({formatFeeRateBps(order.buyer_marketplace_fee_rate_bps)})
+                  </span>
+                ) : null}
+              </span>
+            }
+          />
+          <DetailRow
+            label={locale === "ja" ? "支払い合計" : "Total"}
+            value={formatPrice(totalAmount, currency, locale)}
+            strong
+          />
+          <DetailRow
+            label={locale === "ja" ? "注文日" : "Order date"}
+            value={formatDateTime(order.created_at, locale)}
+          />
+          <DetailRow
+            label={locale === "ja" ? "支払い確認日" : "Payment authorized"}
+            value={formatDateTime(order.authorized_at, locale)}
+          />
+          <DetailRow
+            label={locale === "ja" ? "発注日" : "Commission date"}
+            value={formatDateTime(order.accepted_at, locale)}
+          />
+          <DetailRow
+            label={locale === "ja" ? "支払い確定日" : "Payment captured"}
+            value={formatDateTime(order.captured_at, locale)}
+          />
+          <DetailRow
+            label={locale === "ja" ? "完了日" : "Completed"}
+            value={formatDateTime(order.completed_at, locale)}
+          />
+          {cancellationDate ? (
+            <DetailRow
+              label={locale === "ja" ? "終了日" : "Ended"}
+              value={formatDateTime(cancellationDate, locale)}
+            />
+          ) : null}
+
+          <div className="mt-4 rounded-[20px] bg-slate-50 p-4 ring-1 ring-slate-100">
+            <p className="text-sm font-black text-slate-950">
+              {meta.title}
+            </p>
+            <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
+              {locale === "ja"
+                ? "クリエイターへの報酬支払いは、案件完了後にTrendreが管理します。企業側で追加の振込作業は不要です。"
+                : "Creator payouts are handled by Trendre after order completion. No additional bank transfer is required from the company."}
+            </p>
+          </div>
+        </div>
+      </details>
     </Panel>
   );
 }
@@ -2074,6 +2291,14 @@ export default function CompanyOrderDetailPage() {
 
             <ProgressCard order={order} copy={copy} />
 
+            <PaymentSummaryCard
+              order={order}
+              buyerTotal={buyerTotal}
+              buyerFee={buyerFee}
+              planName={planName}
+              locale={safeLocale}
+            />
+
             {showShipmentCard ? (
               <ProductShipmentCard
                 order={order}
@@ -2277,29 +2502,6 @@ export default function CompanyOrderDetailPage() {
                 </div>
               </CollapsibleCard>
 
-              <CollapsibleCard
-                title={copy.paymentContent}
-                subtitle={copy.paymentContentSub}
-              >
-                <DetailRow label={copy.plan} value={planName || copy.notSet} />
-                <DetailRow
-                  label={copy.menuPrice}
-                  value={formatPrice(
-                    order.menu_price_amount,
-                    order.currency,
-                    safeLocale
-                  )}
-                />
-                <DetailRow
-                  label={copy.serviceFee}
-                  value={formatPrice(buyerFee, order.currency, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.total}
-                  value={formatPrice(buyerTotal, order.currency, safeLocale)}
-                  strong
-                />
-              </CollapsibleCard>
             </div>
           </main>
 
@@ -2342,28 +2544,6 @@ export default function CompanyOrderDetailPage() {
               </Panel>
             ) : null}
 
-            <Panel className="p-5">
-              <SectionTitle title={copy.payment} />
-              <div className="mt-4">
-                <DetailRow
-                  label={copy.menuPrice}
-                  value={formatPrice(
-                    order.menu_price_amount,
-                    order.currency,
-                    safeLocale
-                  )}
-                />
-                <DetailRow
-                  label={copy.serviceFee}
-                  value={formatPrice(buyerFee, order.currency, safeLocale)}
-                />
-                <DetailRow
-                  label={copy.total}
-                  value={formatPrice(buyerTotal, order.currency, safeLocale)}
-                  strong
-                />
-              </div>
-            </Panel>
           </aside>
         </section>
       </div>
