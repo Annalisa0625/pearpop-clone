@@ -279,7 +279,7 @@ function getPayoutStatusTone(
 }
 
 function getPayoutNoteText() {
-  return "振込手数料や源泉徴収などの控除がある場合、支払い時に差し引かれます。";
+  return "振込手数料がある場合は、振込時に差し引かれます。その他の調整がある場合は、支払い前にお知らせします。";
 }
 
 function LoadingView() {
@@ -597,10 +597,10 @@ export default function PayoutsClient() {
       ? DEFAULT_BANK_TRANSFER_FEE_AMOUNT
       : 0;
 
-  const estimatedWithholdingAmount = 0;
+  const estimatedOtherDeductionAmount = 0;
 
   const estimatedNextPayoutAmount = Math.max(
-    nextPayoutGrossAmount - estimatedBankFeeAmount - estimatedWithholdingAmount,
+    nextPayoutGrossAmount - estimatedBankFeeAmount - estimatedOtherDeductionAmount,
     0,
   );
 
@@ -1392,7 +1392,7 @@ export default function PayoutsClient() {
                 {formatMoney(currentMonthAmount, "JPY", safeLocale)}
               </p>
               <p className="mt-2 text-xs font-medium leading-5 text-slate-600">
-                月末に締め、翌月の振込予定に反映されます。
+                月末に締め、翌月25日頃の振込予定に反映されます。
               </p>
             </div>
           </Surface>
@@ -1417,10 +1417,12 @@ export default function PayoutsClient() {
                 label="振込手数料"
                 value={`-${formatMoney(estimatedBankFeeAmount, "JPY", safeLocale)}`}
               />
-              <DetailRow
-                label="源泉徴収"
-                value={`-${formatMoney(estimatedWithholdingAmount, "JPY", safeLocale)}`}
-              />
+              {estimatedOtherDeductionAmount > 0 ? (
+                <DetailRow
+                  label="その他控除"
+                  value={`-${formatMoney(estimatedOtherDeductionAmount, "JPY", safeLocale)}`}
+                />
+              ) : null}
               <DetailRow
                 label="振込予定額"
                 value={formatMoney(
