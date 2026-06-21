@@ -92,6 +92,13 @@ type OrderDetail = {
   creator_payout_amount: number | null;
   creator_accept_deadline: string | null;
 
+  accepted_at: string | null;
+  captured_at: string | null;
+  completed_at: string | null;
+  payout_status: "unpaid" | "pending" | "paid" | "withheld" | "failed" | null;
+  payout_due_at: string | null;
+  payout_paid_at: string | null;
+
   delivered_post_url: string | null;
   revision_note: string | null;
   transfer_status: string | null;
@@ -132,6 +139,8 @@ const AUTH_TIMEOUT_MS = 8000;
 const ORDER_TIMEOUT_MS = 10000;
 const REFERENCE_ASSET_TIMEOUT_MS = 8000;
 const ACTION_TIMEOUT_MS = 30000;
+const DEFAULT_BANK_TRANSFER_FEE_AMOUNT = 165;
+const MIN_PAYOUT_AMOUNT = 3000;
 
 const EMPTY_SHIPPING_ADDRESS: ShippingAddressForm = {
   recipient_name: "",
@@ -207,6 +216,20 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
   });
 }
 
@@ -449,6 +472,86 @@ function transferLabel(value: string | null, locale: "ja" | "en") {
   if (status === "failed") return "Support is checking";
   return "After completion";
 }
+
+function payoutStatusLabel(
+  status: OrderDetail["payout_status"] | null | undefined,
+  locale: "ja" | "en"
+) {
+  const normalized = status || "unpaid";
+
+  if (locale === "ja") {
+    if (normalized === "paid") return "支払済み";
+    if (normalized === "pending") return "支払予定";
+    if (normalized === "withheld") return "保留中";
+    if (normalized === "failed") return "確認中";
+    return "未払い";
+  }
+
+  if (normalized === "paid") return "Paid";
+  if (normalized === "pending") return "Scheduled";
+  if (normalized === "withheld") return "On hold";
+  if (normalized === "failed") return "Checking";
+  return "Unpaid";
+}
+
+function payoutStatusTone(
+  status: OrderDetail["payout_status"] | null | undefined
+) {
+  const normalized = status || "unpaid";
+
+  if (normalized === "paid") {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  }
+
+  if (normalized === "pending") {
+    return "bg-rose-50 text-[#ff5f67] ring-rose-100";
+  }
+
+  if (normalized === "withheld" || normalized === "failed") {
+    return "bg-amber-50 text-amber-700 ring-amber-100";
+  }
+
+  return "bg-slate-50 text-slate-600 ring-slate-100";
+}
+
+function creatorPayoutScheduleText(order: OrderDetail, locale: "ja" | "en") {
+  if (order.payout_paid_at) {
+    return locale === "ja"
+      ? `支払日：${formatDate(order.payout_paid_at, locale)}`
+      : `Paid on ${formatDate(order.payout_paid_at, locale)}`;
+  }
+
+  if (order.payout_due_at) {
+    return locale === "ja"
+      ? `支払予定：${formatDate(order.payout_due_at, locale)}`
+      : `Expected by ${formatDate(order.payout_due_at, locale)}`;
+  }
+
+  if (order.completed_at || order.status === "completed") {
+    return locale === "ja"
+      ? "完了後、月末締め・翌月末までに支払い予定"
+      : "Scheduled after completion, based on the monthly payout cycle";
+  }
+
+  return locale === "ja"
+    ? "案件完了後、支払い対象になります"
+    : "Eligible for payout after the order is completed";
+}
+
+function estimateCreatorNetPayout(order: OrderDetail) {
+  const gross = Number(order.creator_payout_amount ?? 0);
+  const shouldEstimateBankFee = gross >= MIN_PAYOUT_AMOUNT && order.payout_status !== "paid";
+  const bankFee = shouldEstimateBankFee ? DEFAULT_BANK_TRANSFER_FEE_AMOUNT : 0;
+  const withholding = 0;
+
+  return {
+    gross,
+    bankFee,
+    withholding,
+    net: Math.max(gross - bankFee - withholding, 0),
+  };
+}
+
 
 function normalizePrAccountInput(value: string | null | undefined) {
   return (value ?? "").replace(/^[@＠]+/g, "").replace(/\s+/g, "").trim();
@@ -994,6 +1097,198 @@ function OrderSummaryBox({
   );
 }
 
+function CreatorPayoutSummaryCard({
+  order,
+  locale,
+  copy,
+}: {
+  order: OrderDetail;
+  locale: "ja" | "en";
+  copy: any;
+}) {
+  const estimate = estimateCreatorNetPayout(order);
+  const payoutStatus = payoutStatusLabel(order.payout_status, locale);
+  const statusTone = payoutStatusTone(order.payout_status);
+  const scheduleText = creatorPayoutScheduleText(order, locale);
+  const isPaid = order.payout_status === "paid";
+  const isOnHold =
+    order.payout_status === "withheld" || order.payout_status === "failed";
+
+  return (
+    <Surface className="overflow-hidden">
+      <div className="bg-gradient-to-br from-rose-50 via-white to-white p-4 ring-1 ring-rose-50 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ff5f67]">
+              Payout
+            </p>
+            <h2 className="mt-1 text-[20px] font-black tracking-[-0.05em] text-slate-950">
+              {copy.payoutCardTitle}
+            </h2>
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              {copy.payoutCardBody}
+            </p>
+          </div>
+
+          <span
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black ring-1 ${statusTone}`}
+          >
+            {payoutStatus}
+          </span>
+        </div>
+
+        <div className="mt-4 rounded-[24px] bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/70">
+          <p className="text-xs font-black text-slate-400">
+            {copy.payoutMainLabel}
+          </p>
+          <p className="mt-1 text-[32px] font-black tracking-[-0.07em] text-slate-950">
+            {formatPrice(order.creator_payout_amount, order.currency, locale)}
+          </p>
+          <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
+            {scheduleText}
+          </p>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-[18px] bg-white/75 p-3 ring-1 ring-slate-100">
+            <p className="text-[11px] font-black text-slate-400">
+              {copy.payoutStatus}
+            </p>
+            <p className="mt-1 text-sm font-black text-slate-950">
+              {payoutStatus}
+            </p>
+          </div>
+
+          <div className="rounded-[18px] bg-white/75 p-3 ring-1 ring-slate-100">
+            <p className="text-[11px] font-black text-slate-400">
+              {copy.payoutMinimum}
+            </p>
+            <p className="mt-1 text-sm font-black text-slate-950">
+              {formatPrice(MIN_PAYOUT_AMOUNT, "JPY", locale)}
+            </p>
+          </div>
+        </div>
+
+        {isOnHold ? (
+          <div className="mt-3 rounded-[18px] bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-800 ring-1 ring-amber-100">
+            {copy.payoutHoldNote}
+          </div>
+        ) : null}
+
+        {isPaid ? (
+          <div className="mt-3 rounded-[18px] bg-emerald-50 p-3 text-xs font-bold leading-6 text-emerald-800 ring-1 ring-emerald-100">
+            {copy.payoutPaidNote}
+          </div>
+        ) : null}
+
+        <details className="group mt-3 rounded-[20px] bg-white/80 ring-1 ring-slate-100">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-950">
+                {copy.payoutDetails}
+              </p>
+              <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-slate-400">
+                {copy.payoutDetailsSub}
+              </p>
+            </div>
+            <ChevronIcon open={false} />
+          </summary>
+
+          <div className="border-t border-slate-100 px-4 pb-4 pt-2">
+            <div className="divide-y divide-slate-100">
+              <DetailRow
+                label={copy.payoutDetailMenuPrice}
+                value={formatPrice(order.menu_price_amount, order.currency, locale)}
+              />
+              <DetailRow
+                label={copy.payoutDetailPayout}
+                value={formatPrice(estimate.gross, order.currency, locale)}
+                strong
+              />
+              <DetailRow
+                label={copy.payoutDetailBankFee}
+                value={
+                  order.payout_status === "paid"
+                    ? copy.notSet
+                    : `-${formatPrice(estimate.bankFee, "JPY", locale)}`
+                }
+              />
+              <DetailRow
+                label={copy.payoutDetailWithholding}
+                value={`-${formatPrice(estimate.withholding, "JPY", locale)}`}
+              />
+              <DetailRow
+                label={copy.payoutDetailEstimatedNet}
+                value={formatPrice(
+                  order.payout_status === "paid" ? estimate.gross : estimate.net,
+                  order.currency,
+                  locale
+                )}
+                strong
+              />
+            </div>
+
+            <div className="mt-3 rounded-[18px] bg-slate-50/80 p-3 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-500">
+                {copy.payoutImportantTitle}
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-6 text-slate-500">
+                {copy.payoutImportantBody}
+              </p>
+            </div>
+          </div>
+        </details>
+
+        <details className="group mt-2 rounded-[20px] bg-white/80 ring-1 ring-slate-100">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-950">
+                {copy.payoutOrderDates}
+              </p>
+              <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-slate-400">
+                {copy.payoutOrderDatesSub}
+              </p>
+            </div>
+            <ChevronIcon open={false} />
+          </summary>
+
+          <div className="border-t border-slate-100 px-4 pb-4 pt-2">
+            <div className="divide-y divide-slate-100">
+              <DetailRow
+                label={copy.payoutCreatedAt}
+                value={formatDateTime(order.created_at, locale)}
+              />
+              <DetailRow
+                label={copy.payoutAcceptedAt}
+                value={formatDateTime(order.accepted_at, locale)}
+              />
+              <DetailRow
+                label={copy.payoutCapturedAt}
+                value={formatDateTime(order.captured_at, locale)}
+              />
+              <DetailRow
+                label={copy.payoutCompletedAt}
+                value={formatDateTime(order.completed_at, locale)}
+              />
+              <DetailRow
+                label={copy.payoutPaidAt}
+                value={formatDateTime(order.payout_paid_at, locale)}
+              />
+            </div>
+          </div>
+        </details>
+
+        <Link
+          href="/creator/payouts"
+          className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
+        >
+          {copy.payoutPage}
+        </Link>
+      </div>
+    </Surface>
+  );
+}
+
 function ResponseActionBox({
   order,
   copy,
@@ -1364,7 +1659,7 @@ function ProductShippingActionBox({
 
       {modalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-3 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#ff5f67]/45 px-3 backdrop-blur-sm"
           style={{
             paddingTop: "max(16px, env(safe-area-inset-top))",
             paddingBottom: "max(16px, env(safe-area-inset-bottom))",
@@ -1437,7 +1732,7 @@ function ProductShippingActionBox({
                       type="button"
                       onClick={() => void lookupPostalCode()}
                       disabled={postalLookupLoading || postalDigits.length !== 7}
-                      className="mb-0.5 shrink-0 rounded-full bg-slate-950 px-4 py-3 text-xs font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="mb-0.5 shrink-0 rounded-full bg-[#ff5f67] px-4 py-3 text-xs font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {postalLookupLoading
                         ? copy.postalLookupLoading
@@ -1804,7 +2099,7 @@ function PreparationGuidanceBox({
             {canChat ? (
               <Link
                 href={chatHref}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
               >
                 <MessageIcon />
                 {copy.preparationChatButton}
@@ -2111,6 +2406,32 @@ export default function CreatorOrderDetailPage() {
             payout: "受取予定",
             transfer: "報酬の反映",
             payoutPage: "報酬ページを見る",
+            payoutCardTitle: "この案件の報酬",
+            payoutCardBody:
+              "案件完了後、Trendreから登録済みの銀行口座へ振り込まれます。",
+            payoutMainLabel: "受取予定額",
+            payoutStatus: "支払い状態",
+            payoutMinimum: "最低支払額",
+            payoutDetails: "報酬の内訳",
+            payoutDetailsSub: "手数料や控除の見込みを確認できます",
+            payoutDetailMenuPrice: "メニュー価格",
+            payoutDetailPayout: "報酬予定額",
+            payoutDetailBankFee: "振込手数料（仮）",
+            payoutDetailWithholding: "源泉徴収（現時点）",
+            payoutDetailEstimatedNet: "振込予定額",
+            payoutImportantTitle: "支払いについて",
+            payoutImportantBody:
+              "表示金額は現時点の見込みです。正式な支払額は、案件状況・振込手数料・源泉徴収などの確認後に確定します。",
+            payoutOrderDates: "注文・支払い日程",
+            payoutOrderDatesSub: "発注日や完了日を確認できます",
+            payoutCreatedAt: "注文日",
+            payoutAcceptedAt: "発注日",
+            payoutCapturedAt: "支払い確定日",
+            payoutCompletedAt: "完了日",
+            payoutPaidAt: "支払日",
+            payoutHoldNote:
+              "この報酬は現在確認中です。必要な場合は運営から連絡します。",
+            payoutPaidNote: "この案件の報酬は支払済みです。",
             revisionTitle: "修正依頼",
 
             notSet: "未設定",
@@ -2265,6 +2586,32 @@ export default function CreatorOrderDetailPage() {
             payout: "Expected",
             transfer: "Payout status",
             payoutPage: "View payouts",
+            payoutCardTitle: "Payout for this order",
+            payoutCardBody:
+              "After completion, Trendre will pay this to your registered bank account.",
+            payoutMainLabel: "Expected payout",
+            payoutStatus: "Payout status",
+            payoutMinimum: "Minimum payout",
+            payoutDetails: "Payout breakdown",
+            payoutDetailsSub: "Check estimated fees and deductions",
+            payoutDetailMenuPrice: "Menu price",
+            payoutDetailPayout: "Expected payout",
+            payoutDetailBankFee: "Bank transfer fee",
+            payoutDetailWithholding: "Withholding tax",
+            payoutDetailEstimatedNet: "Estimated bank transfer",
+            payoutImportantTitle: "About payouts",
+            payoutImportantBody:
+              "Amounts shown are estimates. The final amount may be adjusted after checking order status, transfer fees, and tax handling.",
+            payoutOrderDates: "Order and payout dates",
+            payoutOrderDatesSub: "Check acceptance, completion, and payout dates",
+            payoutCreatedAt: "Order date",
+            payoutAcceptedAt: "Order accepted",
+            payoutCapturedAt: "Payment captured",
+            payoutCompletedAt: "Completed",
+            payoutPaidAt: "Paid at",
+            payoutHoldNote:
+              "This payout is currently being checked. Trendre will contact you if needed.",
+            payoutPaidNote: "The payout for this order has been paid.",
             revisionTitle: "Revision request",
 
             notSet: "Not set",
@@ -2431,6 +2778,12 @@ export default function CreatorOrderDetailPage() {
             menu_price_amount,
             creator_payout_amount,
             creator_accept_deadline,
+            accepted_at,
+            captured_at,
+            completed_at,
+            payout_status,
+            payout_due_at,
+            payout_paid_at,
             delivered_post_url,
             revision_note,
             transfer_status
@@ -2497,7 +2850,7 @@ export default function CreatorOrderDetailPage() {
       notes: isInProgress(order) || order.status === "revision_requested",
       revision: order.status === "revision_requested",
       order: isWaitingForCreator(order),
-      payout: order.status === "completed",
+      payout: false,
     });
   }, [order?.id, order?.status]);
 
@@ -2912,6 +3265,8 @@ export default function CreatorOrderDetailPage() {
         </Surface>
       ) : null}
 
+      <CreatorPayoutSummaryCard order={order} locale={safeLocale} copy={copy} />
+
       <ResponseActionBox
         order={order}
         copy={copy}
@@ -3012,7 +3367,7 @@ export default function CreatorOrderDetailPage() {
               <button
                 type="button"
                 onClick={() => void handleCopyPostText()}
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition active:scale-[0.98]"
               >
                 <CopyIcon />
                 {copied ? copy.copied : copy.copyPostText}
@@ -3180,7 +3535,7 @@ export default function CreatorOrderDetailPage() {
 
             <Link
               href="/creator/payouts"
-              className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white"
+              className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white"
             >
               {copy.payoutPage}
             </Link>
