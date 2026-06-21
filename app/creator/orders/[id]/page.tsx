@@ -1097,6 +1097,298 @@ function OrderSummaryBox({
   );
 }
 
+
+function getCreatorOrderStatusLabel(order: OrderDetail, locale: "ja" | "en") {
+  if (locale === "ja") {
+    if (isCheckoutPending(order)) return "確認中";
+    if (isWaitingForCreator(order)) return "返答待ち";
+    if (order.status === "revision_requested") return "修正依頼";
+    if (order.status === "delivered") return "確認待ち";
+    if (order.status === "completed") return "完了";
+    if (isTerminalStatus(order.status)) return "終了";
+    return "対応中";
+  }
+
+  if (isCheckoutPending(order)) return "Checking";
+  if (isWaitingForCreator(order)) return "Waiting";
+  if (order.status === "revision_requested") return "Revision";
+  if (order.status === "delivered") return "Review";
+  if (order.status === "completed") return "Completed";
+  if (isTerminalStatus(order.status)) return "Ended";
+  return "Active";
+}
+
+function getCreatorOrderStatusTone(order: OrderDetail) {
+  if (order.status === "completed") {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  }
+
+  if (order.status === "revision_requested") {
+    return "bg-amber-50 text-amber-700 ring-amber-100";
+  }
+
+  if (order.status === "delivered") {
+    return "bg-rose-50 text-[#ff5f67] ring-rose-100";
+  }
+
+  if (isWaitingForCreator(order)) {
+    return "bg-rose-50 text-[#ff5f67] ring-rose-100";
+  }
+
+  if (isTerminalStatus(order.status)) {
+    return "bg-slate-100 text-slate-600 ring-slate-200";
+  }
+
+  return "bg-white text-slate-700 ring-slate-200";
+}
+
+function CreatorOrderHeader({
+  order,
+  locale,
+  copy,
+  backHref,
+}: {
+  order: OrderDetail;
+  locale: "ja" | "en";
+  copy: any;
+  backHref: string;
+}) {
+  const title = order.product_name || order.menu_title_snapshot || copy.titleFallback;
+  const statusLabel = getCreatorOrderStatusLabel(order, locale);
+  const deadline = isWaitingForCreator(order)
+    ? order.creator_accept_deadline
+    : order.deadline;
+
+  return (
+    <Surface className="overflow-hidden">
+      <div className="border-l-[5px] border-[#ff5f67] bg-white px-4 py-4 sm:px-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 ${getCreatorOrderStatusTone(
+                  order
+                )}`}
+              >
+                {statusLabel}
+              </span>
+              <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-100">
+                {fulfillmentLabel(order.fulfillment_type, locale)}
+              </span>
+            </div>
+
+            <h1 className="mt-3 line-clamp-2 break-words text-[22px] font-black leading-tight tracking-[-0.055em] text-slate-950 sm:text-[26px]">
+              {title}
+            </h1>
+
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-slate-500">
+              <span>{order.menu_title_snapshot || copy.notSet}</span>
+              {deadline ? (
+                <span>
+                  {locale === "ja" ? "期限" : "Due"}：{formatDateTime(deadline, locale)}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <Link
+            href={backHref}
+            className="shrink-0 rounded-full bg-slate-50 px-3.5 py-2 text-xs font-black text-slate-700 ring-1 ring-slate-100 transition active:scale-[0.98]"
+          >
+            {copy.back}
+          </Link>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function InstructionFocusCard({
+  order,
+  locale,
+  copy,
+  assets,
+  assetsLoading,
+  selectedIndex,
+  onSelect,
+  prCopyText,
+  postNotes,
+  requestNote,
+  timingText,
+  copied,
+  onCopy,
+}: {
+  order: OrderDetail;
+  locale: "ja" | "en";
+  copy: any;
+  assets: ReferenceAsset[];
+  assetsLoading: boolean;
+  selectedIndex: number;
+  onSelect: (index: number) => void;
+  prCopyText: string;
+  postNotes: string;
+  requestNote: string;
+  timingText: string;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
+  const mainInstruction = requestNote || order.requirements || "";
+  const hasMaterialAssets = assetsLoading || assets.length > 0;
+
+  const title = locale === "ja" ? "案件の指示" : "Order instructions";
+  const subtitle =
+    locale === "ja"
+      ? "制作前にここだけは確認してください。詳細は下に折りたたんでいます。"
+      : "Review the essentials before starting. Extra details are folded below.";
+
+  return (
+    <Surface className="overflow-hidden">
+      <div className="px-4 py-4 sm:px-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-rose-50 text-[#ff5f67] ring-1 ring-rose-100">
+            <LinkIcon />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[18px] font-black tracking-[-0.045em] text-slate-950">
+              {title}
+            </p>
+            <p className="mt-1 text-sm font-bold leading-6 text-slate-500">
+              {subtitle}
+            </p>
+          </div>
+        </div>
+
+        {fulfillmentType === "material_provided" ? (
+          <div className="mt-4 rounded-[22px] bg-slate-50/75 p-3 ring-1 ring-slate-100">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-slate-950">
+                  {locale === "ja" ? "参考画像・ファイル" : "Reference assets"}
+                </p>
+                <p className="mt-0.5 text-xs font-bold leading-5 text-slate-500">
+                  {locale === "ja"
+                    ? "依頼元が注文時に添付した画像・PDFを確認できます。"
+                    : "Review images or PDFs attached by the requester."}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-500 ring-1 ring-slate-100">
+                {assets.length}件
+              </span>
+            </div>
+
+            {hasMaterialAssets ? (
+              <ReferenceGallery
+                assets={assets}
+                loading={assetsLoading}
+                selectedIndex={selectedIndex}
+                onSelect={onSelect}
+                openLabel={copy.referenceOpen}
+                fileLabel={copy.referenceFile}
+              />
+            ) : (
+              <p className="rounded-[18px] bg-white px-4 py-3 text-xs font-bold leading-6 text-slate-500 ring-1 ring-slate-100">
+                {locale === "ja"
+                  ? "添付ファイルはありません。必要な素材が不足している場合は、注文を受ける前にチャットで確認してください。"
+                  : "No files are attached. If anything is missing, confirm in chat before proceeding."}
+              </p>
+            )}
+          </div>
+        ) : null}
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="mb-2 text-[11px] font-black text-slate-400">
+              {copy.requestNote}
+            </p>
+            <PlainTextBox value={mainInstruction} emptyLabel={copy.notSet} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="rounded-[18px] bg-slate-50/75 p-3 ring-1 ring-slate-100">
+              <p className="text-[11px] font-black text-slate-400">
+                {copy.timing}
+              </p>
+              <p className="mt-1 text-sm font-black leading-6 text-slate-800">
+                {timingText || copy.notSet}
+              </p>
+            </div>
+
+            <div className="rounded-[18px] bg-slate-50/75 p-3 ring-1 ring-slate-100">
+              <p className="text-[11px] font-black text-slate-400">
+                {copy.productUrl}
+              </p>
+              {order.product_url ? (
+                <a
+                  href={order.product_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 line-clamp-2 break-all text-sm font-black leading-6 text-[#e6425d] underline underline-offset-4"
+                >
+                  {order.product_url}
+                </a>
+              ) : (
+                <p className="mt-1 text-sm font-black leading-6 text-slate-800">
+                  {copy.notSet}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {prCopyText ? (
+            <details className="group rounded-[20px] bg-white ring-1 ring-slate-100">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-slate-950">
+                    {copy.postInstructionTitle}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-400">
+                    {firstLine(prCopyText)}
+                  </p>
+                </div>
+                <ChevronIcon open={false} />
+              </summary>
+
+              <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                <PlainTextBox value={prCopyText} emptyLabel={copy.notSet} />
+                <button
+                  type="button"
+                  onClick={onCopy}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
+                >
+                  <CopyIcon />
+                  {copied ? copy.copied : copy.copyPostText}
+                </button>
+              </div>
+            </details>
+          ) : null}
+
+          {postNotes ? (
+            <details className="group rounded-[20px] bg-white ring-1 ring-slate-100">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-slate-950">
+                    {copy.postNotes}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-400">
+                    {firstLine(postNotes)}
+                  </p>
+                </div>
+                <ChevronIcon open={false} />
+              </summary>
+
+              <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                <PlainTextBox value={postNotes} emptyLabel={copy.notSet} />
+              </div>
+            </details>
+          ) : null}
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
 function CreatorPayoutSummaryCard({
   order,
   locale,
@@ -1116,16 +1408,13 @@ function CreatorPayoutSummaryCard({
 
   return (
     <Surface className="overflow-hidden">
-      <div className="bg-gradient-to-br from-rose-50 via-white to-white p-4 ring-1 ring-rose-50 sm:p-5">
+      <div className="bg-white p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ff5f67]">
-              Payout
-            </p>
-            <h2 className="mt-1 text-[20px] font-black tracking-[-0.05em] text-slate-950">
+            <h2 className="text-[18px] font-black tracking-[-0.045em] text-slate-950">
               {copy.payoutCardTitle}
             </h2>
-            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+            <p className="mt-1 text-sm font-bold leading-6 text-slate-500">
               {copy.payoutCardBody}
             </p>
           </div>
@@ -1137,11 +1426,11 @@ function CreatorPayoutSummaryCard({
           </span>
         </div>
 
-        <div className="mt-4 rounded-[24px] bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/70">
+        <div className="mt-4 rounded-[22px] bg-rose-50/60 p-4 ring-1 ring-rose-100">
           <p className="text-xs font-black text-slate-400">
             {copy.payoutMainLabel}
           </p>
-          <p className="mt-1 text-[32px] font-black tracking-[-0.07em] text-slate-950">
+          <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
             {formatPrice(order.creator_payout_amount, order.currency, locale)}
           </p>
           <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
@@ -2279,6 +2568,8 @@ export default function CreatorOrderDetailPage() {
             loading: "読み込み中...",
             notFound: "注文が見つかりませんでした。",
             back: "戻る",
+            titleFallback: "注文詳細",
+            menuContentTitle: "メニュー情報",
 
             orderContent: "注文内容",
 
@@ -2461,6 +2752,8 @@ export default function CreatorOrderDetailPage() {
             loading: "Loading...",
             notFound: "Order was not found.",
             back: "Back",
+            titleFallback: "Order details",
+            menuContentTitle: "Menu details",
 
             orderContent: "Order details",
 
@@ -3225,47 +3518,20 @@ export default function CreatorOrderDetailPage() {
 
   return (
     <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden overscroll-y-contain pb-28">
-      <Surface className="overflow-hidden">
-        <div className="p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-end">
-            <Link
-              href={backHref}
-              className="shrink-0 rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
-            >
-              {copy.back}
-            </Link>
-          </div>
-
-          {referenceAssetsLoading || mediaAssets.length > 0 ? (
-            <ReferenceGallery
-              assets={mediaAssets}
-              loading={referenceAssetsLoading}
-              selectedIndex={safeSelectedIndex}
-              onSelect={setSelectedAssetIndex}
-              openLabel={copy.referenceOpen}
-              fileLabel={copy.referenceFile}
-            />
-          ) : null}
-
-          <div
-            className={
-              referenceAssetsLoading || mediaAssets.length > 0 ? "mt-3" : ""
-            }
-          >
-            <OrderSummaryBox order={order} locale={safeLocale} copy={copy} />
-          </div>
-        </div>
-      </Surface>
+      <CreatorOrderHeader
+        order={order}
+        locale={safeLocale}
+        copy={copy}
+        backHref={backHref}
+      />
 
       {error ? (
         <Surface className="p-4">
-          <p className="text-sm font-semibold leading-7 text-rose-600">
+          <p className="text-sm font-bold leading-7 text-rose-600">
             {error}
           </p>
         </Surface>
       ) : null}
-
-      <CreatorPayoutSummaryCard order={order} locale={safeLocale} copy={copy} />
 
       <ResponseActionBox
         order={order}
@@ -3274,29 +3540,6 @@ export default function CreatorOrderDetailPage() {
         onAccept={() => void runAction("accept")}
         onDecline={() => void runAction("decline")}
       />
-
-      {shouldShowPreparation ? (
-        <PreparationGuidanceBox
-          order={order}
-          locale={safeLocale}
-          canChat={canChat}
-          chatHref={`/creator/orders/${order.id}/chat`}
-          copy={copy}
-        />
-      ) : null}
-
-      {fulfillmentType === "material_provided" &&
-      !isWaitingForCreator(order) &&
-      !isCheckoutPending(order) &&
-      !isTerminalStatus(order.status) &&
-      order.status !== "delivered" ? (
-        <MaterialsConfirmActionBox
-          order={order}
-          actionLoading={actionLoading}
-          onConfirm={() => void runConfirmMaterials()}
-          copy={copy}
-        />
-      ) : null}
 
       {fulfillmentType === "product_shipping" &&
       !isWaitingForCreator(order) &&
@@ -3314,6 +3557,29 @@ export default function CreatorOrderDetailPage() {
         />
       ) : null}
 
+      {fulfillmentType === "material_provided" &&
+      !isWaitingForCreator(order) &&
+      !isCheckoutPending(order) &&
+      !isTerminalStatus(order.status) &&
+      order.status !== "delivered" ? (
+        <MaterialsConfirmActionBox
+          order={order}
+          actionLoading={actionLoading}
+          onConfirm={() => void runConfirmMaterials()}
+          copy={copy}
+        />
+      ) : null}
+
+      {shouldShowPreparation ? (
+        <PreparationGuidanceBox
+          order={order}
+          locale={safeLocale}
+          canChat={canChat}
+          chatHref={`/creator/orders/${order.id}/chat`}
+          copy={copy}
+        />
+      ) : null}
+
       {canDeliver ? (
         <DeliveryActionBox
           order={order}
@@ -3326,9 +3592,27 @@ export default function CreatorOrderDetailPage() {
         />
       ) : null}
 
+      <InstructionFocusCard
+        order={order}
+        locale={safeLocale}
+        copy={copy}
+        assets={mediaAssets}
+        assetsLoading={referenceAssetsLoading}
+        selectedIndex={safeSelectedIndex}
+        onSelect={setSelectedAssetIndex}
+        prCopyText={prCopyText}
+        postNotes={postNotes}
+        requestNote={requestNote}
+        timingText={timingText}
+        copied={copied}
+        onCopy={() => void handleCopyPostText()}
+      />
+
       {!isWaitingForCreator(order) && !canDeliver && !shouldShowPreparation ? (
         <PassiveNoticeBox title={passiveNotice.title} body={passiveNotice.body} />
       ) : null}
+
+      <CreatorPayoutSummaryCard order={order} locale={safeLocale} copy={copy} />
 
       <Surface className="overflow-hidden">
         <div className="px-5 pt-5">
@@ -3482,12 +3766,8 @@ export default function CreatorOrderDetailPage() {
           </AccordionItem>
 
           <AccordionItem
-            title={copy.menuAndPayout}
-            subtitle={`${order.menu_title_snapshot || copy.notSet} / ${formatPrice(
-              order.creator_payout_amount,
-              order.currency,
-              safeLocale
-            )}`}
+            title={copy.menuContentTitle || copy.menuAndPayout}
+            subtitle={order.menu_title_snapshot || copy.notSet}
             open={openPanels.payout}
             onToggle={() =>
               setOpenPanels((prev) => ({
@@ -3527,10 +3807,6 @@ export default function CreatorOrderDetailPage() {
                 strong
               />
 
-              <DetailRow
-                label={copy.transfer}
-                value={transferLabel(order.transfer_status, safeLocale)}
-              />
             </div>
 
             <Link
