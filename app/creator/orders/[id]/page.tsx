@@ -457,6 +457,61 @@ function fulfillmentLabel(
   return "Material provided";
 }
 
+
+function getPlatformIcon(value: string | null | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  if (normalized.includes("instagram")) {
+    return (
+      <span
+        className="relative flex h-4 w-4 items-center justify-center overflow-hidden rounded-[5px] bg-gradient-to-tr from-[#feda75] via-[#d62976] to-[#4f5bd5]"
+        aria-hidden="true"
+      >
+        <span className="h-[8px] w-[8px] rounded-[3px] border-[1.5px] border-white" />
+        <span className="absolute right-[3px] top-[3px] h-[2.5px] w-[2.5px] rounded-full bg-white" />
+      </span>
+    );
+  }
+
+  if (normalized.includes("tiktok") || normalized.includes("tik tok")) {
+    return (
+      <span
+        className="relative flex h-4 w-4 items-center justify-center rounded-[5px] bg-slate-950 text-[11px] font-black text-white"
+        aria-hidden="true"
+      >
+        ♪
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-50 text-[9px] font-black text-[#ff5f67] ring-1 ring-rose-100"
+      aria-hidden="true"
+    >
+      T
+    </span>
+  );
+}
+
+function PlatformMenuBadge({
+  order,
+  copy,
+}: {
+  order: OrderDetail;
+  copy: any;
+}) {
+  const menuTitle = order.menu_title_snapshot || copy.notSet;
+  const platform = order.menu_platform_snapshot;
+
+  return (
+    <div className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1.5 text-[12px] font-bold text-slate-800 ring-1 ring-slate-100">
+      {getPlatformIcon(platform)}
+      <span className="truncate">{menuTitle}</span>
+    </div>
+  );
+}
+
 function transferLabel(value: string | null, locale: "ja" | "en") {
   const status = value || "not_started";
 
@@ -751,7 +806,7 @@ function Surface({
 }) {
   return (
     <section
-      className={`rounded-[22px] bg-white ring-1 ring-slate-100/80 ${className}`}
+      className={`rounded-[18px] bg-white ring-1 ring-slate-100/80 ${className}`}
     >
       {children}
     </section>
@@ -768,15 +823,34 @@ function DetailRow({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5">
-      <span className="shrink-0 text-[12px] font-black text-slate-500">
+    <div className="flex items-start justify-between gap-4 py-2">
+      <span className="shrink-0 text-[11px] font-bold text-slate-500">
         {label}
       </span>
       <div
-        className={`min-w-0 text-right text-sm leading-6 ${
-          strong ? "font-black text-slate-950" : "font-bold text-slate-800"
+        className={`min-w-0 text-right text-[13px] leading-5 ${
+          strong ? "font-bold text-slate-950" : "font-semibold text-slate-700"
         }`}
       >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function CompactInfoLine({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <span className="shrink-0 text-[12px] font-medium text-slate-500">
+        {label}
+      </span>
+      <div className="min-w-0 text-right text-[13px] font-semibold leading-5 text-slate-900">
         {value}
       </div>
     </div>
@@ -791,8 +865,8 @@ function PlainTextBox({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-[16px] border border-slate-100 bg-slate-50/45 p-4">
-      <p className="whitespace-pre-line break-words text-sm font-semibold leading-7 text-slate-700">
+    <div className="rounded-[14px] border border-slate-100 bg-slate-50/40 p-3">
+      <p className="whitespace-pre-line break-words text-[13px] font-medium leading-6 text-slate-700">
         {value?.trim() || emptyLabel}
       </p>
     </div>
@@ -817,8 +891,8 @@ function PrimaryButton({
       disabled={disabled}
       className={
         variant === "soft"
-          ? "w-full rounded-full bg-white px-5 py-3.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          : "w-full rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(255,95,103,0.2)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          ? "w-full rounded-full bg-white px-5 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          : "w-full rounded-full bg-[#ff5f67] px-5 py-3 text-[13px] font-bold text-white shadow-[0_14px_28px_rgba(255,95,103,0.2)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       }
     >
       {children}
@@ -1168,30 +1242,28 @@ function CreatorOrderHeader({
 
   return (
     <Surface className="overflow-hidden">
-      <div className="bg-white px-4 py-4 sm:px-5">
+      <div className="bg-white px-4 py-3.5 sm:px-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 ${getCreatorOrderStatusTone(
+                className={`rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 ${getCreatorOrderStatusTone(
                   order
                 )}`}
               >
                 {statusLabel}
               </span>
-              <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-700 ring-1 ring-slate-200">
+              <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-700 ring-1 ring-slate-200">
                 {fulfillmentLabel(order.fulfillment_type, locale)}
               </span>
             </div>
 
-            <h1 className="mt-3 line-clamp-2 break-words text-[24px] font-black leading-[1.2] tracking-[-0.055em] text-slate-950">
+            <h1 className="mt-3 line-clamp-2 break-words text-[21px] font-bold leading-[1.24] tracking-[-0.035em] text-slate-950">
               {title}
             </h1>
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-black text-slate-700">
-              <span className="line-clamp-1 max-w-full">
-                {order.menu_title_snapshot || copy.notSet}
-              </span>
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold leading-5 text-slate-700">
+              <PlatformMenuBadge order={order} copy={copy} />
               {deadline ? (
                 <>
                   <span className="text-slate-300">/</span>
@@ -1205,7 +1277,7 @@ function CreatorOrderHeader({
 
           <Link
             href={backHref}
-            className="shrink-0 rounded-full bg-slate-50 px-3.5 py-2 text-xs font-black text-slate-700 ring-1 ring-slate-200 transition active:scale-[0.98]"
+            className="shrink-0 rounded-full bg-slate-50 px-3 py-1.5 text-[12px] font-bold text-slate-700 ring-1 ring-slate-200 transition active:scale-[0.98]"
           >
             {copy.back}
           </Link>
@@ -1265,55 +1337,51 @@ function InstructionFocusCard({
 
   return (
     <Surface className="overflow-hidden">
-      <div className="px-4 py-4 sm:px-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-[20px] font-black tracking-[-0.045em] text-slate-950">
-              {locale === "ja" ? "案件の指示" : "Order instructions"}
-            </h2>
-            <p className="mt-1 text-sm font-bold leading-6 text-slate-600">
-              {locale === "ja"
-                ? "制作前に必要な内容だけをまとめています。"
-                : "Key instructions before you start."}
-            </p>
-          </div>
+      <div className="px-4 py-3.5 sm:px-5">
+        <div className="min-w-0">
+          <h2 className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
+            {locale === "ja" ? "案件の指示" : "Order instructions"}
+          </h2>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
+            {locale === "ja"
+              ? "制作前に確認する内容をまとめています。"
+              : "Key instructions before you start."}
+          </p>
         </div>
 
-        <div className="mt-4 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
-          <DetailRow
+        <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
+          <CompactInfoLine
             label={copy.projectType}
             value={fulfillmentLabel(order.fulfillment_type, locale)}
-            strong
           />
-          <DetailRow
+          <CompactInfoLine
             label={copy.timing}
             value={timingText || copy.notSet}
-            strong
           />
-          <DetailRow
+          <CompactInfoLine
             label={copy.secondaryUse}
             value={secondaryUseText}
           />
         </div>
 
         <div
-          className={`mt-3 rounded-[16px] px-4 py-3 ring-1 ${
+          className={`mt-3 rounded-[14px] px-3 py-2.5 ${
             order.wants_secondary_use
-              ? "bg-rose-50/55 ring-rose-100"
-              : "bg-slate-50/45 ring-slate-100"
+              ? "bg-rose-50/70 ring-1 ring-rose-100"
+              : "bg-slate-50/70 ring-1 ring-slate-100"
           }`}
         >
-          <p className="text-[12px] font-black text-slate-800">
+          <p className="text-[12px] font-semibold text-slate-800">
             {usageNoteTitle}
           </p>
-          <p className="mt-1 text-sm font-bold leading-7 text-slate-600">
+          <p className="mt-1 text-[12px] font-medium leading-6 text-slate-700">
             {usageNoteBody}
           </p>
         </div>
 
         {mainInstruction ? (
           <div className="mt-4">
-            <p className="mb-2 text-[12px] font-black text-slate-600">
+            <p className="mb-2 text-[12px] font-semibold text-slate-600">
               {copy.requestNote}
             </p>
             <PlainTextBox value={mainInstruction} emptyLabel={copy.notSet} />
@@ -1321,15 +1389,15 @@ function InstructionFocusCard({
         ) : null}
 
         {order.product_url ? (
-          <div className="mt-3 rounded-[16px] bg-slate-50/45 px-4 py-3 ring-1 ring-slate-100">
-            <p className="text-[12px] font-black text-slate-600">
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <p className="text-[12px] font-semibold text-slate-600">
               {copy.productUrl}
             </p>
             <a
               href={order.product_url}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 block line-clamp-2 break-all text-sm font-black leading-6 text-[#e6425d] underline underline-offset-4"
+              className="mt-1 block line-clamp-2 break-all text-[13px] font-semibold leading-6 text-[#e6425d] underline underline-offset-4"
             >
               {order.product_url}
             </a>
@@ -1337,13 +1405,13 @@ function InstructionFocusCard({
         ) : null}
 
         {hasMaterialAssets ? (
-          <details className="group mt-3 rounded-[18px] bg-white ring-1 ring-slate-100">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <details className="group mt-3 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
               <div className="min-w-0">
-                <p className="text-sm font-black text-slate-950">
+                <p className="text-[13px] font-semibold text-slate-950">
                   {locale === "ja" ? "参考画像・ファイル" : "Reference files"}
                 </p>
-                <p className="mt-0.5 text-xs font-bold text-slate-500">
+                <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                   {assets.length > 0
                     ? `${assets.length}${locale === "ja" ? "件" : " files"}`
                     : copy.referenceLoadFailed}
@@ -1351,7 +1419,7 @@ function InstructionFocusCard({
               </div>
               <ChevronIcon open={false} />
             </summary>
-            <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+            <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3">
               <ReferenceGallery
                 assets={assets}
                 loading={assetsLoading}
@@ -1365,25 +1433,25 @@ function InstructionFocusCard({
         ) : null}
 
         {prCopyText ? (
-          <details className="group mt-3 rounded-[18px] bg-white ring-1 ring-slate-100">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <details className="group mt-3 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
               <div className="min-w-0">
-                <p className="text-sm font-black text-slate-950">
+                <p className="text-[13px] font-semibold text-slate-950">
                   {copy.postInstructionTitle}
                 </p>
-                <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
+                <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
                   {firstLine(prCopyText)}
                 </p>
               </div>
               <ChevronIcon open={false} />
             </summary>
 
-            <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+            <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3">
               <PlainTextBox value={prCopyText} emptyLabel={copy.notSet} />
               <button
                 type="button"
                 onClick={onCopy}
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_10px_20px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(255,95,103,0.16)] transition active:scale-[0.98]"
               >
                 <CopyIcon />
                 {copied ? copy.copied : copy.copyPostText}
@@ -1393,20 +1461,20 @@ function InstructionFocusCard({
         ) : null}
 
         {postNotes ? (
-          <details className="group mt-3 rounded-[18px] bg-white ring-1 ring-slate-100">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <details className="group mt-3 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
               <div className="min-w-0">
-                <p className="text-sm font-black text-slate-950">
+                <p className="text-[13px] font-semibold text-slate-950">
                   {copy.postNotes}
                 </p>
-                <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
+                <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
                   {firstLine(postNotes)}
                 </p>
               </div>
               <ChevronIcon open={false} />
             </summary>
 
-            <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+            <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3">
               <PlainTextBox value={postNotes} emptyLabel={copy.notSet} />
             </div>
           </details>
@@ -1435,13 +1503,13 @@ function CreatorPayoutSummaryCard({
 
   return (
     <Surface className="overflow-hidden">
-      <div className="bg-white p-4 sm:p-5">
+      <div className="bg-white px-4 py-3.5 sm:px-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-[19px] font-black tracking-[-0.045em] text-slate-950">
+            <h2 className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
               {copy.payoutCardTitle}
             </h2>
-            <p className="mt-1 text-sm font-bold leading-6 text-slate-600">
+            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
               {copy.payoutCardBody}
             </p>
           </div>
@@ -1453,19 +1521,19 @@ function CreatorPayoutSummaryCard({
           </span>
         </div>
 
-        <div className="mt-4 rounded-[18px] bg-rose-50/50 px-4 py-4 ring-1 ring-rose-100">
-          <p className="text-[12px] font-black text-slate-600">
+        <div className="mt-3 rounded-[14px] bg-rose-50/55 px-3.5 py-3 ring-1 ring-rose-100">
+          <p className="text-[12px] font-semibold text-slate-600">
             {copy.payoutMainLabel}
           </p>
-          <p className="mt-1 whitespace-nowrap text-[28px] font-black tracking-[-0.025em] text-slate-950">
+          <p className="mt-1 whitespace-nowrap text-[24px] font-bold tracking-[-0.015em] text-slate-950">
             {formatPrice(order.creator_payout_amount, order.currency, locale)}
           </p>
-          <p className="mt-2 text-xs font-bold leading-5 text-slate-700">
+          <p className="mt-1.5 text-[12px] font-medium leading-5 text-slate-700">
             {scheduleText}
           </p>
         </div>
 
-        <div className="mt-3 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
+        <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
           <DetailRow label={copy.payoutStatus} value={payoutStatus} strong />
           <DetailRow
             label={locale === "ja" ? "支払い予定" : "Schedule"}
@@ -1485,20 +1553,20 @@ function CreatorPayoutSummaryCard({
           </div>
         ) : null}
 
-        <details className="group mt-3 rounded-[18px] bg-white ring-1 ring-slate-100">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <details className="group mt-3 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
-              <p className="text-sm font-black text-slate-950">
+              <p className="text-[13px] font-semibold text-slate-950">
                 {copy.payoutDetails}
               </p>
-              <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
+              <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
                 {copy.payoutDetailsSub}
               </p>
             </div>
             <ChevronIcon open={false} />
           </summary>
 
-          <div className="border-t border-slate-100 px-4 pb-4 pt-2">
+          <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-2">
             <div className="divide-y divide-slate-100">
               <DetailRow
                 label={copy.payoutDetailPayout}
@@ -1539,20 +1607,20 @@ function CreatorPayoutSummaryCard({
           </div>
         </details>
 
-        <details className="group mt-2 rounded-[18px] bg-white ring-1 ring-slate-100">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <details className="group mt-2 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
-              <p className="text-sm font-black text-slate-950">
+              <p className="text-[13px] font-semibold text-slate-950">
                 {copy.payoutOrderDates}
               </p>
-              <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
+              <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
                 {copy.payoutOrderDatesSub}
               </p>
             </div>
             <ChevronIcon open={false} />
           </summary>
 
-          <div className="border-t border-slate-100 px-4 pb-4 pt-2">
+          <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-2">
             <div className="divide-y divide-slate-100">
               <DetailRow
                 label={copy.payoutCreatedAt}
@@ -1576,7 +1644,7 @@ function CreatorPayoutSummaryCard({
 
         <Link
           href="/creator/payouts"
-          className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_10px_20px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
+          className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#ff5f67] px-5 py-3 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
         >
           {copy.payoutPage}
         </Link>
@@ -1602,11 +1670,11 @@ function ResponseActionBox({
 
   return (
     <Surface className="overflow-hidden">
-      <div className="bg-white p-4 sm:p-5">
-        <p className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
+      <div className="bg-white px-4 py-3.5 sm:px-5">
+        <p className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
           {copy.responseTitle}
         </p>
-        <p className="mt-1 text-sm font-bold leading-6 text-slate-600">
+        <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
           {copy.responseBody}
         </p>
 
@@ -2317,10 +2385,10 @@ function PreparationGuidanceBox({
 
   return (
     <Surface className="overflow-hidden">
-      <div className="bg-white p-4 sm:p-5">
+      <div className="bg-white px-4 py-3.5 sm:px-5">
         <div className="flex items-start gap-3">
           <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] ring-1 ${
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] ring-1 ${
               ready
                 ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
                 : "bg-rose-50 text-[#ff5f67] ring-rose-100"
@@ -2330,7 +2398,7 @@ function PreparationGuidanceBox({
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
+            <p className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
               {title}
             </p>
             <p className="mt-1 text-sm font-bold leading-7 text-slate-600">
@@ -2342,7 +2410,7 @@ function PreparationGuidanceBox({
             {canChat ? (
               <Link
                 href={chatHref}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3.5 text-sm font-black text-white shadow-[0_10px_20px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
               >
                 <MessageIcon />
                 {copy.preparationChatButton}
@@ -2531,7 +2599,7 @@ function CreatorDetailSheet({
               <p className="text-[15px] font-black text-slate-950">
                 {copy.orderContent}
               </p>
-              <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
+              <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
                 {order.product_name || copy.notSet}
               </p>
             </div>
@@ -2585,7 +2653,7 @@ function CreatorDetailSheet({
               <p className="text-[15px] font-black text-slate-950">
                 {copy.menuContentTitle || copy.menuAndPayout}
               </p>
-              <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
+              <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
                 {order.menu_title_snapshot || copy.notSet}
               </p>
             </div>
