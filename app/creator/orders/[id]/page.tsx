@@ -751,7 +751,7 @@ function Surface({
 }) {
   return (
     <section
-      className={`rounded-[24px] bg-white ring-1 ring-slate-100 ${className}`}
+      className={`rounded-[22px] bg-white ring-1 ring-slate-100/80 ${className}`}
     >
       {children}
     </section>
@@ -791,7 +791,7 @@ function PlainTextBox({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-[18px] border border-slate-100 bg-slate-50/65 p-4">
+    <div className="rounded-[16px] border border-slate-100 bg-slate-50/45 p-4">
       <p className="whitespace-pre-line break-words text-sm font-semibold leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
       </p>
@@ -1244,7 +1244,7 @@ function InstructionFocusCard({
   copied: boolean;
   onCopy: () => void;
 }) {
-  const mainInstruction = requestNote || order.requirements || "";
+  const mainInstruction = requestNote || "";
   const hasMaterialAssets = assetsLoading || assets.length > 0;
   const secondaryUseText = order.wants_secondary_use
     ? locale === "ja"
@@ -1270,44 +1270,34 @@ function InstructionFocusCard({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <div className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-black text-slate-500">
-              {copy.projectType}
-            </p>
-            <p className="mt-1 text-sm font-black leading-5 text-slate-950">
-              {fulfillmentLabel(order.fulfillment_type, locale)}
-            </p>
-          </div>
-
-          <div className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-black text-slate-500">
-              {copy.timing}
-            </p>
-            <p className="mt-1 text-sm font-black leading-5 text-slate-950">
-              {timingText || copy.notSet}
-            </p>
-          </div>
-
-          <div className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-black text-slate-500">
-              {copy.secondaryUse}
-            </p>
-            <p className="mt-1 text-sm font-black leading-5 text-slate-950">
-              {secondaryUseText}
-            </p>
-          </div>
+        <div className="mt-4 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
+          <DetailRow
+            label={copy.projectType}
+            value={fulfillmentLabel(order.fulfillment_type, locale)}
+            strong
+          />
+          <DetailRow
+            label={copy.timing}
+            value={timingText || copy.notSet}
+            strong
+          />
+          <DetailRow
+            label={copy.secondaryUse}
+            value={secondaryUseText}
+          />
         </div>
 
-        <div className="mt-4">
-          <p className="mb-2 text-[12px] font-black text-slate-600">
-            {copy.requestNote}
-          </p>
-          <PlainTextBox value={mainInstruction} emptyLabel={copy.notSet} />
-        </div>
+        {mainInstruction ? (
+          <div className="mt-4">
+            <p className="mb-2 text-[12px] font-black text-slate-600">
+              {copy.requestNote}
+            </p>
+            <PlainTextBox value={mainInstruction} emptyLabel={copy.notSet} />
+          </div>
+        ) : null}
 
         {order.product_url ? (
-          <div className="mt-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-100">
+          <div className="mt-3 rounded-[16px] bg-slate-50/45 px-4 py-3 ring-1 ring-slate-100">
             <p className="text-[12px] font-black text-slate-600">
               {copy.productUrl}
             </p>
@@ -1439,11 +1429,11 @@ function CreatorPayoutSummaryCard({
           </span>
         </div>
 
-        <div className="mt-4 rounded-[20px] bg-rose-50/55 px-4 py-4 ring-1 ring-rose-100">
+        <div className="mt-4 rounded-[18px] bg-rose-50/50 px-4 py-4 ring-1 ring-rose-100">
           <p className="text-[12px] font-black text-slate-600">
             {copy.payoutMainLabel}
           </p>
-          <p className="mt-1 text-[30px] font-black tracking-[-0.065em] text-slate-950">
+          <p className="mt-1 whitespace-nowrap text-[28px] font-black tracking-[-0.025em] text-slate-950">
             {formatPrice(order.creator_payout_amount, order.currency, locale)}
           </p>
           <p className="mt-2 text-xs font-bold leading-5 text-slate-700">
@@ -1451,24 +1441,12 @@ function CreatorPayoutSummaryCard({
           </p>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-[16px] bg-white p-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-black text-slate-500">
-              {copy.payoutStatus}
-            </p>
-            <p className="mt-1 text-sm font-black text-slate-950">
-              {payoutStatus}
-            </p>
-          </div>
-
-          <div className="rounded-[16px] bg-white p-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-black text-slate-500">
-              {locale === "ja" ? "支払い予定" : "Schedule"}
-            </p>
-            <p className="mt-1 line-clamp-2 text-sm font-black leading-5 text-slate-950">
-              {scheduleText}
-            </p>
-          </div>
+        <div className="mt-3 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
+          <DetailRow label={copy.payoutStatus} value={payoutStatus} strong />
+          <DetailRow
+            label={locale === "ja" ? "支払い予定" : "Schedule"}
+            value={scheduleText}
+          />
         </div>
 
         {isOnHold ? (
@@ -1648,7 +1626,7 @@ function MaterialsConfirmActionBox({
           <p className="text-[18px] font-black tracking-[-0.05em] text-slate-950">
             {copy.materialsConfirmedTitle}
           </p>
-          <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+          <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
             {copy.materialsConfirmedBody}
           </p>
         </div>
@@ -1672,7 +1650,7 @@ function MaterialsConfirmActionBox({
             <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
               {copy.materialsConfirmTitle}
             </p>
-            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
               {copy.materialsConfirmBody}
             </p>
 
@@ -1845,7 +1823,7 @@ function ProductShippingActionBox({
               <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
                 {copy.shippingAddressTitle}
               </p>
-              <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
                 {addressShared
                   ? copy.shippingStatusShared
                   : copy.shippingAddressBody}
@@ -1932,7 +1910,7 @@ function ProductShippingActionBox({
               <p className="text-[16px] font-black text-slate-950">
                 {copy.productReceivedTitle}
               </p>
-              <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+              <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
                 {copy.productReceivedBody}
               </p>
 
@@ -2401,7 +2379,7 @@ function DeliveryActionBox({
             <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
               {isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
             </p>
-            <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+            <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
               {copy.deliveryBody}
             </p>
           </div>
@@ -2511,7 +2489,7 @@ function PassiveNoticeBox({
       <p className="text-[17px] font-black tracking-[-0.04em] text-slate-950">
         {title}
       </p>
-      <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+      <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
         {body}
       </p>
     </Surface>
@@ -2655,12 +2633,12 @@ export default function CreatorOrderDetailPage() {
             orderContent: "注文内容",
 
             preparationTitle: "開始前に必要なこと",
-            preparationBeforeAcceptTitle: "受ける前に確認",
+            preparationBeforeAcceptTitle: "承諾前の確認",
             preparationChatButton: "チャットで相談する",
             preparationChatDisabled:
               "注文を受けた後、必要に応じてチャットで相談できます。",
-            preparationReadyLabel: "進められます",
-            preparationWaitingLabel: "準備が必要",
+            preparationReadyLabel: "確認済み",
+            preparationWaitingLabel: "要確認",
 
             materialsConfirmTitle: "素材・投稿情報を確認してください",
             materialsConfirmBody:
@@ -2783,7 +2761,7 @@ export default function CreatorOrderDetailPage() {
               "完了後、登録済みの銀行口座への支払い予定に反映されます。",
             payoutMainLabel: "受取予定額",
             payoutStatus: "反映状況",
-            payoutMinimum: "最低支払額",
+            payoutMinimum: "支払い基準",
             payoutDetails: "報酬の内訳",
             payoutDetailsSub: "手数料や控除の見込みを確認できます",
             payoutDetailMenuPrice: "メニュー価格",
@@ -3675,12 +3653,6 @@ export default function CreatorOrderDetailPage() {
 
       <CreatorPayoutSummaryCard order={order} locale={safeLocale} copy={copy} />
 
-      <CreatorDetailSheet
-        order={order}
-        locale={safeLocale}
-        copy={copy}
-        timingText={timingText}
-      />
     </div>
   );
 }
