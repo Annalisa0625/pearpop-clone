@@ -227,10 +227,10 @@ function isPayablePayoutStatus(
 function getPayoutStatusLabel(
   status: PayoutOrderRow["payout_status"] | null | undefined
 ) {
-  if (status === "paid") return "支払済み";
-  if (status === "withheld") return "保留中";
-  if (status === "failed") return "振込失敗";
-  if (status === "pending") return "支払予定";
+  if (status === "paid") return "支払い済み";
+  if (status === "withheld") return "確認中";
+  if (status === "failed") return "確認が必要";
+  if (status === "pending") return "支払い予定";
   return "未払い";
 }
 
@@ -239,16 +239,15 @@ function getPayoutStatusTone(
 ) {
   if (status === "paid") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (status === "withheld") return "bg-amber-50 text-amber-700 ring-amber-100";
-  if (status === "failed") return "bg-red-50 text-red-700 ring-red-100";
-  if (status === "pending") return "bg-blue-50 text-blue-700 ring-blue-100";
+  if (status === "failed") return "bg-rose-50 text-rose-700 ring-rose-100";
+  if (status === "pending") return "bg-slate-100 text-slate-700 ring-slate-200";
   return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function getProfileLabel(status: PayoutProfile["status"] | null | undefined) {
-  if (status === "verified") return "確認済み";
-  if (status === "submitted") return "登録済み";
-  if (status === "rejected") return "修正必要";
-  return "未登録";
+  if (status === "verified" || status === "submitted") return "受け取り設定済み";
+  if (status === "rejected") return "修正が必要";
+  return "口座登録が必要";
 }
 
 function getProfileTone(status: PayoutProfile["status"] | null | undefined) {
@@ -257,26 +256,42 @@ function getProfileTone(status: PayoutProfile["status"] | null | undefined) {
   }
 
   if (status === "rejected") {
-    return "bg-red-50 text-red-700 ring-red-100";
+    return "bg-rose-50 text-rose-700 ring-rose-100";
   }
 
   return "bg-amber-50 text-amber-700 ring-amber-100";
 }
 
 function getEstimatedPayoutScheduleText() {
-  return "月末締め・翌月末までにお支払い予定";
+  return "月末締め・翌月末までに支払い予定";
 }
 
 function getPayoutNoteText() {
-  return "表示金額は現時点の見込みです。正式な支払額は、案件状況・振込手数料・源泉徴収などの確認後に確定します。";
+  return "振込手数料や源泉徴収などの控除がある場合、支払い時に差し引かれます。";
 }
 
 function LoadingView() {
   return (
     <main className="mx-auto max-w-[760px] px-4 py-5">
-      <div className="h-24 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-      <div className="mt-3 h-72 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      <div className="h-24 animate-pulse rounded-[22px] bg-white ring-1 ring-slate-100" />
+      <div className="mt-3 h-56 animate-pulse rounded-[22px] bg-white ring-1 ring-slate-100" />
     </main>
+  );
+}
+
+function Surface({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`rounded-[22px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 ${className}`}
+    >
+      {children}
+    </section>
   );
 }
 
@@ -291,10 +306,10 @@ function Field({
 }) {
   return (
     <label className="block">
-      <p className="mb-1.5 text-[13px] font-black text-slate-900">{label}</p>
+      <p className="mb-1.5 text-[12px] font-bold text-slate-700">{label}</p>
       {children}
       {help ? (
-        <p className="mt-1.5 text-[11px] font-bold leading-5 text-slate-400">
+        <p className="mt-1.5 text-[11px] font-medium leading-5 text-slate-500">
           {help}
         </p>
       ) : null}
@@ -309,7 +324,7 @@ function Input({
   return (
     <input
       {...props}
-      className={`h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-bold text-slate-950 outline-none placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 disabled:bg-slate-50 disabled:text-slate-400 ${className}`}
+      className={`h-11 w-full rounded-[16px] border border-slate-200 bg-white px-3.5 text-[15px] font-semibold text-slate-950 outline-none placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50 disabled:bg-slate-50 disabled:text-slate-400 ${className}`}
     />
   );
 }
@@ -322,7 +337,7 @@ function Select({
   return (
     <select
       {...props}
-      className={`h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-bold text-slate-950 outline-none focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${className}`}
+      className={`h-11 w-full rounded-[16px] border border-slate-200 bg-white px-3.5 text-[15px] font-semibold text-slate-950 outline-none focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50 ${className}`}
     >
       {children}
     </select>
@@ -344,13 +359,13 @@ function Alert({
       : tone === "green"
         ? "bg-emerald-50 text-emerald-900 ring-emerald-100"
         : tone === "red"
-          ? "bg-red-50 text-red-900 ring-red-100"
+          ? "bg-rose-50 text-rose-900 ring-rose-100"
           : "bg-amber-50 text-amber-900 ring-amber-100";
 
   return (
-    <div className={`rounded-2xl p-3 ring-1 ${cls}`}>
-      <p className="text-sm font-black">{title}</p>
-      <p className="mt-1 text-xs font-bold leading-5 opacity-80">{body}</p>
+    <div className={`rounded-[18px] p-3 ring-1 ${cls}`}>
+      <p className="text-[13px] font-bold">{title}</p>
+      <p className="mt-1 text-xs font-medium leading-5 opacity-80">{body}</p>
     </div>
   );
 }
@@ -376,9 +391,9 @@ function OptionButton({
           : "bg-white ring-slate-100 hover:bg-slate-50"
       }`}
     >
-      <p className="text-[13px] font-black text-slate-950">{title}</p>
+      <p className="text-[13px] font-bold text-slate-950">{title}</p>
       {subtitle ? (
-        <p className="mt-0.5 text-[11px] font-bold text-slate-400">{subtitle}</p>
+        <p className="mt-0.5 text-[11px] font-medium text-slate-500">{subtitle}</p>
       ) : null}
     </button>
   );
@@ -386,31 +401,11 @@ function OptionButton({
 
 function SmallInfo({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-      <p className="text-[11px] font-black text-slate-400">{label}</p>
-      <p className="mt-1 break-words text-sm font-black text-slate-950">
+    <div className="rounded-[16px] bg-slate-50/75 p-3 ring-1 ring-slate-100">
+      <p className="text-[11px] font-bold text-slate-500">{label}</p>
+      <p className="mt-1 break-words text-[13px] font-bold text-slate-950">
         {value || "-"}
       </p>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  help,
-}: {
-  label: string;
-  value: string;
-  help?: string;
-}) {
-  return (
-    <div className="rounded-[20px] bg-white p-3 shadow-sm ring-1 ring-slate-100">
-      <p className="text-[11px] font-black text-slate-400">{label}</p>
-      <p className="mt-1 text-[18px] font-black tracking-[-0.05em] text-slate-950">
-        {value}
-      </p>
-      {help ? <p className="mt-1 text-[10px] font-bold text-slate-400">{help}</p> : null}
     </div>
   );
 }
@@ -423,9 +418,34 @@ function StatusPill({
   className: string;
 }) {
   return (
-    <span className={`inline-flex rounded-full px-3 py-1.5 text-[11px] font-black ring-1 ${className}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${className}`}>
       {children}
     </span>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <span className="shrink-0 text-[11px] font-bold text-slate-500">
+        {label}
+      </span>
+      <span
+        className={`min-w-0 text-right text-[13px] leading-5 ${
+          strong ? "font-bold text-slate-950" : "font-semibold text-slate-700"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 
@@ -445,15 +465,13 @@ function CollapsibleCard({
   return (
     <details
       open={defaultOpen}
-      className="group rounded-[22px] bg-white shadow-sm ring-1 ring-slate-100"
+      className="group rounded-[20px] bg-white ring-1 ring-slate-100"
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
-          <h2 className="text-[17px] font-black tracking-[-0.04em] text-slate-950">
-            {title}
-          </h2>
+          <h2 className="text-[15px] font-bold text-slate-950">{title}</h2>
           {subtitle ? (
-            <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+            <p className="mt-0.5 line-clamp-1 text-xs font-medium leading-5 text-slate-500">
               {subtitle}
             </p>
           ) : null}
@@ -461,15 +479,19 @@ function CollapsibleCard({
 
         <div className="flex shrink-0 items-center gap-2">
           {badge}
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-50 text-sm font-black text-slate-500 ring-1 ring-slate-100 transition group-open:rotate-180">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-50 text-xs font-bold text-slate-500 ring-1 ring-slate-100 transition group-open:rotate-180">
             ↓
           </span>
         </div>
       </summary>
 
-      <div className="border-t border-slate-100 p-4">{children}</div>
+      <div className="border-t border-slate-100 px-4 pb-4 pt-3">{children}</div>
     </details>
   );
+}
+
+function AccountTypeLabel({ value }: { value: PayoutProfile["account_type"] }) {
+  return <>{value === "checking" ? "当座" : "普通"}</>;
 }
 
 export default function PayoutsClient() {
@@ -556,7 +578,7 @@ export default function PayoutsClient() {
   const canReceivePayout = profile?.status === "submitted" || profile?.status === "verified";
 
   const payoutBlockedReason = !canReceivePayout
-    ? "銀行口座の登録が完了すると、報酬の支払い対象になります。"
+    ? "銀行口座を登録すると、案件完了後の報酬を受け取れるようになります。"
     : payableAmount > 0 && payableAmount < MIN_PAYOUT_AMOUNT
       ? `未払い報酬が${formatMoney(
           MIN_PAYOUT_AMOUNT,
@@ -590,13 +612,13 @@ export default function PayoutsClient() {
 
         if (creatorError) {
           console.error({ creatorError });
-          setErrorMsg("報酬受け取り情報の取得に失敗しました。");
+          setErrorMsg("報酬情報の取得に失敗しました。");
           setLoading(false);
           return;
         }
 
         if (!creatorRow) {
-          setErrorMsg("インフルエンサー情報が見つかりませんでした。");
+          setErrorMsg("クリエイター情報が見つかりませんでした。");
           setLoading(false);
           return;
         }
@@ -614,7 +636,7 @@ export default function PayoutsClient() {
 
         if (payoutProfileError) {
           console.error({ payoutProfileError });
-          setErrorMsg("報酬受け取り情報の取得に失敗しました。");
+          setErrorMsg("報酬情報の取得に失敗しました。");
           setLoading(false);
           return;
         }
@@ -650,7 +672,7 @@ export default function PayoutsClient() {
         setLoading(false);
       } catch (e) {
         console.error(e);
-        setErrorMsg("報酬受け取り情報の取得に失敗しました。");
+        setErrorMsg("報酬情報の取得に失敗しました。");
         setLoading(false);
       }
     };
@@ -932,7 +954,7 @@ export default function PayoutsClient() {
       setBranchOptions([]);
       setConfirmOpen(false);
       setEditing(false);
-      setSuccessMsg("報酬受け取り設定を保存しました。");
+      setSuccessMsg("受け取り口座を保存しました。");
       setSaving(false);
 
       if (fromSignup) {
@@ -951,18 +973,15 @@ export default function PayoutsClient() {
 
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-      <section className="mb-3 overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-100">
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-[#3b1420] p-4 text-white">
+      <Surface className="mb-3 overflow-hidden">
+        <div className="px-4 py-4 sm:px-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#ff8da2]">
-                Creator payouts
-              </p>
-              <h1 className="mt-1 text-[26px] font-black leading-tight tracking-[-0.06em]">
-                報酬・振込管理
+              <h1 className="text-[22px] font-bold tracking-[-0.04em] text-slate-950">
+                報酬
               </h1>
-              <p className="mt-2 text-[13px] font-bold leading-6 text-white/65">
-                受け取り口座と、案件完了後の報酬状況を確認できます。
+              <p className="mt-1 max-w-[420px] text-[13px] font-medium leading-6 text-slate-600">
+                完了した案件の報酬と、受け取り口座を確認できます。
               </p>
             </div>
 
@@ -972,28 +991,36 @@ export default function PayoutsClient() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 p-3">
-          <StatCard
-            label="未払い"
-            value={formatMoney(payableAmount, "JPY", safeLocale)}
-          />
-          <StatCard
-            label="支払済"
-            value={formatMoney(paidAmount, "JPY", safeLocale)}
-          />
-          <StatCard
-            label="案件数"
-            value={`${orders.length}件`}
-          />
+        <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100">
+          <div className="px-4 py-3">
+            <p className="text-[11px] font-bold text-slate-500">未払い</p>
+            <p className="mt-1 text-[16px] font-bold text-slate-950">
+              {formatMoney(payableAmount, "JPY", safeLocale)}
+            </p>
+          </div>
+
+          <div className="px-4 py-3">
+            <p className="text-[11px] font-bold text-slate-500">支払い済み</p>
+            <p className="mt-1 text-[16px] font-bold text-slate-950">
+              {formatMoney(paidAmount, "JPY", safeLocale)}
+            </p>
+          </div>
+
+          <div className="px-4 py-3">
+            <p className="text-[11px] font-bold text-slate-500">対象案件</p>
+            <p className="mt-1 text-[16px] font-bold text-slate-950">
+              {orders.length}件
+            </p>
+          </div>
         </div>
-      </section>
+      </Surface>
 
       {fromSignup ? (
         <div className="mb-3">
           <Alert
             tone={requiredFromSignup ? "amber" : "blue"}
-            title="登録の最終ステップ"
-            body="報酬を受け取る銀行口座を登録してください。登録後、ホームへ進みます。"
+            title="受け取り口座を登録してください"
+            body="報酬を受け取るために必要です。登録後、ホームへ進みます。"
           />
         </div>
       ) : null}
@@ -1021,20 +1048,20 @@ export default function PayoutsClient() {
       ) : null}
 
       {showSetupForm ? (
-        <section className="rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+        <Surface className="p-4 sm:p-5">
           <div className="mb-4">
-            <h2 className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
-              銀行口座を登録
+            <h2 className="text-[19px] font-bold tracking-[-0.04em] text-slate-950">
+              受け取り口座を登録
             </h2>
-            <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
-              依頼元向けにメニューを公開し、報酬を受け取るために必要です。
+            <p className="mt-1 text-[13px] font-medium leading-6 text-slate-600">
+              案件完了後の報酬は、登録した銀行口座へ振り込まれます。
             </p>
           </div>
 
           <div className="space-y-3">
             <CollapsibleCard
-              title="1. 金融機関・支店"
-              subtitle="銀行名と支店名を検索して選択します。"
+              title="金融機関・支店"
+              subtitle="銀行名と支店名を検索して選択します"
               defaultOpen
             >
               <div className="space-y-4">
@@ -1064,15 +1091,15 @@ export default function PayoutsClient() {
                   />
 
                   {form.bank_code && form.bank_name ? (
-                    <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                      <p className="text-xs font-black text-emerald-800">
-                        選択中：{form.bank_name} / {form.bank_code}
+                    <div className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100">
+                      <p className="text-xs font-bold text-emerald-800">
+                        {form.bank_name} / {form.bank_code}
                       </p>
                     </div>
                   ) : null}
 
                   {bankSearchReady ? (
-                    <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+                    <div className="mt-2 rounded-[16px] bg-slate-50 p-2 ring-1 ring-slate-100">
                       <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
                         {bankOptions.length > 0 ? (
                           bankOptions.map((bank) => (
@@ -1085,7 +1112,7 @@ export default function PayoutsClient() {
                             />
                           ))
                         ) : (
-                          <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                          <p className="rounded-xl bg-white p-2 text-xs font-medium text-slate-500 ring-1 ring-slate-100">
                             {bankLoading ? "検索中..." : "候補がありません"}
                           </p>
                         )}
@@ -1117,15 +1144,15 @@ export default function PayoutsClient() {
                   />
 
                   {form.branch_code && form.branch_name ? (
-                    <div className="mt-2 rounded-xl bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                      <p className="text-xs font-black text-emerald-800">
-                        選択中：{form.branch_name} / {form.branch_code}
+                    <div className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100">
+                      <p className="text-xs font-bold text-emerald-800">
+                        {form.branch_name} / {form.branch_code}
                       </p>
                     </div>
                   ) : null}
 
                   {branchSearchReady ? (
-                    <div className="mt-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+                    <div className="mt-2 rounded-[16px] bg-slate-50 p-2 ring-1 ring-slate-100">
                       <div className="max-h-[168px] space-y-1.5 overflow-y-auto">
                         {branchOptions.length > 0 ? (
                           branchOptions.map((branch) => (
@@ -1138,7 +1165,7 @@ export default function PayoutsClient() {
                             />
                           ))
                         ) : (
-                          <p className="rounded-xl bg-white p-2 text-xs font-bold text-slate-400 ring-1 ring-slate-100">
+                          <p className="rounded-xl bg-white p-2 text-xs font-medium text-slate-500 ring-1 ring-slate-100">
                             {branchLoading ? "検索中..." : "候補がありません"}
                           </p>
                         )}
@@ -1150,8 +1177,8 @@ export default function PayoutsClient() {
             </CollapsibleCard>
 
             <CollapsibleCard
-              title="2. 口座情報"
-              subtitle="口座種別と7桁の口座番号を入力します。"
+              title="口座情報"
+              subtitle="口座種別と7桁の口座番号を入力します"
               defaultOpen
             >
               <div className="grid grid-cols-2 gap-3">
@@ -1189,8 +1216,8 @@ export default function PayoutsClient() {
             </CollapsibleCard>
 
             <CollapsibleCard
-              title="3. 口座名義"
-              subtitle="振込用名義はカタカナで保存されます。"
+              title="口座名義"
+              subtitle="振込用名義はカタカナで保存されます"
               defaultOpen
             >
               <div className="space-y-4">
@@ -1228,8 +1255,8 @@ export default function PayoutsClient() {
             </CollapsibleCard>
 
             {confirmOpen ? (
-              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                <p className="text-sm font-black text-slate-950">
+              <div className="rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-100">
+                <p className="text-[13px] font-bold text-slate-950">
                   この内容で保存します
                 </p>
 
@@ -1250,7 +1277,7 @@ export default function PayoutsClient() {
                     type="button"
                     onClick={() => setConfirmOpen(false)}
                     disabled={saving}
-                    className="h-12 rounded-full bg-white text-sm font-black text-slate-700 ring-1 ring-slate-200 disabled:opacity-50"
+                    className="h-11 rounded-full bg-white text-[13px] font-bold text-slate-700 ring-1 ring-slate-200 disabled:opacity-50"
                   >
                     戻る
                   </button>
@@ -1259,7 +1286,7 @@ export default function PayoutsClient() {
                     type="button"
                     onClick={handleSave}
                     disabled={saving}
-                    className="h-12 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.24)] disabled:opacity-50"
+                    className="h-11 rounded-full bg-[#ff5f67] text-[13px] font-bold text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)] disabled:opacity-50"
                   >
                     {saving ? "保存中..." : "保存する"}
                   </button>
@@ -1267,7 +1294,7 @@ export default function PayoutsClient() {
               </div>
             ) : null}
 
-            <div className="sticky bottom-[78px] z-20 rounded-[22px] bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 backdrop-blur">
+            <div className="sticky bottom-[78px] z-20 rounded-[20px] bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 backdrop-blur">
               <div
                 className={`grid gap-2 ${
                   hasSavedBankAccount && editing && !fromSignup ? "grid-cols-2" : "grid-cols-1"
@@ -1278,7 +1305,7 @@ export default function PayoutsClient() {
                     type="button"
                     onClick={resetFormToSavedProfile}
                     disabled={saving}
-                    className="h-12 rounded-full bg-white text-sm font-black text-slate-700 ring-1 ring-slate-200 disabled:opacity-50"
+                    className="h-11 rounded-full bg-white text-[13px] font-bold text-slate-700 ring-1 ring-slate-200 disabled:opacity-50"
                   >
                     やめる
                   </button>
@@ -1288,111 +1315,70 @@ export default function PayoutsClient() {
                   type="button"
                   onClick={handleReview}
                   disabled={saving}
-                  className="h-12 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.24)] disabled:opacity-50"
+                  className="h-11 rounded-full bg-[#ff5f67] text-[13px] font-bold text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)] disabled:opacity-50"
                 >
                   {saving ? "保存中..." : "確認して保存"}
                 </button>
               </div>
             </div>
           </div>
-        </section>
+        </Surface>
       ) : null}
 
       {showNormalSections ? (
         <div className="space-y-3">
-          <section className="rounded-[24px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+          <Surface className="p-4 sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ff5f67]">
-                  Next payout
-                </p>
-                <h2 className="mt-1 text-[20px] font-black tracking-[-0.05em] text-slate-950">
+                <h2 className="text-[19px] font-bold tracking-[-0.04em] text-slate-950">
                   次回支払い見込み
                 </h2>
-                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                <p className="mt-1 text-[13px] font-medium leading-6 text-slate-600">
                   {getEstimatedPayoutScheduleText()}
                 </p>
               </div>
-
-              <StatusPill
-                className={
-                  canReceivePayout
-                    ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-                    : "bg-amber-50 text-amber-700 ring-amber-100"
-                }
-              >
-                {canReceivePayout ? "支払い対象" : "口座登録待ち"}
-              </StatusPill>
             </div>
 
-            <div className="mt-4 rounded-[22px] bg-gradient-to-br from-slate-950 to-slate-800 p-4 text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]">
-              <p className="text-xs font-black text-white/60">未払い報酬</p>
-              <p className="mt-1 text-[34px] font-black tracking-[-0.07em]">
+            <div className="mt-4 rounded-[18px] bg-rose-50/60 px-4 py-4 ring-1 ring-rose-100">
+              <p className="text-[12px] font-bold text-slate-600">未払い報酬</p>
+              <p className="mt-1 text-[32px] font-bold tracking-[-0.06em] text-slate-950">
                 {formatMoney(payableAmount, "JPY", safeLocale)}
               </p>
-              <p className="mt-2 text-xs font-bold leading-5 text-white/65">
-                案件完了後、支払い対象として集計されます。
+              <p className="mt-2 text-xs font-medium leading-5 text-slate-600">
+                完了後に支払い予定へ反映されます。
               </p>
             </div>
+
+            <div className="mt-3 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
+              <DetailRow
+                label="振込予定額"
+                value={formatMoney(estimatedNetPayoutAmount, "JPY", safeLocale)}
+                strong
+              />
+              <DetailRow
+                label="振込手数料"
+                value={`-${formatMoney(estimatedBankFeeAmount, "JPY", safeLocale)}`}
+              />
+              <DetailRow
+                label="源泉徴収"
+                value={`-${formatMoney(estimatedWithholdingAmount, "JPY", safeLocale)}`}
+              />
+            </div>
+
+            <p className="mt-3 text-[11px] font-medium leading-5 text-slate-500">
+              {getPayoutNoteText()}
+            </p>
 
             {payoutBlockedReason ? (
               <div className="mt-3">
                 <Alert tone="amber" title="支払いについて" body={payoutBlockedReason} />
               </div>
             ) : null}
-          </section>
+          </Surface>
 
           <CollapsibleCard
-            title="支払い見込みの内訳"
-            subtitle="振込予定額・手数料・控除額を確認できます。"
-            badge={
-              <StatusPill className="bg-slate-100 text-slate-700 ring-slate-200">
-                仮計算
-              </StatusPill>
-            }
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="font-bold text-slate-500">未払い報酬</span>
-                <span className="font-black text-slate-950">
-                  {formatMoney(payableAmount, "JPY", safeLocale)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="font-bold text-slate-500">振込手数料（仮）</span>
-                <span className="font-black text-slate-950">
-                  -{formatMoney(estimatedBankFeeAmount, "JPY", safeLocale)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="font-bold text-slate-500">源泉徴収（現時点）</span>
-                <span className="font-black text-slate-950">
-                  -{formatMoney(estimatedWithholdingAmount, "JPY", safeLocale)}
-                </span>
-              </div>
-
-              <div className="border-t border-slate-200 pt-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-black text-slate-950">
-                    振込予定額
-                  </span>
-                  <span className="text-lg font-black tracking-[-0.04em] text-slate-950">
-                    {formatMoney(estimatedNetPayoutAmount, "JPY", safeLocale)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400">
-              {getPayoutNoteText()}
-            </p>
-          </CollapsibleCard>
-
-          <CollapsibleCard
-            title="登録済み口座"
-            subtitle="現在の報酬振込先です。"
+            title="受け取り口座"
+            subtitle="現在の振込先です"
             badge={
               <button
                 type="button"
@@ -1403,22 +1389,23 @@ export default function PayoutsClient() {
                   setErrorMsg(null);
                   setSuccessMsg(null);
                 }}
-                className="rounded-full bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 ring-1 ring-slate-100"
+                className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100"
               >
                 変更
               </button>
             }
           >
-            <div className="grid grid-cols-2 gap-2">
-              <SmallInfo
+            <div className="divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
+              <DetailRow
                 label="金融機関"
                 value={
                   profile?.bank_code
                     ? `${profile.bank_name || "-"} / ${profile.bank_code}`
                     : profile?.bank_name || "-"
                 }
+                strong
               />
-              <SmallInfo
+              <DetailRow
                 label="支店"
                 value={
                   profile?.branch_code
@@ -1426,22 +1413,21 @@ export default function PayoutsClient() {
                     : profile?.branch_name || "-"
                 }
               />
-              <SmallInfo
+              <DetailRow
                 label="種別"
-                value={profile?.account_type === "checking" ? "当座" : "普通"}
+                value={<AccountTypeLabel value={profile?.account_type ?? null} />}
               />
-              <SmallInfo
+              <DetailRow
                 label="口座番号"
                 value={maskAccountNumber(profile?.account_number)}
               />
-              <SmallInfo label="口座名義" value={profile?.account_holder_name || "-"} />
-              <SmallInfo label="振込用名義" value={profile?.account_holder_kana || "-"} />
+              <DetailRow label="口座名義" value={profile?.account_holder_name || "-"} />
             </div>
           </CollapsibleCard>
 
           <CollapsibleCard
             title="報酬対象の案件"
-            subtitle="完了済みで支払い対象になった案件です。"
+            subtitle="完了済みの案件が表示されます"
             badge={
               <StatusPill className="bg-slate-100 text-slate-700 ring-slate-200">
                 {orders.length}件
@@ -1449,42 +1435,29 @@ export default function PayoutsClient() {
             }
           >
             {orders.length > 0 ? (
-              <div className="space-y-2">
+              <div className="divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 ring-1 ring-slate-100">
                 {orders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100"
-                  >
+                  <div key={order.id} className="px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-slate-950">
+                        <p className="truncate text-[13px] font-bold text-slate-950">
                           {order.product_name || "案件名未設定"}
                         </p>
-
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-400">
-                            完了日：{formatDate(order.completed_at || order.created_at, safeLocale)}
-                          </span>
-
-                          {order.payout_paid_at ? (
-                            <span className="text-xs font-bold text-slate-400">
-                              支払日：{formatDate(order.payout_paid_at, safeLocale)}
-                            </span>
-                          ) : null}
-                        </div>
+                        <p className="mt-1 text-[11px] font-medium text-slate-500">
+                          完了日：{formatDate(order.completed_at || order.created_at, safeLocale)}
+                        </p>
                       </div>
 
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-black text-slate-950">
+                        <p className="text-[13px] font-bold text-slate-950">
                           {formatMoney(
                             order.creator_payout_amount,
                             order.currency,
                             safeLocale
                           )}
                         </p>
-
                         <span
-                          className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ring-1 ${getPayoutStatusTone(
+                          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${getPayoutStatusTone(
                             order.payout_status
                           )}`}
                         >
@@ -1492,15 +1465,21 @@ export default function PayoutsClient() {
                         </span>
                       </div>
                     </div>
+
+                    {order.payout_paid_at ? (
+                      <p className="mt-1 text-[11px] font-medium text-slate-500">
+                        支払日：{formatDate(order.payout_paid_at, safeLocale)}
+                      </p>
+                    ) : null}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl bg-slate-50 p-4 text-center ring-1 ring-slate-100">
-                <p className="text-sm font-black text-slate-700">
+              <div className="rounded-[16px] bg-slate-50/75 p-4 text-center ring-1 ring-slate-100">
+                <p className="text-[13px] font-bold text-slate-700">
                   まだ報酬対象の案件はありません
                 </p>
-                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                <p className="mt-1 text-xs font-medium leading-5 text-slate-500">
                   案件が完了すると、ここに支払い予定の報酬が表示されます。
                 </p>
               </div>
