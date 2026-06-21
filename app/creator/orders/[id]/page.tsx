@@ -1248,11 +1248,20 @@ function InstructionFocusCard({
   const hasMaterialAssets = assetsLoading || assets.length > 0;
   const secondaryUseText = order.wants_secondary_use
     ? locale === "ja"
-      ? "広告素材として再利用あり"
-      : "Secondary use requested"
+      ? "広告素材としての利用あり"
+      : "Usage in ads allowed"
     : locale === "ja"
-      ? "広告素材としての再利用なし"
-      : "No secondary use";
+      ? "広告素材としての利用なし"
+      : "No ad usage";
+
+  const usageNoteTitle = locale === "ja" ? "利用範囲について" : "Usage scope";
+  const usageNoteBody = order.wants_secondary_use
+    ? locale === "ja"
+      ? "この案件では、納品物を広告素材・SNS投稿・LP・バナー等に使用する可能性があります。使用範囲・期間・掲載先について、注文内容またはチャットで確認してください。"
+      : "Deliverables may be used in ads, social posts, landing pages, banners, or similar materials. Confirm the scope, duration, and placement in the order details or chat."
+    : locale === "ja"
+      ? "この案件の成果物は、注文内容の確認・投稿URLの確認目的で使用されます。広告素材としての利用は含まれていません。"
+      : "Deliverables are used to review the order and submitted URL. Ad usage is not included in this order.";
 
   return (
     <Surface className="overflow-hidden">
@@ -1285,6 +1294,21 @@ function InstructionFocusCard({
             label={copy.secondaryUse}
             value={secondaryUseText}
           />
+        </div>
+
+        <div
+          className={`mt-3 rounded-[16px] px-4 py-3 ring-1 ${
+            order.wants_secondary_use
+              ? "bg-rose-50/55 ring-rose-100"
+              : "bg-slate-50/45 ring-slate-100"
+          }`}
+        >
+          <p className="text-[12px] font-black text-slate-800">
+            {usageNoteTitle}
+          </p>
+          <p className="mt-1 text-sm font-bold leading-7 text-slate-600">
+            {usageNoteBody}
+          </p>
         </div>
 
         {mainInstruction ? (
@@ -2306,25 +2330,6 @@ function PreparationGuidanceBox({
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <p className="text-[12px] font-black text-slate-500">
-                {beforeAccept
-                  ? copy.preparationBeforeAcceptTitle
-                  : copy.preparationTitle}
-              </p>
-              <span
-                className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
-                  ready
-                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-                    : "bg-rose-50 text-[#ff5f67] ring-1 ring-rose-100"
-                }`}
-              >
-                {ready
-                  ? copy.preparationReadyLabel
-                  : copy.preparationWaitingLabel}
-              </span>
-            </div>
-
             <p className="text-[20px] font-black tracking-[-0.05em] text-slate-950">
               {title}
             </p>
@@ -2633,11 +2638,11 @@ export default function CreatorOrderDetailPage() {
             orderContent: "注文内容",
 
             preparationTitle: "開始前に必要なこと",
-            preparationBeforeAcceptTitle: "承諾前の確認",
+            preparationBeforeAcceptTitle: "対応前に確認",
             preparationChatButton: "チャットで相談する",
             preparationChatDisabled:
               "注文を受けた後、必要に応じてチャットで相談できます。",
-            preparationReadyLabel: "確認済み",
+            preparationReadyLabel: "準備OK",
             preparationWaitingLabel: "要確認",
 
             materialsConfirmTitle: "素材・投稿情報を確認してください",
@@ -2646,10 +2651,10 @@ export default function CreatorOrderDetailPage() {
             materialsConfirmButton: "素材・投稿情報を確認しました",
             materialsConfirmLoading: "更新中...",
             materialsConfirmConfirm:
-              "素材・投稿情報を確認済みにしますか？確認後、納品に進めるようになります。",
+              "素材・投稿情報を確認できましたか？この後、納品に進めるようになります。",
             materialsConfirmFailed:
               "素材確認の更新に失敗しました。時間を置いて再度お試しください。",
-            materialsConfirmedTitle: "素材・投稿情報を確認済みです",
+            materialsConfirmedTitle: "素材・投稿情報を確認できています",
             materialsConfirmedBody:
               "この注文は制作・納品に進める状態です。",
 
@@ -2737,7 +2742,7 @@ export default function CreatorOrderDetailPage() {
             projectType: "進め方",
             timing: "実施タイミング",
             freeOffer: "商品提供",
-            secondaryUse: "二次利用",
+            secondaryUse: "利用範囲",
             yes: "あり",
             no: "なし",
             requestNote: "依頼内容",
@@ -2817,11 +2822,11 @@ export default function CreatorOrderDetailPage() {
             orderContent: "Order details",
 
             preparationTitle: "Before you start",
-            preparationBeforeAcceptTitle: "Before accepting",
+            preparationBeforeAcceptTitle: "Before responding",
             preparationChatButton: "Open chat",
             preparationChatDisabled:
               "After accepting, you can coordinate in chat.",
-            preparationReadyLabel: "Ready",
+            preparationReadyLabel: "Ready to start",
             preparationWaitingLabel: "Needs setup",
 
             materialsConfirmTitle: "Review the provided materials",
@@ -2919,7 +2924,7 @@ export default function CreatorOrderDetailPage() {
             projectType: "Flow",
             timing: "Timing",
             freeOffer: "Free product",
-            secondaryUse: "Secondary use",
+            secondaryUse: "Usage scope",
             yes: "Yes",
             no: "No",
             requestNote: "Request note",
