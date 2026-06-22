@@ -12,15 +12,6 @@ type DashboardCounts = {
   acceptedJobs: number;
   deliveredJobs: number;
   completedJobs: number;
-  activeMenus: number;
-};
-
-type RecentRequest = {
-  kind: "order" | "legacy_request";
-  id: string;
-  product_name: string | null;
-  status: string | null;
-  created_at: string;
 };
 
 type RecentJob = {
@@ -33,7 +24,7 @@ type RecentJob = {
   delivered_post_url: string | null;
 };
 
-type ActivityItem = {
+type PastItem = {
   kind: "order" | "legacy_request";
   id: string;
   product_name: string | null;
@@ -63,10 +54,16 @@ type PayoutProfileStatus = {
   payout_method: "manual_bank_transfer" | "stripe_connect" | null;
 };
 
-type PayoutSummary = {
-  completedPayoutAmount: number;
-  paidAmount: number;
-  pendingAmount: number;
+type ActionTone = "rose" | "slate" | "green";
+
+type ActionCardData = {
+  title: string;
+  body: string;
+  href: string;
+  cta: string;
+  tone: ActionTone;
+  icon: "speech" | "check" | "profile" | "yen";
+  animated?: boolean;
 };
 
 function uniqueStrings(values: Array<string | null | undefined>) {
@@ -87,19 +84,7 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
-function formatMoney(value: number, locale: "ja" | "en") {
-  try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
-      style: "currency",
-      currency: "JPY",
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `¥${value.toLocaleString()}`;
-  }
-}
-
-function getItemHref(item: ActivityItem) {
+function getItemHref(item: PastItem) {
   return item.kind === "order"
     ? `/creator/orders/${item.id}`
     : `/creator/requests/${item.id}`;
@@ -114,6 +99,26 @@ function ChevronIcon() {
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloudSpeechIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M7.7 16.8H7a4 4 0 0 1-.6-8 5.4 5.4 0 0 1 10.2-1.1A4.6 4.6 0 0 1 17 16.8h-4.2L9 20v-3.2H7.7Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.6 11.8h6.7M8.6 14h4.2"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -186,11 +191,6 @@ function LoadingView() {
       <div className="space-y-3">
         <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
         <div className="h-24 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-        <div className="grid grid-cols-3 gap-2">
-          <div className="h-20 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
-          <div className="h-20 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
-          <div className="h-20 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
-        </div>
         <div className="h-44 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
       </div>
     </main>
@@ -224,9 +224,11 @@ function Notice({
 function IconBubble({
   children,
   tone = "slate",
+  animated = false,
 }: {
   children: ReactNode;
-  tone?: "rose" | "slate" | "green";
+  tone?: ActionTone;
+  animated?: boolean;
 }) {
   const className =
     tone === "rose"
@@ -237,67 +239,41 @@ function IconBubble({
 
   return (
     <span
-      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ring-1 ${className}`}
+      className={`grid h-10 w-10 shrink-0 place-items-center rounded-[18px] ring-1 ${className} ${
+        animated ? "trendre-bubble-float" : ""
+      }`}
     >
       {children}
     </span>
   );
 }
 
-function StatTile({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-[18px] bg-white px-3 py-3 ring-1 ring-slate-100">
-      <p className="text-[11px] font-medium text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-[17px] font-semibold tracking-[-0.03em] text-slate-950">
-        {value}
-      </p>
-    </div>
-  );
+function ActionIcon({ type }: { type: ActionCardData["icon"] }) {
+  if (type === "speech") return <CloudSpeechIcon />;
+  if (type === "check") return <CheckIcon />;
+  if (type === "profile") return <ProfileIcon />;
+  return <YenIcon />;
 }
 
-function ActionRow({
-  title,
-  body,
-  href,
-  cta,
-  tone,
-}: {
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-  tone: "rose" | "slate" | "green";
-}) {
-  const Icon = href.startsWith("/creator/payouts")
-    ? YenIcon
-    : href.startsWith("/creator/profile")
-      ? ProfileIcon
-      : ReceiptIcon;
-
+function ActionCard({ action }: { action: ActionCardData }) {
   return (
-    <Link href={href} className="block">
+    <Link href={action.href} className="block">
       <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 transition active:scale-[0.99]">
         <div className="flex items-start gap-3">
-          <IconBubble tone={tone}>
-            <Icon />
+          <IconBubble tone={action.tone} animated={action.animated}>
+            <ActionIcon type={action.icon} />
           </IconBubble>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[16px] font-semibold tracking-[-0.03em] text-slate-950">
-              {title}
+            <p className="text-[17px] font-semibold tracking-[-0.035em] text-slate-950">
+              {action.title}
             </p>
             <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-              {body}
+              {action.body}
             </p>
 
             <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100">
-              {cta}
+              {action.cta}
               <ChevronIcon />
             </span>
           </div>
@@ -307,53 +283,13 @@ function ActionRow({
   );
 }
 
-function ShortcutRow({
-  href,
-  icon,
-  title,
-  body,
-  value,
-  tone = "slate",
-}: {
-  href: string;
-  icon: ReactNode;
-  title: string;
-  body: string;
-  value?: string;
-  tone?: "rose" | "slate" | "green";
-}) {
-  return (
-    <Link href={href} className="block">
-      <div className="flex items-center gap-3 rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100 transition active:scale-[0.99]">
-        <IconBubble tone={tone}>{icon}</IconBubble>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-semibold text-slate-950">
-            {title}
-          </p>
-          <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">
-            {body}
-          </p>
-        </div>
-        {value ? (
-          <span className="shrink-0 text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
-            {value}
-          </span>
-        ) : null}
-        <span className="shrink-0 text-slate-300">
-          <ChevronIcon />
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-function ActivityRow({
+function PastRow({
   item,
   locale,
   productUnset,
   dateLabel,
 }: {
-  item: ActivityItem;
+  item: PastItem;
   locale: "ja" | "en";
   productUnset: string;
   dateLabel: string;
@@ -361,7 +297,7 @@ function ActivityRow({
   return (
     <Link href={getItemHref(item)} className="block">
       <div className="flex items-center gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-100 transition active:scale-[0.99]">
-        <IconBubble tone={item.kind === "order" ? "rose" : "slate"}>
+        <IconBubble tone="slate">
           <ReceiptIcon />
         </IconBubble>
 
@@ -422,9 +358,6 @@ export default function CreatorDashboardPage() {
             creatorOnlyBody:
               "このページはクリエイターアカウントのみ利用できます。",
 
-            pageTitle: "ホーム",
-            pageDescription: "今日やることを確認できます。",
-
             suspendedTitle: "アカウント確認中です",
             suspendedBody:
               "一部機能を制限しています。確認が完了するまでお待ちください。",
@@ -441,42 +374,28 @@ export default function CreatorDashboardPage() {
               "報酬を受け取るために、銀行口座の登録が必要です。",
             goToPayoutSettings: "口座を登録する",
 
-            nextPendingTitle: "新しい注文があります",
-            nextPendingBody: "内容を確認して、受けるか相談できます。",
-            nextPendingCta: "注文を確認する",
+            orderActionTitle: "注文を受けましょう",
+            orderActionBody: (count: number) =>
+              `${count}件の注文に返答が必要です。`,
+            orderActionCta: "注文を確認する",
 
-            nextTodoTitle: "進行中の案件があります",
-            nextTodoBody: "制作・投稿・納品URLの提出を進めましょう。",
-            nextTodoCta: "ToDoを見る",
+            todoActionTitle: "投稿しましょう",
+            todoActionBody: (count: number) =>
+              `${count}件の案件を進めましょう。`,
+            todoActionCta: "ToDoを見る",
 
-            nextReadyTitle: "新しい注文を待っています",
-            nextReadyBody: "プロフィールやメニューを整えて、次の注文に備えます。",
-            nextReadyCta: "プロフィールを見る",
+            readyTitle: "今やることはありません",
+            readyBody: "新しい注文が届くと、ここに表示されます。",
+            readyCta: "プロフィールを見る",
 
             sectionActionTitle: "今やること",
-            sectionStatusTitle: "確認する",
-            activityTitle: "最近の注文",
+            pastTitle: "過去案件",
             viewAll: "すべて見る",
 
-            incomingTitle: "届いている注文",
-            incomingBody: "受ける前の注文",
-            todoTitle: "ToDo",
-            todoBody: "進行中の案件",
-            payoutTitle: "報酬",
-            payoutBody: "受取予定を確認",
-
-            pendingLabel: "注文",
-            todoLabel: "ToDo",
-            payoutLabel: "受取予定",
-            paidLabel: "支払い済み",
-            completedLabel: "完了",
-            menuLabel: "公開メニュー",
-            countSuffix: "件",
-
-            noActivityTitle: "まだ注文はありません",
-            noActivityBody: "新しい注文が届くと、ここに表示されます。",
+            noPastTitle: "過去案件はまだありません",
+            noPastBody: "完了した案件がここに表示されます。",
             productUnset: "商品名未設定",
-            orderDateLabel: "注文日",
+            completedDateLabel: "完了日",
           }
         : {
             defaultDisplayName: "Creator",
@@ -487,9 +406,6 @@ export default function CreatorDashboardPage() {
             creatorOnlyTitle: "Creator access only",
             creatorOnlyBody:
               "This page is available only for creator accounts.",
-
-            pageTitle: "Home",
-            pageDescription: "Check what needs your attention today.",
 
             suspendedTitle: "Account under review",
             suspendedBody:
@@ -508,43 +424,28 @@ export default function CreatorDashboardPage() {
               "Register your bank account to receive creator payouts.",
             goToPayoutSettings: "Register account",
 
-            nextPendingTitle: "You have a new order",
-            nextPendingBody: "Review details and decide whether to accept.",
-            nextPendingCta: "Review order",
+            orderActionTitle: "Accept your order",
+            orderActionBody: (count: number) =>
+              `${count} order${count === 1 ? "" : "s"} need a reply.`,
+            orderActionCta: "Review order",
 
-            nextTodoTitle: "Active orders need action",
-            nextTodoBody: "Continue production, posting, or delivery URL submission.",
-            nextTodoCta: "View ToDo",
+            todoActionTitle: "Post your content",
+            todoActionBody: (count: number) =>
+              `${count} active order${count === 1 ? "" : "s"} need action.`,
+            todoActionCta: "View ToDo",
 
-            nextReadyTitle: "Waiting for new orders",
-            nextReadyBody:
-              "Update your profile and menus to prepare for future orders.",
-            nextReadyCta: "View profile",
+            readyTitle: "Nothing to do now",
+            readyBody: "New orders will appear here.",
+            readyCta: "View profile",
 
             sectionActionTitle: "Next action",
-            sectionStatusTitle: "Check",
-            activityTitle: "Recent orders",
+            pastTitle: "Past orders",
             viewAll: "View all",
 
-            incomingTitle: "Incoming orders",
-            incomingBody: "Orders before acceptance",
-            todoTitle: "ToDo",
-            todoBody: "Active orders",
-            payoutTitle: "Payouts",
-            payoutBody: "Check expected payout",
-
-            pendingLabel: "Orders",
-            todoLabel: "ToDo",
-            payoutLabel: "Expected",
-            paidLabel: "Paid",
-            completedLabel: "Completed",
-            menuLabel: "Live menus",
-            countSuffix: "",
-
-            noActivityTitle: "No orders yet",
-            noActivityBody: "New orders will appear here.",
+            noPastTitle: "No past orders yet",
+            noPastBody: "Completed orders will appear here.",
             productUnset: "No product name",
-            orderDateLabel: "Order date",
+            completedDateLabel: "Completed",
           },
     [safeLocale]
   );
@@ -566,17 +467,9 @@ export default function CreatorDashboardPage() {
     acceptedJobs: 0,
     deliveredJobs: 0,
     completedJobs: 0,
-    activeMenus: 0,
   });
 
-  const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
-
-  const [payoutSummary, setPayoutSummary] = useState<PayoutSummary>({
-    completedPayoutAmount: 0,
-    paidAmount: 0,
-    pendingAmount: 0,
-  });
 
   useEffect(() => {
     const load = async () => {
@@ -654,7 +547,6 @@ export default function CreatorDashboardPage() {
           return;
         }
 
-
         const { data: payoutProfileRow, error: payoutProfileError } = await db
           .from("creator_payout_profiles")
           .select("status, payout_method")
@@ -683,7 +575,6 @@ export default function CreatorDashboardPage() {
         }
 
         const legacyCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
-        const menuCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
 
         const [
           { count: legacyPendingCount, error: legacyPendingError },
@@ -694,12 +585,8 @@ export default function CreatorDashboardPage() {
           { count: orderAcceptedCount, error: orderAcceptedError },
           { count: orderDeliveredCount, error: orderDeliveredError },
           { count: orderCompletedCount, error: orderCompletedError },
-          { count: activeMenusCount, error: activeMenusError },
-          { data: recentLegacyPendingRows, error: recentLegacyPendingError },
-          { data: recentOrderPendingRows, error: recentOrderPendingError },
-          { data: recentLegacyJobRows, error: recentLegacyJobError },
-          { data: recentOrderJobRows, error: recentOrderJobError },
-          { data: completedPayoutRows, error: completedPayoutError },
+          { data: recentLegacyCompletedRows, error: recentLegacyCompletedError },
+          { data: recentOrderCompletedRows, error: recentOrderCompletedError },
         ] = await Promise.all([
           db
             .from("requests")
@@ -750,34 +637,12 @@ export default function CreatorDashboardPage() {
             .eq("status", "completed"),
 
           db
-            .from("creator_menus")
-            .select("id", { count: "exact", head: true })
-            .in("creator_id", menuCreatorKeys)
-            .eq("is_active", true),
-
-          db
-            .from("requests")
-            .select("id, product_name, status, created_at")
-            .in("creator_user_id", legacyCreatorKeys)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false })
-            .limit(3),
-
-          db
-            .from("orders")
-            .select("id, product_name, status, created_at")
-            .eq("creator_user_id", user.id)
-            .eq("status", "authorized_pending_creator")
-            .order("created_at", { ascending: false })
-            .limit(3),
-
-          db
             .from("requests")
             .select(
               "id, product_name, status, updated_at, created_at, delivered_post_url"
             )
             .in("creator_user_id", legacyCreatorKeys)
-            .in("status", ["accepted", "delivered", "completed"])
+            .eq("status", "completed")
             .order("updated_at", { ascending: false, nullsFirst: false })
             .limit(3),
 
@@ -786,23 +651,10 @@ export default function CreatorDashboardPage() {
             .select(
               "id, product_name, status, updated_at, created_at, delivered_post_url"
             )
-            .eq("creator_user_id", user.id)
-            .in("status", [
-              "accepted_captured",
-              "in_progress",
-              "revision_requested",
-              "delivered",
-              "completed",
-            ])
-            .order("updated_at", { ascending: false, nullsFirst: false })
-            .limit(3),
-
-          db
-            .from("orders")
-            .select("creator_payout_amount, payout_status")
             .eq("creator_user_id", user.id)
             .eq("status", "completed")
-            .eq("payment_status", "captured"),
+            .order("updated_at", { ascending: false, nullsFirst: false })
+            .limit(3),
         ]);
 
         const dashboardErrors = [
@@ -814,12 +666,8 @@ export default function CreatorDashboardPage() {
           orderAcceptedError,
           orderDeliveredError,
           orderCompletedError,
-          activeMenusError,
-          recentLegacyPendingError,
-          recentOrderPendingError,
-          recentLegacyJobError,
-          recentOrderJobError,
-          completedPayoutError,
+          recentLegacyCompletedError,
+          recentOrderCompletedError,
         ].filter(Boolean);
 
         if (dashboardErrors.length > 0) {
@@ -834,91 +682,34 @@ export default function CreatorDashboardPage() {
           acceptedJobs: (legacyAcceptedCount ?? 0) + (orderAcceptedCount ?? 0),
           deliveredJobs: (legacyDeliveredCount ?? 0) + (orderDeliveredCount ?? 0),
           completedJobs: (legacyCompletedCount ?? 0) + (orderCompletedCount ?? 0),
-          activeMenus: activeMenusCount ?? 0,
         });
 
-        const payoutRows = (completedPayoutRows ?? []) as Array<{
-          creator_payout_amount: number | null;
-          payout_status: string | null;
-        }>;
-
-        const completedPayoutAmount = payoutRows.reduce(
-          (sum, row) => sum + Number(row.creator_payout_amount ?? 0),
-          0
-        );
-
-        const paidAmount = payoutRows
-          .filter((row) => row.payout_status === "paid")
-          .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
-
-        const pendingAmount = payoutRows
-          .filter((row) =>
-            ["unpaid", "pending", null, undefined].includes(row.payout_status)
-          )
-          .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
-
-        setPayoutSummary({
-          completedPayoutAmount,
-          paidAmount,
-          pendingAmount,
-        });
-
-        const legacyPendingItems: RecentRequest[] = (
-          recentLegacyPendingRows ?? []
+        const legacyCompletedItems: RecentJob[] = (
+          recentLegacyCompletedRows ?? []
         ).map((row: any) => ({
           kind: "legacy_request",
           id: row.id,
           product_name: row.product_name,
           status: row.status,
+          updated_at: row.updated_at,
           created_at: row.created_at,
+          delivered_post_url: row.delivered_post_url,
         }));
 
-        const orderPendingItems: RecentRequest[] = (
-          recentOrderPendingRows ?? []
+        const orderCompletedItems: RecentJob[] = (
+          recentOrderCompletedRows ?? []
         ).map((row: any) => ({
           kind: "order",
           id: row.id,
           product_name: row.product_name,
           status: row.status,
+          updated_at: row.updated_at,
           created_at: row.created_at,
+          delivered_post_url: row.delivered_post_url,
         }));
 
-        setRecentRequests(
-          [...orderPendingItems, ...legacyPendingItems]
-            .sort(
-              (a, b) =>
-                new Date(b.created_at).getTime() -
-                new Date(a.created_at).getTime()
-            )
-            .slice(0, 3)
-        );
-
-        const legacyJobItems: RecentJob[] = (recentLegacyJobRows ?? []).map(
-          (row: any) => ({
-            kind: "legacy_request",
-            id: row.id,
-            product_name: row.product_name,
-            status: row.status,
-            updated_at: row.updated_at,
-            created_at: row.created_at,
-            delivered_post_url: row.delivered_post_url,
-          })
-        );
-
-        const orderJobItems: RecentJob[] = (recentOrderJobRows ?? []).map(
-          (row: any) => ({
-            kind: "order",
-            id: row.id,
-            product_name: row.product_name,
-            status: row.status,
-            updated_at: row.updated_at,
-            created_at: row.created_at,
-            delivered_post_url: row.delivered_post_url,
-          })
-        );
-
         setRecentJobs(
-          [...orderJobItems, ...legacyJobItems]
+          [...orderCompletedItems, ...legacyCompletedItems]
             .sort((a, b) => {
               const aTime = new Date(a.updated_at || a.created_at).getTime();
               const bTime = new Date(b.updated_at || b.created_at).getTime();
@@ -970,65 +761,64 @@ export default function CreatorDashboardPage() {
   const isPayoutReady =
     payoutProfile?.status === "submitted" || payoutProfile?.status === "verified";
 
-  const nextAction = !gate.creatorProfileCompleted
-    ? {
-        title: copy.profilePromptTitle,
-        body: copy.profilePromptBody,
+  const actionCards: ActionCardData[] = [];
+
+  if (!gate.creatorProfileCompleted) {
+    actionCards.push({
+      title: copy.profilePromptTitle,
+      body: copy.profilePromptBody,
+      href: "/creator/profile",
+      cta: copy.goToProfile,
+      tone: "slate",
+      icon: "profile",
+    });
+  } else if (!isPayoutReady) {
+    actionCards.push({
+      title: copy.payoutPromptTitle,
+      body: copy.payoutPromptBody,
+      href: "/creator/payouts?from=signup&required=1",
+      cta: copy.goToPayoutSettings,
+      tone: "rose",
+      icon: "yen",
+    });
+  } else {
+    if (counts.pendingRequests > 0) {
+      actionCards.push({
+        title: copy.orderActionTitle,
+        body: copy.orderActionBody(counts.pendingRequests),
+        href: "/creator/requests",
+        cta: copy.orderActionCta,
+        tone: "rose",
+        icon: "speech",
+        animated: true,
+      });
+    }
+
+    if (activeTodoCount > 0) {
+      actionCards.push({
+        title: copy.todoActionTitle,
+        body: copy.todoActionBody(activeTodoCount),
+        href: "/creator/jobs",
+        cta: copy.todoActionCta,
+        tone: "rose",
+        icon: "speech",
+        animated: true,
+      });
+    }
+
+    if (actionCards.length === 0) {
+      actionCards.push({
+        title: copy.readyTitle,
+        body: copy.readyBody,
         href: "/creator/profile",
-        cta: copy.goToProfile,
-        tone: "slate" as const,
-      }
-    : !isPayoutReady
-      ? {
-          title: copy.payoutPromptTitle,
-          body: copy.payoutPromptBody,
-          href: "/creator/payouts?from=signup&required=1",
-          cta: copy.goToPayoutSettings,
-          tone: "rose" as const,
-        }
-      : counts.pendingRequests > 0
-        ? {
-            title: copy.nextPendingTitle,
-            body:
-              safeLocale === "ja"
-                ? `${counts.pendingRequests}件の注文に返答が必要です。`
-                : `${counts.pendingRequests} order${
-                    counts.pendingRequests === 1 ? "" : "s"
-                  } need a reply.`,
-            href: "/creator/requests",
-            cta: copy.nextPendingCta,
-            tone: "rose" as const,
-          }
-        : activeTodoCount > 0
-          ? {
-              title: copy.nextTodoTitle,
-              body:
-                safeLocale === "ja"
-                  ? `${activeTodoCount}件の案件を進めましょう。`
-                  : `${activeTodoCount} active order${
-                      activeTodoCount === 1 ? "" : "s"
-                    } need action.`,
-              href: "/creator/jobs",
-              cta: copy.nextTodoCta,
-              tone: "slate" as const,
-            }
-          : {
-              title: copy.nextReadyTitle,
-              body: copy.nextReadyBody,
-              href: "/creator/profile",
-              cta: copy.nextReadyCta,
-              tone: "green" as const,
-            };
+        cta: copy.readyCta,
+        tone: "green",
+        icon: "check",
+      });
+    }
+  }
 
-  const requestActivityItems: ActivityItem[] = recentRequests.map((item) => ({
-    kind: item.kind,
-    id: item.id,
-    product_name: item.product_name,
-    status: item.status,
-    date: item.created_at,
-  }));
-
-  const jobActivityItems: ActivityItem[] = recentJobs.map((item) => ({
+  const pastItems: PastItem[] = recentJobs.map((item) => ({
     kind: item.kind,
     id: item.id,
     product_name: item.product_name,
@@ -1036,28 +826,32 @@ export default function CreatorDashboardPage() {
     date: item.updated_at ?? item.created_at,
   }));
 
-  const activityItems: ActivityItem[] = [
-    ...requestActivityItems,
-    ...jobActivityItems,
-  ]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3);
-
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-      <div className="space-y-3">
-        <section className="rounded-[24px] bg-white px-4 py-5 ring-1 ring-slate-100">
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-[#ff3860]">
-            TRENDRE
-          </p>
-          <h1 className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-slate-950">
-            {copy.pageTitle}
-          </h1>
-          <p className="mt-1.5 text-[13px] font-medium leading-6 text-slate-500">
-            {copy.pageDescription}
-          </p>
-        </section>
+      <style jsx global>{`
+        @keyframes trendreBubbleFloat {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) rotate(-0.6deg);
+          }
+          50% {
+            transform: translate3d(0, -3px, 0) rotate(0.8deg);
+          }
+        }
 
+        .trendre-bubble-float {
+          animation: trendreBubbleFloat 2.6s ease-in-out infinite;
+          transform-origin: center;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .trendre-bubble-float {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <div className="space-y-3">
         {gate.isSuspended ? (
           <Notice
             tone="red"
@@ -1076,95 +870,42 @@ export default function CreatorDashboardPage() {
 
         <section>
           <div className="mb-2 flex items-center justify-between px-1">
-            <h2 className="text-[15px] font-semibold text-slate-950">
+            <h1 className="text-[17px] font-semibold tracking-[-0.035em] text-slate-950">
               {copy.sectionActionTitle}
-            </h2>
-          </div>
-          <ActionRow {...nextAction} />
-        </section>
-
-        <section>
-          <div className="mb-2 flex items-center justify-between px-1">
-            <h2 className="text-[15px] font-semibold text-slate-950">
-              {copy.sectionStatusTitle}
-            </h2>
+            </h1>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <StatTile
-              label={copy.pendingLabel}
-              value={`${counts.pendingRequests}${
-                safeLocale === "ja" ? copy.countSuffix : ""
-              }`}
-            />
-            <StatTile
-              label={copy.todoLabel}
-              value={`${activeTodoCount}${
-                safeLocale === "ja" ? copy.countSuffix : ""
-              }`}
-            />
-            <StatTile
-              label={copy.payoutLabel}
-              value={formatMoney(payoutSummary.pendingAmount, safeLocale)}
-            />
+          <div className="space-y-2.5">
+            {actionCards.map((action) => (
+              <ActionCard key={`${action.href}-${action.title}`} action={action} />
+            ))}
           </div>
-        </section>
-
-        <section className="space-y-2">
-          <ShortcutRow
-            href="/creator/requests"
-            icon={<ReceiptIcon />}
-            title={copy.incomingTitle}
-            body={copy.incomingBody}
-            value={`${counts.pendingRequests}${
-              safeLocale === "ja" ? copy.countSuffix : ""
-            }`}
-            tone={counts.pendingRequests > 0 ? "rose" : "slate"}
-          />
-          <ShortcutRow
-            href="/creator/jobs"
-            icon={<CheckIcon />}
-            title={copy.todoTitle}
-            body={copy.todoBody}
-            value={`${activeTodoCount}${
-              safeLocale === "ja" ? copy.countSuffix : ""
-            }`}
-            tone={activeTodoCount > 0 ? "rose" : "slate"}
-          />
-          <ShortcutRow
-            href="/creator/payouts"
-            icon={<YenIcon />}
-            title={copy.payoutTitle}
-            body={copy.payoutBody}
-            value={formatMoney(payoutSummary.pendingAmount, safeLocale)}
-            tone="slate"
-          />
         </section>
 
         <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-slate-950">
-              {copy.activityTitle}
+              {copy.pastTitle}
             </h2>
             <Link
-              href="/creator/requests"
+              href="/creator/payouts"
               className="text-[12px] font-semibold text-slate-400"
             >
               {copy.viewAll}
             </Link>
           </div>
 
-          {activityItems.length === 0 ? (
-            <EmptyBox title={copy.noActivityTitle} body={copy.noActivityBody} />
+          {pastItems.length === 0 ? (
+            <EmptyBox title={copy.noPastTitle} body={copy.noPastBody} />
           ) : (
             <div className="space-y-2">
-              {activityItems.map((item) => (
-                <ActivityRow
+              {pastItems.map((item) => (
+                <PastRow
                   key={`${item.kind}-${item.id}`}
                   item={item}
                   locale={safeLocale}
                   productUnset={copy.productUnset}
-                  dateLabel={copy.orderDateLabel}
+                  dateLabel={copy.completedDateLabel}
                 />
               ))}
             </div>
