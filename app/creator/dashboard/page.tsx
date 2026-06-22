@@ -12,6 +12,7 @@ type DashboardCounts = {
   acceptedJobs: number;
   deliveredJobs: number;
   completedJobs: number;
+  activeMenus: number;
 };
 
 type RecentJob = {
@@ -21,10 +22,11 @@ type RecentJob = {
   status: string | null;
   updated_at: string | null;
   created_at: string;
+  completed_at?: string | null;
   delivered_post_url: string | null;
 };
 
-type PastItem = {
+type ActivityItem = {
   kind: "order" | "legacy_request";
   id: string;
   product_name: string | null;
@@ -42,11 +44,9 @@ type CreatorState = {
 type CreatorProfile = {
   id: string;
   user_id: string;
-  display_name: string;
+  display_name: string | null;
   full_name: string | null;
-  avatar_url: string | null;
-  category: string | null;
-  approval_status: string;
+  approval_status: string | null;
 };
 
 type PayoutProfileStatus = {
@@ -54,16 +54,10 @@ type PayoutProfileStatus = {
   payout_method: "manual_bank_transfer" | "stripe_connect" | null;
 };
 
-type ActionTone = "rose" | "slate" | "green";
-
-type ActionCardData = {
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-  tone: ActionTone;
-  icon: "speech" | "check" | "profile" | "yen";
-  animated?: boolean;
+type PayoutSummary = {
+  completedPayoutAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
 };
 
 function uniqueStrings(values: Array<string | null | undefined>) {
@@ -84,10 +78,70 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
-function getItemHref(item: PastItem) {
+function formatMoney(value: number, locale: "ja" | "en") {
+  try {
+    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+      style: "currency",
+      currency: "JPY",
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return `¥${value.toLocaleString()}`;
+  }
+}
+
+function getItemHref(item: ActivityItem) {
   return item.kind === "order"
     ? `/creator/orders/${item.id}`
     : `/creator/requests/${item.id}`;
+}
+
+function DashboardMotionStyle() {
+  return (
+    <style jsx global>{`
+      @keyframes trendreBubbleFloat {
+        0%, 100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(0, -4px, 0);
+        }
+      }
+
+      @keyframes trendreBubbleGlow {
+        0%, 100% {
+          box-shadow: 0 10px 24px rgba(255, 56, 96, 0.14);
+        }
+        50% {
+          box-shadow: 0 14px 30px rgba(255, 56, 96, 0.24);
+        }
+      }
+
+      .trendre-action-bubble {
+        animation:
+          trendreBubbleFloat 2.4s ease-in-out infinite,
+          trendreBubbleGlow 2.4s ease-in-out infinite;
+      }
+
+      .trendre-action-bubble::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        bottom: -6px;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        background: inherit;
+        transform: rotate(45deg);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .trendre-action-bubble {
+          animation: none;
+        }
+      }
+    `}</style>
+  );
 }
 
 function ChevronIcon() {
@@ -104,29 +158,9 @@ function ChevronIcon() {
   );
 }
 
-function CloudSpeechIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M7.7 16.8H7a4 4 0 0 1-.6-8 5.4 5.4 0 0 1 10.2-1.1A4.6 4.6 0 0 1 17 16.8h-4.2L9 20v-3.2H7.7Z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8.6 11.8h6.7M8.6 14h4.2"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function ReceiptIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
       <path
         d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.6-2.7 1.6-2.6-1.6L8 20l-3-1.6V6a2 2 0 0 1 2-2Z"
         stroke="currentColor"
@@ -146,7 +180,7 @@ function ReceiptIcon() {
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
       <path
         d="m5 12.5 4.4 4.2L19 7"
         stroke="currentColor"
@@ -158,23 +192,9 @@ function CheckIcon() {
   );
 }
 
-function YenIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
-      <path
-        d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function ProfileIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
       <path
         d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20a7 7 0 0 1 14 0"
         stroke="currentColor"
@@ -188,10 +208,11 @@ function ProfileIcon() {
 function LoadingView() {
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+      <DashboardMotionStyle />
       <div className="space-y-3">
-        <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-        <div className="h-24 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-        <div className="h-44 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+        <div className="h-28 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
+        <div className="h-28 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
+        <div className="h-44 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
       </div>
     </main>
   );
@@ -224,11 +245,9 @@ function Notice({
 function IconBubble({
   children,
   tone = "slate",
-  animated = false,
 }: {
   children: ReactNode;
-  tone?: ActionTone;
-  animated?: boolean;
+  tone?: "rose" | "slate" | "green";
 }) {
   const className =
     tone === "rose"
@@ -239,41 +258,60 @@ function IconBubble({
 
   return (
     <span
-      className={`grid h-10 w-10 shrink-0 place-items-center rounded-[18px] ring-1 ${className} ${
-        animated ? "trendre-bubble-float" : ""
-      }`}
+      className={`grid h-11 w-11 shrink-0 place-items-center rounded-[18px] ring-1 ${className}`}
     >
       {children}
     </span>
   );
 }
 
-function ActionIcon({ type }: { type: ActionCardData["icon"] }) {
-  if (type === "speech") return <CloudSpeechIcon />;
-  if (type === "check") return <CheckIcon />;
-  if (type === "profile") return <ProfileIcon />;
-  return <YenIcon />;
+function CloudBubble({ children }: { children: ReactNode }) {
+  return (
+    <span className="trendre-action-bubble relative inline-flex rounded-[18px] bg-[#ff3860] px-4 py-2 text-[14px] font-semibold leading-none tracking-[-0.02em] text-white">
+      {children}
+    </span>
+  );
 }
 
-function ActionCard({ action }: { action: ActionCardData }) {
+function ActionCard({
+  title,
+  body,
+  href,
+  cta,
+  icon,
+  bubble,
+  tone = "rose",
+}: {
+  title: string;
+  body: string;
+  href: string;
+  cta: string;
+  icon: ReactNode;
+  bubble?: string;
+  tone?: "rose" | "slate" | "green";
+}) {
   return (
-    <Link href={action.href} className="block">
-      <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 transition active:scale-[0.99]">
+    <Link href={href} className="block">
+      <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100 transition active:scale-[0.99]">
         <div className="flex items-start gap-3">
-          <IconBubble tone={action.tone} animated={action.animated}>
-            <ActionIcon type={action.icon} />
-          </IconBubble>
+          <IconBubble tone={tone}>{icon}</IconBubble>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[17px] font-semibold tracking-[-0.035em] text-slate-950">
-              {action.title}
+            {bubble ? (
+              <div className="mb-3">
+                <CloudBubble>{bubble}</CloudBubble>
+              </div>
+            ) : null}
+
+            <p className="text-[16px] font-semibold tracking-[-0.03em] text-slate-950">
+              {title}
             </p>
             <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-              {action.body}
+              {body}
             </p>
 
             <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100">
-              {action.cta}
+              {cta}
               <ChevronIcon />
             </span>
           </div>
@@ -283,13 +321,13 @@ function ActionCard({ action }: { action: ActionCardData }) {
   );
 }
 
-function PastRow({
+function ActivityRow({
   item,
   locale,
   productUnset,
   dateLabel,
 }: {
-  item: PastItem;
+  item: ActivityItem;
   locale: "ja" | "en";
   productUnset: string;
   dateLabel: string;
@@ -368,32 +406,34 @@ export default function CreatorDashboardPage() {
             profilePromptBody:
               "写真・SNS・メニューを整えると、注文を受けやすくなります。",
             goToProfile: "プロフィールを見る",
+            profileBubble: "準備しましょう",
 
             payoutPromptTitle: "受け取り口座を登録しましょう",
             payoutPromptBody:
               "報酬を受け取るために、銀行口座の登録が必要です。",
             goToPayoutSettings: "口座を登録する",
+            payoutBubble: "口座を登録しましょう",
 
-            orderActionTitle: "注文を受けましょう",
-            orderActionBody: (count: number) =>
-              `${count}件の注文に返答が必要です。`,
+            orderActionTitle: "新しい注文があります",
+            orderActionBody: "内容を確認して、受けるか相談できます。",
             orderActionCta: "注文を確認する",
+            orderBubble: "注文を受けましょう",
 
-            todoActionTitle: "投稿しましょう",
-            todoActionBody: (count: number) =>
-              `${count}件の案件を進めましょう。`,
+            todoActionTitle: "進行中の案件があります",
+            todoActionBody: "制作・投稿・納品URLの提出を進めましょう。",
             todoActionCta: "ToDoを見る",
+            todoBubble: "投稿しましょう",
 
-            readyTitle: "今やることはありません",
-            readyBody: "新しい注文が届くと、ここに表示されます。",
+            readyTitle: "新しい注文を待っています",
+            readyBody: "プロフィールやメニューを整えて、次の注文に備えます。",
             readyCta: "プロフィールを見る",
+            readyBubble: "準備OK",
 
             sectionActionTitle: "今やること",
             pastTitle: "過去案件",
             viewAll: "すべて見る",
-
-            noPastTitle: "過去案件はまだありません",
-            noPastBody: "完了した案件がここに表示されます。",
+            noPastTitle: "完了した案件はまだありません",
+            noPastBody: "案件が完了すると、ここに表示されます。",
             productUnset: "商品名未設定",
             completedDateLabel: "完了日",
           }
@@ -418,31 +458,34 @@ export default function CreatorDashboardPage() {
             profilePromptBody:
               "Add photos, social accounts, and menus so brands can order easily.",
             goToProfile: "View profile",
+            profileBubble: "Get ready",
 
             payoutPromptTitle: "Register your payout account",
             payoutPromptBody:
               "Register your bank account to receive creator payouts.",
             goToPayoutSettings: "Register account",
+            payoutBubble: "Register account",
 
-            orderActionTitle: "Accept your order",
-            orderActionBody: (count: number) =>
-              `${count} order${count === 1 ? "" : "s"} need a reply.`,
+            orderActionTitle: "You have a new order",
+            orderActionBody: "Review details and decide whether to accept.",
             orderActionCta: "Review order",
+            orderBubble: "Accept the order",
 
-            todoActionTitle: "Post your content",
-            todoActionBody: (count: number) =>
-              `${count} active order${count === 1 ? "" : "s"} need action.`,
+            todoActionTitle: "Active orders need action",
+            todoActionBody: "Continue production, posting, or delivery URL submission.",
             todoActionCta: "View ToDo",
+            todoBubble: "Post now",
 
-            readyTitle: "Nothing to do now",
-            readyBody: "New orders will appear here.",
+            readyTitle: "Waiting for new orders",
+            readyBody:
+              "Update your profile and menus to prepare for future orders.",
             readyCta: "View profile",
+            readyBubble: "Ready",
 
             sectionActionTitle: "Next action",
             pastTitle: "Past orders",
             viewAll: "View all",
-
-            noPastTitle: "No past orders yet",
+            noPastTitle: "No completed orders yet",
             noPastBody: "Completed orders will appear here.",
             productUnset: "No product name",
             completedDateLabel: "Completed",
@@ -467,9 +510,16 @@ export default function CreatorDashboardPage() {
     acceptedJobs: 0,
     deliveredJobs: 0,
     completedJobs: 0,
+    activeMenus: 0,
   });
 
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
+
+  const [payoutSummary, setPayoutSummary] = useState<PayoutSummary>({
+    completedPayoutAmount: 0,
+    paidAmount: 0,
+    pendingAmount: 0,
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -505,9 +555,7 @@ export default function CreatorDashboardPage() {
             .eq("is_active", true),
           db
             .from("creators")
-            .select(
-              "id, user_id, display_name, full_name, avatar_url, category, approval_status"
-            )
+            .select("id, user_id, display_name, full_name, approval_status")
             .eq("user_id", user.id)
             .maybeSingle(),
         ]);
@@ -575,6 +623,7 @@ export default function CreatorDashboardPage() {
         }
 
         const legacyCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
+        const menuCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
 
         const [
           { count: legacyPendingCount, error: legacyPendingError },
@@ -585,8 +634,10 @@ export default function CreatorDashboardPage() {
           { count: orderAcceptedCount, error: orderAcceptedError },
           { count: orderDeliveredCount, error: orderDeliveredError },
           { count: orderCompletedCount, error: orderCompletedError },
+          { count: activeMenusCount, error: activeMenusError },
           { data: recentLegacyCompletedRows, error: recentLegacyCompletedError },
           { data: recentOrderCompletedRows, error: recentOrderCompletedError },
+          { data: completedPayoutRows, error: completedPayoutError },
         ] = await Promise.all([
           db
             .from("requests")
@@ -637,6 +688,12 @@ export default function CreatorDashboardPage() {
             .eq("status", "completed"),
 
           db
+            .from("creator_menus")
+            .select("id", { count: "exact", head: true })
+            .in("creator_id", menuCreatorKeys)
+            .eq("is_active", true),
+
+          db
             .from("requests")
             .select(
               "id, product_name, status, updated_at, created_at, delivered_post_url"
@@ -644,17 +701,25 @@ export default function CreatorDashboardPage() {
             .in("creator_user_id", legacyCreatorKeys)
             .eq("status", "completed")
             .order("updated_at", { ascending: false, nullsFirst: false })
-            .limit(3),
+            .limit(5),
 
           db
             .from("orders")
             .select(
-              "id, product_name, status, updated_at, created_at, delivered_post_url"
+              "id, product_name, status, updated_at, created_at, completed_at, delivered_post_url"
             )
             .eq("creator_user_id", user.id)
             .eq("status", "completed")
+            .order("completed_at", { ascending: false, nullsFirst: false })
             .order("updated_at", { ascending: false, nullsFirst: false })
-            .limit(3),
+            .limit(5),
+
+          db
+            .from("orders")
+            .select("creator_payout_amount, payout_status")
+            .eq("creator_user_id", user.id)
+            .eq("status", "completed")
+            .eq("payment_status", "captured"),
         ]);
 
         const dashboardErrors = [
@@ -666,8 +731,10 @@ export default function CreatorDashboardPage() {
           orderAcceptedError,
           orderDeliveredError,
           orderCompletedError,
+          activeMenusError,
           recentLegacyCompletedError,
           recentOrderCompletedError,
+          completedPayoutError,
         ].filter(Boolean);
 
         if (dashboardErrors.length > 0) {
@@ -682,6 +749,33 @@ export default function CreatorDashboardPage() {
           acceptedJobs: (legacyAcceptedCount ?? 0) + (orderAcceptedCount ?? 0),
           deliveredJobs: (legacyDeliveredCount ?? 0) + (orderDeliveredCount ?? 0),
           completedJobs: (legacyCompletedCount ?? 0) + (orderCompletedCount ?? 0),
+          activeMenus: activeMenusCount ?? 0,
+        });
+
+        const payoutRows = (completedPayoutRows ?? []) as Array<{
+          creator_payout_amount: number | null;
+          payout_status: string | null;
+        }>;
+
+        const completedPayoutAmount = payoutRows.reduce(
+          (sum, row) => sum + Number(row.creator_payout_amount ?? 0),
+          0
+        );
+
+        const paidAmount = payoutRows
+          .filter((row) => row.payout_status === "paid")
+          .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
+
+        const pendingAmount = payoutRows
+          .filter((row) =>
+            ["unpaid", "pending", null, undefined].includes(row.payout_status)
+          )
+          .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
+
+        setPayoutSummary({
+          completedPayoutAmount,
+          paidAmount,
+          pendingAmount,
         });
 
         const legacyCompletedItems: RecentJob[] = (
@@ -693,6 +787,7 @@ export default function CreatorDashboardPage() {
           status: row.status,
           updated_at: row.updated_at,
           created_at: row.created_at,
+          completed_at: row.updated_at,
           delivered_post_url: row.delivered_post_url,
         }));
 
@@ -705,14 +800,19 @@ export default function CreatorDashboardPage() {
           status: row.status,
           updated_at: row.updated_at,
           created_at: row.created_at,
+          completed_at: row.completed_at,
           delivered_post_url: row.delivered_post_url,
         }));
 
         setRecentJobs(
           [...orderCompletedItems, ...legacyCompletedItems]
             .sort((a, b) => {
-              const aTime = new Date(a.updated_at || a.created_at).getTime();
-              const bTime = new Date(b.updated_at || b.created_at).getTime();
+              const aTime = new Date(
+                a.completed_at || a.updated_at || a.created_at
+              ).getTime();
+              const bTime = new Date(
+                b.completed_at || b.updated_at || b.created_at
+              ).getTime();
               return bTime - aTime;
             })
             .slice(0, 3)
@@ -743,6 +843,7 @@ export default function CreatorDashboardPage() {
   if (errorMsg) {
     return (
       <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+        <DashboardMotionStyle />
         <Notice title={copy.genericErrorTitle} body={errorMsg} tone="red" />
       </main>
     );
@@ -751,6 +852,7 @@ export default function CreatorDashboardPage() {
   if (!gate.isCreator) {
     return (
       <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+        <DashboardMotionStyle />
         <Notice title={copy.creatorOnlyTitle} body={copy.creatorOnlyBody} />
       </main>
     );
@@ -761,95 +863,103 @@ export default function CreatorDashboardPage() {
   const isPayoutReady =
     payoutProfile?.status === "submitted" || payoutProfile?.status === "verified";
 
-  const actionCards: ActionCardData[] = [];
+  const actionCards: Array<{
+    key: string;
+    title: string;
+    body: string;
+    href: string;
+    cta: string;
+    icon: ReactNode;
+    bubble: string;
+    tone: "rose" | "slate" | "green";
+  }> = [];
 
   if (!gate.creatorProfileCompleted) {
     actionCards.push({
+      key: "profile",
       title: copy.profilePromptTitle,
       body: copy.profilePromptBody,
       href: "/creator/profile",
       cta: copy.goToProfile,
+      icon: <ProfileIcon />,
+      bubble: copy.profileBubble,
       tone: "slate",
-      icon: "profile",
     });
   } else if (!isPayoutReady) {
     actionCards.push({
+      key: "payout",
       title: copy.payoutPromptTitle,
       body: copy.payoutPromptBody,
       href: "/creator/payouts?from=signup&required=1",
       cta: copy.goToPayoutSettings,
+      icon: <ProfileIcon />,
+      bubble: copy.payoutBubble,
       tone: "rose",
-      icon: "yen",
     });
   } else {
     if (counts.pendingRequests > 0) {
       actionCards.push({
+        key: "orders",
         title: copy.orderActionTitle,
-        body: copy.orderActionBody(counts.pendingRequests),
+        body:
+          safeLocale === "ja"
+            ? `${counts.pendingRequests}件の注文に返答が必要です。`
+            : `${counts.pendingRequests} order${
+                counts.pendingRequests === 1 ? "" : "s"
+              } need a reply.`,
         href: "/creator/requests",
         cta: copy.orderActionCta,
+        icon: <ReceiptIcon />,
+        bubble: copy.orderBubble,
         tone: "rose",
-        icon: "speech",
-        animated: true,
       });
     }
 
     if (activeTodoCount > 0) {
       actionCards.push({
+        key: "todo",
         title: copy.todoActionTitle,
-        body: copy.todoActionBody(activeTodoCount),
+        body:
+          safeLocale === "ja"
+            ? `${activeTodoCount}件の案件を進めましょう。`
+            : `${activeTodoCount} active order${
+                activeTodoCount === 1 ? "" : "s"
+              } need action.`,
         href: "/creator/jobs",
         cta: copy.todoActionCta,
+        icon: <CheckIcon />,
+        bubble: copy.todoBubble,
         tone: "rose",
-        icon: "speech",
-        animated: true,
       });
     }
 
     if (actionCards.length === 0) {
       actionCards.push({
+        key: "ready",
         title: copy.readyTitle,
         body: copy.readyBody,
         href: "/creator/profile",
         cta: copy.readyCta,
+        icon: <CheckIcon />,
+        bubble: copy.readyBubble,
         tone: "green",
-        icon: "check",
       });
     }
   }
 
-  const pastItems: PastItem[] = recentJobs.map((item) => ({
-    kind: item.kind,
-    id: item.id,
-    product_name: item.product_name,
-    status: item.status,
-    date: item.updated_at ?? item.created_at,
-  }));
+  const pastItems: ActivityItem[] = recentJobs
+    .filter((item) => item.status === "completed")
+    .map((item) => ({
+      kind: item.kind,
+      id: item.id,
+      product_name: item.product_name,
+      status: item.status,
+      date: item.completed_at ?? item.updated_at ?? item.created_at,
+    }));
 
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-      <style jsx global>{`
-        @keyframes trendreBubbleFloat {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0) rotate(-0.6deg);
-          }
-          50% {
-            transform: translate3d(0, -3px, 0) rotate(0.8deg);
-          }
-        }
-
-        .trendre-bubble-float {
-          animation: trendreBubbleFloat 2.6s ease-in-out infinite;
-          transform-origin: center;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .trendre-bubble-float {
-            animation: none;
-          }
-        }
-      `}</style>
+      <DashboardMotionStyle />
 
       <div className="space-y-3">
         {gate.isSuspended ? (
@@ -870,14 +980,23 @@ export default function CreatorDashboardPage() {
 
         <section>
           <div className="mb-2 flex items-center justify-between px-1">
-            <h1 className="text-[17px] font-semibold tracking-[-0.035em] text-slate-950">
+            <h1 className="text-[15px] font-semibold text-slate-950">
               {copy.sectionActionTitle}
             </h1>
           </div>
 
-          <div className="space-y-2.5">
-            {actionCards.map((action) => (
-              <ActionCard key={`${action.href}-${action.title}`} action={action} />
+          <div className="space-y-3">
+            {actionCards.map((card) => (
+              <ActionCard
+                key={card.key}
+                title={card.title}
+                body={card.body}
+                href={card.href}
+                cta={card.cta}
+                icon={card.icon}
+                bubble={card.bubble}
+                tone={card.tone}
+              />
             ))}
           </div>
         </section>
@@ -888,7 +1007,7 @@ export default function CreatorDashboardPage() {
               {copy.pastTitle}
             </h2>
             <Link
-              href="/creator/payouts"
+              href="/creator/jobs"
               className="text-[12px] font-semibold text-slate-400"
             >
               {copy.viewAll}
@@ -900,7 +1019,7 @@ export default function CreatorDashboardPage() {
           ) : (
             <div className="space-y-2">
               {pastItems.map((item) => (
-                <PastRow
+                <ActivityRow
                   key={`${item.kind}-${item.id}`}
                   item={item}
                   locale={safeLocale}
