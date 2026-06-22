@@ -35,6 +35,18 @@ function getTime(value: string | null | undefined) {
   return time;
 }
 
+function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+  });
+}
+
 function isIncomingOrder(order: OrderRow) {
   if (
     order.status !== "authorized_pending_creator" ||
@@ -67,13 +79,33 @@ function getOrderTitle(order: Pick<OrderRow, "product_name" | "menu_title_snapsh
   return productName || menuName || "注文";
 }
 
+function getActionLabel(status: string, locale: "ja" | "en") {
+  if (status === "revision_requested") {
+    return locale === "ja" ? "修正しましょう" : "Revise your work";
+  }
+
+  return locale === "ja" ? "投稿しましょう" : "Post and deliver";
+}
+
+function getActionBody(status: string, locale: "ja" | "en") {
+  if (status === "revision_requested") {
+    return locale === "ja"
+      ? "修正内容を確認して、再提出を進めましょう。"
+      : "Review the requested changes and submit again.";
+  }
+
+  return locale === "ja"
+    ? "PR投稿・制作・納品URLの提出を進めましょう。"
+    : "Continue posting, production, or delivery URL submission.";
+}
+
 function ChevronIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
       <path
         d="m9 5 7 7-7 7"
         stroke="currentColor"
-        strokeWidth="2.3"
+        strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -83,7 +115,7 @@ function ChevronIcon() {
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
       <rect
         x="4"
         y="4"
@@ -99,6 +131,26 @@ function CheckIcon() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ReceiptIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.6-2.7 1.6-2.6-1.6L8 20l-3-1.6V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -120,58 +172,181 @@ function EmptyIcon() {
 
 function LoadingView() {
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-28">
-      <div className="space-y-3">
-        <div className="h-28 animate-pulse rounded-[28px] bg-white ring-1 ring-slate-100" />
-        <div className="h-20 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
-        <div className="h-20 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+    <main className="mx-auto max-w-3xl px-4 pb-28 pt-4">
+      <div className="space-y-2.5">
+        <div className="h-8 animate-pulse rounded-xl bg-white ring-1 ring-slate-100" />
+        <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+        <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+        <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
       </div>
     </main>
   );
 }
 
-function TodoItem({
-  href,
-  title,
-  body,
-  accent = "slate",
+function ActionStyle() {
+  return (
+    <style jsx global>{`
+      @keyframes trendreTodoBubbleFloat {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(0, -3px, 0);
+        }
+      }
+
+      .trendre-todo-bubble {
+        animation: trendreTodoBubbleFloat 2.4s ease-in-out infinite;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .trendre-todo-bubble {
+          animation: none;
+        }
+      }
+    `}</style>
+  );
+}
+
+function IconBubble({
+  children,
+  tone = "slate",
 }: {
-  href: string;
-  title: string;
-  body?: string;
-  accent?: "rose" | "slate";
+  children: React.ReactNode;
+  tone?: "rose" | "slate";
 }) {
-  const iconClass =
-    accent === "rose"
-      ? "bg-rose-50 text-[#FF3B5C] ring-rose-100"
+  const toneClass =
+    tone === "rose"
+      ? "bg-rose-50 text-[#ff3860] ring-rose-100"
       : "bg-slate-50 text-slate-500 ring-slate-100";
 
   return (
+    <span
+      className={`grid h-10 w-10 shrink-0 place-items-center rounded-[17px] ring-1 ${toneClass}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SpeechBubble({
+  children,
+  tone = "rose",
+}: {
+  children: React.ReactNode;
+  tone?: "rose" | "slate";
+}) {
+  const toneClass =
+    tone === "rose"
+      ? "bg-rose-50 text-[#ff3860] ring-rose-100"
+      : "bg-slate-50 text-slate-700 ring-slate-100";
+
+  const pointerClass =
+    tone === "rose"
+      ? "border-r-rose-50"
+      : "border-r-slate-50";
+
+  return (
+    <span
+      className={`trendre-todo-bubble relative inline-flex items-center rounded-full px-3.5 py-2 text-[13px] font-semibold ring-1 ${toneClass}`}
+    >
+      <span
+        className={`absolute -left-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[6px] border-r-[8px] border-y-transparent ${pointerClass}`}
+      />
+      {children}
+    </span>
+  );
+}
+
+function ActionCard({
+  href,
+  icon,
+  title,
+  bubble,
+  body,
+  date,
+  tone = "rose",
+}: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  bubble: string;
+  body: string;
+  date?: string;
+  tone?: "rose" | "slate";
+}) {
+  return (
     <Link href={href} className="block">
-      <article className="flex items-center gap-4 rounded-[24px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition active:scale-[0.98]">
-        <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ring-1 ${iconClass}`}
-        >
-          <CheckIcon />
-        </div>
+      <article className="rounded-[24px] bg-white px-4 py-4 ring-1 ring-slate-100 transition active:scale-[0.99]">
+        <div className="flex items-start gap-3">
+          <IconBubble tone={tone}>{icon}</IconBubble>
 
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[16px] font-black tracking-[-0.035em] text-slate-950">
-            {title}
-          </h2>
+          <div className="min-w-0 flex-1">
+            <SpeechBubble tone={tone}>{bubble}</SpeechBubble>
 
-          {body ? (
-            <p className="mt-1 line-clamp-2 text-sm font-semibold leading-6 text-slate-400">
-              {body}
-            </p>
-          ) : null}
-        </div>
+            <div className="mt-3 flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-[16px] font-semibold tracking-[-0.035em] text-slate-950">
+                  {title}
+                </h2>
+                <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+                  {body}
+                </p>
+                {date ? (
+                  <p className="mt-1 text-[11px] font-medium text-slate-400">
+                    {date}
+                  </p>
+                ) : null}
+              </div>
 
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-          <ChevronIcon />
+              <span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+                <ChevronIcon />
+              </span>
+            </div>
+          </div>
         </div>
       </article>
     </Link>
+  );
+}
+
+function EmptyState({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <section className="rounded-[24px] bg-white px-6 py-10 text-center ring-1 ring-slate-100">
+      <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+        <EmptyIcon />
+      </div>
+
+      <h2 className="mt-5 text-[16px] font-semibold tracking-[-0.035em] text-slate-950">
+        {title}
+      </h2>
+
+      <p className="mx-auto mt-2 max-w-sm text-[13px] font-medium leading-6 text-slate-500">
+        {body}
+      </p>
+    </section>
+  );
+}
+
+function ErrorBox({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <section className="rounded-[22px] bg-rose-50 px-4 py-3 text-rose-800 ring-1 ring-rose-100">
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-1 text-xs font-medium leading-5">{body}</p>
+    </section>
   );
 }
 
@@ -186,30 +361,35 @@ export default function CreatorJobsPage() {
         ? {
             title: "ToDo",
             subtitle: "今やることだけを確認できます。",
-            incomingTitle: "注文が届いています",
+            incomingTitle: "新しい注文があります",
+            incomingBubble: "注文を受けましょう",
             incomingBody: "受ける / 辞退する注文があります。",
-            executionSuffix: "実行待ちです",
-            executionBody:
-              "PR投稿・制作・納品URLの提出を進めてください。",
+            incomingCount: (count: number) => `${count}件の注文に返答が必要です。`,
+            postBubble: "投稿しましょう",
+            reviseBubble: "修正しましょう",
             emptyTitle: "今やることはありません",
             emptyBody:
-              "新しい注文や実行待ちの注文があると、ここに表示されます。",
+              "新しい注文や進行中の案件があると、ここに表示されます。",
             errorTitle: "ToDoを取得できませんでした",
             errorBody: "時間をおいてもう一度お試しください。",
+            updatedAt: "更新日",
           }
         : {
             title: "ToDo",
             subtitle: "Check only what needs action now.",
             incomingTitle: "New orders are waiting",
+            incomingBubble: "Accept orders",
             incomingBody: "There are orders to accept or decline.",
-            executionSuffix: "is waiting for action",
-            executionBody:
-              "Continue production, posting, or delivery URL submission.",
+            incomingCount: (count: number) =>
+              `${count} order${count === 1 ? "" : "s"} need a reply.`,
+            postBubble: "Post and deliver",
+            reviseBubble: "Revise your work",
             emptyTitle: "Nothing to do now",
             emptyBody:
               "New orders and active orders will appear here.",
             errorTitle: "Failed to load ToDo",
             errorBody: "Please try again later.",
+            updatedAt: "Updated",
           },
     [safeLocale]
   );
@@ -334,70 +514,63 @@ export default function CreatorJobsPage() {
   const hasTodos = incomingCount > 0 || executionOrders.length > 0;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-28">
-      <section className="mb-4 overflow-hidden rounded-[30px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FF3B5C]">
-          Trendre
-        </p>
+    <main className="mx-auto max-w-3xl px-4 pb-28 pt-4">
+      <ActionStyle />
 
-        <h1 className="mt-2 text-[30px] font-black tracking-[-0.06em] text-slate-950">
-          {copy.title}
-        </h1>
-
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-          {copy.subtitle}
-        </p>
-      </section>
-
-      {error ? (
-        <section className="mb-4 rounded-[24px] bg-rose-50 p-4 text-sm font-semibold leading-7 text-rose-700 ring-1 ring-rose-100">
-          <p className="font-black">{copy.errorTitle}</p>
-          <p className="mt-1">{copy.errorBody}</p>
-        </section>
-      ) : null}
-
-      {!hasTodos && !error ? (
-        <section className="rounded-[28px] bg-white p-8 text-center shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
-            <EmptyIcon />
-          </div>
-
-          <h2 className="mt-5 text-lg font-black tracking-[-0.04em] text-slate-950">
-            {copy.emptyTitle}
-          </h2>
-
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-400">
-            {copy.emptyBody}
+      <div className="space-y-3">
+        <section className="px-1 pt-1">
+          <h1 className="text-[19px] font-semibold tracking-[-0.04em] text-slate-950">
+            {copy.title}
+          </h1>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            {copy.subtitle}
           </p>
         </section>
-      ) : null}
 
-      <section className="space-y-3">
-        {incomingCount > 0 ? (
-          <TodoItem
-            href="/creator/requests"
-            title={copy.incomingTitle}
-            body={
-              safeLocale === "ja"
-                ? `${incomingCount}件の注文に返答が必要です。`
-                : `${incomingCount} order${
-                    incomingCount === 1 ? "" : "s"
-                  } need a reply.`
-            }
-            accent="rose"
-          />
+        {error ? (
+          <ErrorBox title={copy.errorTitle} body={copy.errorBody} />
         ) : null}
 
-        {executionOrders.map((order) => (
-          <TodoItem
-            key={order.id}
-            href={`/creator/orders/${order.id}`}
-            title={`${order.title}：${copy.executionSuffix}`}
-            body={copy.executionBody}
-            accent="slate"
-          />
-        ))}
-      </section>
+        {!hasTodos && !error ? (
+          <EmptyState title={copy.emptyTitle} body={copy.emptyBody} />
+        ) : null}
+
+        <section className="space-y-2.5">
+          {incomingCount > 0 ? (
+            <ActionCard
+              href="/creator/requests"
+              icon={<ReceiptIcon />}
+              title={copy.incomingTitle}
+              bubble={copy.incomingBubble}
+              body={copy.incomingCount(incomingCount)}
+              tone="rose"
+            />
+          ) : null}
+
+          {executionOrders.map((order) => {
+            const label = getActionLabel(order.status, safeLocale);
+            const body = getActionBody(order.status, safeLocale);
+            const dateSource = order.updated_at || order.created_at;
+
+            return (
+              <ActionCard
+                key={order.id}
+                href={`/creator/orders/${order.id}`}
+                icon={<CheckIcon />}
+                title={order.title}
+                bubble={
+                  order.status === "revision_requested"
+                    ? copy.reviseBubble
+                    : copy.postBubble
+                }
+                body={body}
+                date={`${copy.updatedAt}：${formatDate(dateSource, safeLocale)}`}
+                tone={order.status === "revision_requested" ? "rose" : "slate"}
+              />
+            );
+          })}
+        </section>
+      </div>
     </main>
   );
 }
