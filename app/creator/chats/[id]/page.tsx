@@ -689,7 +689,7 @@ export default function CreatorChatPage() {
         </div>
       </header>
 
-      <section className="mx-auto w-full max-w-3xl px-4 py-4 pb-12">
+      <section className="mx-auto w-full max-w-3xl px-4 py-4 pb-[156px]">
         {error ? (
           <div className="mb-3 rounded-[18px] bg-rose-50 px-4 py-3 text-[12px] font-semibold leading-5 text-rose-700 ring-1 ring-rose-100">
             {error}
@@ -712,7 +712,7 @@ export default function CreatorChatPage() {
         ) : messages.length === 0 ? (
           <EmptyChat title={copy.emptyTitle} body={copy.emptyBody} />
         ) : (
-          <div className="flex min-h-[calc(100svh-300px)] flex-col justify-end space-y-3">
+          <div className="space-y-3 pb-4">
             {messages.map((message) => (
               <Bubble
                 key={message.id}
