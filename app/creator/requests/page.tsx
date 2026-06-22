@@ -594,7 +594,7 @@ export default function CreatorRequestsPage() {
             subtitle: "受ける前の注文を確認できます。",
             actionBubble: "注文を確認しましょう",
             actionBody:
-              "内容・報酬・実施条件を確認して、受けるか相談できます。",
+              "内容・報酬・実施条件を確認して、受けるか判断できます。",
             noOrdersShort: "新しい注文が届くと、ここに表示されます。",
             fetchError: "注文の取得に失敗しました。",
             partialFetchError:
@@ -621,7 +621,7 @@ export default function CreatorRequestsPage() {
             subtitle: "Review orders before accepting.",
             actionBubble: "Review your order",
             actionBody:
-              "Check the details, payout, and requirements before accepting or discussing.",
+              "Check the details, payout, and requirements before deciding.",
             noOrdersShort: "New orders will appear here.",
             fetchError: "Failed to load orders.",
             partialFetchError:
