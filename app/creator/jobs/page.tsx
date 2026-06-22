@@ -538,7 +538,7 @@ function ChatRowItem({
   const timeText = formatTime(item.latestAt, locale);
 
   return (
-    <Link href={`/creator/orders/${item.order.id}?focus=chat`} className="block">
+    <Link href={`/creator/chats/${item.order.id}`} className="block">
       <article className="flex items-center gap-3 rounded-[22px] bg-white px-4 py-3.5 ring-1 ring-slate-100 transition active:scale-[0.99]">
         <div className="relative">
           <IconBubble tone={item.unreadCount > 0 ? "rose" : "blue"}>
