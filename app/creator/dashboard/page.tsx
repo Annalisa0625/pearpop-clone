@@ -1,24 +1,11 @@
 // File: app/creator/dashboard/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-import {
-  CreatorCard,
-  CreatorChevron,
-  CreatorEmptyState,
-  CreatorHero,
-  CreatorLinkButton,
-  CreatorListItem,
-  CreatorMetric,
-  CreatorMiniInfo,
-  CreatorNotice,
-  CreatorPage,
-  CreatorSection,
-  CreatorSkeleton,
-} from "@/app/creator/_components/CreatorDesignSystem";
 
 type DashboardCounts = {
   pendingRequests: number;
@@ -88,15 +75,10 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   );
 }
 
-function fallbackInitial(name: string) {
-  return (name || "T").slice(0, 1).toUpperCase();
-}
-
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
@@ -123,48 +105,25 @@ function getItemHref(item: ActivityItem) {
     : `/creator/requests/${item.id}`;
 }
 
-function CreatorAvatar({
-  name,
-  src,
-}: {
-  name: string;
-  src: string | null | undefined;
-}) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className="h-14 w-14 shrink-0 rounded-[22px] object-cover shadow-sm ring-1 ring-slate-100"
-      />
-    );
-  }
-
+function ChevronIcon() {
   return (
-    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-rose-50 text-lg font-black text-[#FF3B5C] ring-1 ring-rose-100">
-      {fallbackInitial(name)}
-    </div>
-  );
-}
-
-function HomeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
       <path
-        d="M4 11.2 12 4l8 7.2V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.8Z"
+        d="m9 5 7 7-7 7"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.2"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-function OrderIcon() {
+function ReceiptIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
       <path
-        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.6-2.7 1.6-2.6-1.6L8 20l-3-1.6V6a2 2 0 0 1 2-2Z"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
@@ -180,9 +139,23 @@ function OrderIcon() {
   );
 }
 
-function PayoutIcon() {
+function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+      <path
+        d="m5 12.5 4.4 4.2L19 7"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function YenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
       <path
         d="m7 5 5 7 5-7M12 12v7M8 13h8M8 16h8"
         stroke="currentColor"
@@ -194,32 +167,11 @@ function PayoutIcon() {
   );
 }
 
-function BankIcon() {
+function ProfileIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
       <path
-        d="M4 10h16M6 10v8M10 10v8M14 10v8M18 10v8M5 18h14M12 4l8 4H4l8-4Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function EmptyOrderIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
-      <path
-        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 9h8M8 13h5"
+        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20a7 7 0 0 1 14 0"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
@@ -230,20 +182,86 @@ function EmptyOrderIcon() {
 
 function LoadingView() {
   return (
-    <CreatorPage>
-      <CreatorSkeleton className="h-28" />
-      <CreatorSkeleton className="h-36" />
-      <div className="grid grid-cols-2 gap-3">
-        <CreatorSkeleton className="h-24" />
-        <CreatorSkeleton className="h-24" />
+    <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+      <div className="space-y-3">
+        <div className="h-28 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+        <div className="h-24 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+        <div className="grid grid-cols-3 gap-2">
+          <div className="h-20 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+          <div className="h-20 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+          <div className="h-20 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+        </div>
+        <div className="h-44 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
       </div>
-      <CreatorSkeleton className="h-36" />
-      <CreatorSkeleton className="h-48" />
-    </CreatorPage>
+    </main>
   );
 }
 
-function MainActionCard({
+function Notice({
+  tone = "slate",
+  title,
+  body,
+}: {
+  tone?: "slate" | "red" | "amber";
+  title: string;
+  body: string;
+}) {
+  const className =
+    tone === "red"
+      ? "bg-rose-50 text-rose-800 ring-rose-100"
+      : tone === "amber"
+        ? "bg-amber-50 text-amber-800 ring-amber-100"
+        : "bg-white text-slate-700 ring-slate-100";
+
+  return (
+    <section className={`rounded-[20px] px-4 py-3 ring-1 ${className}`}>
+      <p className="text-sm font-semibold text-slate-950">{title}</p>
+      <p className="mt-1 text-xs font-medium leading-5 opacity-80">{body}</p>
+    </section>
+  );
+}
+
+function IconBubble({
+  children,
+  tone = "slate",
+}: {
+  children: ReactNode;
+  tone?: "rose" | "slate" | "green";
+}) {
+  const className =
+    tone === "rose"
+      ? "bg-rose-50 text-[#ff3860] ring-rose-100"
+      : tone === "green"
+        ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+        : "bg-slate-50 text-slate-500 ring-slate-100";
+
+  return (
+    <span
+      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ring-1 ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[18px] bg-white px-3 py-3 ring-1 ring-slate-100">
+      <p className="text-[11px] font-medium text-slate-500">{label}</p>
+      <p className="mt-1 truncate text-[17px] font-semibold tracking-[-0.03em] text-slate-950">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ActionRow({
   title,
   body,
   href,
@@ -254,72 +272,78 @@ function MainActionCard({
   body: string;
   href: string;
   cta: string;
-  tone: "red" | "blue" | "slate";
+  tone: "rose" | "slate" | "green";
 }) {
-  const iconTone = tone === "red" ? "red" : tone === "blue" ? "blue" : "slate";
-  const Icon = href.startsWith("/creator/payouts") ? BankIcon : OrderIcon;
+  const Icon = href.startsWith("/creator/payouts")
+    ? YenIcon
+    : href.startsWith("/creator/profile")
+      ? ProfileIcon
+      : ReceiptIcon;
 
   return (
-    <CreatorCard className="creator-appear-delay-1 p-5">
-      <div className="flex items-start gap-4">
-        <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] ring-1 ${
-            iconTone === "red"
-              ? "bg-rose-50 text-[#FF3B5C] ring-rose-100"
-              : iconTone === "blue"
-                ? "bg-blue-50 text-blue-700 ring-blue-100"
-                : "bg-slate-50 text-slate-500 ring-slate-100"
-          }`}
-        >
-          <Icon />
+    <Link href={href} className="block">
+      <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 transition active:scale-[0.99]">
+        <div className="flex items-start gap-3">
+          <IconBubble tone={tone}>
+            <Icon />
+          </IconBubble>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[16px] font-semibold tracking-[-0.03em] text-slate-950">
+              {title}
+            </p>
+            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+              {body}
+            </p>
+
+            <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100">
+              {cta}
+              <ChevronIcon />
+            </span>
+          </div>
         </div>
-
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[21px] font-black leading-tight tracking-[-0.055em] text-slate-950">
-            {title}
-          </h2>
-
-          <p className="mt-2 text-[15px] font-semibold leading-7 text-slate-500">
-            {body}
-          </p>
-
-          <CreatorLinkButton href={href} className="mt-5 w-full">
-            {cta}
-            <CreatorChevron />
-          </CreatorLinkButton>
-        </div>
-      </div>
-    </CreatorCard>
+      </section>
+    </Link>
   );
 }
 
-function PayoutCard({
+function ShortcutRow({
+  href,
+  icon,
   title,
   body,
-  amount,
-  href,
+  value,
+  tone = "slate",
 }: {
+  href: string;
+  icon: ReactNode;
   title: string;
   body: string;
-  amount: string;
-  href: string;
+  value?: string;
+  tone?: "rose" | "slate" | "green";
 }) {
   return (
-    <CreatorListItem
-      href={href}
-      title={title}
-      description={body}
-      icon={
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-[#FF3B5C] ring-1 ring-rose-100">
-          <PayoutIcon />
+    <Link href={href} className="block">
+      <div className="flex items-center gap-3 rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100 transition active:scale-[0.99]">
+        <IconBubble tone={tone}>{icon}</IconBubble>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-semibold text-slate-950">
+            {title}
+          </p>
+          <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">
+            {body}
+          </p>
+        </div>
+        {value ? (
+          <span className="shrink-0 text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
+            {value}
+          </span>
+        ) : null}
+        <span className="shrink-0 text-slate-300">
+          <ChevronIcon />
         </span>
-      }
-      meta={
-        <p className="text-[26px] font-black leading-none tracking-[-0.065em] text-slate-950">
-          {amount}
-        </p>
-      }
-    />
+      </div>
+    </Link>
   );
 }
 
@@ -334,29 +358,47 @@ function ActivityRow({
   productUnset: string;
   dateLabel: string;
 }) {
-  const dateText =
-    locale === "ja"
-      ? `${dateLabel}：${formatDate(item.date, locale)}`
-      : `${dateLabel}: ${formatDate(item.date, locale)}`;
-
   return (
-    <CreatorListItem
-      href={getItemHref(item)}
-      title={item.product_name || productUnset}
-      meta={
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <CreatorMiniInfo
-            label={dateLabel}
-            value={dateText
-              .replace(`${dateLabel}：`, "")
-              .replace(`${dateLabel}: `, "")}
-          />
-          <span className="text-xs font-black text-slate-300">
-            {item.kind === "order" ? "Trendre" : ""}
-          </span>
+    <Link href={getItemHref(item)} className="block">
+      <div className="flex items-center gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-100 transition active:scale-[0.99]">
+        <IconBubble tone={item.kind === "order" ? "rose" : "slate"}>
+          <ReceiptIcon />
+        </IconBubble>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-semibold text-slate-950">
+            {item.product_name || productUnset}
+          </p>
+          <p className="mt-0.5 text-[12px] font-medium text-slate-500">
+            {dateLabel}：{formatDate(item.date, locale)}
+          </p>
         </div>
-      }
-    />
+
+        <span className="shrink-0 text-slate-300">
+          <ChevronIcon />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyBox({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-[22px] bg-white px-5 py-8 text-center ring-1 ring-slate-100">
+      <div className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+        <CheckIcon />
+      </div>
+      <p className="mt-4 text-[14px] font-semibold text-slate-800">{title}</p>
+      <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+        {body}
+      </p>
+    </div>
   );
 }
 
@@ -371,19 +413,17 @@ export default function CreatorDashboardPage() {
     () =>
       safeLocale === "ja"
         ? {
-            defaultDisplayName: "インフルエンサー",
-            roleLabel: "Influencer",
+            defaultDisplayName: "クリエイター",
             loadingError: "ホームの読み込み中にエラーが発生しました。",
             loadError: "ホーム情報の取得に失敗しました。",
             requestLoadError: "注文データの取得に失敗しました。",
             genericErrorTitle: "読み込みに失敗しました",
-            creatorOnlyTitle: "インフルエンサー専用ページです",
+            creatorOnlyTitle: "クリエイター専用ページです",
             creatorOnlyBody:
-              "このページはインフルエンサーアカウントのみ利用できます。",
+              "このページはクリエイターアカウントのみ利用できます。",
 
-            greeting: "こんにちは",
             pageTitle: "ホーム",
-            pageDescription: "今日の注文・やること・報酬を確認できます。",
+            pageDescription: "今日やることを確認できます。",
 
             suspendedTitle: "アカウント確認中です",
             suspendedBody:
@@ -394,52 +434,62 @@ export default function CreatorDashboardPage() {
             profilePromptTitle: "プロフィールを整えましょう",
             profilePromptBody:
               "写真・SNS・メニューを整えると、注文を受けやすくなります。",
-            goToProfile: "プロフィールを編集",
+            goToProfile: "プロフィールを見る",
 
-            payoutPromptTitle: "銀行口座登録を完了しましょう",
+            payoutPromptTitle: "受け取り口座を登録しましょう",
             payoutPromptBody:
-              "Creator登録を完了するには、報酬を受け取る銀行口座の登録が必要です。登録後、あなたのメニューが企業向けに公開されます。",
-            goToPayoutSettings: "銀行口座を登録する",
+              "報酬を受け取るために、銀行口座の登録が必要です。",
+            goToPayoutSettings: "口座を登録する",
 
             nextPendingTitle: "新しい注文があります",
             nextPendingBody: "内容を確認して、受けるか相談できます。",
-            nextPendingCta: "確認する",
+            nextPendingCta: "注文を確認する",
 
-            nextTodoTitle: "実行待ちの案件",
-            nextTodoBody: "承認済みの注文を進めましょう。",
+            nextTodoTitle: "進行中の案件があります",
+            nextTodoBody: "制作・投稿・納品URLの提出を進めましょう。",
             nextTodoCta: "ToDoを見る",
 
-            nextReadyTitle: "受けられる状態を整えましょう",
+            nextReadyTitle: "新しい注文を待っています",
             nextReadyBody: "プロフィールやメニューを整えて、次の注文に備えます。",
             nextReadyCta: "プロフィールを見る",
 
-            payoutTitle: "受取予定",
-            payoutBody: "報酬ページで詳細を確認",
-            paidTitle: "支払済み",
-            completedTitle: "完了件数",
+            sectionActionTitle: "今やること",
+            sectionStatusTitle: "確認する",
+            activityTitle: "最近の注文",
+            viewAll: "すべて見る",
+
+            incomingTitle: "届いている注文",
+            incomingBody: "受ける前の注文",
+            todoTitle: "ToDo",
+            todoBody: "進行中の案件",
+            payoutTitle: "報酬",
+            payoutBody: "受取予定を確認",
+
+            pendingLabel: "注文",
+            todoLabel: "ToDo",
+            payoutLabel: "受取予定",
+            paidLabel: "支払い済み",
+            completedLabel: "完了",
+            menuLabel: "公開メニュー",
             countSuffix: "件",
 
-            activityTitle: "注文が届いています",
-            viewAll: "すべて",
             noActivityTitle: "まだ注文はありません",
             noActivityBody: "新しい注文が届くと、ここに表示されます。",
             productUnset: "商品名未設定",
             orderDateLabel: "注文日",
           }
         : {
-            defaultDisplayName: "Influencer",
-            roleLabel: "Influencer",
+            defaultDisplayName: "Creator",
             loadingError: "An error occurred while loading home.",
             loadError: "Failed to load home information.",
             requestLoadError: "Failed to load order data.",
             genericErrorTitle: "Failed to load",
-            creatorOnlyTitle: "Influencer access only",
+            creatorOnlyTitle: "Creator access only",
             creatorOnlyBody:
-              "This page is available only for influencer accounts.",
+              "This page is available only for creator accounts.",
 
-            greeting: "Hi",
             pageTitle: "Home",
-            pageDescription: "Check orders, tasks, and payouts.",
+            pageDescription: "Check what needs your attention today.",
 
             suspendedTitle: "Account under review",
             suspendedBody:
@@ -451,34 +501,46 @@ export default function CreatorDashboardPage() {
             profilePromptTitle: "Improve your profile",
             profilePromptBody:
               "Add photos, social accounts, and menus so brands can order easily.",
-            goToProfile: "Edit profile",
+            goToProfile: "View profile",
 
-            payoutPromptTitle: "Complete bank account setup",
+            payoutPromptTitle: "Register your payout account",
             payoutPromptBody:
-              "Register your bank account to complete your influencer registration and publish your menus to brands.",
-            goToPayoutSettings: "Register bank account",
+              "Register your bank account to receive creator payouts.",
+            goToPayoutSettings: "Register account",
 
             nextPendingTitle: "You have a new order",
             nextPendingBody: "Review details and decide whether to accept.",
-            nextPendingCta: "Review",
+            nextPendingCta: "Review order",
 
-            nextTodoTitle: "Ready to work",
-            nextTodoBody: "Continue accepted orders.",
+            nextTodoTitle: "Active orders need action",
+            nextTodoBody: "Continue production, posting, or delivery URL submission.",
             nextTodoCta: "View ToDo",
 
-            nextReadyTitle: "Get ready for orders",
+            nextReadyTitle: "Waiting for new orders",
             nextReadyBody:
-              "Update your profile and menus to receive future orders.",
+              "Update your profile and menus to prepare for future orders.",
             nextReadyCta: "View profile",
 
-            payoutTitle: "Expected payout",
-            payoutBody: "Check details on the payout page",
-            paidTitle: "Paid",
-            completedTitle: "Completed",
+            sectionActionTitle: "Next action",
+            sectionStatusTitle: "Check",
+            activityTitle: "Recent orders",
+            viewAll: "View all",
+
+            incomingTitle: "Incoming orders",
+            incomingBody: "Orders before acceptance",
+            todoTitle: "ToDo",
+            todoBody: "Active orders",
+            payoutTitle: "Payouts",
+            payoutBody: "Check expected payout",
+
+            pendingLabel: "Orders",
+            todoLabel: "ToDo",
+            payoutLabel: "Expected",
+            paidLabel: "Paid",
+            completedLabel: "Completed",
+            menuLabel: "Live menus",
             countSuffix: "",
 
-            activityTitle: "Orders received",
-            viewAll: "All",
             noActivityTitle: "No orders yet",
             noActivityBody: "New orders will appear here.",
             productUnset: "No product name",
@@ -489,7 +551,6 @@ export default function CreatorDashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [creator, setCreator] = useState<CreatorProfile | null>(null);
   const [payoutProfile, setPayoutProfile] =
     useState<PayoutProfileStatus | null>(null);
 
@@ -589,12 +650,10 @@ export default function CreatorDashboardPage() {
         });
 
         if (!typedCreatorRow) {
-          setCreator(null);
           setLoading(false);
           return;
         }
 
-        setCreator(typedCreatorRow);
 
         const { data: payoutProfileRow, error: payoutProfileError } = await db
           .from("creator_payout_profiles")
@@ -676,7 +735,7 @@ export default function CreatorDashboardPage() {
             .from("orders")
             .select("id", { count: "exact", head: true })
             .eq("creator_user_id", user.id)
-            .in("status", ["accepted_captured", "in_progress"]),
+            .in("status", ["accepted_captured", "in_progress", "revision_requested"]),
 
           db
             .from("orders")
@@ -731,6 +790,7 @@ export default function CreatorDashboardPage() {
             .in("status", [
               "accepted_captured",
               "in_progress",
+              "revision_requested",
               "delivered",
               "completed",
             ])
@@ -770,13 +830,10 @@ export default function CreatorDashboardPage() {
         }
 
         setCounts({
-          pendingRequests:
-            (legacyPendingCount ?? 0) + (orderPendingCount ?? 0),
+          pendingRequests: (legacyPendingCount ?? 0) + (orderPendingCount ?? 0),
           acceptedJobs: (legacyAcceptedCount ?? 0) + (orderAcceptedCount ?? 0),
-          deliveredJobs:
-            (legacyDeliveredCount ?? 0) + (orderDeliveredCount ?? 0),
-          completedJobs:
-            (legacyCompletedCount ?? 0) + (orderCompletedCount ?? 0),
+          deliveredJobs: (legacyDeliveredCount ?? 0) + (orderDeliveredCount ?? 0),
+          completedJobs: (legacyCompletedCount ?? 0) + (orderCompletedCount ?? 0),
           activeMenus: activeMenusCount ?? 0,
         });
 
@@ -894,29 +951,19 @@ export default function CreatorDashboardPage() {
 
   if (errorMsg) {
     return (
-      <CreatorPage>
-        <CreatorNotice
-          tone="red"
-          title={copy.genericErrorTitle}
-          description={errorMsg}
-        />
-      </CreatorPage>
+      <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+        <Notice title={copy.genericErrorTitle} body={errorMsg} tone="red" />
+      </main>
     );
   }
 
   if (!gate.isCreator) {
     return (
-      <CreatorPage>
-        <CreatorNotice
-          title={copy.creatorOnlyTitle}
-          description={copy.creatorOnlyBody}
-        />
-      </CreatorPage>
+      <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+        <Notice title={copy.creatorOnlyTitle} body={copy.creatorOnlyBody} />
+      </main>
     );
   }
-
-  const displayName =
-    creator?.display_name || creator?.full_name || copy.defaultDisplayName;
 
   const activeTodoCount = counts.acceptedJobs + counts.deliveredJobs;
 
@@ -937,30 +984,40 @@ export default function CreatorDashboardPage() {
           body: copy.payoutPromptBody,
           href: "/creator/payouts?from=signup&required=1",
           cta: copy.goToPayoutSettings,
-          tone: "red" as const,
+          tone: "rose" as const,
         }
       : counts.pendingRequests > 0
         ? {
             title: copy.nextPendingTitle,
-            body: copy.nextPendingBody,
+            body:
+              safeLocale === "ja"
+                ? `${counts.pendingRequests}件の注文に返答が必要です。`
+                : `${counts.pendingRequests} order${
+                    counts.pendingRequests === 1 ? "" : "s"
+                  } need a reply.`,
             href: "/creator/requests",
             cta: copy.nextPendingCta,
-            tone: "red" as const,
+            tone: "rose" as const,
           }
         : activeTodoCount > 0
           ? {
               title: copy.nextTodoTitle,
-              body: copy.nextTodoBody,
+              body:
+                safeLocale === "ja"
+                  ? `${activeTodoCount}件の案件を進めましょう。`
+                  : `${activeTodoCount} active order${
+                      activeTodoCount === 1 ? "" : "s"
+                    } need action.`,
               href: "/creator/jobs",
               cta: copy.nextTodoCta,
-              tone: "blue" as const,
+              tone: "slate" as const,
             }
           : {
               title: copy.nextReadyTitle,
               body: copy.nextReadyBody,
               href: "/creator/profile",
               cta: copy.nextReadyCta,
-              tone: "slate" as const,
+              tone: "green" as const,
             };
 
   const requestActivityItems: ActivityItem[] = recentRequests.map((item) => ({
@@ -987,98 +1044,133 @@ export default function CreatorDashboardPage() {
     .slice(0, 3);
 
   return (
-    <CreatorPage>
-      <CreatorHero
-        title={copy.pageTitle}
-        description={copy.pageDescription}
-        eyebrow={copy.greeting}
-        right={<CreatorAvatar name={displayName} src={creator?.avatar_url} />}
-      >
-        <div className="flex items-center justify-between gap-3 rounded-[24px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
-          <div className="min-w-0">
-            <p className="text-xs font-black text-slate-400">
-              {copy.roleLabel}
-            </p>
-            <p className="mt-0.5 truncate text-[20px] font-black tracking-[-0.055em] text-slate-950">
-              {displayName}
-            </p>
-          </div>
+    <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+      <div className="space-y-3">
+        <section className="rounded-[24px] bg-white px-4 py-5 ring-1 ring-slate-100">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-[#ff3860]">
+            TRENDRE
+          </p>
+          <h1 className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-slate-950">
+            {copy.pageTitle}
+          </h1>
+          <p className="mt-1.5 text-[13px] font-medium leading-6 text-slate-500">
+            {copy.pageDescription}
+          </p>
+        </section>
 
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-            <HomeIcon />
-          </span>
-        </div>
-      </CreatorHero>
-
-      {gate.isSuspended ? (
-        <CreatorNotice
-          tone="red"
-          title={copy.suspendedTitle}
-          description={copy.suspendedBody}
-        />
-      ) : null}
-
-      {gate.creatorApprovalStatus === "pending" ? (
-        <CreatorNotice
-          tone="amber"
-          title={copy.reviewPendingTitle}
-          description={copy.reviewPendingBody}
-        />
-      ) : null}
-
-      <MainActionCard {...nextAction} />
-
-      <div className="grid grid-cols-2 gap-3">
-        <CreatorMetric
-          label={copy.paidTitle}
-          value={formatMoney(payoutSummary.paidAmount, safeLocale)}
-        />
-
-        <CreatorMetric
-          label={copy.completedTitle}
-          value={`${counts.completedJobs}${safeLocale === "ja" ? copy.countSuffix : ""}`}
-        />
-      </div>
-
-      <PayoutCard
-        title={copy.payoutTitle}
-        body={copy.payoutBody}
-        amount={formatMoney(payoutSummary.pendingAmount, safeLocale)}
-        href="/creator/payouts"
-      />
-
-      <CreatorSection
-        title={copy.activityTitle}
-        right={
-          <CreatorLinkButton
-            href="/creator/requests"
-            variant="ghost"
-            className="px-0 py-0 text-xs text-slate-400 shadow-none"
-          >
-            {copy.viewAll}
-          </CreatorLinkButton>
-        }
-      >
-        {activityItems.length === 0 ? (
-          <CreatorEmptyState
-            icon={<EmptyOrderIcon />}
-            title={copy.noActivityTitle}
-            description={copy.noActivityBody}
+        {gate.isSuspended ? (
+          <Notice
+            tone="red"
+            title={copy.suspendedTitle}
+            body={copy.suspendedBody}
           />
-        ) : (
-          <div className="space-y-2.5">
-            {activityItems.map((item) => (
-              <ActivityRow
-                key={`${item.kind}-${item.id}`}
-                item={item}
-                locale={safeLocale}
-                productUnset={copy.productUnset}
-                dateLabel={copy.orderDateLabel}
-              />
-            ))}
+        ) : null}
+
+        {gate.creatorApprovalStatus === "pending" ? (
+          <Notice
+            tone="amber"
+            title={copy.reviewPendingTitle}
+            body={copy.reviewPendingBody}
+          />
+        ) : null}
+
+        <section>
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h2 className="text-[15px] font-semibold text-slate-950">
+              {copy.sectionActionTitle}
+            </h2>
           </div>
-        )}
-      </CreatorSection>
-    </CreatorPage>
+          <ActionRow {...nextAction} />
+        </section>
+
+        <section>
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h2 className="text-[15px] font-semibold text-slate-950">
+              {copy.sectionStatusTitle}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <StatTile
+              label={copy.pendingLabel}
+              value={`${counts.pendingRequests}${
+                safeLocale === "ja" ? copy.countSuffix : ""
+              }`}
+            />
+            <StatTile
+              label={copy.todoLabel}
+              value={`${activeTodoCount}${
+                safeLocale === "ja" ? copy.countSuffix : ""
+              }`}
+            />
+            <StatTile
+              label={copy.payoutLabel}
+              value={formatMoney(payoutSummary.pendingAmount, safeLocale)}
+            />
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <ShortcutRow
+            href="/creator/requests"
+            icon={<ReceiptIcon />}
+            title={copy.incomingTitle}
+            body={copy.incomingBody}
+            value={`${counts.pendingRequests}${
+              safeLocale === "ja" ? copy.countSuffix : ""
+            }`}
+            tone={counts.pendingRequests > 0 ? "rose" : "slate"}
+          />
+          <ShortcutRow
+            href="/creator/jobs"
+            icon={<CheckIcon />}
+            title={copy.todoTitle}
+            body={copy.todoBody}
+            value={`${activeTodoCount}${
+              safeLocale === "ja" ? copy.countSuffix : ""
+            }`}
+            tone={activeTodoCount > 0 ? "rose" : "slate"}
+          />
+          <ShortcutRow
+            href="/creator/payouts"
+            icon={<YenIcon />}
+            title={copy.payoutTitle}
+            body={copy.payoutBody}
+            value={formatMoney(payoutSummary.pendingAmount, safeLocale)}
+            tone="slate"
+          />
+        </section>
+
+        <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-slate-950">
+              {copy.activityTitle}
+            </h2>
+            <Link
+              href="/creator/requests"
+              className="text-[12px] font-semibold text-slate-400"
+            >
+              {copy.viewAll}
+            </Link>
+          </div>
+
+          {activityItems.length === 0 ? (
+            <EmptyBox title={copy.noActivityTitle} body={copy.noActivityBody} />
+          ) : (
+            <div className="space-y-2">
+              {activityItems.map((item) => (
+                <ActivityRow
+                  key={`${item.kind}-${item.id}`}
+                  item={item}
+                  locale={safeLocale}
+                  productUnset={copy.productUnset}
+                  dateLabel={copy.orderDateLabel}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
