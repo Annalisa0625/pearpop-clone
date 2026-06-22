@@ -2,10 +2,33 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+
+type FulfillmentType = "material_provided" | "product_shipping" | "visit" | null;
+
+type PreparationStatus =
+  | "not_started"
+  | "waiting_materials"
+  | "materials_provided"
+  | "materials_confirmed"
+  | "waiting_shipping_address"
+  | "waiting_shipment"
+  | "shipped"
+  | "received"
+  | "waiting_schedule"
+  | "schedule_confirmed"
+  | "ready_to_start"
+  | null;
 
 type OrderRow = {
   id: string;
@@ -15,6 +38,8 @@ type OrderRow = {
   product_name: string | null;
   menu_title_snapshot: string | null;
   creator_user_id: string | null;
+  fulfillment_type: FulfillmentType;
+  preparation_status: PreparationStatus;
 };
 
 type ChatRow = {
@@ -117,19 +142,98 @@ function SendIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="m7 7 10 10M17 7 7 17"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="15"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M8 3.5v3M16 3.5v3M7 10h10"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function TruckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+      <path
+        d="M4 7.5A2.5 2.5 0 0 1 6.5 5H14v11H4V7.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 9h3.2L20 12.5V16h-6V9Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function DetailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.6-2.7 1.6-2.6-1.6L8 20l-3-1.6V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function LoadingView() {
   return (
-    <main className="flex min-h-[calc(100vh-92px)] flex-col bg-[#f8f9fa]">
+    <main className="min-h-[100svh] bg-[#f8f9fa] pb-32">
       <div className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
-          <div className="h-9 w-9 animate-pulse rounded-full bg-slate-100" />
+          <div className="h-10 w-10 animate-pulse rounded-full bg-slate-100" />
           <div className="min-w-0 flex-1">
             <div className="h-4 w-36 animate-pulse rounded bg-slate-100" />
             <div className="mt-2 h-3 w-20 animate-pulse rounded bg-slate-100" />
           </div>
         </div>
       </div>
-      <div className="mx-auto w-full max-w-3xl flex-1 space-y-3 px-4 py-4">
+      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 py-4 pb-40">
         <div className="h-14 w-2/3 animate-pulse rounded-[20px] bg-white" />
         <div className="ml-auto h-14 w-2/3 animate-pulse rounded-[20px] bg-rose-100/60" />
         <div className="h-14 w-1/2 animate-pulse rounded-[20px] bg-white" />
@@ -182,6 +286,94 @@ function Bubble({
   );
 }
 
+function getChatHint(order: OrderRow | null, locale: "ja" | "en") {
+  if (!order) return null;
+
+  if (order.fulfillment_type === "visit") {
+    return {
+      type: "visit" as const,
+      title: locale === "ja" ? "日程調整をしましょう" : "Schedule the visit",
+      body:
+        locale === "ja"
+          ? "来店日・場所・撮影ルールをチャットで相談できます。"
+          : "Discuss the visit date, location, and filming rules here.",
+      icon: <CalendarIcon />,
+    };
+  }
+
+  if (order.fulfillment_type === "product_shipping") {
+    return {
+      type: "shipping" as const,
+      title:
+        locale === "ja"
+          ? "配送先は共有しましたか？"
+          : "Have you shared your shipping address?",
+      body:
+        locale === "ja"
+          ? "商品を受け取るために、必要なら配送先を依頼元へ共有しましょう。"
+          : "Share your shipping address with the requester if it is needed.",
+      icon: <TruckIcon />,
+    };
+  }
+
+  return null;
+}
+
+function ChatHint({
+  order,
+  locale,
+  detailLabel,
+  onClose,
+}: {
+  order: OrderRow;
+  locale: "ja" | "en";
+  detailLabel: string;
+  onClose: () => void;
+}) {
+  const hint = getChatHint(order, locale);
+  if (!hint) return null;
+
+  return (
+    <div className="rounded-[22px] bg-white px-4 py-3 ring-1 ring-rose-100 shadow-[0_14px_34px_rgba(244,63,94,0.06)]">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-[15px] bg-rose-50 text-[#ff3860] ring-1 ring-rose-100">
+          {hint.icon}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
+                {hint.title}
+              </p>
+              <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+                {hint.body}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100 active:scale-95"
+              aria-label="close"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+
+          <Link
+            href={`/creator/orders/${order.id}`}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-100"
+          >
+            <DetailIcon />
+            {detailLabel}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CreatorChatPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -202,6 +394,7 @@ export default function CreatorChatPage() {
             sendError: "送信に失敗しました。時間をおいてもう一度お試しください。",
             loadError: "チャットを読み込めませんでした。",
             noChat: "この案件のチャットはまだ作成されていません。",
+            detail: "案件詳細",
           }
         : {
             fallbackTitle: "Chat",
@@ -212,6 +405,7 @@ export default function CreatorChatPage() {
             sendError: "Failed to send. Please try again later.",
             loadError: "Failed to load chat.",
             noChat: "This order does not have a chat yet.",
+            detail: "Order details",
           },
     [safeLocale]
   );
@@ -224,8 +418,28 @@ export default function CreatorChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hintClosed, setHintClosed] = useState(false);
 
   const orderId = String(params?.id ?? "");
+
+  useEffect(() => {
+    if (!orderId) return;
+
+    try {
+      setHintClosed(window.localStorage.getItem(`creator-chat-hint-closed-${orderId}`) === "1");
+    } catch {
+      setHintClosed(false);
+    }
+  }, [orderId]);
+
+  const closeHint = useCallback(() => {
+    setHintClosed(true);
+    try {
+      window.localStorage.setItem(`creator-chat-hint-closed-${orderId}`, "1");
+    } catch {
+      // ignore storage failures
+    }
+  }, [orderId]);
 
   const markAsRead = useCallback(
     async (chatId: string, userId: string) => {
@@ -274,7 +488,9 @@ export default function CreatorChatPage() {
           status,
           product_name,
           menu_title_snapshot,
-          creator_user_id
+          creator_user_id,
+          fulfillment_type,
+          preparation_status
         `
         )
         .eq("id", orderId)
@@ -439,15 +655,16 @@ export default function CreatorChatPage() {
   }
 
   const title = getOrderTitle(order, copy.fallbackTitle);
+  const showHint = Boolean(order && getChatHint(order, safeLocale) && !hintClosed);
 
   return (
-    <main className="flex min-h-[calc(100vh-92px)] flex-col bg-[#f8f9fa]">
+    <main className="min-h-[100svh] bg-[#f8f9fa] pb-[172px]">
       <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <button
             type="button"
             onClick={() => router.back()}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-700 ring-1 ring-slate-100 active:scale-95"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-700 ring-1 ring-slate-100 active:scale-95"
             aria-label="back"
           >
             <BackIcon />
@@ -464,17 +681,29 @@ export default function CreatorChatPage() {
 
           <Link
             href={order ? `/creator/orders/${order.id}` : "/creator/jobs"}
-            className="rounded-full bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-100"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-100 active:scale-95"
           >
-            {safeLocale === "ja" ? "詳細" : "Details"}
+            <DetailIcon />
+            {copy.detail}
           </Link>
         </div>
       </header>
 
-      <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-4">
+      <section className="mx-auto w-full max-w-3xl px-4 py-4 pb-12">
         {error ? (
           <div className="mb-3 rounded-[18px] bg-rose-50 px-4 py-3 text-[12px] font-semibold leading-5 text-rose-700 ring-1 ring-rose-100">
             {error}
+          </div>
+        ) : null}
+
+        {order && showHint ? (
+          <div className="mb-3">
+            <ChatHint
+              order={order}
+              locale={safeLocale}
+              detailLabel={copy.detail}
+              onClose={closeHint}
+            />
           </div>
         ) : null}
 
@@ -483,7 +712,7 @@ export default function CreatorChatPage() {
         ) : messages.length === 0 ? (
           <EmptyChat title={copy.emptyTitle} body={copy.emptyBody} />
         ) : (
-          <div className="flex flex-1 flex-col justify-end space-y-3 pb-3">
+          <div className="flex min-h-[calc(100svh-300px)] flex-col justify-end space-y-3">
             {messages.map((message) => (
               <Bubble
                 key={message.id}
@@ -497,7 +726,7 @@ export default function CreatorChatPage() {
         )}
       </section>
 
-      <footer className="sticky bottom-0 z-20 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
+      <footer className="fixed inset-x-0 bottom-[76px] z-30 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur supports-[padding:max(0px)]:pb-[max(12px,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-3xl items-end gap-2">
           <textarea
             value={draft}
