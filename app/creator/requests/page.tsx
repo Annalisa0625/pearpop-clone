@@ -1,17 +1,14 @@
 // File: app/creator/requests/page.tsx
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
-  CreatorBadge,
   CreatorCard,
-  CreatorChevron,
   CreatorEmptyState,
-  CreatorHero,
   CreatorLinkButton,
-  CreatorMiniInfo,
   CreatorNotice,
   CreatorPage,
   CreatorSkeleton,
@@ -92,7 +89,6 @@ function withTimeout<T = any>(
   timeoutMessage: string
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
-
   const promise = Promise.resolve(promiseLike);
 
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -253,19 +249,9 @@ function getAcceptDeadlineLabel(
     return locale === "ja" ? "返答期限切れ" : "Expired";
   }
 
-  if (isWithinHours(value, 12)) {
-    return locale === "ja"
-      ? `まもなく期限 ${formatDateTime(value, locale)}`
-      : `Due soon ${formatDateTime(value, locale)}`;
-  }
-
-  if (isWithinHours(value, 24)) {
-    return locale === "ja"
-      ? `返答期限 ${formatDateTime(value, locale)}`
-      : `Reply by ${formatDateTime(value, locale)}`;
-  }
-
-  return null;
+  return locale === "ja"
+    ? `返答期限 ${formatDateTime(value, locale)}`
+    : `Reply by ${formatDateTime(value, locale)}`;
 }
 
 function getItemHref(item: PendingItem) {
@@ -274,14 +260,23 @@ function getItemHref(item: PendingItem) {
     : `/creator/requests/${item.id}`;
 }
 
-function LoadingView() {
+function OrderIcon() {
   return (
-    <CreatorPage>
-      <CreatorSkeleton className="h-28" />
-      <CreatorSkeleton className="h-28" />
-      <CreatorSkeleton className="h-28" />
-      <CreatorSkeleton className="h-28" />
-    </CreatorPage>
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -305,23 +300,197 @@ function EmptyIcon() {
   );
 }
 
-function OrderIcon() {
+function ChevronIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
       <path
-        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.7-2.7 1.7-2.6-1.7L8 20l-3-1.7V6a2 2 0 0 1 2-2Z"
+        d="m9 5 7 7-7 7"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path
-        d="M8 9h8M8 13h5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
     </svg>
+  );
+}
+
+function LoadingView() {
+  return (
+    <CreatorPage>
+      <CreatorSkeleton className="h-9" />
+      <CreatorSkeleton className="h-28" />
+      <CreatorSkeleton className="h-24" />
+      <CreatorSkeleton className="h-24" />
+      <CreatorSkeleton className="h-24" />
+    </CreatorPage>
+  );
+}
+
+function RequestStyle() {
+  return (
+    <style jsx global>{`
+      @keyframes trendreRequestBubbleFloat {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(0, -3px, 0);
+        }
+      }
+
+      .trendre-request-bubble {
+        animation: trendreRequestBubbleFloat 2.4s ease-in-out infinite;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .trendre-request-bubble {
+          animation: none;
+        }
+      }
+    `}</style>
+  );
+}
+
+function SpeechBubble({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="trendre-request-bubble relative inline-flex items-center rounded-full bg-rose-50 px-3.5 py-2 text-[13px] font-semibold text-[#ff3860] ring-1 ring-rose-100">
+      <span className="absolute -left-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[6px] border-r-[8px] border-y-transparent border-r-rose-50" />
+      {children}
+    </span>
+  );
+}
+
+function IconBubble({
+  children,
+  active = false,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+}) {
+  return (
+    <span
+      className={`grid h-10 w-10 shrink-0 place-items-center rounded-[17px] ring-1 ${
+        active
+          ? "bg-rose-50 text-[#ff3860] ring-rose-100"
+          : "bg-slate-50 text-slate-500 ring-slate-100"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function StatusPill({
+  children,
+  tone = "slate",
+}: {
+  children: React.ReactNode;
+  tone?: "rose" | "amber" | "blue" | "slate";
+}) {
+  const toneClass =
+    tone === "rose"
+      ? "bg-rose-50 text-[#ff3860] ring-rose-100"
+      : tone === "amber"
+        ? "bg-amber-50 text-amber-700 ring-amber-100"
+        : tone === "blue"
+          ? "bg-blue-50 text-blue-700 ring-blue-100"
+          : "bg-slate-50 text-slate-600 ring-slate-100";
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${toneClass}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function CompactLine({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-t border-slate-100 py-2 text-[12px] leading-5 first:border-t-0">
+      <span className="shrink-0 font-semibold text-slate-500">{label}</span>
+      <span
+        className={`min-w-0 truncate text-right ${
+          strong ? "font-semibold text-slate-950" : "font-medium text-slate-700"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function HeaderSummary({
+  count,
+  unreadCount,
+  copy,
+  locale,
+}: {
+  count: number;
+  unreadCount: number;
+  copy: {
+    title: string;
+    subtitle: string;
+    actionBubble: string;
+    actionBody: string;
+    unreadLabel: string;
+    unreadSuffix: string;
+    noOrdersShort: string;
+  };
+  locale: "ja" | "en";
+}) {
+  const hasOrders = count > 0;
+
+  return (
+    <section className="px-1 pt-1">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
+            {copy.title}
+          </h1>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            {copy.subtitle}
+          </p>
+        </div>
+
+        {unreadCount > 0 ? (
+          <StatusPill tone="blue">
+            {copy.unreadLabel} {unreadCount}
+            {locale === "ja" ? copy.unreadSuffix : ""}
+          </StatusPill>
+        ) : null}
+      </div>
+
+      {hasOrders ? (
+        <div className="mt-4 rounded-[24px] bg-white px-4 py-4 ring-1 ring-slate-100">
+          <div className="flex items-start gap-3">
+            <IconBubble active>
+              <OrderIcon />
+            </IconBubble>
+
+            <div className="min-w-0 flex-1">
+              <SpeechBubble>{copy.actionBubble}</SpeechBubble>
+              <p className="mt-3 text-[13px] font-medium leading-6 text-slate-600">
+                {copy.actionBody}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-4 rounded-[18px] bg-white px-4 py-3 text-[12px] font-medium leading-5 text-slate-500 ring-1 ring-slate-100">
+          {copy.noOrdersShort}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -340,8 +509,8 @@ function OrderCard({
     menu: string;
     payout: string;
     newMessage: string;
-    deadlineAlert: string;
     checkDetail: string;
+    replyLimit: string;
   };
   unread: boolean;
   urgent: boolean;
@@ -352,53 +521,41 @@ function OrderCard({
       ? getAcceptDeadlineLabel(item.creator_accept_deadline, locale)
       : null;
 
-  const hasBadges = unread || (urgent && acceptDeadline);
-
   return (
-    <a href={href} className="block">
-      <CreatorCard className="p-4 transition active:scale-[0.98]">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-rose-50 text-[#FF3B5C] ring-1 ring-rose-100">
+    <Link href={href} className="block">
+      <article className="rounded-[24px] bg-white px-4 py-4 ring-1 ring-slate-100 transition active:scale-[0.99]">
+        <div className="flex items-start gap-3">
+          <IconBubble active={unread || urgent}>
             <OrderIcon />
-          </div>
+          </IconBubble>
 
           <div className="min-w-0 flex-1">
-            {hasBadges ? (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {unread ? (
-                  <CreatorBadge tone="blue">{copy.newMessage}</CreatorBadge>
-                ) : null}
-
-                {urgent && acceptDeadline ? (
-                  <CreatorBadge tone="amber">{acceptDeadline}</CreatorBadge>
-                ) : null}
-              </div>
-            ) : null}
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {unread ? <StatusPill tone="blue">{copy.newMessage}</StatusPill> : null}
+              {urgent && acceptDeadline ? (
+                <StatusPill tone="amber">{acceptDeadline}</StatusPill>
+              ) : null}
+            </div>
 
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[17px] font-black leading-tight tracking-[-0.045em] text-slate-950">
+                <h2 className="truncate text-[16px] font-semibold leading-tight tracking-[-0.035em] text-slate-950">
                   {item.product_name || copy.unnamedProduct}
                 </h2>
-
-                <p className="mt-1.5 text-xs font-bold text-slate-400">
+                <p className="mt-1 text-[12px] font-medium text-slate-500">
                   {copy.orderDate}：{formatDate(item.created_at, locale)}
                 </p>
               </div>
 
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-                <CreatorChevron />
+              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+                <ChevronIcon />
               </span>
             </div>
 
             {item.kind === "order" ? (
-              <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
-                <CreatorMiniInfo
-                  label={copy.menu}
-                  value={item.menu_title || "-"}
-                />
-
-                <CreatorMiniInfo
+              <div className="mt-3">
+                <CompactLine label={copy.menu} value={item.menu_title || "-"} />
+                <CompactLine
                   label={copy.payout}
                   value={formatPrice(
                     item.creator_payout_amount,
@@ -407,18 +564,19 @@ function OrderCard({
                   )}
                   strong
                 />
+                {acceptDeadline ? (
+                  <CompactLine label={copy.replyLimit} value={acceptDeadline} />
+                ) : null}
               </div>
             ) : (
-              <div className="mt-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
-                <p className="text-sm font-bold text-slate-600">
-                  {copy.checkDetail}
-                </p>
-              </div>
+              <p className="mt-3 border-t border-slate-100 pt-3 text-[13px] font-medium leading-6 text-slate-600">
+                {copy.checkDetail}
+              </p>
             )}
           </div>
         </div>
-      </CreatorCard>
-    </a>
+      </article>
+    </Link>
   );
 }
 
@@ -433,7 +591,11 @@ export default function CreatorRequestsPage() {
       safeLocale === "ja"
         ? {
             title: "注文",
-            subtitle: "届いた注文を確認して、受けるか相談できます。",
+            subtitle: "受ける前の注文を確認できます。",
+            actionBubble: "注文を確認しましょう",
+            actionBody:
+              "内容・報酬・実施条件を確認して、受けるか相談できます。",
+            noOrdersShort: "新しい注文が届くと、ここに表示されます。",
             fetchError: "注文の取得に失敗しました。",
             partialFetchError:
               "一部の情報を取得できませんでした。注文自体は表示できる範囲で表示しています。",
@@ -443,21 +605,24 @@ export default function CreatorRequestsPage() {
             orderDate: "注文日",
             menu: "メニュー",
             payout: "受取予定",
+            replyLimit: "返答期限",
             empty: "届いている注文はありません",
             emptyBody: "新しい注文が届くとここに表示されます。",
             profileCta: "プロフィールを整える",
             newMessage: "新着メッセージ",
-            deadlineAlert: "返答期限",
             checkDetail: "内容を確認してください",
             errorTitle: "エラー",
             noticeTitle: "一部読み込みに失敗しました",
             unreadLabel: "新着",
             unreadSuffix: "件",
-            totalLabel: "届いている注文",
           }
         : {
             title: "Orders",
-            subtitle: "Review incoming orders and discuss if needed.",
+            subtitle: "Review orders before accepting.",
+            actionBubble: "Review your order",
+            actionBody:
+              "Check the details, payout, and requirements before accepting or discussing.",
+            noOrdersShort: "New orders will appear here.",
             fetchError: "Failed to load orders.",
             partialFetchError:
               "Some information could not be loaded. Showing available orders.",
@@ -467,17 +632,16 @@ export default function CreatorRequestsPage() {
             orderDate: "Order date",
             menu: "Menu",
             payout: "Expected",
+            replyLimit: "Reply by",
             empty: "No incoming orders",
             emptyBody: "New orders will appear here.",
             profileCta: "Update profile",
             newMessage: "New message",
-            deadlineAlert: "Reply by",
             checkDetail: "Check details",
             errorTitle: "Error",
             noticeTitle: "Partial loading issue",
             unreadLabel: "New",
             unreadSuffix: "",
-            totalLabel: "Incoming orders",
           },
     [safeLocale]
   );
@@ -849,40 +1013,14 @@ export default function CreatorRequestsPage() {
 
   return (
     <CreatorPage>
-      <CreatorHero
-        title={copy.title}
-        description={copy.subtitle}
-        right={
-          unreadCount > 0 ? (
-            <CreatorBadge tone="blue">
-              {copy.unreadLabel} {unreadCount}
-              {safeLocale === "ja" ? copy.unreadSuffix : ""}
-            </CreatorBadge>
-          ) : null
-        }
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
-            <p className="text-xs font-black text-slate-400">
-              {copy.totalLabel}
-            </p>
-            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
-              {items.length}
-              {safeLocale === "ja" ? "件" : ""}
-            </p>
-          </div>
+      <RequestStyle />
 
-          <div className="rounded-[22px] bg-white/70 p-4 shadow-sm ring-1 ring-white/80 backdrop-blur">
-            <p className="text-xs font-black text-slate-400">
-              {copy.unreadLabel}
-            </p>
-            <p className="mt-1 text-[26px] font-black tracking-[-0.065em] text-slate-950">
-              {unreadCount}
-              {safeLocale === "ja" ? "件" : ""}
-            </p>
-          </div>
-        </div>
-      </CreatorHero>
+      <HeaderSummary
+        count={items.length}
+        unreadCount={unreadCount}
+        copy={copy}
+        locale={safeLocale}
+      />
 
       {error ? (
         <CreatorNotice
@@ -900,7 +1038,7 @@ export default function CreatorRequestsPage() {
         />
       ) : null}
 
-      <section className="space-y-3">
+      <section className="space-y-2.5">
         {items.map((item) => {
           const unread = isUnreadForUser(item.chat, currentUserId);
           const urgent =
@@ -920,13 +1058,13 @@ export default function CreatorRequestsPage() {
         })}
 
         {items.length === 0 && !error ? (
-          <CreatorCard className="p-5">
+          <CreatorCard className="p-0 shadow-none">
             <CreatorEmptyState
               icon={<EmptyIcon />}
               title={copy.empty}
               description={copy.emptyBody}
               action={
-                <CreatorLinkButton href="/creator/profile">
+                <CreatorLinkButton href="/creator/profile" variant="secondary">
                   {copy.profileCta}
                 </CreatorLinkButton>
               }
