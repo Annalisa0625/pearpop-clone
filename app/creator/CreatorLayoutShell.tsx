@@ -63,7 +63,7 @@ function OrdersIcon({ className = "" }: IconProps) {
   );
 }
 
-function TodoIcon({ className = "" }: IconProps) {
+function WorkIcon({ className = "" }: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -210,28 +210,14 @@ function HelpIcon({ className = "" }: IconProps) {
   );
 }
 
-function LoginIcon({ className = "" }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.1"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-      <path d="m10 17 5-5-5-5" />
-      <path d="M15 12H3" />
-    </svg>
-  );
-}
-
 function getOrderIdFromPath(pathname: string) {
-  const match = pathname.match(/^\/creator\/orders\/([^/]+)/);
-  return match?.[1] ?? null;
+  const orderMatch = pathname.match(/^\/creator\/orders\/([^/]+)/);
+  if (orderMatch?.[1]) return orderMatch[1];
+
+  const chatMatch = pathname.match(/^\/creator\/chats\/([^/]+)/);
+  if (chatMatch?.[1]) return chatMatch[1];
+
+  return null;
 }
 
 function getDetailNavContextFromStatus(status: string | null): DetailNavContext {
@@ -287,6 +273,10 @@ function isActivePath(
 
   if (href === "/creator/jobs") {
     if (pathname === "/creator/jobs") return true;
+
+    if (pathname.startsWith("/creator/chats/")) {
+      return true;
+    }
 
     if (pathname.startsWith("/creator/orders/")) {
       return detailNavContext === "jobs";
@@ -363,12 +353,12 @@ export default function CreatorLayoutShell({
         ? {
             home: "ホーム",
             orders: "注文",
-            todo: "ToDo",
+            work: "仕事",
             payouts: "報酬",
             menu: "プロフ",
 
             notifications: "通知",
-            waitingWork: "実行待ち",
+            waitingWork: "参加中の仕事",
             myPage: "マイページ",
 
             profile: "プロフィール設定",
@@ -393,12 +383,12 @@ export default function CreatorLayoutShell({
         : {
             home: "Home",
             orders: "Orders",
-            todo: "ToDo",
+            work: "Work",
             payouts: "Payouts",
             menu: "Profile",
 
             notifications: "Notifications",
-            waitingWork: "Waiting work",
+            waitingWork: "Active work",
             myPage: "My page",
 
             profile: "Profile settings",
@@ -437,8 +427,8 @@ export default function CreatorLayoutShell({
       },
       {
         href: "/creator/jobs",
-        label: copy.todo,
-        icon: <TodoIcon className="h-[22px] w-[22px]" />,
+        label: copy.work,
+        icon: <WorkIcon className="h-[22px] w-[22px]" />,
       },
       {
         href: "/creator/payouts",
@@ -451,7 +441,7 @@ export default function CreatorLayoutShell({
         icon: <ProfileIcon className="h-[22px] w-[22px]" />,
       },
     ],
-    [copy.home, copy.menu, copy.orders, copy.payouts, copy.todo]
+    [copy.home, copy.menu, copy.orders, copy.payouts, copy.work]
   );
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -569,6 +559,11 @@ export default function CreatorLayoutShell({
         setDetailNavContext(null);
       }
 
+      return;
+    }
+
+    if (pathname.startsWith("/creator/chats/")) {
+      setDetailNavContext("jobs");
       return;
     }
 
