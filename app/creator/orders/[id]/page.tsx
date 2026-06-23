@@ -1316,8 +1316,8 @@ function InstructionFocusCard({
   copied: boolean;
   onCopy: () => void;
 }) {
-  const mainInstruction = requestNote || "";
   const hasMaterialAssets = assetsLoading || assets.length > 0;
+  const mainInstruction = requestNote || "";
   const secondaryUseText = order.wants_secondary_use
     ? locale === "ja"
       ? "広告素材としての利用あり"
@@ -1326,11 +1326,10 @@ function InstructionFocusCard({
       ? "広告素材としての利用なし"
       : "No ad usage";
 
-  const usageNoteTitle = locale === "ja" ? "利用範囲について" : "Usage scope";
   const usageNoteBody = order.wants_secondary_use
     ? locale === "ja"
-      ? "この案件では、納品物を広告素材・SNS投稿・LP・バナー等に使用する可能性があります。使用範囲・期間・掲載先について、注文内容またはチャットで確認してください。"
-      : "Deliverables may be used in ads, social posts, landing pages, banners, or similar materials. Confirm the scope, duration, and placement in the order details or chat."
+      ? "納品物を広告素材・SNS投稿・LP・バナー等に使用する可能性があります。使用範囲・期間・掲載先は、注文内容またはチャットで確認してください。"
+      : "Deliverables may be used in ads, social posts, landing pages, banners, or similar materials. Confirm scope, duration, and placement in the order details or chat."
     : locale === "ja"
       ? "この案件の成果物は、注文内容の確認・投稿URLの確認目的で使用されます。広告素材としての利用は含まれていません。"
       : "Deliverables are used to review the order and submitted URL. Ad usage is not included in this order.";
@@ -1340,12 +1339,12 @@ function InstructionFocusCard({
       <div className="px-4 py-3.5 sm:px-5">
         <div className="min-w-0">
           <h2 className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
-            {locale === "ja" ? "案件の指示" : "Order instructions"}
+            {locale === "ja" ? "案件について" : "About this order"}
           </h2>
           <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
             {locale === "ja"
-              ? "制作前に確認する内容をまとめています。"
-              : "Key instructions before you start."}
+              ? "進め方と利用範囲を先に確認できます。"
+              : "Review the flow and usage scope first."}
           </p>
         </div>
 
@@ -1372,7 +1371,7 @@ function InstructionFocusCard({
           }`}
         >
           <p className="text-[12px] font-semibold text-slate-800">
-            {usageNoteTitle}
+            {locale === "ja" ? "利用範囲" : "Usage scope"}
           </p>
           <p className="mt-1 text-[12px] font-medium leading-6 text-slate-700">
             {usageNoteBody}
@@ -1380,17 +1379,68 @@ function InstructionFocusCard({
         </div>
 
         {mainInstruction ? (
-          <div className="mt-4">
-            <p className="mb-2 text-[12px] font-semibold text-slate-600">
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
               {copy.requestNote}
             </p>
-            <PlainTextBox value={mainInstruction} emptyLabel={copy.notSet} />
+            <p className="mt-0.5 text-[11px] font-medium leading-5 text-slate-500">
+              {locale === "ja"
+                ? "依頼元からの制作・投稿に関する要望です。"
+                : "Requests from the requester for production or posting."}
+            </p>
+            <div className="mt-2">
+              <PlainTextBox value={mainInstruction} emptyLabel={copy.notSet} />
+            </div>
+          </div>
+        ) : null}
+
+        {prCopyText ? (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
+                  {copy.postInstructionTitle}
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium leading-5 text-slate-500">
+                  {locale === "ja"
+                    ? "投稿文に貼り付けるアカウント表記やハッシュタグです。"
+                    : "Account mentions and hashtags to paste into the post."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onCopy}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-100 transition active:scale-[0.98]"
+              >
+                <CopyIcon />
+                {copied ? copy.copied : copy.copyPostText}
+              </button>
+            </div>
+            <div className="mt-2">
+              <PlainTextBox value={prCopyText} emptyLabel={copy.notSet} />
+            </div>
+          </div>
+        ) : null}
+
+        {postNotes ? (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
+              {copy.postNotes}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium leading-5 text-slate-500">
+              {locale === "ja"
+                ? "投稿で触れてほしい内容や、避けてほしい表現です。"
+                : "Points to mention and expressions to avoid."}
+            </p>
+            <div className="mt-2">
+              <PlainTextBox value={postNotes} emptyLabel={copy.notSet} />
+            </div>
           </div>
         ) : null}
 
         {order.product_url ? (
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            <p className="text-[12px] font-semibold text-slate-600">
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
               {copy.productUrl}
             </p>
             <a
@@ -1405,21 +1455,21 @@ function InstructionFocusCard({
         ) : null}
 
         {hasMaterialAssets ? (
-          <details className="group mt-3 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
+          <details className="group mt-4 border-t border-slate-100 pt-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-slate-950">
-                  {locale === "ja" ? "参考画像・ファイル" : "Reference files"}
+                <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
+                  {locale === "ja" ? "参考資料" : "Reference files"}
                 </p>
-                <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                  {assets.length > 0
-                    ? `${assets.length}${locale === "ja" ? "件" : " files"}`
-                    : copy.referenceLoadFailed}
+                <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-5 text-slate-500">
+                  {locale === "ja"
+                    ? `見本・確認用の資料です。投稿に必ず含める素材ではありません。${assets.length > 0 ? ` ${assets.length}件` : ""}`
+                    : `Files for reference and review. They are not necessarily assets to include in the post.${assets.length > 0 ? ` ${assets.length} files` : ""}`}
                 </p>
               </div>
               <ChevronIcon open={false} />
             </summary>
-            <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3">
+            <div className="mt-3">
               <ReferenceGallery
                 assets={assets}
                 loading={assetsLoading}
@@ -1428,54 +1478,6 @@ function InstructionFocusCard({
                 openLabel={copy.referenceOpen}
                 fileLabel={copy.referenceFile}
               />
-            </div>
-          </details>
-        ) : null}
-
-        {prCopyText ? (
-          <details className="group mt-3 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-slate-950">
-                  {copy.postInstructionTitle}
-                </p>
-                <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
-                  {firstLine(prCopyText)}
-                </p>
-              </div>
-              <ChevronIcon open={false} />
-            </summary>
-
-            <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3">
-              <PlainTextBox value={prCopyText} emptyLabel={copy.notSet} />
-              <button
-                type="button"
-                onClick={onCopy}
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(255,95,103,0.16)] transition active:scale-[0.98]"
-              >
-                <CopyIcon />
-                {copied ? copy.copied : copy.copyPostText}
-              </button>
-            </div>
-          </details>
-        ) : null}
-
-        {postNotes ? (
-          <details className="group mt-3 rounded-[14px] bg-slate-50/60 ring-1 ring-slate-100">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-slate-950">
-                  {copy.postNotes}
-                </p>
-                <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-500">
-                  {firstLine(postNotes)}
-                </p>
-              </div>
-              <ChevronIcon open={false} />
-            </summary>
-
-            <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3">
-              <PlainTextBox value={postNotes} emptyLabel={copy.notSet} />
             </div>
           </details>
         ) : null}
@@ -1581,10 +1583,12 @@ function CreatorPayoutSummaryCard({
                     : `-${formatPrice(estimate.bankFee, "JPY", locale)}`
                 }
               />
-              <DetailRow
-                label={copy.payoutDetailWithholding}
-                value={`-${formatPrice(estimate.withholding, "JPY", locale)}`}
-              />
+              {estimate.withholding > 0 ? (
+                <DetailRow
+                  label={copy.payoutDetailWithholding}
+                  value={`-${formatPrice(estimate.withholding, "JPY", locale)}`}
+                />
+              ) : null}
               <DetailRow
                 label={copy.payoutDetailEstimatedNet}
                 value={formatPrice(
@@ -2254,7 +2258,6 @@ function PreparationGuidanceBox({
 
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
   const preparationStatus = normalizePreparationStatus(order.preparation_status);
-  const ready = isPreparationReady(order);
   const beforeAccept = isWaitingForCreator(order);
 
   let icon: ReactNode = <LinkIcon />;
@@ -2265,19 +2268,13 @@ function PreparationGuidanceBox({
   if (locale === "ja") {
     if (fulfillmentType === "material_provided") {
       icon = <LinkIcon />;
-      title = beforeAccept
-        ? "素材・投稿条件を確認してください"
-        : ready
-          ? "制作に進めます"
-          : "素材・投稿条件を確認してください";
+      title = beforeAccept ? "素材・条件を確認しましょう" : "制作を進めましょう";
       body = beforeAccept
-        ? "注文を受ける前に、参考資料・投稿条件・PR表記を確認してください。"
-        : ready
-          ? "必要な確認が完了しています。制作と納品に進めます。"
-          : "届いた素材・商品情報・投稿条件を確認し、問題なければ確認完了にしてください。";
+        ? "注文を受ける前に、投稿条件やPR表記を確認してください。"
+        : "必要な内容を確認して、制作・投稿を進めてください。";
 
       detail = order.materials_confirmed_at ? (
-        <p className="mt-2 text-xs font-black text-slate-600">
+        <p className="mt-2 text-[11px] font-semibold text-slate-500">
           確認日時：{formatDateTime(order.materials_confirmed_at, locale)}
         </p>
       ) : null;
@@ -2287,21 +2284,19 @@ function PreparationGuidanceBox({
       icon = <PackageIcon />;
 
       if (preparationStatus === "waiting_shipping_address") {
-        title = beforeAccept ? "商品提供の案件です" : "配送先を共有してください";
+        title = beforeAccept ? "商品提供の案件です" : "配送先を共有しましょう";
         body = beforeAccept
-          ? "注文を受けた後、商品を受け取る配送先を共有します。"
+          ? "注文を受けた後、商品を受け取るための配送先を共有します。"
           : "商品を受け取るため、配送先を入力してください。";
       } else if (preparationStatus === "waiting_shipment") {
-        title = "商品の発送を待っています";
+        title = "発送を待っています";
         body = "配送先は共有済みです。商品が発送されるまでお待ちください。";
       } else if (preparationStatus === "shipped") {
-        title = "商品の到着を待っています";
+        title = "商品到着を確認しましょう";
         body = "商品が届いたら内容を確認し、受け取り完了にしてください。";
       } else {
-        title = ready ? "制作に進めます" : "商品を確認してください";
-        body = ready
-          ? "商品を受け取り済みです。制作と納品に進めます。"
-          : "商品が届いたら、内容を確認してから制作を進めてください。";
+        title = "制作を進めましょう";
+        body = "商品内容を確認して、制作・投稿を進めてください。";
       }
     }
 
@@ -2309,13 +2304,13 @@ function PreparationGuidanceBox({
       icon = <CalendarIcon />;
 
       if (preparationStatus === "schedule_confirmed") {
-        title = "来店日が決まっています";
-        body = "来店日・場所・注意事項を確認して、当日に向けて準備してください。";
+        title = "来店日を確認しましょう";
+        body = "来店日・場所・撮影ルールを確認して、当日に向けて準備してください。";
       } else {
-        title = beforeAccept ? "来店日程を調整します" : "来店日程を相談してください";
+        title = beforeAccept ? "来店日程を調整します" : "来店日程を相談しましょう";
         body = beforeAccept
           ? "注文を受けた後、チャットで来店日・場所・撮影ルールを相談できます。"
-          : "チャットで来店日・場所・撮影ルールを相談して進めてください。";
+          : "チャットで来店日・場所・撮影ルールを確認してください。";
       }
 
       const hasVisitDetails =
@@ -2324,11 +2319,11 @@ function PreparationGuidanceBox({
         Boolean(order.visit_notes);
 
       detail = hasVisitDetails ? (
-        <div className="mt-3 grid gap-2 rounded-[16px] bg-slate-50 p-3 ring-1 ring-slate-100">
+        <div className="mt-3 grid gap-1.5 rounded-[14px] bg-slate-50/80 px-3 py-2.5 ring-1 ring-slate-100">
           {order.visit_scheduled_at ? (
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-slate-500">来店日</span>
-              <span className="text-right text-xs font-black text-slate-800">
+              <span className="text-[11px] font-semibold text-slate-500">来店日</span>
+              <span className="text-right text-[12px] font-semibold text-slate-800">
                 {formatDateTime(order.visit_scheduled_at, locale)}
               </span>
             </div>
@@ -2336,15 +2331,15 @@ function PreparationGuidanceBox({
 
           {order.visit_location ? (
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-slate-500">場所</span>
-              <span className="min-w-0 truncate text-right text-xs font-black text-slate-800">
+              <span className="text-[11px] font-semibold text-slate-500">場所</span>
+              <span className="min-w-0 truncate text-right text-[12px] font-semibold text-slate-800">
                 {order.visit_location}
               </span>
             </div>
           ) : null}
 
           {order.visit_notes ? (
-            <p className="whitespace-pre-line text-xs font-bold leading-6 text-slate-700">
+            <p className="whitespace-pre-line text-[12px] font-medium leading-6 text-slate-700">
               {order.visit_notes}
             </p>
           ) : null}
@@ -2354,16 +2349,10 @@ function PreparationGuidanceBox({
   } else {
     if (fulfillmentType === "material_provided") {
       icon = <LinkIcon />;
-      title = beforeAccept
-        ? "Review materials and posting rules"
-        : ready
-          ? "Ready to start"
-          : "Review materials and posting rules";
+      title = beforeAccept ? "Review materials" : "Continue the work";
       body = beforeAccept
-        ? "Before accepting, review the reference assets, posting rules, and PR text."
-        : ready
-          ? "The required checks are done. You can continue with the work."
-          : "Review the materials and posting instructions, then confirm them.";
+        ? "Before accepting, review the posting rules and PR text."
+        : "Review the details and continue production or posting.";
     }
 
     if (fulfillmentType === "product_shipping") {
@@ -2376,7 +2365,7 @@ function PreparationGuidanceBox({
 
     if (fulfillmentType === "visit") {
       icon = <CalendarIcon />;
-      title = beforeAccept ? "Coordinate the visit" : "Coordinate the visit";
+      title = "Coordinate the visit";
       body = beforeAccept
         ? "After accepting, coordinate the visit date, place, and shooting rules in chat."
         : "Coordinate the visit date, place, and shooting rules in chat.";
@@ -2385,23 +2374,17 @@ function PreparationGuidanceBox({
 
   return (
     <Surface className="overflow-hidden">
-      <div className="bg-white px-4 py-3.5 sm:px-5">
+      <div className="bg-white px-4 py-3 sm:px-5">
         <div className="flex items-start gap-3">
-          <div
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] ring-1 ${
-              ready
-                ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-                : "bg-rose-50 text-[#ff5f67] ring-rose-100"
-            }`}
-          >
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[13px] bg-rose-50 text-[#ff5f67] ring-1 ring-rose-100">
             {icon}
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
+            <p className="text-[16px] font-semibold tracking-[-0.03em] text-slate-950">
               {title}
             </p>
-            <p className="mt-1 text-sm font-bold leading-7 text-slate-600">
+            <p className="mt-1 text-[12px] font-medium leading-6 text-slate-600">
               {body}
             </p>
 
@@ -2410,7 +2393,7 @@ function PreparationGuidanceBox({
             {canChat ? (
               <Link
                 href={chatHref}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-5 py-3 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
+                className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-slate-50 px-3.5 py-2 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100 transition active:scale-[0.98]"
               >
                 <MessageIcon />
                 {copy.preparationChatButton}
@@ -2442,29 +2425,29 @@ function DeliveryActionBox({
 }) {
   return (
     <Surface className="overflow-hidden">
-      <div className="bg-gradient-to-br from-rose-50 via-white to-white p-4 ring-1 ring-rose-50 sm:p-5">
+      <div className="bg-white px-4 py-3.5 sm:px-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white text-[#ff5f67] shadow-sm ring-1 ring-rose-100">
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[13px] bg-rose-50 text-[#ff5f67] ring-1 ring-rose-100">
             <LinkIcon />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[19px] font-black tracking-[-0.05em] text-slate-950">
+            <p className="text-[16px] font-semibold tracking-[-0.03em] text-slate-950">
               {isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
             </p>
-            <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
+            <p className="mt-1 text-[12px] font-medium leading-6 text-slate-600">
               {copy.deliveryBody}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-3 space-y-2.5">
           <input
             type="url"
             value={deliveryUrl}
             onChange={(e) => setDeliveryUrl(e.target.value)}
             placeholder={copy.deliveredPostUrlPlaceholder}
-            className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3.5 text-[16px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-50"
+            className="w-full rounded-[18px] border border-slate-200 bg-slate-50/70 px-4 py-3 text-[15px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:bg-white focus:ring-4 focus:ring-rose-50"
           />
 
           {order.delivered_post_url ? (
@@ -2472,7 +2455,7 @@ function DeliveryActionBox({
               href={order.delivered_post_url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex max-w-full items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100"
+              className="inline-flex max-w-full items-center gap-2 rounded-full bg-slate-50 px-3.5 py-2 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-100"
             >
               <LinkIcon />
               <span className="truncate">{copy.openDeliveredUrl}</span>
@@ -2775,10 +2758,10 @@ export default function CreatorOrderDetailPage() {
             shippedAt: "発送日時",
             receivedAt: "受取日時",
 
-            deliveryTitle: "納品する",
+            deliveryTitle: "実施後にURLを提出",
             redeliveryTitle: "修正版を送る",
             deliveryBody:
-              "投稿URL、成果物URL、Google Driveなど、確認できるURLを入力してください。",
+              "来店・投稿・制作が完了したら、投稿URLや成果物URLを送ってください。",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "提出済みURLを開く",
             deliver: "このURLを送る",
@@ -2840,11 +2823,11 @@ export default function CreatorOrderDetailPage() {
             payoutDetailMenuPrice: "メニュー価格",
             payoutDetailPayout: "報酬予定額",
             payoutDetailBankFee: "振込手数料（仮）",
-            payoutDetailWithholding: "源泉徴収（現時点）",
+            payoutDetailWithholding: "その他控除",
             payoutDetailEstimatedNet: "振込予定額",
             payoutImportantTitle: "支払いについて",
             payoutImportantBody:
-              "表示金額は現時点の見込みです。正式な支払額は、案件状況・振込手数料・源泉徴収などの確認後に確定します。",
+              "表示金額は現時点の見込みです。正式な支払額は、案件状況や振込手数料などの確認後に確定します。",
             payoutOrderDates: "注文・支払い日程",
             payoutOrderDatesSub: "発注日や完了日を確認できます",
             payoutCreatedAt: "注文日",
@@ -2958,10 +2941,10 @@ export default function CreatorOrderDetailPage() {
             shippedAt: "Shipped at",
             receivedAt: "Received at",
 
-            deliveryTitle: "Send your delivery",
+            deliveryTitle: "Submit URL after completion",
             redeliveryTitle: "Send the revised URL",
             deliveryBody:
-              "Enter a post URL, asset URL, Google Drive link, or another URL that can be reviewed.",
+              "After the visit, post, or production is complete, submit a URL that can be reviewed.",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "Open submitted URL",
             deliver: "Send this URL",
@@ -3022,11 +3005,11 @@ export default function CreatorOrderDetailPage() {
             payoutDetailMenuPrice: "Menu price",
             payoutDetailPayout: "Expected payout",
             payoutDetailBankFee: "Bank transfer fee",
-            payoutDetailWithholding: "Withholding tax",
+            payoutDetailWithholding: "Other deductions",
             payoutDetailEstimatedNet: "Estimated bank transfer",
             payoutImportantTitle: "About payouts",
             payoutImportantBody:
-              "Amounts shown are estimates. The final amount may be adjusted after checking order status, transfer fees, and tax handling.",
+              "Amounts shown are estimates. The final amount may be adjusted after checking order status and transfer fees.",
             payoutOrderDates: "Order and payout dates",
             payoutOrderDatesSub: "Check acceptance, completion, and payout dates",
             payoutCreatedAt: "Order date",
@@ -3315,7 +3298,7 @@ export default function CreatorOrderDetailPage() {
       }
 
       if (type === "accept") {
-        router.push(`/creator/orders/${order.id}/chat`);
+        router.push(`/creator/chats/${order.id}`);
         return;
       }
 
@@ -3687,20 +3670,8 @@ export default function CreatorOrderDetailPage() {
           order={order}
           locale={safeLocale}
           canChat={canChat}
-          chatHref={`/creator/orders/${order.id}/chat`}
+          chatHref={`/creator/chats/${order.id}`}
           copy={copy}
-        />
-      ) : null}
-
-      {canDeliver ? (
-        <DeliveryActionBox
-          order={order}
-          copy={copy}
-          deliveryUrl={deliveryUrl}
-          setDeliveryUrl={setDeliveryUrl}
-          actionLoading={actionLoading}
-          onDeliver={() => void runDeliver()}
-          isRevisionRequested={isRevisionRequested}
         />
       ) : null}
 
@@ -3719,6 +3690,18 @@ export default function CreatorOrderDetailPage() {
         copied={copied}
         onCopy={() => void handleCopyPostText()}
       />
+
+      {canDeliver ? (
+        <DeliveryActionBox
+          order={order}
+          copy={copy}
+          deliveryUrl={deliveryUrl}
+          setDeliveryUrl={setDeliveryUrl}
+          actionLoading={actionLoading}
+          onDeliver={() => void runDeliver()}
+          isRevisionRequested={isRevisionRequested}
+        />
+      ) : null}
 
       {!isWaitingForCreator(order) && !canDeliver && !shouldShowPreparation ? (
         <PassiveNoticeBox title={passiveNotice.title} body={passiveNotice.body} />
