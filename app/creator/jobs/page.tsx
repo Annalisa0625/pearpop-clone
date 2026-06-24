@@ -85,16 +85,6 @@ type ChatItem = {
 
 type TabKey = "jobs" | "chats";
 
-function getTime(value: string | null | undefined) {
-  if (!value) return null;
-
-  const time = new Date(value).getTime();
-
-  if (Number.isNaN(time)) return null;
-
-  return time;
-}
-
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
@@ -107,15 +97,50 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
-function formatTime(value: string | null | undefined, locale: "ja" | "en") {
+function formatChatTimestamp(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "";
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  return date.toLocaleTimeString(locale === "ja" ? "ja-JP" : "en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfTarget = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
+
+  const diffDays = Math.floor(
+    (startOfToday.getTime() - startOfTarget.getTime()) / 86400000
+  );
+
+  if (diffDays <= 0) {
+    return date.toLocaleTimeString(locale === "ja" ? "ja-JP" : "en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  if (diffDays === 1) {
+    return locale === "ja" ? "昨日" : "Yesterday";
+  }
+
+  if (diffDays <= 6) {
+    return locale === "ja" ? `${diffDays}日前` : `${diffDays}d ago`;
+  }
+
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+      month: "numeric",
+      day: "numeric",
+    });
+  }
+
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
   });
 }
 
@@ -301,25 +326,6 @@ function CheckIcon() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" aria-hidden="true">
-      <path
-        d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H11l-4.5 4v-4A2.5 2.5 0 0 1 4 12.5v-6Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 8.5h8M8 11.5h5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
       />
     </svg>
   );
@@ -535,29 +541,44 @@ function ChatRowItem({
   fallbackMessage: string;
 }) {
   const latestText = getMessageText(item.latestMessage, fallbackMessage);
-  const timeText = formatTime(item.latestAt, locale);
+  const timeText = formatChatTimestamp(item.latestAt, locale);
+  const unread = item.unreadCount > 0;
 
   return (
     <Link href={`/creator/chats/${item.order.id}`} className="block">
-      <article className="flex items-center gap-3 rounded-[22px] bg-white px-4 py-3.5 ring-1 ring-slate-100 transition active:scale-[0.99]">
-        <div className="relative">
-          <IconBubble tone={item.unreadCount > 0 ? "rose" : "blue"}>
-            <ChatIcon />
-          </IconBubble>
-          {item.unreadCount > 0 ? (
-            <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#ff3860] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
-              {item.unreadCount > 99 ? "99+" : item.unreadCount}
-            </span>
-          ) : null}
-        </div>
+      <article
+        className={`relative flex items-center gap-3 rounded-[22px] bg-white px-4 py-3.5 ring-1 transition active:scale-[0.99] ${
+          unread ? "ring-rose-100" : "ring-slate-100"
+        }`}
+      >
+        {unread ? (
+          <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-[#ff3860]" />
+        ) : null}
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pl-1">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="truncate text-[15px] font-semibold tracking-[-0.03em] text-slate-950">
-              {item.order.title}
-            </h2>
+            <div className="min-w-0 flex items-center gap-2">
+              <h2
+                className={`truncate text-[15px] tracking-[-0.03em] text-slate-950 ${
+                  unread ? "font-bold" : "font-semibold"
+                }`}
+              >
+                {item.order.title}
+              </h2>
+
+              {unread ? (
+                <span className="shrink-0 rounded-full bg-[#ff3860] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                  {item.unreadCount > 99 ? "99+" : item.unreadCount}
+                </span>
+              ) : null}
+            </div>
+
             {timeText ? (
-              <span className="shrink-0 text-[11px] font-medium text-slate-400">
+              <span
+                className={`shrink-0 text-[11px] font-medium ${
+                  unread ? "text-[#ff3860]" : "text-slate-400"
+                }`}
+              >
                 {timeText}
               </span>
             ) : null}
@@ -565,9 +586,7 @@ function ChatRowItem({
 
           <p
             className={`mt-1 truncate text-[12px] leading-5 ${
-              item.unreadCount > 0
-                ? "font-semibold text-slate-700"
-                : "font-medium text-slate-500"
+              unread ? "font-semibold text-slate-800" : "font-medium text-slate-500"
             }`}
           >
             {latestText}
@@ -991,7 +1010,7 @@ export default function CreatorJobsPage() {
           <section className="space-y-2.5">
             {chatItems.length === 0 ? (
               <EmptyState
-                icon={<ChatIcon />}
+                icon={<EmptyIcon />}
                 title={copy.emptyChatsTitle}
                 body={copy.emptyChatsBody}
               />
