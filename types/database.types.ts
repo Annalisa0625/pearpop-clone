@@ -600,6 +600,106 @@ export type Database = {
         }
         Relationships: []
       }
+      line_link_codes: {
+        Row: {
+          app_user_id: string
+          code: string
+          created_at: string
+          creator_id: string | null
+          expires_at: string
+          id: string
+          used_at: string | null
+          used_line_user_id: string | null
+        }
+        Insert: {
+          app_user_id: string
+          code: string
+          created_at?: string
+          creator_id?: string | null
+          expires_at: string
+          id?: string
+          used_at?: string | null
+          used_line_user_id?: string | null
+        }
+        Update: {
+          app_user_id?: string
+          code?: string
+          created_at?: string
+          creator_id?: string | null
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          used_line_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "line_link_codes_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      line_user_links: {
+        Row: {
+          app_user_id: string
+          blocked_at: string | null
+          created_at: string
+          creator_id: string | null
+          id: string
+          is_enabled: boolean
+          last_event_at: string | null
+          line_display_name: string | null
+          line_picture_url: string | null
+          line_status_message: string | null
+          line_user_id: string
+          linked_at: string
+          unlinked_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          app_user_id: string
+          blocked_at?: string | null
+          created_at?: string
+          creator_id?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_event_at?: string | null
+          line_display_name?: string | null
+          line_picture_url?: string | null
+          line_status_message?: string | null
+          line_user_id: string
+          linked_at?: string
+          unlinked_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          app_user_id?: string
+          blocked_at?: string | null
+          created_at?: string
+          creator_id?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_event_at?: string | null
+          line_display_name?: string | null
+          line_picture_url?: string | null
+          line_status_message?: string | null
+          line_user_id?: string
+          linked_at?: string
+          unlinked_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "line_user_links_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           chat_id: string
@@ -738,6 +838,62 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      notification_logs: {
+        Row: {
+          channel: string
+          created_at: string
+          creator_id: string | null
+          entity_id: string | null
+          entity_type: string | null
+          error_message: string | null
+          id: string
+          line_user_id: string | null
+          message: string | null
+          notification_type: string | null
+          recipient_user_id: string | null
+          response_json: Json | null
+          status: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          creator_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          line_user_id?: string | null
+          message?: string | null
+          notification_type?: string | null
+          recipient_user_id?: string | null
+          response_json?: Json | null
+          status?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          creator_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          line_user_id?: string | null
+          message?: string | null
+          notification_type?: string | null
+          recipient_user_id?: string | null
+          response_json?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_preferences: {
         Row: {
