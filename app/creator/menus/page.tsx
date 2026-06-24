@@ -12,6 +12,8 @@ import {
   CreatorSkeleton,
 } from "@/app/creator/_components/CreatorDesignSystem";
 
+type Locale = "ja" | "en";
+
 type CreatorMenu = {
   id: string;
   creator_id: string | null;
@@ -41,17 +43,6 @@ type SocialAccount = {
   url: string;
 };
 
-type Locale = "ja" | "en";
-
-const MENU_BADGES = [
-  "Instagram投稿",
-  "Instagramリール",
-  "Instagramストーリーズ",
-  "TikTok投稿",
-  "YouTubeショート",
-  "UGC制作",
-];
-
 function formatPrice(
   value: number | null,
   currency: string | null | undefined,
@@ -78,11 +69,6 @@ function formatPrice(
   return locale === "ja" ? "未設定" : "Not set";
 }
 
-function formatDeliveryDays(value: number | null, locale: Locale) {
-  if (value == null) return locale === "ja" ? "未設定" : "Not set";
-  return locale === "ja" ? `${value}日` : `${value} days`;
-}
-
 function normalizePlatform(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
@@ -94,41 +80,23 @@ function inferPlatform(menu: CreatorMenu) {
   if (raw.includes("tiktok")) return "TikTok";
   if (raw.includes("youtube")) return "YouTube";
   if (raw.includes("ugc") || raw.includes("素材") || raw.includes("投稿なし")) return "UGC";
-  if (raw.includes("event") || raw.includes("イベント") || raw.includes("訪問")) return "Event";
+  if (raw.includes("event") || raw.includes("イベント") || raw.includes("訪問")) return "Visit";
 
-  return menu.platform || menu.sns || "Other";
+  return menu.platform || menu.sns || "Menu";
 }
 
 function menuFormatLabel(menu: CreatorMenu, locale: Locale) {
   const title = menu.title ?? "";
 
-  if (title.includes("Instagram投稿")) {
-    return locale === "ja" ? "投稿" : "Post";
-  }
-  if (title.includes("Instagramリール")) {
-    return locale === "ja" ? "リール" : "Reel";
-  }
-  if (title.includes("Instagramストーリーズ")) {
-    return locale === "ja" ? "ストーリーズ" : "Stories";
-  }
-  if (title.includes("TikTok")) {
-    return locale === "ja" ? "動画" : "Video";
-  }
-  if (title.includes("YouTubeショート")) {
-    return locale === "ja" ? "ショート" : "Short";
-  }
-  if (title.includes("YouTube動画")) {
-    return locale === "ja" ? "動画" : "Video";
-  }
-  if (title.includes("動画素材")) {
-    return locale === "ja" ? "動画素材" : "Video asset";
-  }
-  if (title.includes("写真素材")) {
-    return locale === "ja" ? "写真素材" : "Photo asset";
-  }
-  if (title.includes("イベント")) {
-    return locale === "ja" ? "訪問" : "Visit";
-  }
+  if (title.includes("Instagram投稿")) return locale === "ja" ? "投稿" : "Post";
+  if (title.includes("Instagramリール")) return locale === "ja" ? "リール" : "Reel";
+  if (title.includes("Instagramストーリーズ")) return locale === "ja" ? "ストーリーズ" : "Stories";
+  if (title.includes("TikTok")) return locale === "ja" ? "動画" : "Video";
+  if (title.includes("YouTubeショート")) return locale === "ja" ? "ショート" : "Short";
+  if (title.includes("YouTube動画")) return locale === "ja" ? "動画" : "Video";
+  if (title.includes("動画素材")) return locale === "ja" ? "動画素材" : "Video asset";
+  if (title.includes("写真素材")) return locale === "ja" ? "写真素材" : "Photo asset";
+  if (title.includes("イベント")) return locale === "ja" ? "訪問" : "Visit";
 
   const labels: Record<string, { ja: string; en: string }> = {
     post: { ja: "投稿", en: "Post" },
@@ -138,6 +106,7 @@ function menuFormatLabel(menu: CreatorMenu, locale: Locale) {
     ugc: { ja: "UGC制作", en: "UGC" },
     ugc_video: { ja: "動画素材", en: "Video asset" },
     ugc_photo: { ja: "写真素材", en: "Photo asset" },
+    event_visit: { ja: "訪問", en: "Visit" },
     package: { ja: "セット", en: "Package" },
     other: { ja: "その他", en: "Other" },
   };
@@ -145,28 +114,28 @@ function menuFormatLabel(menu: CreatorMenu, locale: Locale) {
   return labels[menu.menu_type ?? ""]?.[locale] || (locale === "ja" ? "メニュー" : "Menu");
 }
 
-function platformTone(platform: string) {
+function platformBadgeClass(platform: string) {
   if (platform === "Instagram") {
-    return "bg-gradient-to-r from-violet-50 via-fuchsia-50 to-rose-50 text-violet-700 ring-violet-200";
+    return "border-violet-200 bg-violet-50 text-violet-700";
   }
 
   if (platform === "TikTok") {
-    return "bg-slate-950 text-white ring-slate-950";
+    return "border-slate-300 bg-slate-950 text-white";
   }
 
   if (platform === "YouTube") {
-    return "bg-red-600 text-white ring-red-600";
+    return "border-red-100 bg-red-50 text-red-700";
   }
 
   if (platform === "UGC") {
-    return "bg-violet-50 text-violet-700 ring-violet-100";
+    return "border-indigo-100 bg-indigo-50 text-indigo-700";
   }
 
-  if (platform === "Event") {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (platform === "Visit") {
+    return "border-emerald-100 bg-emerald-50 text-emerald-700";
   }
 
-  return "bg-slate-50 text-slate-600 ring-slate-100";
+  return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 function platformIcon(platform: string) {
@@ -174,47 +143,21 @@ function platformIcon(platform: string) {
   if (platform === "TikTok") return "♪";
   if (platform === "YouTube") return "▶";
   if (platform === "UGC") return "UGC";
-  if (platform === "Event") return "✓";
+  if (platform === "Visit") return "✓";
   return "•";
 }
 
 function PlatformBadge({ platform }: { platform: string }) {
   return (
     <span
-      className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold ring-1 ${platformTone(
+      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold ${platformBadgeClass(
         platform,
       )}`}
     >
-      <span className={platform === "UGC" ? "text-[10px]" : "text-[13px]"}>
+      <span className={platform === "UGC" ? "text-[9px]" : "text-[12px]"}>
         {platformIcon(platform)}
       </span>
       {platform}
-    </span>
-  );
-}
-
-function StatusBadge({
-  active,
-  locale,
-}: {
-  active: boolean;
-  locale: Locale;
-}) {
-  return (
-    <span
-      className={`inline-flex h-8 items-center rounded-full px-3 text-[12px] font-semibold ring-1 ${
-        active
-          ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-          : "bg-slate-50 text-slate-500 ring-slate-100"
-      }`}
-    >
-      {active
-        ? locale === "ja"
-          ? "公開中"
-          : "Public"
-        : locale === "ja"
-          ? "非公開"
-          : "Private"}
     </span>
   );
 }
@@ -251,8 +194,8 @@ function LoadingView() {
     <CreatorPage>
       <CreatorSkeleton className="h-24" />
       <CreatorSkeleton className="h-20" />
-      <CreatorSkeleton className="h-36" />
-      <CreatorSkeleton className="h-36" />
+      <CreatorSkeleton className="h-32" />
+      <CreatorSkeleton className="h-32" />
     </CreatorPage>
   );
 }
@@ -261,94 +204,72 @@ function Header({
   title,
   subtitle,
   createLabel,
+  menus,
+  locale,
 }: {
   title: string;
   subtitle: string;
   createLabel: string;
-}) {
-  return (
-    <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
-            {title}
-          </h1>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-            {subtitle}
-          </p>
-        </div>
-
-        <Link
-          href="/creator/menus/new"
-          className="shrink-0 rounded-full bg-[#ff5f67] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
-        >
-          + {createLabel}
-        </Link>
-      </div>
-
-      <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {MENU_BADGES.map((badge) => {
-          const platform = badge.includes("Instagram")
-            ? "Instagram"
-            : badge.includes("TikTok")
-              ? "TikTok"
-              : badge.includes("YouTube")
-                ? "YouTube"
-                : "UGC";
-
-          return (
-            <span
-              key={badge}
-              className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11px] font-semibold ring-1 ${platformTone(
-                platform,
-              )}`}
-            >
-              {badge}
-            </span>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function SummaryStrip({
-  menus,
-  locale,
-}: {
   menus: CreatorMenu[];
   locale: Locale;
 }) {
   const publicCount = menus.filter((menu) => !!menu.is_active).length;
-  const privateCount = menus.length - publicCount;
 
   return (
-    <section className="grid grid-cols-3 gap-2">
-      <div className="rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100">
-        <p className="text-[11px] font-medium text-slate-500">
-          {locale === "ja" ? "合計" : "Total"}
-        </p>
-        <p className="mt-1 text-[20px] font-semibold tracking-[-0.045em] text-slate-950">
-          {menus.length}
-        </p>
-      </div>
+    <section className="overflow-hidden rounded-[30px] bg-white ring-1 ring-slate-100">
+      <div className="relative p-5">
+        <div className="pointer-events-none absolute -right-14 -top-14 h-36 w-36 rounded-full bg-gradient-to-br from-rose-100 via-violet-100 to-transparent blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-gradient-to-tr from-emerald-100 to-transparent blur-2xl" />
 
-      <div className="rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100">
-        <p className="text-[11px] font-medium text-slate-500">
-          {locale === "ja" ? "公開中" : "Public"}
-        </p>
-        <p className="mt-1 text-[20px] font-semibold tracking-[-0.045em] text-emerald-700">
-          {publicCount}
-        </p>
-      </div>
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              Creator menu
+            </p>
+            <h1 className="mt-1 text-[24px] font-semibold tracking-[-0.055em] text-slate-950">
+              {title}
+            </h1>
+            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+              {subtitle}
+            </p>
+          </div>
 
-      <div className="rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100">
-        <p className="text-[11px] font-medium text-slate-500">
-          {locale === "ja" ? "非公開" : "Private"}
-        </p>
-        <p className="mt-1 text-[20px] font-semibold tracking-[-0.045em] text-slate-700">
-          {privateCount}
-        </p>
+          <Link
+            href="/creator/menus/new"
+            className="shrink-0 rounded-full bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
+          >
+            + {createLabel}
+          </Link>
+        </div>
+
+        <div className="relative mt-5 grid grid-cols-3 gap-2">
+          <div className="rounded-[20px] bg-white/80 px-3 py-3 ring-1 ring-white/90 backdrop-blur">
+            <p className="text-[10px] font-medium text-slate-500">
+              {locale === "ja" ? "合計" : "Total"}
+            </p>
+            <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.05em] text-slate-950">
+              {menus.length}
+            </p>
+          </div>
+
+          <div className="rounded-[20px] bg-white/80 px-3 py-3 ring-1 ring-white/90 backdrop-blur">
+            <p className="text-[10px] font-medium text-slate-500">
+              {locale === "ja" ? "公開中" : "Public"}
+            </p>
+            <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.05em] text-emerald-700">
+              {publicCount}
+            </p>
+          </div>
+
+          <div className="rounded-[20px] bg-white/80 px-3 py-3 ring-1 ring-white/90 backdrop-blur">
+            <p className="text-[10px] font-medium text-slate-500">
+              {locale === "ja" ? "非公開" : "Private"}
+            </p>
+            <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.05em] text-slate-700">
+              {menus.length - publicCount}
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -389,16 +310,20 @@ function MenuCard({
   const deniedSecondaryUse = menu.allow_secondary_use === false;
 
   return (
-    <article className="rounded-[22px] bg-white p-3.5 ring-1 ring-slate-100">
-      <div className="flex items-start justify-between gap-3">
+    <article className="group rounded-[24px] bg-white p-4 ring-1 ring-slate-100 transition hover:ring-slate-200">
+      <div className="flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[18px] bg-slate-50 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100">
+          {platformIcon(platform)}
+        </div>
+
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap gap-1.5">
             <PlatformBadge platform={platform} />
             <span
-              className={`inline-flex h-8 items-center rounded-full px-3 text-[12px] font-semibold ring-1 ${
+              className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
                 isPublic
-                  ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-                  : "bg-slate-50 text-slate-500 ring-slate-100"
+                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-slate-50 text-slate-500"
               }`}
             >
               {isPublic
@@ -409,35 +334,39 @@ function MenuCard({
                   ? "非公開"
                   : "Private"}
             </span>
-            <span className="inline-flex h-8 items-center rounded-full bg-slate-50 px-3 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-100">
+            <span className="inline-flex h-7 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-slate-600">
               {menuFormatLabel(menu, locale)}
             </span>
           </div>
 
-          <h2 className="mt-2 line-clamp-1 text-[16px] font-semibold leading-6 tracking-[-0.035em] text-slate-950">
-            {menu.title}
-          </h2>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="line-clamp-1 text-[16px] font-semibold leading-6 tracking-[-0.035em] text-slate-950">
+                {menu.title}
+              </h2>
 
-          {menu.description?.trim() ? (
-            <p className="mt-0.5 line-clamp-1 text-[12px] font-medium leading-5 text-slate-500">
-              {menu.description.trim()}
-            </p>
-          ) : null}
+              {menu.description?.trim() ? (
+                <p className="mt-0.5 line-clamp-1 text-[12px] font-medium leading-5 text-slate-500">
+                  {menu.description.trim()}
+                </p>
+              ) : null}
+            </div>
+
+            <Link
+              href={`/creator/menus/${menu.id}/edit`}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100 transition active:scale-95"
+              aria-label={copy.edit}
+            >
+              <ChevronIcon />
+            </Link>
+          </div>
         </div>
-
-        <Link
-          href={`/creator/menus/${menu.id}/edit`}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100 transition active:scale-95"
-          aria-label={copy.edit}
-        >
-          <ChevronIcon />
-        </Link>
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 rounded-[18px] bg-[#f8f9fb] px-3 py-2.5 ring-1 ring-slate-100">
         <div className="min-w-0">
           <p className="text-[10px] font-medium text-slate-500">{copy.price}</p>
-          <p className="mt-0.5 whitespace-nowrap text-[20px] font-semibold tracking-[-0.055em] text-slate-950">
+          <p className="mt-0.5 whitespace-nowrap text-[21px] font-semibold tracking-[-0.055em] text-slate-950">
             {formatPrice(
               menu.price,
               menu.currency,
@@ -448,13 +377,13 @@ function MenuCard({
         </div>
 
         {deniedSecondaryUse ? (
-          <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-100">
+          <span className="shrink-0 rounded-full border border-amber-100 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
             {copy.secondaryUseDenied}
           </span>
         ) : null}
       </div>
 
-      {accountUrl || hasLegacyReferenceOnly ? (
+      {(accountUrl || hasLegacyReferenceOnly) && (
         <div className="mt-2 flex flex-wrap gap-2">
           {accountUrl ? (
             <a
@@ -468,12 +397,12 @@ function MenuCard({
           ) : null}
 
           {hasLegacyReferenceOnly ? (
-            <span className="rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-100">
+            <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800">
               {copy.legacyPriceNotice}
             </span>
           ) : null}
         </div>
-      ) : null}
+      )}
 
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_86px] gap-2">
         <button
@@ -483,7 +412,7 @@ function MenuCard({
           className={`h-10 rounded-full text-[12px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
             isPublic
               ? "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
-              : "bg-[#ff5f67] text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)]"
+              : "bg-slate-950 text-white shadow-[0_12px_22px_rgba(15,23,42,0.12)]"
           }`}
         >
           {isLoading
@@ -497,7 +426,7 @@ function MenuCard({
           type="button"
           onClick={onDelete}
           disabled={isLoading}
-          className="h-10 rounded-full bg-rose-50 text-[12px] font-semibold text-[#ff3860] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-10 rounded-full bg-white text-[12px] font-semibold text-slate-500 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isLoading ? copy.deleting : copy.delete}
         </button>
@@ -529,20 +458,9 @@ function EmptyState({
         {body}
       </p>
 
-      <div className="mt-5 flex flex-wrap justify-center gap-1.5">
-        {MENU_BADGES.slice(0, 4).map((badge) => (
-          <span
-            key={badge}
-            className="rounded-full bg-rose-50 px-3 py-1.5 text-[11px] font-semibold text-[#ff3860] ring-1 ring-rose-100"
-          >
-            {badge}
-          </span>
-        ))}
-      </div>
-
       <Link
         href="/creator/menus/new"
-        className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#ff5f67] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)]"
+        className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.14)]"
       >
         + {createLabel}
       </Link>
@@ -568,7 +486,7 @@ export default function CreatorMenusPage() {
       safeLocale === "ja"
         ? {
             title: "メニュー・価格",
-            subtitle: "企業が購入できるメニューを管理します。",
+            subtitle: "企業が購入できるメニューを、見やすく管理できます。",
             loginRequired: "ログインしてください",
             creatorNotFound: "クリエイター情報が見つかりません",
             toggleFailed: "公開状態の切り替えに失敗しました",
@@ -576,14 +494,12 @@ export default function CreatorMenusPage() {
               "このメニューを削除しますか？企業側からも表示されなくなります。",
             deleteFailed: "削除に失敗しました",
             loadFailed: "メニューの取得に失敗しました",
-            createNew: "メニューを作成",
+            createNew: "作成",
             emptyTitle: "まだメニューがありません",
             empty:
               "Instagram投稿、TikTok動画、UGC制作など、企業が注文できるメニューを作成しましょう。",
             price: "価格",
             secondaryUseDenied: "二次利用不可",
-            public: "公開中",
-            private: "非公開",
             makePrivate: "非公開にする",
             makePublic: "公開する",
             edit: "編集",
@@ -605,14 +521,12 @@ export default function CreatorMenusPage() {
               "Delete this menu? It will no longer be visible to companies.",
             deleteFailed: "Failed to delete the menu",
             loadFailed: "Failed to load menus",
-            createNew: "Create menu",
+            createNew: "Create",
             emptyTitle: "No menus yet",
             empty:
               "Create menus companies can order, such as Instagram posts, TikTok videos, or UGC creation.",
             price: "Price",
             secondaryUseDenied: "No reuse",
-            public: "Public",
-            private: "Private",
             makePrivate: "Make private",
             makePublic: "Make public",
             edit: "Edit",
@@ -790,9 +704,9 @@ export default function CreatorMenusPage() {
         title={copy.title}
         subtitle={copy.subtitle}
         createLabel={copy.createNew}
+        menus={menus}
+        locale={safeLocale}
       />
-
-      <SummaryStrip menus={menus} locale={safeLocale} />
 
       {error ? (
         <CreatorNotice
@@ -809,7 +723,7 @@ export default function CreatorMenusPage() {
           createLabel={copy.createNew}
         />
       ) : (
-        <section className="space-y-3">
+        <section className="grid gap-3 md:grid-cols-2">
           {menus.map((menu) => (
             <MenuCard
               key={menu.id}

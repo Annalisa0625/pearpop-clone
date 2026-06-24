@@ -1,7 +1,13 @@
 // File: app/creator/menus/[id]/edit/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
@@ -12,6 +18,7 @@ import {
   CreatorNotice,
   CreatorPage,
   CreatorSkeleton,
+  CreatorStickyFooter,
 } from "@/app/creator/_components/CreatorDesignSystem";
 
 type Locale = "ja" | "en";
@@ -127,12 +134,8 @@ function derivePlatform(menuValue: string) {
   if (menuValue.startsWith("Instagram")) return "Instagram";
   if (menuValue.startsWith("TikTok")) return "TikTok";
   if (menuValue.startsWith("YouTube")) return "YouTube";
-
-  if (isMaterialOnlyMenu(menuValue)) {
-    return "UGC";
-  }
-
-  if (menuValue === "イベント訪問") return "Event";
+  if (isMaterialOnlyMenu(menuValue)) return "UGC";
+  if (menuValue === "イベント訪問") return "Visit";
 
   return "Other";
 }
@@ -176,40 +179,18 @@ function formatPrice(value: string, locale: Locale) {
   }
 }
 
-function platformTone(platform: string, selected = false) {
-  if (platform === "Instagram") {
-    return selected
-      ? "bg-gradient-to-r from-violet-50 via-fuchsia-50 to-rose-50 text-violet-700 ring-violet-200 shadow-none"
-      : "bg-white text-violet-700 ring-violet-200";
+function platformBadgeClass(platform: string, selected = false) {
+  if (selected) {
+    return "border-slate-950 bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)]";
   }
 
-  if (platform === "TikTok") {
-    return selected
-      ? "bg-slate-950 text-white ring-slate-950"
-      : "bg-white text-slate-900 ring-slate-200";
-  }
+  if (platform === "Instagram") return "border-violet-200 bg-violet-50 text-violet-700";
+  if (platform === "TikTok") return "border-slate-200 bg-white text-slate-900";
+  if (platform === "YouTube") return "border-red-100 bg-red-50 text-red-700";
+  if (platform === "UGC") return "border-indigo-100 bg-indigo-50 text-indigo-700";
+  if (platform === "Visit") return "border-emerald-100 bg-emerald-50 text-emerald-700";
 
-  if (platform === "YouTube") {
-    return selected
-      ? "bg-red-600 text-white ring-red-600"
-      : "bg-white text-red-600 ring-red-100";
-  }
-
-  if (platform === "UGC") {
-    return selected
-      ? "bg-violet-600 text-white ring-violet-600"
-      : "bg-white text-violet-700 ring-violet-100";
-  }
-
-  if (platform === "Event") {
-    return selected
-      ? "bg-emerald-600 text-white ring-emerald-600"
-      : "bg-white text-emerald-700 ring-emerald-100";
-  }
-
-  return selected
-    ? "bg-slate-950 text-white ring-slate-950"
-    : "bg-white text-slate-600 ring-slate-200";
+  return "border-slate-200 bg-white text-slate-700";
 }
 
 function platformIcon(platform: string) {
@@ -217,7 +198,7 @@ function platformIcon(platform: string) {
   if (platform === "TikTok") return "♪";
   if (platform === "YouTube") return "▶";
   if (platform === "UGC") return "UGC";
-  if (platform === "Event") return "✓";
+  if (platform === "Visit") return "✓";
   return "•";
 }
 
@@ -230,12 +211,12 @@ function PlatformBadge({
 }) {
   return (
     <span
-      className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold ring-1 ${platformTone(
+      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold ${platformBadgeClass(
         platform,
         selected,
       )}`}
     >
-      <span className={platform === "UGC" ? "text-[10px]" : "text-[13px]"}>
+      <span className={platform === "UGC" ? "text-[9px]" : "text-[12px]"}>
         {platformIcon(platform)}
       </span>
       {platform}
@@ -255,25 +236,65 @@ function Header({
   onBack: () => void;
 }) {
   return (
-    <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
-            {title}
-          </h1>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-            {subtitle}
-          </p>
-        </div>
+    <section className="overflow-hidden rounded-[30px] bg-white ring-1 ring-slate-100">
+      <div className="relative p-5">
+        <div className="pointer-events-none absolute -right-14 -top-14 h-36 w-36 rounded-full bg-gradient-to-br from-rose-100 via-violet-100 to-transparent blur-2xl" />
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              Menu setup
+            </p>
+            <h1 className="mt-1 text-[24px] font-semibold tracking-[-0.055em] text-slate-950">
+              {title}
+            </h1>
+            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+              {subtitle}
+            </p>
+          </div>
 
-        <button
-          type="button"
-          onClick={onBack}
-          className="shrink-0 rounded-full bg-slate-50 px-4 py-2.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-100 transition active:scale-[0.98]"
-        >
-          {backLabel}
-        </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="shrink-0 rounded-full bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-100 backdrop-blur transition active:scale-[0.98]"
+          >
+            {backLabel}
+          </button>
+        </div>
       </div>
+    </section>
+  );
+}
+
+function SectionCard({
+  step,
+  title,
+  description,
+  children,
+}: {
+  step: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-[26px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-950 text-[12px] font-semibold text-white">
+          {step}
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-slate-950">
+            {title}
+          </h2>
+          {description ? (
+            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+              {description}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {children}
     </section>
   );
 }
@@ -301,19 +322,19 @@ function MenuChoiceGrid({
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`min-h-[58px] rounded-[18px] px-3 py-2.5 text-left ring-1 transition active:scale-[0.99] ${
+              className={`min-h-[60px] rounded-[20px] px-3 py-2.5 text-left ring-1 transition active:scale-[0.99] ${
                 active
-                  ? "bg-slate-950 text-white ring-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
-                  : "bg-white text-slate-800 ring-slate-100"
+                  ? "bg-slate-950 text-white ring-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.14)]"
+                  : "bg-white text-slate-800 ring-slate-100 hover:ring-slate-200"
               }`}
             >
-              <div className="flex h-full flex-col justify-between gap-1.5">
+              <div className="flex h-full flex-col justify-between gap-2">
                 <div className="flex items-center justify-between gap-2">
                   <span
-                    className={`inline-flex h-6 items-center rounded-full px-2 text-[10px] font-semibold ring-1 ${
+                    className={`inline-flex h-6 items-center rounded-full border px-2 text-[10px] font-semibold ${
                       active
-                        ? "bg-white/12 text-white ring-white/10"
-                        : platformTone(platform, false)
+                        ? "border-white/10 bg-white/10 text-white"
+                        : platformBadgeClass(platform, false)
                     }`}
                   >
                     {platformIcon(platform)}
@@ -336,7 +357,7 @@ function MenuChoiceGrid({
       </div>
 
       {selectedMenu ? (
-        <div className="mt-3 rounded-[18px] bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
+        <div className="mt-3 rounded-[20px] bg-[#f8f9fb] px-3 py-3 ring-1 ring-slate-100">
           <div className="flex items-start gap-2">
             <PlatformBadge platform={derivePlatform(selectedMenu.value)} />
             <p className="min-w-0 flex-1 text-[12px] font-medium leading-5 text-slate-600">
@@ -349,54 +370,30 @@ function MenuChoiceGrid({
   );
 }
 
-function SectionCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
-      <div className="mb-4">
-        <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-slate-950">
-          {title}
-        </h2>
-        {description ? (
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-            {description}
-          </p>
-        ) : null}
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
 function PreviewCard({
   selectedMenu,
   price,
   locale,
   statusLabel,
   body,
+  secondaryUseDenied,
 }: {
   selectedMenu: MenuOption | null;
   price: string;
   locale: Locale;
   statusLabel: string;
   body: string;
+  secondaryUseDenied: boolean;
 }) {
   const platform = selectedMenu ? derivePlatform(selectedMenu.value) : "Other";
+  const isMaterial = selectedMenu ? isMaterialOnlyMenu(selectedMenu.value) : false;
 
   return (
-    <section className="rounded-[26px] bg-white p-4 ring-1 ring-slate-100">
+    <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ff3860]">
-            PREVIEW
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            Preview
           </p>
           <h2 className="mt-2 text-[22px] font-semibold tracking-[-0.055em] text-slate-950">
             {selectedMenu ? getMenuLabel(selectedMenu, locale) : body}
@@ -409,7 +406,7 @@ function PreviewCard({
           ) : null}
         </div>
 
-        <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+        <span className="shrink-0 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700">
           {statusLabel}
         </span>
       </div>
@@ -427,14 +424,24 @@ function PreviewCard({
           </div>
 
           {selectedMenu ? (
-            <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-100">
-              {isMaterialOnlyMenu(selectedMenu.value)
+            <span
+              className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
+                secondaryUseDenied
+                  ? "border-amber-100 bg-amber-50 text-amber-700"
+                  : "border-slate-200 bg-white text-slate-600"
+              }`}
+            >
+              {isMaterial
                 ? locale === "ja"
-                  ? "広告素材利用OK"
-                  : "Ad usage OK"
-                : locale === "ja"
-                  ? "広告素材利用なし"
-                  : "No ad usage"}
+                  ? "素材利用あり"
+                  : "Asset use"
+                : secondaryUseDenied
+                  ? locale === "ja"
+                    ? "二次利用不可"
+                    : "No reuse"
+                  : locale === "ja"
+                    ? "二次利用可"
+                    : "Reuse OK"}
             </span>
           ) : null}
         </div>
@@ -480,7 +487,7 @@ function resolveAccountUrl(platform: string, socials: SocialAccount[]) {
 
   if (matched?.url) return matched.url;
 
-  if (platform === "UGC" || platform === "Event" || platform === "Other") {
+  if (platform === "UGC" || platform === "Visit" || platform === "Other") {
     return socials[0]?.url ?? null;
   }
 
@@ -605,8 +612,7 @@ export default function EditMenuPage() {
       safeLocale === "ja"
         ? {
             title: "メニュー編集",
-            subtitle:
-              "サインアップ時と同じ形式で、メニュー内容と価格を編集します。",
+            subtitle: "企業に表示される内容を、わかりやすく整えます。",
             back: "戻る",
             save: "更新する",
             saving: "更新中...",
@@ -615,33 +621,29 @@ export default function EditMenuPage() {
             creatorNotFound: "クリエイター情報が見つかりません",
             notFound: "メニューが見つかりませんでした",
             updateFailed: "メニューの更新に失敗しました",
-            updateSuccess: "メニューを更新しました",
             menu: "メニュー内容",
-            menuHelp: "企業に提供できる内容を1つ選んでください。",
+            menuHelp: "提供できる内容を1つ選択します。",
             price: "価格",
             priceHelp:
               "企業が注文する際の基本価格です。あとからいつでも変更できます。",
             yenOnly: "JPY / 日本円",
             pricePlaceholder: "例：30000",
-            menuRequired: "メニュー内容を選択してください",
-            priceRequired: "価格を入力してください",
-            priceInvalid: "価格は1以上の数字で入力してください",
-            previewBody: "メニューを選択してください",
-            public: "公開中",
-            private: "非公開",
-            statusHelp:
-              "公開/非公開の切り替えはメニュー一覧から変更できます。",
             secondaryUseTitle: "二次利用",
             secondaryUseBody:
               "納品物は広告ブランドのSNSによって二次利用・引用されることがあります。",
             materialUseNote:
               "素材はブランドのSNSやHPにて使用されることがあります。",
             denySecondaryUse: "二次利用を認めない",
+            menuRequired: "メニュー内容を選択してください",
+            priceRequired: "価格を入力してください",
+            priceInvalid: "価格は1以上の数字で入力してください",
+            previewBody: "メニューを選択してください",
+            public: "公開中",
+            private: "非公開",
           }
         : {
             title: "Edit menu",
-            subtitle:
-              "Edit the menu content and price using the same format as creator signup.",
+            subtitle: "Polish the content shown to brands.",
             back: "Back",
             save: "Update",
             saving: "Updating...",
@@ -650,27 +652,24 @@ export default function EditMenuPage() {
             creatorNotFound: "Creator information was not found",
             notFound: "Menu was not found",
             updateFailed: "Failed to update the menu",
-            updateSuccess: "Menu updated successfully",
             menu: "Menu",
-            menuHelp: "Choose one service you can offer to brands.",
+            menuHelp: "Choose one service you can offer.",
             price: "Price",
             priceHelp: "Base price brands will pay when ordering.",
             yenOnly: "JPY / Japanese yen",
             pricePlaceholder: "Example: 30000",
-            menuRequired: "Please select a menu",
-            priceRequired: "Please enter a price",
-            priceInvalid: "Price must be a number greater than 0",
-            previewBody: "Select a menu",
-            public: "Public",
-            private: "Private",
-            statusHelp:
-              "Public / private status can be changed from the menu list.",
             secondaryUseTitle: "Secondary use",
             secondaryUseBody:
               "Deliverables may be reused or quoted by the brand on its social accounts.",
             materialUseNote:
               "Assets may be used on the brand's social accounts or website.",
             denySecondaryUse: "Do not allow secondary use",
+            menuRequired: "Please select a menu",
+            priceRequired: "Please enter a price",
+            priceInvalid: "Price must be a number greater than 0",
+            previewBody: "Select a menu",
+            public: "Public",
+            private: "Private",
           },
     [safeLocale],
   );
@@ -741,12 +740,13 @@ export default function EditMenuPage() {
       }
 
       const menu = data as MenuRow;
-
       const inferredMenuValue = inferMenuValue(menu);
+
       setMenuValue(inferredMenuValue);
       setPrice(menu.price != null ? String(menu.price) : "");
       setSecondaryUseDenied(
-        !isMaterialOnlyMenu(inferredMenuValue) && menu.allow_secondary_use === false,
+        !isMaterialOnlyMenu(inferredMenuValue) &&
+          menu.allow_secondary_use === false,
       );
       setIsActive(menu.is_active);
 
@@ -863,8 +863,8 @@ export default function EditMenuPage() {
         <CreatorNotice tone="red" title="Error" description={error} />
       ) : null}
 
-      <form onSubmit={handleUpdate} className="space-y-3">
-        <SectionCard title={copy.menu} description={copy.menuHelp}>
+      <form id="creator-menu-form" onSubmit={handleUpdate} className="space-y-3">
+        <SectionCard step="1" title={copy.menu} description={copy.menuHelp}>
           <MenuChoiceGrid
             value={menuValue}
             locale={safeLocale}
@@ -877,7 +877,7 @@ export default function EditMenuPage() {
           />
         </SectionCard>
 
-        <SectionCard title={copy.price} description={copy.priceHelp}>
+        <SectionCard step="2" title={copy.price} description={copy.priceHelp}>
           <CreatorField label={copy.price} help={copy.yenOnly}>
             <CreatorInput
               type="number"
@@ -893,6 +893,7 @@ export default function EditMenuPage() {
 
         {selectedMenu ? (
           <SectionCard
+            step="3"
             title={copy.secondaryUseTitle}
             description={
               isMaterialOnlyMenu(selectedMenu.value)
@@ -901,16 +902,16 @@ export default function EditMenuPage() {
             }
           >
             {isMaterialOnlyMenu(selectedMenu.value) ? (
-              <p className="rounded-[18px] bg-violet-50 px-3 py-3 text-[12px] font-medium leading-5 text-violet-700 ring-1 ring-violet-100">
+              <p className="rounded-[18px] bg-[#f8f9fb] px-3 py-3 text-[12px] font-medium leading-5 text-slate-600 ring-1 ring-slate-100">
                 {copy.materialUseNote}
               </p>
             ) : (
-              <label className="flex items-start gap-3 rounded-[18px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
+              <label className="flex items-start gap-3 rounded-[18px] bg-[#f8f9fb] px-3 py-3 ring-1 ring-slate-100">
                 <input
                   type="checkbox"
                   checked={secondaryUseDenied}
                   onChange={(event) => setSecondaryUseDenied(event.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#ff3860] focus:ring-[#ff3860]"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-slate-950"
                 />
                 <span className="min-w-0">
                   <span className="block text-[13px] font-semibold text-slate-800">
@@ -931,16 +932,20 @@ export default function EditMenuPage() {
           locale={safeLocale}
           statusLabel={isActive === false ? copy.private : copy.public}
           body={copy.previewBody}
+          secondaryUseDenied={secondaryUseDenied}
         />
+      </form>
 
-        <p className="px-1 text-[12px] font-medium leading-5 text-slate-500">
-          {copy.statusHelp}
-        </p>
-
-        <CreatorButton type="submit" disabled={saving} className="w-full">
+      <CreatorStickyFooter>
+        <CreatorButton
+          type="submit"
+          form="creator-menu-form"
+          disabled={saving}
+          className="w-full"
+        >
           {saving ? copy.saving : copy.save}
         </CreatorButton>
-      </form>
+      </CreatorStickyFooter>
     </CreatorPage>
   );
 }
