@@ -179,8 +179,8 @@ function formatPrice(value: string, locale: Locale) {
 function platformTone(platform: string, selected = false) {
   if (platform === "Instagram") {
     return selected
-      ? "bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 text-white ring-transparent shadow-[0_10px_24px_rgba(244,63,94,0.18)]"
-      : "bg-white text-rose-600 ring-rose-100";
+      ? "bg-gradient-to-r from-violet-50 via-fuchsia-50 to-rose-50 text-violet-700 ring-violet-200 shadow-none"
+      : "bg-white text-violet-700 ring-violet-200";
   }
 
   if (platform === "TikTok") {
@@ -631,6 +631,12 @@ export default function EditMenuPage() {
             private: "非公開",
             statusHelp:
               "公開/非公開の切り替えはメニュー一覧から変更できます。",
+            secondaryUseTitle: "二次利用",
+            secondaryUseBody:
+              "納品物は広告ブランドのSNSによって二次利用・引用されることがあります。",
+            materialUseNote:
+              "素材はブランドのSNSやHPにて使用されることがあります。",
+            denySecondaryUse: "二次利用を認めない",
           }
         : {
             title: "Edit menu",
@@ -659,12 +665,19 @@ export default function EditMenuPage() {
             private: "Private",
             statusHelp:
               "Public / private status can be changed from the menu list.",
+            secondaryUseTitle: "Secondary use",
+            secondaryUseBody:
+              "Deliverables may be reused or quoted by the brand on its social accounts.",
+            materialUseNote:
+              "Assets may be used on the brand's social accounts or website.",
+            denySecondaryUse: "Do not allow secondary use",
           },
     [safeLocale],
   );
 
   const [menuValue, setMenuValue] = useState("");
   const [price, setPrice] = useState("");
+  const [secondaryUseDenied, setSecondaryUseDenied] = useState(false);
   const [isActive, setIsActive] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -729,8 +742,12 @@ export default function EditMenuPage() {
 
       const menu = data as MenuRow;
 
-      setMenuValue(inferMenuValue(menu));
+      const inferredMenuValue = inferMenuValue(menu);
+      setMenuValue(inferredMenuValue);
       setPrice(menu.price != null ? String(menu.price) : "");
+      setSecondaryUseDenied(
+        !isMaterialOnlyMenu(inferredMenuValue) && menu.allow_secondary_use === false,
+      );
       setIsActive(menu.is_active);
 
       setLoading(false);
@@ -806,7 +823,9 @@ export default function EditMenuPage() {
       notes: null,
       account_url: resolveAccountUrl(platform, socials),
       reference_price_text: null,
-      allow_secondary_use: isMaterialOnlyMenu(selectedMenu.value),
+      allow_secondary_use: isMaterialOnlyMenu(selectedMenu.value)
+        ? true
+        : !secondaryUseDenied,
       menu_type: menuType,
       updated_at: now,
     };
@@ -849,7 +868,12 @@ export default function EditMenuPage() {
           <MenuChoiceGrid
             value={menuValue}
             locale={safeLocale}
-            onChange={setMenuValue}
+            onChange={(nextValue) => {
+              setMenuValue(nextValue);
+              if (isMaterialOnlyMenu(nextValue)) {
+                setSecondaryUseDenied(false);
+              }
+            }}
           />
         </SectionCard>
 
@@ -866,6 +890,40 @@ export default function EditMenuPage() {
             />
           </CreatorField>
         </SectionCard>
+
+        {selectedMenu ? (
+          <SectionCard
+            title={copy.secondaryUseTitle}
+            description={
+              isMaterialOnlyMenu(selectedMenu.value)
+                ? copy.materialUseNote
+                : copy.secondaryUseBody
+            }
+          >
+            {isMaterialOnlyMenu(selectedMenu.value) ? (
+              <p className="rounded-[18px] bg-violet-50 px-3 py-3 text-[12px] font-medium leading-5 text-violet-700 ring-1 ring-violet-100">
+                {copy.materialUseNote}
+              </p>
+            ) : (
+              <label className="flex items-start gap-3 rounded-[18px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
+                <input
+                  type="checkbox"
+                  checked={secondaryUseDenied}
+                  onChange={(event) => setSecondaryUseDenied(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#ff3860] focus:ring-[#ff3860]"
+                />
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-slate-800">
+                    {copy.denySecondaryUse}
+                  </span>
+                  <span className="mt-1 block text-[11px] font-medium leading-5 text-slate-500">
+                    {copy.secondaryUseBody}
+                  </span>
+                </span>
+              </label>
+            )}
+          </SectionCard>
+        ) : null}
 
         <PreviewCard
           selectedMenu={selectedMenu}

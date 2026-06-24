@@ -147,7 +147,7 @@ function menuFormatLabel(menu: CreatorMenu, locale: Locale) {
 
 function platformTone(platform: string) {
   if (platform === "Instagram") {
-    return "bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 text-white ring-transparent shadow-[0_8px_20px_rgba(244,63,94,0.18)]";
+    return "bg-gradient-to-r from-violet-50 via-fuchsia-50 to-rose-50 text-violet-700 ring-violet-200";
   }
 
   if (platform === "TikTok") {
@@ -367,7 +367,6 @@ function MenuCard({
   locale: Locale;
   copy: {
     price: string;
-    deliveryDays: string;
     viewAccount: string;
     edit: string;
     delete: string;
@@ -375,9 +374,7 @@ function MenuCard({
     updating: string;
     makePrivate: string;
     makePublic: string;
-    adUse: string;
-    adUseAllowed: string;
-    adUseNotIncluded: string;
+    secondaryUseDenied: string;
     legacyPriceNotice: string;
   };
   accountUrl: string | null;
@@ -389,25 +386,40 @@ function MenuCard({
   const platform = inferPlatform(menu);
   const hasLegacyReferenceOnly =
     menu.price == null && !!menu.reference_price_text?.trim();
+  const deniedSecondaryUse = menu.allow_secondary_use === false;
 
   return (
-    <article className="rounded-[26px] bg-white p-4 ring-1 ring-slate-100">
+    <article className="rounded-[22px] bg-white p-3.5 ring-1 ring-slate-100">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="mb-3 flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <PlatformBadge platform={platform} />
-            <StatusBadge active={isPublic} locale={locale} />
+            <span
+              className={`inline-flex h-8 items-center rounded-full px-3 text-[12px] font-semibold ring-1 ${
+                isPublic
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                  : "bg-slate-50 text-slate-500 ring-slate-100"
+              }`}
+            >
+              {isPublic
+                ? locale === "ja"
+                  ? "公開中"
+                  : "Public"
+                : locale === "ja"
+                  ? "非公開"
+                  : "Private"}
+            </span>
             <span className="inline-flex h-8 items-center rounded-full bg-slate-50 px-3 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-100">
               {menuFormatLabel(menu, locale)}
             </span>
           </div>
 
-          <h2 className="line-clamp-2 text-[18px] font-semibold leading-6 tracking-[-0.04em] text-slate-950">
+          <h2 className="mt-2 line-clamp-1 text-[16px] font-semibold leading-6 tracking-[-0.035em] text-slate-950">
             {menu.title}
           </h2>
 
           {menu.description?.trim() ? (
-            <p className="mt-1.5 line-clamp-2 text-[12px] font-medium leading-5 text-slate-500">
+            <p className="mt-0.5 line-clamp-1 text-[12px] font-medium leading-5 text-slate-500">
               {menu.description.trim()}
             </p>
           ) : null}
@@ -422,61 +434,53 @@ function MenuCard({
         </Link>
       </div>
 
-      <div className="mt-4 rounded-[22px] bg-[#f8f9fb] px-4 py-3.5 ring-1 ring-slate-100">
-        <div className="flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-slate-500">{copy.price}</p>
-            <p className="mt-1 whitespace-nowrap text-[24px] font-semibold tracking-[-0.055em] text-slate-950">
-              {formatPrice(
-                menu.price,
-                menu.currency,
-                menu.reference_price_text,
-                locale,
-              )}
-            </p>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <p className="text-[11px] font-medium text-slate-500">
-              {copy.deliveryDays}
-            </p>
-            <p className="mt-1 text-[15px] font-semibold text-slate-950">
-              {formatDeliveryDays(menu.delivery_days, locale)}
-            </p>
-          </div>
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-[18px] bg-[#f8f9fb] px-3 py-2.5 ring-1 ring-slate-100">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium text-slate-500">{copy.price}</p>
+          <p className="mt-0.5 whitespace-nowrap text-[20px] font-semibold tracking-[-0.055em] text-slate-950">
+            {formatPrice(
+              menu.price,
+              menu.currency,
+              menu.reference_price_text,
+              locale,
+            )}
+          </p>
         </div>
-      </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-100">
-          {copy.adUse}：
-          {menu.allow_secondary_use ? copy.adUseAllowed : copy.adUseNotIncluded}
-        </span>
-
-        {accountUrl ? (
-          <a
-            href={accountUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 transition active:scale-[0.98]"
-          >
-            {copy.viewAccount}
-          </a>
+        {deniedSecondaryUse ? (
+          <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-100">
+            {copy.secondaryUseDenied}
+          </span>
         ) : null}
       </div>
 
-      {hasLegacyReferenceOnly ? (
-        <div className="mt-3 rounded-[18px] bg-amber-50 px-3 py-2 text-[11px] font-medium leading-5 text-amber-800 ring-1 ring-amber-100">
-          {copy.legacyPriceNotice}
+      {accountUrl || hasLegacyReferenceOnly ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {accountUrl ? (
+            <a
+              href={accountUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 transition active:scale-[0.98]"
+            >
+              {copy.viewAccount}
+            </a>
+          ) : null}
+
+          {hasLegacyReferenceOnly ? (
+            <span className="rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-100">
+              {copy.legacyPriceNotice}
+            </span>
+          ) : null}
         </div>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_96px] gap-2">
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_86px] gap-2">
         <button
           type="button"
           onClick={onToggle}
           disabled={isLoading}
-          className={`h-11 rounded-full text-[13px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`h-10 rounded-full text-[12px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
             isPublic
               ? "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
               : "bg-[#ff5f67] text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)]"
@@ -493,7 +497,7 @@ function MenuCard({
           type="button"
           onClick={onDelete}
           disabled={isLoading}
-          className="h-11 rounded-full bg-rose-50 text-[13px] font-semibold text-[#ff3860] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-10 rounded-full bg-rose-50 text-[12px] font-semibold text-[#ff3860] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isLoading ? copy.deleting : copy.delete}
         </button>
@@ -577,10 +581,7 @@ export default function CreatorMenusPage() {
             empty:
               "Instagram投稿、TikTok動画、UGC制作など、企業が注文できるメニューを作成しましょう。",
             price: "価格",
-            deliveryDays: "目安",
-            adUse: "広告素材としての利用",
-            adUseAllowed: "OK",
-            adUseNotIncluded: "なし",
+            secondaryUseDenied: "二次利用不可",
             public: "公開中",
             private: "非公開",
             makePrivate: "非公開にする",
@@ -609,10 +610,7 @@ export default function CreatorMenusPage() {
             empty:
               "Create menus companies can order, such as Instagram posts, TikTok videos, or UGC creation.",
             price: "Price",
-            deliveryDays: "Delivery",
-            adUse: "Ad usage",
-            adUseAllowed: "Allowed",
-            adUseNotIncluded: "Not included",
+            secondaryUseDenied: "No reuse",
             public: "Public",
             private: "Private",
             makePrivate: "Make private",
