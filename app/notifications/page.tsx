@@ -62,6 +62,13 @@ function isNewsNotification(item: NotificationRow) {
   );
 }
 
+function shouldShowImportantBadge(item: NotificationRow) {
+  return (
+    item.notification_type === "new_order" ||
+    item.notification_type === "revision_requested"
+  );
+}
+
 function getOrderLabel(item: NotificationRow, locale: "ja" | "en") {
   const productName = getMetadataString(item.metadata, "product_name");
   const menuTitle = getMetadataString(item.metadata, "menu_title");
@@ -440,10 +447,12 @@ function TabButton({
       <span>{label}</span>
       {count > 0 ? (
         <span
-          className={`grid min-w-5 place-items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+          className={`grid h-5 min-w-5 place-items-center rounded-full text-[10px] font-semibold leading-none ${
+            count > 99 ? "px-1.5" : "w-5 px-0"
+          } ${
             active
-              ? "bg-gradient-to-br from-[#ff5f67] to-[#ff3860] text-white shadow-[0_5px_14px_rgba(255,56,96,0.22)]"
-              : "bg-slate-100 text-slate-500"
+              ? "bg-gradient-to-br from-[#ff5f67] to-[#ff3860] text-white shadow-[0_5px_14px_rgba(255,56,96,0.22)] ring-2 ring-white/80"
+              : "bg-slate-100 text-slate-500 ring-1 ring-slate-200"
           }`}
         >
           {count > 99 ? "99+" : count}
@@ -515,6 +524,7 @@ function NotificationItem({
   onOpen: (item: NotificationRow) => void;
 }) {
   const unread = !item.read_at;
+  const important = shouldShowImportantBadge(item);
   const display = getNotificationText(item, locale);
   const timeText = formatRelativeTime(item.created_at, locale);
 
@@ -541,7 +551,7 @@ function NotificationItem({
               </span>
             ) : null}
 
-            {item.importance === "high" ? (
+            {important ? (
               <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-semibold text-white">
                 {importantLabel}
               </span>
