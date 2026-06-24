@@ -28,8 +28,6 @@ type CreatorRow = {
   id: string;
   user_id: string;
   display_name: string | null;
-  full_name: string | null;
-  bio: string | null;
   category: string | null;
   country: string | null;
   prefecture: string | null;
@@ -568,26 +566,6 @@ function QuickLink({
   );
 }
 
-function Textarea({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
-  placeholder?: string;
-}) {
-  return (
-    <textarea
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      rows={4}
-      className="w-full resize-none rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-[14px] font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
-    />
-  );
-}
-
 export default function CreatorProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -604,12 +582,6 @@ export default function CreatorProfilePage() {
             usernamePlaceholder: "例：taiki_pr",
             usernameHelp:
               "SNSのアカウント名と揃えると見つけてもらいやすくなります。",
-            displayName: "表示名",
-            displayNamePlaceholder: "例：Taiki",
-            displayNameHelp: "企業に見える名前です。未入力でも保存できます。",
-            bio: "自己紹介",
-            bioPlaceholder:
-              "例：京都を中心に、カフェ・美容・ライフスタイルのPR投稿をしています。",
             category: "メインジャンル",
             country: "国",
             prefecture: "都道府県",
@@ -620,15 +592,15 @@ export default function CreatorProfilePage() {
             responseLanguage: "対応言語",
             subCategories: "得意・興味のあるジャンル",
             subCategoriesHelp: "5つまで選択できます。",
-            basicInfo: "基本情報",
-            basicInfoBody: "名前、ジャンル、活動エリアを設定します。",
-            photoSection: "プロフィール写真",
-            photoBody: "企業が最初に見る写真です。顔写真や雰囲気が伝わる写真がおすすめです。",
+            basicInfo: "公開プロフィール",
+            basicInfoBody: "企業に表示・検索される基本情報です。",
+            photoSection: "プロフィール画像",
+            photoBody: "企業が最初に見るメイン画像です。",
             avatar: "プロフィール画像",
             imageChoose: "写真を選択",
             noImage: "画像なし",
             portfolioTitle: "ポートフォリオ",
-            portfolioBody: "過去の投稿や雰囲気が伝わる画像を追加できます。",
+            portfolioBody: "企業に見せたい実績画像だけを追加します。",
             portfolioUpload: "画像を追加",
             portfolioEmpty: "投稿実績や雰囲気が伝わる画像を追加してください。",
             selectedImages: "選択中",
@@ -660,7 +632,7 @@ export default function CreatorProfilePage() {
             saved: "保存しました。",
             saveError: "保存中にエラーが発生しました。",
             uploadFailed: "画像アップロードに失敗しました。",
-            settings: "管理",
+            settings: "関連設定",
             menusTitle: "メニュー・価格",
             menusBody: "投稿形式、価格、納期を管理",
             payoutsTitle: "報酬受け取り",
@@ -675,12 +647,6 @@ export default function CreatorProfilePage() {
             usernamePlaceholder: "Example: taiki_pr",
             usernameHelp:
               "Using the same name as your main social account makes you easier to find.",
-            displayName: "Display name",
-            displayNamePlaceholder: "Example: Taiki",
-            displayNameHelp: "Visible to brands. Optional.",
-            bio: "Bio",
-            bioPlaceholder:
-              "Example: Kyoto-based creator posting cafe, beauty, and lifestyle content.",
             category: "Main genre",
             country: "Country",
             prefecture: "State / prefecture",
@@ -691,15 +657,15 @@ export default function CreatorProfilePage() {
             responseLanguage: "Response language",
             subCategories: "Genres you are good at",
             subCategoriesHelp: "Choose up to 5.",
-            basicInfo: "Basic profile",
-            basicInfoBody: "Set your name, genre, and area.",
-            photoSection: "Profile photo",
-            photoBody: "This is the first photo brands will see.",
+            basicInfo: "Public profile",
+            basicInfoBody: "Basic information shown to brands and used for search.",
+            photoSection: "Profile image",
+            photoBody: "The main image brands will see first.",
             avatar: "Profile image",
             imageChoose: "Choose photo",
             noImage: "No image",
             portfolioTitle: "Portfolio",
-            portfolioBody: "Add images that show your past posts or style.",
+            portfolioBody: "Add only images you want brands to review.",
             portfolioUpload: "Add image",
             portfolioEmpty: "Add images that show your past posts or style.",
             selectedImages: "Selected",
@@ -731,7 +697,7 @@ export default function CreatorProfilePage() {
             saved: "Saved.",
             saveError: "An error occurred while saving.",
             uploadFailed: "Failed to upload image.",
-            settings: "Manage",
+            settings: "Related settings",
             menusTitle: "Menus & rates",
             menusBody: "Manage post types, pricing, and delivery days.",
             payoutsTitle: "Payouts",
@@ -747,7 +713,6 @@ export default function CreatorProfilePage() {
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
 
   const [displayName, setDisplayName] = useState("");
-  const [fullName, setFullName] = useState("");
   const [category, setCategory] = useState("");
   const [country, setCountry] = useState("");
   const [prefecture, setPrefecture] = useState("");
@@ -755,7 +720,6 @@ export default function CreatorProfilePage() {
   const [contentLanguage, setContentLanguage] = useState("");
   const [responseLanguage, setResponseLanguage] = useState("");
   const [subCategories, setSubCategories] = useState<string[]>([]);
-  const [bio, setBio] = useState("");
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -781,7 +745,7 @@ export default function CreatorProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
-  const profileName = fullName || displayName || "Trendre";
+  const profileName = displayName || "Trendre";
   const isJapan = country === "日本";
 
   const loadPortfolioAssets = async (creatorIdValue: string) => {
@@ -820,7 +784,7 @@ export default function CreatorProfilePage() {
       const { data: creator, error: creatorError } = await supabase
         .from("creators")
         .select(
-          "id, user_id, display_name, full_name, bio, category, country, prefecture, city, content_language, response_language, sub_categories, avatar_url, approval_status",
+          "id, user_id, display_name, category, country, prefecture, city, content_language, response_language, sub_categories, avatar_url, approval_status",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -843,7 +807,6 @@ export default function CreatorProfilePage() {
       setCreatorUserId(creatorRow.user_id);
       setApprovalStatus(creatorRow.approval_status ?? null);
       setDisplayName(creatorRow.display_name ?? "");
-      setFullName(creatorRow.full_name ?? "");
       setCategory(creatorRow.category ?? "");
       setCountry(creatorRow.country ?? "");
       setPrefecture(creatorRow.prefecture ?? "");
@@ -855,7 +818,6 @@ export default function CreatorProfilePage() {
           ? creatorRow.sub_categories
           : [],
       );
-      setBio(creatorRow.bio ?? "");
       setAvatarUrl(creatorRow.avatar_url ?? null);
 
       const { data: socials, error: socialError } = await supabase
@@ -1035,11 +997,9 @@ export default function CreatorProfilePage() {
 
     try {
       const normalizedDisplayName = displayName.trim().toLowerCase();
-      const normalizedFullName = fullName.trim();
       const normalizedCountry = country.trim();
       const normalizedPrefecture = prefecture.trim();
       const normalizedCity = city.trim();
-      const normalizedBio = bio.trim();
       const normalizedCategory = category.trim();
       const normalizedContentLanguage = contentLanguage.trim();
       const normalizedResponseLanguage = responseLanguage.trim();
@@ -1108,8 +1068,6 @@ export default function CreatorProfilePage() {
         .from("creators")
         .update({
           display_name: normalizedDisplayName,
-          full_name: normalizedFullName || null,
-          bio: normalizedBio || null,
           category: normalizedCategory || null,
           country: normalizedCountry,
           prefecture: normalizedPrefecture || null,
@@ -1131,7 +1089,6 @@ export default function CreatorProfilePage() {
         .upsert({
           id: creatorUserId,
           username: normalizedDisplayName,
-          bio: normalizedBio || null,
           category: normalizedCategory || null,
           avatar_url: finalAvatarUrl,
           is_public: true,
@@ -1229,11 +1186,9 @@ export default function CreatorProfilePage() {
       });
 
       setDisplayName(normalizedDisplayName);
-      setFullName(normalizedFullName);
       setCountry(normalizedCountry);
       setPrefecture(normalizedPrefecture);
       setCity(normalizedCity);
-      setBio(normalizedBio);
       setCategory(normalizedCategory);
       setContentLanguage(normalizedContentLanguage);
       setResponseLanguage(normalizedResponseLanguage);
@@ -1342,21 +1297,6 @@ export default function CreatorProfilePage() {
         <CreatorNotice tone="green" title={success} />
       ) : null}
 
-      <section className="grid gap-2">
-        <QuickLink
-          href="/creator/menus"
-          icon={<MenuIcon />}
-          title={copy.menusTitle}
-          body={copy.menusBody}
-        />
-        <QuickLink
-          href="/creator/payouts"
-          icon={<YenIcon />}
-          title={copy.payoutsTitle}
-          body={copy.payoutsBody}
-        />
-      </section>
-
       <SectionCard title={copy.photoSection} description={copy.photoBody}>
         <ProfilePhotoPicker
           label={copy.avatar}
@@ -1375,22 +1315,6 @@ export default function CreatorProfilePage() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={copy.usernamePlaceholder}
-            />
-          </CreatorField>
-
-          <CreatorField label={copy.displayName} help={copy.displayNameHelp}>
-            <CreatorInput
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder={copy.displayNamePlaceholder}
-            />
-          </CreatorField>
-
-          <CreatorField label={copy.bio}>
-            <Textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder={copy.bioPlaceholder}
             />
           </CreatorField>
 
@@ -1522,62 +1446,6 @@ export default function CreatorProfilePage() {
         </div>
       </SectionCard>
 
-      <SectionCard
-        id="portfolio"
-        title={copy.portfolioTitle}
-        description={copy.portfolioBody}
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <CreatorBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
-            {portfolioTotalCount}/3
-          </CreatorBadge>
-          <p className="text-[11px] font-medium text-slate-400">
-            3枚以上がおすすめ
-          </p>
-        </div>
-
-        {portfolioTotalCount === 0 ? (
-          <div className="rounded-[20px] bg-slate-50 px-4 py-5 text-center ring-1 ring-slate-100">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white text-slate-300 ring-1 ring-slate-100">
-              {imageIcon()}
-            </div>
-            <p className="mt-3 text-[13px] font-medium leading-6 text-slate-500">
-              {copy.portfolioEmpty}
-            </p>
-          </div>
-        ) : null}
-
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
-          {portfolioAssets.map((asset) => (
-            <PortfolioImage
-              key={asset.id}
-              src={asset.asset_url}
-              label={asset.title || copy.portfolioTitle}
-              deleting={deletingPortfolioId === asset.id}
-              deleteLabel={copy.remove}
-              onDelete={() => void deletePortfolioAsset(asset.id)}
-            />
-          ))}
-
-          {portfolioPreviews.map((preview, index) => (
-            <PortfolioImage
-              key={preview}
-              src={preview}
-              label={`${copy.selectedImages} ${index + 1}`}
-              deleteLabel={copy.remove}
-              onDelete={() => removePendingPortfolio(index)}
-            />
-          ))}
-
-          <PortfolioUploadBox
-            pendingCount={portfolioFiles.length}
-            buttonLabel={copy.portfolioUpload}
-            selectedLabel={copy.selectedImages}
-            onChange={handlePortfolioSelect}
-          />
-        </div>
-      </SectionCard>
-
       <SectionCard id="sns" title={copy.socialTitle} description={copy.socialBody}>
         <div className="space-y-3">
           {socialAccounts.map((social, index) => (
@@ -1673,6 +1541,79 @@ export default function CreatorProfilePage() {
         >
           + {copy.addSocial}
         </CreatorButton>
+      </SectionCard>
+
+      <SectionCard
+        id="portfolio"
+        title={copy.portfolioTitle}
+        description={copy.portfolioBody}
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <CreatorBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
+            {portfolioTotalCount}/3
+          </CreatorBadge>
+          <p className="text-[11px] font-medium text-slate-400">
+            3枚以上がおすすめ
+          </p>
+        </div>
+
+        {portfolioTotalCount === 0 ? (
+          <div className="rounded-[20px] bg-slate-50 px-4 py-5 text-center ring-1 ring-slate-100">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white text-slate-300 ring-1 ring-slate-100">
+              {imageIcon()}
+            </div>
+            <p className="mt-3 text-[13px] font-medium leading-6 text-slate-500">
+              {copy.portfolioEmpty}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-3 gap-2.5">
+          {portfolioAssets.map((asset) => (
+            <PortfolioImage
+              key={asset.id}
+              src={asset.asset_url}
+              label={asset.title || copy.portfolioTitle}
+              deleting={deletingPortfolioId === asset.id}
+              deleteLabel={copy.remove}
+              onDelete={() => void deletePortfolioAsset(asset.id)}
+            />
+          ))}
+
+          {portfolioPreviews.map((preview, index) => (
+            <PortfolioImage
+              key={preview}
+              src={preview}
+              label={`${copy.selectedImages} ${index + 1}`}
+              deleteLabel={copy.remove}
+              onDelete={() => removePendingPortfolio(index)}
+            />
+          ))}
+
+          <PortfolioUploadBox
+            pendingCount={portfolioFiles.length}
+            buttonLabel={copy.portfolioUpload}
+            selectedLabel={copy.selectedImages}
+            onChange={handlePortfolioSelect}
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard title={copy.settings}>
+<section className="grid gap-2">
+        <QuickLink
+          href="/creator/menus"
+          icon={<MenuIcon />}
+          title={copy.menusTitle}
+          body={copy.menusBody}
+        />
+        <QuickLink
+          href="/creator/payouts"
+          icon={<YenIcon />}
+          title={copy.payoutsTitle}
+          body={copy.payoutsBody}
+        />
+      </section>
       </SectionCard>
 
       <CreatorStickyFooter>
