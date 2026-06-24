@@ -8,21 +8,17 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
   CreatorBadge,
   CreatorButton,
-  CreatorCard,
-  CreatorEmptyState,
   CreatorField,
-  CreatorHero,
   CreatorInput,
-  CreatorListItem,
   CreatorNotice,
   CreatorPage,
-  CreatorSection,
   CreatorSelect,
   CreatorSkeleton,
   CreatorStickyFooter,
@@ -42,7 +38,6 @@ type CreatorRow = {
   response_language: string | null;
   sub_categories: string[] | null;
   avatar_url: string | null;
-  cover_image_url: string | null;
   approval_status: "pending" | "approved" | "rejected" | string | null;
 };
 
@@ -258,7 +253,7 @@ function fallbackInitial(name: string) {
   return (name || "T").slice(0, 1).toUpperCase();
 }
 
-function ImageIcon() {
+function imageIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
       <rect
@@ -340,22 +335,13 @@ function UserIcon() {
   );
 }
 
-function EmptyPortfolioIcon() {
+function ChevronIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
-      <rect
-        x="4"
-        y="5"
-        width="16"
-        height="14"
-        rx="4"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
       <path
-        d="m8 15 2.5-3 2 2.3 1.5-1.8 3 3.5"
+        d="m9 5 7 7-7 7"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.1"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -381,20 +367,19 @@ function CreatorAvatar({
   }
 
   return (
-    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-rose-50 text-xl font-black text-[#FF3B5C] ring-1 ring-rose-100">
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-rose-50 text-xl font-black text-[#ff3860] ring-1 ring-rose-100">
       {fallbackInitial(name)}
     </div>
   );
 }
 
-function ImagePicker({
+function ProfilePhotoPicker({
   label,
   currentUrl,
   previewUrl,
   noImageLabel,
   buttonLabel,
   onChange,
-  square = false,
 }: {
   label: string;
   currentUrl: string | null;
@@ -402,41 +387,47 @@ function ImagePicker({
   noImageLabel: string;
   buttonLabel: string;
   onChange: (file: File | null) => void;
-  square?: boolean;
 }) {
   const src = previewUrl || currentUrl;
 
   return (
-    <div className="rounded-[24px] bg-[#F8F9FA] p-4 ring-1 ring-slate-100">
-      <p className="text-sm font-black text-slate-950">{label}</p>
-
-      <div
-        className={`mt-4 overflow-hidden rounded-[22px] bg-white ring-1 ring-slate-100 ${
-          square ? "mx-auto h-32 w-32" : "h-36 w-full"
-        }`}
-      >
+    <div className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100">
+      <div className="flex items-center gap-4">
         {src ? (
-          <img src={src} alt={label} className="h-full w-full object-cover" />
+          <img
+            src={src}
+            alt={label}
+            className="h-20 w-20 shrink-0 rounded-[26px] object-cover ring-1 ring-slate-100"
+          />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm font-bold text-slate-300">
+          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[26px] bg-slate-50 text-sm font-semibold text-slate-300 ring-1 ring-slate-100">
             {noImageLabel}
           </div>
         )}
-      </div>
 
-      <label className="mt-4 flex cursor-pointer items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.98]">
-        {buttonLabel}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event: ChangeEvent<HTMLInputElement>) => {
-            const file = event.target.files?.[0] ?? null;
-            onChange(file);
-            event.target.value = "";
-          }}
-        />
-      </label>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold tracking-[-0.035em] text-slate-950">
+            {label}
+          </p>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            企業に表示されるメイン写真です。
+          </p>
+
+          <label className="mt-3 inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-50 px-4 py-2 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100 transition active:scale-[0.98]">
+            {buttonLabel}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                const file = event.target.files?.[0] ?? null;
+                onChange(file);
+                event.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+      </div>
     </div>
   );
 }
@@ -453,17 +444,17 @@ function PortfolioUploadBox({
   onChange: (files: File[]) => void;
 }) {
   return (
-    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-[#F8F9FA] p-4 text-center transition active:scale-[0.98]">
-      <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white text-xl font-black text-[#FF3B5C] shadow-sm ring-1 ring-slate-100">
+    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-white p-4 text-center transition active:scale-[0.98]">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-xl font-semibold text-[#ff3860] ring-1 ring-rose-100">
         +
       </div>
 
-      <p className="mt-3 text-xs font-black leading-5 text-slate-700">
+      <p className="mt-3 text-xs font-semibold leading-5 text-slate-700">
         {buttonLabel}
       </p>
 
       {pendingCount > 0 ? (
-        <p className="mt-1 text-[11px] font-semibold text-slate-400">
+        <p className="mt-1 text-[11px] font-medium text-slate-400">
           {selectedLabel}：{pendingCount}
         </p>
       ) : null}
@@ -505,12 +496,95 @@ function PortfolioImage({
           type="button"
           onClick={onDelete}
           disabled={deleting}
-          className="absolute right-2 top-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm backdrop-blur transition active:scale-95 disabled:opacity-60"
+          className="absolute right-2 top-2 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur transition active:scale-95 disabled:opacity-60"
         >
           {deleting ? "..." : deleteLabel}
         </button>
       ) : null}
     </div>
+  );
+}
+
+function SectionCard({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id?: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
+      <div className="mb-4">
+        <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-slate-950">
+          {title}
+        </h2>
+        {description ? (
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            {description}
+          </p>
+        ) : null}
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+function QuickLink({
+  href,
+  icon,
+  title,
+  body,
+}: {
+  href: string;
+  icon: ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-[22px] bg-white px-4 py-3.5 ring-1 ring-slate-100 transition active:scale-[0.99]"
+    >
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[17px] bg-slate-50 text-slate-600 ring-1 ring-slate-100">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-semibold tracking-[-0.03em] text-slate-950">
+          {title}
+        </span>
+        <span className="mt-0.5 block truncate text-[12px] font-medium text-slate-500">
+          {body}
+        </span>
+      </span>
+      <span className="text-slate-300">
+        <ChevronIcon />
+      </span>
+    </Link>
+  );
+}
+
+function Textarea({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={4}
+      className="w-full resize-none rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-[14px] font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+    />
   );
 }
 
@@ -530,6 +604,12 @@ export default function CreatorProfilePage() {
             usernamePlaceholder: "例：taiki_pr",
             usernameHelp:
               "SNSのアカウント名と揃えると見つけてもらいやすくなります。",
+            displayName: "表示名",
+            displayNamePlaceholder: "例：Taiki",
+            displayNameHelp: "企業に見える名前です。未入力でも保存できます。",
+            bio: "自己紹介",
+            bioPlaceholder:
+              "例：京都を中心に、カフェ・美容・ライフスタイルのPR投稿をしています。",
             category: "メインジャンル",
             country: "国",
             prefecture: "都道府県",
@@ -540,17 +620,15 @@ export default function CreatorProfilePage() {
             responseLanguage: "対応言語",
             subCategories: "得意・興味のあるジャンル",
             subCategoriesHelp: "5つまで選択できます。",
-            basicInfo: "プロフィール入力",
-            basicInfoBody: "ユーザーネーム、ジャンル、活動エリアを設定します。",
-            imageSection: "写真",
-            imageBody:
-              "プロフィール画像、カバー画像、ポートフォリオ画像を管理します。",
+            basicInfo: "基本情報",
+            basicInfoBody: "名前、ジャンル、活動エリアを設定します。",
+            photoSection: "プロフィール写真",
+            photoBody: "企業が最初に見る写真です。顔写真や雰囲気が伝わる写真がおすすめです。",
             avatar: "プロフィール画像",
-            cover: "カバー画像",
             imageChoose: "写真を選択",
             noImage: "画像なし",
-            portfolioTitle: "ポートフォリオ画像",
-            portfolioBody: "企業に雰囲気が伝わる画像を追加できます。",
+            portfolioTitle: "ポートフォリオ",
+            portfolioBody: "過去の投稿や雰囲気が伝わる画像を追加できます。",
             portfolioUpload: "画像を追加",
             portfolioEmpty: "投稿実績や雰囲気が伝わる画像を追加してください。",
             selectedImages: "選択中",
@@ -582,15 +660,11 @@ export default function CreatorProfilePage() {
             saved: "保存しました。",
             saveError: "保存中にエラーが発生しました。",
             uploadFailed: "画像アップロードに失敗しました。",
-            settings: "マイページ",
-            menusTitle: "メニュー・投稿価格",
-            menusBody: "投稿形式、価格、納期を管理します。",
+            settings: "管理",
+            menusTitle: "メニュー・価格",
+            menusBody: "投稿形式、価格、納期を管理",
             payoutsTitle: "報酬受け取り",
-            payoutsBody: "受取設定と報酬履歴を確認します。",
-            socialLinkTitle: "SNSアカウント",
-            socialLinkBody: "InstagramやTikTokなどを管理します。",
-            portfolioLinkTitle: "ポートフォリオ",
-            portfolioLinkBody: "企業に見せる画像を管理します。",
+            payoutsBody: "受取設定と報酬履歴を確認",
             statusPrefix: "表示状態",
             japanesePrefectureOnly: "日本以外の場合は地域名を入力できます。",
           }
@@ -601,6 +675,12 @@ export default function CreatorProfilePage() {
             usernamePlaceholder: "Example: taiki_pr",
             usernameHelp:
               "Using the same name as your main social account makes you easier to find.",
+            displayName: "Display name",
+            displayNamePlaceholder: "Example: Taiki",
+            displayNameHelp: "Visible to brands. Optional.",
+            bio: "Bio",
+            bioPlaceholder:
+              "Example: Kyoto-based creator posting cafe, beauty, and lifestyle content.",
             category: "Main genre",
             country: "Country",
             prefecture: "State / prefecture",
@@ -611,16 +691,15 @@ export default function CreatorProfilePage() {
             responseLanguage: "Response language",
             subCategories: "Genres you are good at",
             subCategoriesHelp: "Choose up to 5.",
-            basicInfo: "Profile",
-            basicInfoBody: "Set your username, genre, and area.",
-            imageSection: "Photos",
-            imageBody: "Manage your profile, cover, and portfolio images.",
+            basicInfo: "Basic profile",
+            basicInfoBody: "Set your name, genre, and area.",
+            photoSection: "Profile photo",
+            photoBody: "This is the first photo brands will see.",
             avatar: "Profile image",
-            cover: "Cover image",
             imageChoose: "Choose photo",
             noImage: "No image",
-            portfolioTitle: "Portfolio images",
-            portfolioBody: "Add images that show your style to brands.",
+            portfolioTitle: "Portfolio",
+            portfolioBody: "Add images that show your past posts or style.",
             portfolioUpload: "Add image",
             portfolioEmpty: "Add images that show your past posts or style.",
             selectedImages: "Selected",
@@ -652,19 +731,15 @@ export default function CreatorProfilePage() {
             saved: "Saved.",
             saveError: "An error occurred while saving.",
             uploadFailed: "Failed to upload image.",
-            settings: "My page",
+            settings: "Manage",
             menusTitle: "Menus & rates",
             menusBody: "Manage post types, pricing, and delivery days.",
             payoutsTitle: "Payouts",
             payoutsBody: "Check payout setup and history.",
-            socialLinkTitle: "Social accounts",
-            socialLinkBody: "Manage Instagram, TikTok, and more.",
-            portfolioLinkTitle: "Portfolio",
-            portfolioLinkBody: "Manage images shown to brands.",
             statusPrefix: "Status",
             japanesePrefectureOnly: "Enter the area name for countries outside Japan.",
           },
-    [safeLocale]
+    [safeLocale],
   );
 
   const [creatorId, setCreatorId] = useState<string | null>(null);
@@ -683,19 +758,16 @@ export default function CreatorProfilePage() {
   const [bio, setBio] = useState("");
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
   const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAssetRow[]>(
-    []
+    [],
   );
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
   const [deletingPortfolioId, setDeletingPortfolioId] = useState<string | null>(
-    null
+    null,
   );
 
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountForm[]>([
@@ -709,14 +781,14 @@ export default function CreatorProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
-  const profileName = displayName || "Trendre";
+  const profileName = fullName || displayName || "Trendre";
   const isJapan = country === "日本";
 
   const loadPortfolioAssets = async (creatorIdValue: string) => {
     const { data, error: portfolioError } = await supabase
       .from("creator_portfolio_assets")
       .select(
-        "id, creator_id, asset_url, asset_type, title, sort_order, is_public, created_at, updated_at"
+        "id, creator_id, asset_url, asset_type, title, sort_order, is_public, created_at, updated_at",
       )
       .eq("creator_id", creatorIdValue)
       .order("sort_order", { ascending: true })
@@ -745,16 +817,10 @@ export default function CreatorProfilePage() {
         return;
       }
 
-      const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-      const metadataCover =
-        typeof metadata.creator_cover_image_url === "string"
-          ? metadata.creator_cover_image_url
-          : null;
-
       const { data: creator, error: creatorError } = await supabase
         .from("creators")
         .select(
-          "id, user_id, display_name, full_name, bio, category, country, prefecture, city, content_language, response_language, sub_categories, avatar_url, cover_image_url, approval_status"
+          "id, user_id, display_name, full_name, bio, category, country, prefecture, city, content_language, response_language, sub_categories, avatar_url, approval_status",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -787,11 +853,10 @@ export default function CreatorProfilePage() {
       setSubCategories(
         Array.isArray(creatorRow.sub_categories)
           ? creatorRow.sub_categories
-          : []
+          : [],
       );
       setBio(creatorRow.bio ?? "");
       setAvatarUrl(creatorRow.avatar_url ?? null);
-      setCoverUrl(creatorRow.cover_image_url ?? metadataCover ?? null);
 
       const { data: socials, error: socialError } = await supabase
         .from("creator_social_accounts")
@@ -809,7 +874,7 @@ export default function CreatorProfilePage() {
         (socials as SocialAccountForm[] | null)?.filter(Boolean) ?? [];
 
       setSocialAccounts(
-        socialRows.length > 0 ? socialRows : [createEmptySocial()]
+        socialRows.length > 0 ? socialRows : [createEmptySocial()],
       );
 
       await loadPortfolioAssets(creatorRow.id);
@@ -824,8 +889,8 @@ export default function CreatorProfilePage() {
   const uploadImageAndGetUrl = async (
     file: File,
     creatorIdValue: string,
-    kind: "avatar" | "cover" | "portfolio",
-    index?: number
+    kind: "avatar" | "portfolio",
+    index?: number,
   ) => {
     const ext = fileExtension(file);
     const suffix =
@@ -871,7 +936,7 @@ export default function CreatorProfilePage() {
         item.platform.trim() ||
         item.url.trim() ||
         item.follower_range.trim() ||
-        item.audience_country.trim()
+        item.audience_country.trim(),
     );
 
     if (cleaned.length === 0) return copy.socialRequired;
@@ -881,7 +946,7 @@ export default function CreatorProfilePage() {
         !item.platform.trim() ||
         !item.url.trim() ||
         !item.follower_range.trim() ||
-        !item.audience_country.trim()
+        !item.audience_country.trim(),
     );
 
     if (hasIncomplete) return copy.socialIncomplete;
@@ -889,17 +954,10 @@ export default function CreatorProfilePage() {
     return null;
   };
 
-  const handleImageSelect = (file: File | null, kind: "avatar" | "cover") => {
-    if (kind === "avatar") {
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-      setAvatarFile(file);
-      setAvatarPreview(file ? URL.createObjectURL(file) : null);
-      return;
-    }
-
-    if (coverPreview) URL.revokeObjectURL(coverPreview);
-    setCoverFile(file);
-    setCoverPreview(file ? URL.createObjectURL(file) : null);
+  const handleImageSelect = (file: File | null) => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarFile(file);
+    setAvatarPreview(file ? URL.createObjectURL(file) : null);
   };
 
   const handlePortfolioSelect = (files: File[]) => {
@@ -1003,21 +1061,12 @@ export default function CreatorProfilePage() {
       }
 
       let finalAvatarUrl = avatarUrl;
-      let finalCoverUrl = coverUrl;
 
       if (avatarFile) {
         finalAvatarUrl = await uploadImageAndGetUrl(
           avatarFile,
           creatorId,
-          "avatar"
-        );
-      }
-
-      if (coverFile) {
-        finalCoverUrl = await uploadImageAndGetUrl(
-          coverFile,
-          creatorId,
-          "cover"
+          "avatar",
         );
       }
 
@@ -1030,7 +1079,7 @@ export default function CreatorProfilePage() {
               file,
               creatorId,
               "portfolio",
-              index
+              index,
             );
 
             return {
@@ -1041,7 +1090,7 @@ export default function CreatorProfilePage() {
               sort_order: startOrder + index,
               is_public: true,
             };
-          })
+          }),
         );
 
         const { error: insertPortfolioError } = await supabase
@@ -1069,7 +1118,6 @@ export default function CreatorProfilePage() {
           response_language: normalizedResponseLanguage || null,
           sub_categories: subCategories.length > 0 ? subCategories : [],
           avatar_url: finalAvatarUrl,
-          cover_image_url: finalCoverUrl,
           updated_at: now,
         })
         .eq("id", creatorId);
@@ -1138,7 +1186,7 @@ export default function CreatorProfilePage() {
             item.platform &&
             item.url &&
             item.follower_range &&
-            item.audience_country
+            item.audience_country,
         );
 
       const { error: deleteSocialError } = await supabase
@@ -1177,7 +1225,6 @@ export default function CreatorProfilePage() {
           creator_content_language: normalizedContentLanguage,
           creator_response_language: normalizedResponseLanguage,
           creator_sub_categories: subCategories,
-          creator_cover_image_url: finalCoverUrl ?? null,
         },
       });
 
@@ -1191,16 +1238,12 @@ export default function CreatorProfilePage() {
       setContentLanguage(normalizedContentLanguage);
       setResponseLanguage(normalizedResponseLanguage);
       setAvatarUrl(finalAvatarUrl ?? null);
-      setCoverUrl(finalCoverUrl ?? null);
       setAvatarFile(null);
-      setCoverFile(null);
 
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-      if (coverPreview) URL.revokeObjectURL(coverPreview);
       portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
 
       setAvatarPreview(null);
-      setCoverPreview(null);
       setPortfolioFiles([]);
       setPortfolioPreviews([]);
 
@@ -1233,7 +1276,7 @@ export default function CreatorProfilePage() {
   const updateSocial = (
     index: number,
     key: keyof SocialAccountForm,
-    value: string
+    value: string,
   ) => {
     setSocialAccounts((prev) =>
       prev.map((item, i) =>
@@ -1242,8 +1285,8 @@ export default function CreatorProfilePage() {
               ...item,
               [key]: value,
             }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
@@ -1261,8 +1304,8 @@ export default function CreatorProfilePage() {
   if (loading) {
     return (
       <CreatorPage>
-        <CreatorSkeleton className="h-28" />
-        <CreatorSkeleton className="h-48" />
+        <CreatorSkeleton className="h-24" />
+        <CreatorSkeleton className="h-40" />
         <CreatorSkeleton className="h-64" />
       </CreatorPage>
     );
@@ -1270,15 +1313,26 @@ export default function CreatorProfilePage() {
 
   return (
     <CreatorPage>
-      <CreatorHero
-        title={copy.title}
-        description={copy.subtitle}
-        right={<CreatorAvatar name={profileName} src={avatarPreview || avatarUrl} />}
-      >
-        <CreatorBadge tone={getPublicStatusTone(approvalStatus)}>
-          {copy.statusPrefix}：{getPublicStatusLabel(approvalStatus, safeLocale)}
-        </CreatorBadge>
-      </CreatorHero>
+      <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
+              {copy.title}
+            </h1>
+            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+              {copy.subtitle}
+            </p>
+
+            <div className="mt-3">
+              <CreatorBadge tone={getPublicStatusTone(approvalStatus)}>
+                {copy.statusPrefix}：{getPublicStatusLabel(approvalStatus, safeLocale)}
+              </CreatorBadge>
+            </div>
+          </div>
+
+          <CreatorAvatar name={profileName} src={avatarPreview || avatarUrl} />
+        </div>
+      </section>
 
       {error ? (
         <CreatorNotice tone="red" title="Error" description={error} />
@@ -1288,145 +1342,55 @@ export default function CreatorProfilePage() {
         <CreatorNotice tone="green" title={success} />
       ) : null}
 
-      <CreatorSection title={copy.settings}>
-        <div className="grid gap-3">
-          <CreatorListItem
-            href="/creator/menus"
-            icon={
-              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
-                <MenuIcon />
-              </span>
-            }
-            title={copy.menusTitle}
-            description={copy.menusBody}
-          />
+      <section className="grid gap-2">
+        <QuickLink
+          href="/creator/menus"
+          icon={<MenuIcon />}
+          title={copy.menusTitle}
+          body={copy.menusBody}
+        />
+        <QuickLink
+          href="/creator/payouts"
+          icon={<YenIcon />}
+          title={copy.payoutsTitle}
+          body={copy.payoutsBody}
+        />
+      </section>
 
-          <CreatorListItem
-            href="#portfolio"
-            icon={
-              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
-                <ImageIcon />
-              </span>
-            }
-            title={copy.portfolioLinkTitle}
-            description={copy.portfolioLinkBody}
-          />
+      <SectionCard title={copy.photoSection} description={copy.photoBody}>
+        <ProfilePhotoPicker
+          label={copy.avatar}
+          currentUrl={avatarUrl}
+          previewUrl={avatarPreview}
+          noImageLabel={copy.noImage}
+          buttonLabel={copy.imageChoose}
+          onChange={handleImageSelect}
+        />
+      </SectionCard>
 
-          <CreatorListItem
-            href="#sns"
-            icon={
-              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
-                <SnsIcon />
-              </span>
-            }
-            title={copy.socialLinkTitle}
-            description={copy.socialLinkBody}
-          />
-
-          <CreatorListItem
-            href="/creator/payouts"
-            icon={
-              <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-50 text-slate-700 ring-1 ring-slate-100">
-                <YenIcon />
-              </span>
-            }
-            title={copy.payoutsTitle}
-            description={copy.payoutsBody}
-          />
-        </div>
-      </CreatorSection>
-
-      <CreatorSection title={copy.imageSection} description={copy.imageBody}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ImagePicker
-            label={copy.avatar}
-            currentUrl={avatarUrl}
-            previewUrl={avatarPreview}
-            noImageLabel={copy.noImage}
-            buttonLabel={copy.imageChoose}
-            onChange={(file) => handleImageSelect(file, "avatar")}
-            square
-          />
-
-          <ImagePicker
-            label={copy.cover}
-            currentUrl={coverUrl}
-            previewUrl={coverPreview}
-            noImageLabel={copy.noImage}
-            buttonLabel={copy.imageChoose}
-            onChange={(file) => handleImageSelect(file, "cover")}
-          />
-        </div>
-
-        <div
-          id="portfolio"
-          className="mt-5 rounded-[24px] bg-[#F8F9FA] p-4 ring-1 ring-slate-100"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h3 className="text-base font-black tracking-[-0.04em] text-slate-950">
-                {copy.portfolioTitle}
-              </h3>
-
-              <p className="mt-1.5 text-xs font-semibold leading-5 text-slate-500">
-                {copy.portfolioBody}
-              </p>
-            </div>
-
-            <CreatorBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
-              {portfolioTotalCount}/3
-            </CreatorBadge>
-          </div>
-
-          {portfolioTotalCount === 0 ? (
-            <div className="mt-4">
-              <CreatorEmptyState
-                icon={<EmptyPortfolioIcon />}
-                title={copy.portfolioTitle}
-                description={copy.portfolioEmpty}
-              />
-            </div>
-          ) : null}
-
-          <div className="mt-4 grid grid-cols-3 gap-2.5">
-            {portfolioAssets.map((asset) => (
-              <PortfolioImage
-                key={asset.id}
-                src={asset.asset_url}
-                label={asset.title || copy.portfolioTitle}
-                deleting={deletingPortfolioId === asset.id}
-                deleteLabel={copy.remove}
-                onDelete={() => void deletePortfolioAsset(asset.id)}
-              />
-            ))}
-
-            {portfolioPreviews.map((preview, index) => (
-              <PortfolioImage
-                key={preview}
-                src={preview}
-                label={`${copy.selectedImages} ${index + 1}`}
-                deleteLabel={copy.remove}
-                onDelete={() => removePendingPortfolio(index)}
-              />
-            ))}
-
-            <PortfolioUploadBox
-              pendingCount={portfolioFiles.length}
-              buttonLabel={copy.portfolioUpload}
-              selectedLabel={copy.selectedImages}
-              onChange={handlePortfolioSelect}
-            />
-          </div>
-        </div>
-      </CreatorSection>
-
-      <CreatorSection title={copy.basicInfo} description={copy.basicInfoBody}>
+      <SectionCard title={copy.basicInfo} description={copy.basicInfoBody}>
         <div className="grid gap-4">
           <CreatorField label={copy.username} help={copy.usernameHelp}>
             <CreatorInput
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={copy.usernamePlaceholder}
+            />
+          </CreatorField>
+
+          <CreatorField label={copy.displayName} help={copy.displayNameHelp}>
+            <CreatorInput
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder={copy.displayNamePlaceholder}
+            />
+          </CreatorField>
+
+          <CreatorField label={copy.bio}>
+            <Textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder={copy.bioPlaceholder}
             />
           </CreatorField>
 
@@ -1457,7 +1421,7 @@ export default function CreatorProfilePage() {
                     key={option.value}
                     type="button"
                     onClick={() => handleSubCategoryToggle(option.value)}
-                    className={`rounded-full px-4 py-2 text-xs font-black ring-1 transition active:scale-[0.98] ${
+                    className={`rounded-full px-4 py-2 text-xs font-semibold ring-1 transition active:scale-[0.98] ${
                       active
                         ? "bg-slate-950 text-white ring-slate-950"
                         : "bg-white text-slate-600 ring-slate-200"
@@ -1556,19 +1520,75 @@ export default function CreatorProfilePage() {
             </CreatorField>
           </div>
         </div>
-      </CreatorSection>
+      </SectionCard>
 
-      <CreatorSection id="sns" title={copy.socialTitle} description={copy.socialBody}>
+      <SectionCard
+        id="portfolio"
+        title={copy.portfolioTitle}
+        description={copy.portfolioBody}
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <CreatorBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
+            {portfolioTotalCount}/3
+          </CreatorBadge>
+          <p className="text-[11px] font-medium text-slate-400">
+            3枚以上がおすすめ
+          </p>
+        </div>
+
+        {portfolioTotalCount === 0 ? (
+          <div className="rounded-[20px] bg-slate-50 px-4 py-5 text-center ring-1 ring-slate-100">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white text-slate-300 ring-1 ring-slate-100">
+              {imageIcon()}
+            </div>
+            <p className="mt-3 text-[13px] font-medium leading-6 text-slate-500">
+              {copy.portfolioEmpty}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-3 gap-2.5">
+          {portfolioAssets.map((asset) => (
+            <PortfolioImage
+              key={asset.id}
+              src={asset.asset_url}
+              label={asset.title || copy.portfolioTitle}
+              deleting={deletingPortfolioId === asset.id}
+              deleteLabel={copy.remove}
+              onDelete={() => void deletePortfolioAsset(asset.id)}
+            />
+          ))}
+
+          {portfolioPreviews.map((preview, index) => (
+            <PortfolioImage
+              key={preview}
+              src={preview}
+              label={`${copy.selectedImages} ${index + 1}`}
+              deleteLabel={copy.remove}
+              onDelete={() => removePendingPortfolio(index)}
+            />
+          ))}
+
+          <PortfolioUploadBox
+            pendingCount={portfolioFiles.length}
+            buttonLabel={copy.portfolioUpload}
+            selectedLabel={copy.selectedImages}
+            onChange={handlePortfolioSelect}
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard id="sns" title={copy.socialTitle} description={copy.socialBody}>
         <div className="space-y-3">
           {socialAccounts.map((social, index) => (
-            <CreatorCard key={index} tone="soft" className="p-4">
+            <div key={index} className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-white text-slate-600 ring-1 ring-slate-100">
                     <UserIcon />
                   </span>
 
-                  <p className="text-sm font-black text-slate-950">
+                  <p className="text-sm font-semibold text-slate-950">
                     {copy.socialItem} {index + 1}
                   </p>
                 </div>
@@ -1576,7 +1596,7 @@ export default function CreatorProfilePage() {
                 <button
                   type="button"
                   onClick={() => removeSocial(index)}
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-500 ring-1 ring-slate-200 transition active:scale-95"
+                  className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200 transition active:scale-95"
                 >
                   {copy.remove}
                 </button>
@@ -1641,7 +1661,7 @@ export default function CreatorProfilePage() {
                   </CreatorField>
                 </div>
               </div>
-            </CreatorCard>
+            </div>
           ))}
         </div>
 
@@ -1653,7 +1673,7 @@ export default function CreatorProfilePage() {
         >
           + {copy.addSocial}
         </CreatorButton>
-      </CreatorSection>
+      </SectionCard>
 
       <CreatorStickyFooter>
         <CreatorButton
