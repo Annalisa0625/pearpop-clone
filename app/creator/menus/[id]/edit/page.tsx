@@ -287,51 +287,64 @@ function MenuChoiceGrid({
   locale: Locale;
   onChange: (value: string) => void;
 }) {
-  return (
-    <div className="grid gap-2">
-      {MENU_OPTIONS.map((option) => {
-        const active = value === option.value;
-        const platform = derivePlatform(option.value);
+  const selectedMenu = getSelectedMenu(value);
 
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={`rounded-[22px] p-4 text-left ring-1 transition active:scale-[0.99] ${
-              active
-                ? "bg-slate-950 text-white ring-slate-950"
-                : "bg-white text-slate-700 ring-slate-100"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="mb-2">
-                  <PlatformBadge platform={platform} selected={active} />
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-2">
+        {MENU_OPTIONS.map((option) => {
+          const active = value === option.value;
+          const platform = derivePlatform(option.value);
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              className={`min-h-[58px] rounded-[18px] px-3 py-2.5 text-left ring-1 transition active:scale-[0.99] ${
+                active
+                  ? "bg-slate-950 text-white ring-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+                  : "bg-white text-slate-800 ring-slate-100"
+              }`}
+            >
+              <div className="flex h-full flex-col justify-between gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={`inline-flex h-6 items-center rounded-full px-2 text-[10px] font-semibold ring-1 ${
+                      active
+                        ? "bg-white/12 text-white ring-white/10"
+                        : platformTone(platform, false)
+                    }`}
+                  >
+                    {platformIcon(platform)}
+                  </span>
+
+                  {active ? (
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] font-black text-slate-950">
+                      ✓
+                    </span>
+                  ) : null}
                 </div>
 
-                <p className="text-[15px] font-semibold tracking-[-0.035em]">
+                <p className="line-clamp-2 text-[12px] font-semibold leading-4 tracking-[-0.025em]">
                   {getMenuLabel(option, locale)}
                 </p>
-
-                <p
-                  className={`mt-1 text-[12px] font-medium leading-5 ${
-                    active ? "text-white/65" : "text-slate-500"
-                  }`}
-                >
-                  {getMenuHelp(option, locale)}
-                </p>
               </div>
+            </button>
+          );
+        })}
+      </div>
 
-              {active ? (
-                <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold text-white">
-                  SELECT
-                </span>
-              ) : null}
-            </div>
-          </button>
-        );
-      })}
+      {selectedMenu ? (
+        <div className="mt-3 rounded-[18px] bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
+          <div className="flex items-start gap-2">
+            <PlatformBadge platform={derivePlatform(selectedMenu.value)} />
+            <p className="min-w-0 flex-1 text-[12px] font-medium leading-5 text-slate-600">
+              {getMenuHelp(selectedMenu, locale)}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
