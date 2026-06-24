@@ -210,6 +210,18 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
+function formatShortDate(value: string | null | undefined, locale: "ja" | "en") {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+  });
+}
+
 function formatMonth(value: Date, locale: "ja" | "en") {
   return value.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
     year: "numeric",
@@ -231,6 +243,10 @@ function addMonths(value: Date, months: number) {
     0,
     0,
   );
+}
+
+function getMonthlyPayoutDate(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth() + 1, 25, 0, 0, 0, 0);
 }
 
 function getOrderDate(order: PayoutOrderRow) {
@@ -265,7 +281,7 @@ function getPayoutStatusLabel(
   if (status === "withheld") return "確認中";
   if (status === "failed") return "確認が必要";
   if (status === "pending") return "支払い予定";
-  return "支払い待ち";
+  return "未払い";
 }
 
 function getPayoutStatusTone(
@@ -275,7 +291,7 @@ function getPayoutStatusTone(
     return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (status === "withheld") return "bg-amber-50 text-amber-700 ring-amber-100";
   if (status === "failed") return "bg-rose-50 text-rose-700 ring-rose-100";
-  return "bg-slate-100 text-slate-700 ring-slate-200";
+  return "bg-slate-50 text-slate-600 ring-slate-100";
 }
 
 function getPayoutNoteText() {
@@ -285,8 +301,9 @@ function getPayoutNoteText() {
 function LoadingView() {
   return (
     <main className="mx-auto max-w-[760px] px-4 py-5">
-      <div className="h-24 animate-pulse rounded-[22px] bg-white ring-1 ring-slate-100" />
-      <div className="mt-3 h-56 animate-pulse rounded-[22px] bg-white ring-1 ring-slate-100" />
+      <div className="h-16 animate-pulse rounded-[18px] bg-white ring-1 ring-slate-100" />
+      <div className="mt-3 h-44 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
+      <div className="mt-3 h-32 animate-pulse rounded-[24px] bg-white ring-1 ring-slate-100" />
     </main>
   );
 }
@@ -299,9 +316,7 @@ function Surface({
   className?: string;
 }) {
   return (
-    <section
-      className={`rounded-[22px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 ${className}`}
-    >
+    <section className={`rounded-[24px] bg-white ring-1 ring-slate-100 ${className}`}>
       {children}
     </section>
   );
@@ -318,7 +333,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <p className="mb-1.5 text-[12px] font-bold text-slate-700">{label}</p>
+      <p className="mb-1.5 text-[12px] font-semibold text-slate-700">{label}</p>
       {children}
       {help ? (
         <p className="mt-1.5 text-[11px] font-medium leading-5 text-slate-500">
@@ -470,7 +485,7 @@ function CollapsibleCard({
   return (
     <details
       open={defaultOpen}
-      className="group rounded-[22px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.035)] ring-1 ring-slate-100"
+      className="group rounded-[22px] bg-white ring-1 ring-slate-100"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 sm:px-5 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
@@ -506,6 +521,189 @@ function sumPayoutAmount(orders: PayoutOrderRow[]) {
   return orders.reduce(
     (sum, order) => sum + Number(order.creator_payout_amount ?? 0),
     0,
+  );
+}
+
+function PayoutHero({
+  currentMonthAmount,
+  nextPayoutAmount,
+  currentMonthCount,
+  nextPayoutCount,
+  currentMonthLabel,
+  nextPayoutDateLabel,
+  locale,
+}: {
+  currentMonthAmount: number;
+  nextPayoutAmount: number;
+  currentMonthCount: number;
+  nextPayoutCount: number;
+  currentMonthLabel: string;
+  nextPayoutDateLabel: string;
+  locale: "ja" | "en";
+}) {
+  return (
+    <Surface className="overflow-hidden">
+      <div className="px-4 py-4 sm:px-5">
+        <h1 className="text-[22px] font-bold tracking-[-0.045em] text-slate-950">
+          報酬
+        </h1>
+        <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+          今月の積み上げと、次回の振込予定を確認できます。
+        </p>
+      </div>
+
+      <div className="border-t border-slate-100 px-4 py-4 sm:px-5">
+        <p className="text-[12px] font-semibold text-slate-500">今月の報酬</p>
+        <p className="mt-1 whitespace-nowrap text-[34px] font-bold tracking-[-0.055em] text-slate-950">
+          {formatMoney(currentMonthAmount, "JPY", locale)}
+        </p>
+        <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
+          {currentMonthLabel}に完了した案件が積み上がります。
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
+            <p className="text-[11px] font-semibold text-slate-500">今月完了</p>
+            <p className="mt-1 text-[16px] font-bold text-slate-950">
+              {currentMonthCount}件
+            </p>
+          </div>
+
+          <div className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
+            <p className="text-[11px] font-semibold text-slate-500">次回予定</p>
+            <p className="mt-1 text-[16px] font-bold text-slate-950">
+              {formatMoney(nextPayoutAmount, "JPY", locale)}
+            </p>
+            <p className="mt-1 text-[10px] font-medium text-slate-400">
+              {nextPayoutCount > 0 ? nextPayoutDateLabel : "対象なし"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function NextPayoutCard({
+  gross,
+  fee,
+  net,
+  note,
+  payoutDateLabel,
+  blockedReason,
+  locale,
+}: {
+  gross: number;
+  fee: number;
+  net: number;
+  note: string;
+  payoutDateLabel: string;
+  blockedReason: string | null;
+  locale: "ja" | "en";
+}) {
+  return (
+    <Surface className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[18px] font-bold tracking-[-0.035em] text-slate-950">
+            次回振込予定
+          </h2>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            前月以前に完了した未払い分です。
+          </p>
+        </div>
+
+        <StatusPill className="bg-slate-50 text-slate-600 ring-slate-100">
+          {payoutDateLabel}
+        </StatusPill>
+      </div>
+
+      <div className="mt-4 rounded-[18px] bg-rose-50/55 px-4 py-4 ring-1 ring-rose-100">
+        <p className="text-[12px] font-semibold text-slate-600">
+          振込予定額
+        </p>
+        <p className="mt-1 whitespace-nowrap text-[30px] font-bold tracking-[-0.045em] text-slate-950">
+          {formatMoney(net, "JPY", locale)}
+        </p>
+      </div>
+
+      <div className="mt-3 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
+        <DetailRow label="対象報酬" value={formatMoney(gross, "JPY", locale)} strong />
+        <DetailRow label="振込手数料" value={`-${formatMoney(fee, "JPY", locale)}`} />
+      </div>
+
+      <p className="mt-3 text-[11px] font-medium leading-5 text-slate-500">
+        {note}
+      </p>
+
+      {blockedReason ? (
+        <div className="mt-3">
+          <Alert tone="amber" title="支払いについて" body={blockedReason} />
+        </div>
+      ) : null}
+    </Surface>
+  );
+}
+
+function BankAccountCard({
+  profile,
+  onEdit,
+}: {
+  profile: PayoutProfile | null;
+  onEdit: () => void;
+}) {
+  return (
+    <Surface className="px-4 py-3.5 sm:px-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-bold tracking-[-0.035em] text-slate-950">
+            受け取り口座
+          </h2>
+          <p className="mt-0.5 text-[12px] font-medium leading-5 text-slate-500">
+            現在の振込先です
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onEdit}
+          className="shrink-0 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100"
+        >
+          変更
+        </button>
+      </div>
+
+      <div className="mt-3 grid grid-cols-[1fr_auto] items-end gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-bold text-slate-950">
+            {profile?.bank_name || "-"} / {profile?.branch_name || "-"}
+          </p>
+          <p className="mt-1 text-[12px] font-medium text-slate-500">
+            <AccountTypeLabel value={profile?.account_type ?? null} />{" "}
+            {maskAccountNumber(profile?.account_number)}
+          </p>
+        </div>
+
+        <StatusPill className="bg-emerald-50 text-emerald-700 ring-emerald-100">
+          登録済み
+        </StatusPill>
+      </div>
+    </Surface>
+  );
+}
+
+function SetupFormHeader({ fromSignup }: { fromSignup: boolean }) {
+  return (
+    <Surface className="p-4 sm:p-5">
+      <h1 className="text-[22px] font-bold tracking-[-0.045em] text-slate-950">
+        受け取り口座
+      </h1>
+      <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+        {fromSignup
+          ? "報酬を受け取るため、銀行口座を登録してください。"
+          : "案件完了後の報酬は、登録した銀行口座へ振り込まれます。"}
+      </p>
+    </Surface>
   );
 }
 
@@ -556,6 +754,10 @@ export default function PayoutsClient() {
 
   const currentMonthLabel = formatMonth(currentMonthStart, safeLocale);
   const previousMonthLabel = formatMonth(previousMonthStart, safeLocale);
+  const nextPayoutDate = getMonthlyPayoutDate(previousMonthStart);
+  const currentMonthPayoutDate = getMonthlyPayoutDate(currentMonthStart);
+  const nextPayoutDateLabel = `${formatShortDate(nextPayoutDate.toISOString(), safeLocale)}頃`;
+  const currentMonthPayoutDateLabel = `${formatShortDate(currentMonthPayoutDate.toISOString(), safeLocale)}頃`;
 
   const hasSavedBankAccount = Boolean(
     profile?.bank_name || profile?.account_number,
@@ -590,17 +792,14 @@ export default function PayoutsClient() {
   const currentMonthAmount = sumPayoutAmount(currentMonthOrders);
   const nextPayoutGrossAmount = sumPayoutAmount(closedUnpaidOrders);
   const paidAmount = sumPayoutAmount(paidOrders);
-  const payableAmount = sumPayoutAmount(payableOrders);
 
   const estimatedBankFeeAmount =
     nextPayoutGrossAmount >= MIN_PAYOUT_AMOUNT
       ? DEFAULT_BANK_TRANSFER_FEE_AMOUNT
       : 0;
 
-  const estimatedOtherDeductionAmount = 0;
-
   const estimatedNextPayoutAmount = Math.max(
-    nextPayoutGrossAmount - estimatedBankFeeAmount - estimatedOtherDeductionAmount,
+    nextPayoutGrossAmount - estimatedBankFeeAmount,
     0,
   );
 
@@ -730,7 +929,7 @@ export default function PayoutsClient() {
           limit: "15",
         });
 
-        const res = await fetch(`/api/banks/search?${params.toString()}`, {
+        const res = await fetch(`/api/banks?${params.toString()}`, {
           cache: "no-store",
         });
 
@@ -1003,40 +1202,6 @@ export default function PayoutsClient() {
 
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-      <Surface className="mb-3 overflow-hidden">
-        <div className="px-4 py-4 sm:px-5">
-          <h1 className="text-[22px] font-bold tracking-[-0.04em] text-slate-950">
-            報酬
-          </h1>
-          <p className="mt-1 max-w-[460px] text-[13px] font-medium leading-6 text-slate-600">
-            今月の報酬と、次回の振込予定を確認できます。
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100">
-          <div className="px-4 py-3">
-            <p className="text-[11px] font-bold text-slate-500">今月</p>
-            <p className="mt-1 text-[16px] font-bold text-slate-950">
-              {formatMoney(currentMonthAmount, "JPY", safeLocale)}
-            </p>
-          </div>
-
-          <div className="px-4 py-3">
-            <p className="text-[11px] font-bold text-slate-500">次回予定</p>
-            <p className="mt-1 text-[16px] font-bold text-slate-950">
-              {formatMoney(estimatedNextPayoutAmount, "JPY", safeLocale)}
-            </p>
-          </div>
-
-          <div className="px-4 py-3">
-            <p className="text-[11px] font-bold text-slate-500">支払い済み</p>
-            <p className="mt-1 text-[16px] font-bold text-slate-950">
-              {formatMoney(paidAmount, "JPY", safeLocale)}
-            </p>
-          </div>
-        </div>
-      </Surface>
-
       {fromSignup ? (
         <div className="mb-3">
           <Alert
@@ -1070,16 +1235,11 @@ export default function PayoutsClient() {
       ) : null}
 
       {showSetupForm ? (
-        <Surface className="p-4 sm:p-5">
-          <div className="mb-4">
-            <h2 className="text-[18px] font-bold tracking-[-0.035em] text-slate-950">
-              受け取り口座を登録
-            </h2>
-            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-              案件完了後の報酬は、登録した銀行口座へ振り込まれます。
-            </p>
-          </div>
+        <SetupFormHeader fromSignup={fromSignup} />
+      ) : null}
 
+      {showSetupForm ? (
+        <Surface className="mt-3 p-4 sm:p-5">
           <div className="space-y-3">
             <CollapsibleCard
               title="金融機関・支店"
@@ -1147,7 +1307,7 @@ export default function PayoutsClient() {
 
                 <Field
                   label="支店"
-                  help="銀行選択後、1文字以上入力すると候補が出ます"
+                  help={form.bank_code ? "支店名を入力してください" : "先に金融機関を選択してください"}
                 >
                   <Input
                     value={branchQuery}
@@ -1376,138 +1536,41 @@ export default function PayoutsClient() {
 
       {showNormalSections ? (
         <div className="space-y-3">
-          <Surface className="p-4 sm:p-5">
-            <div>
-              <h2 className="text-[18px] font-bold tracking-[-0.035em] text-slate-950">
-                今月の報酬
-              </h2>
-              <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-                {currentMonthLabel}に完了した案件がここに積み上がります。
-              </p>
-            </div>
+          <PayoutHero
+            currentMonthAmount={currentMonthAmount}
+            nextPayoutAmount={estimatedNextPayoutAmount}
+            currentMonthCount={currentMonthOrders.length}
+            nextPayoutCount={closedUnpaidOrders.length}
+            currentMonthLabel={currentMonthLabel}
+            nextPayoutDateLabel={nextPayoutDateLabel}
+            locale={safeLocale}
+          />
 
-            <div className="mt-4 rounded-[18px] bg-rose-50/60 px-4 py-4 ring-1 ring-rose-100">
-              <p className="text-[12px] font-bold text-slate-600">今月分</p>
-              <p className="mt-1 text-[32px] font-bold tracking-[-0.06em] text-slate-950">
-                {formatMoney(currentMonthAmount, "JPY", safeLocale)}
-              </p>
-              <p className="mt-2 text-xs font-medium leading-5 text-slate-600">
-                月末に締め、翌月25日頃の振込予定に反映されます。
-              </p>
-            </div>
-          </Surface>
+          <NextPayoutCard
+            gross={nextPayoutGrossAmount}
+            fee={estimatedBankFeeAmount}
+            net={estimatedNextPayoutAmount}
+            note={getPayoutNoteText()}
+            payoutDateLabel={nextPayoutDateLabel}
+            blockedReason={payoutBlockedReason}
+            locale={safeLocale}
+          />
 
-          <Surface className="p-4 sm:p-5">
-            <div>
-              <h2 className="text-[18px] font-bold tracking-[-0.035em] text-slate-950">
-                次回振込予定
-              </h2>
-              <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-                {previousMonthLabel}以前に完了した未払い分です。
-              </p>
-            </div>
-
-            <div className="mt-3 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
-              <DetailRow
-                label="対象報酬"
-                value={formatMoney(nextPayoutGrossAmount, "JPY", safeLocale)}
-                strong
-              />
-              <DetailRow
-                label="振込手数料"
-                value={`-${formatMoney(estimatedBankFeeAmount, "JPY", safeLocale)}`}
-              />
-              {estimatedOtherDeductionAmount > 0 ? (
-                <DetailRow
-                  label="その他控除"
-                  value={`-${formatMoney(estimatedOtherDeductionAmount, "JPY", safeLocale)}`}
-                />
-              ) : null}
-              <DetailRow
-                label="振込予定額"
-                value={formatMoney(
-                  estimatedNextPayoutAmount,
-                  "JPY",
-                  safeLocale,
-                )}
-                strong
-              />
-            </div>
-
-            <p className="mt-3 text-[11px] font-medium leading-5 text-slate-500">
-              {getPayoutNoteText()}
-            </p>
-
-            {payoutBlockedReason ? (
-              <div className="mt-3">
-                <Alert
-                  tone="amber"
-                  title="支払いについて"
-                  body={payoutBlockedReason}
-                />
-              </div>
-            ) : null}
-          </Surface>
-
-          <CollapsibleCard
-            title="受け取り口座"
-            subtitle="現在の振込先です"
-            badge={
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  setEditing(true);
-                  setConfirmOpen(false);
-                  setErrorMsg(null);
-                  setSuccessMsg(null);
-                }}
-                className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100"
-              >
-                変更
-              </button>
-            }
-          >
-            <div className="divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
-              <DetailRow
-                label="金融機関"
-                value={
-                  profile?.bank_code
-                    ? `${profile.bank_name || "-"} / ${profile.bank_code}`
-                    : profile?.bank_name || "-"
-                }
-                strong
-              />
-              <DetailRow
-                label="支店"
-                value={
-                  profile?.branch_code
-                    ? `${profile.branch_name || "-"} / ${profile.branch_code}`
-                    : profile?.branch_name || "-"
-                }
-              />
-              <DetailRow
-                label="種別"
-                value={
-                  <AccountTypeLabel value={profile?.account_type ?? null} />
-                }
-              />
-              <DetailRow
-                label="口座番号"
-                value={maskAccountNumber(profile?.account_number)}
-              />
-              <DetailRow
-                label="口座名義"
-                value={profile?.account_holder_name || "-"}
-              />
-            </div>
-          </CollapsibleCard>
+          <BankAccountCard
+            profile={profile}
+            onEdit={() => {
+              setEditing(true);
+              setConfirmOpen(false);
+              setErrorMsg(null);
+              setSuccessMsg(null);
+            }}
+          />
 
           <CollapsibleCard
             title="今月完了した案件"
-            subtitle="今月の報酬に含まれる案件です"
+            subtitle={`今月の報酬に含まれる案件です。振込予定：${currentMonthPayoutDateLabel}`}
             badge={
-              <StatusPill className="bg-slate-100 text-slate-700 ring-slate-200">
+              <StatusPill className="bg-slate-50 text-slate-600 ring-slate-100">
                 {currentMonthOrders.length}件
               </StatusPill>
             }
@@ -1517,9 +1580,9 @@ export default function PayoutsClient() {
 
           <CollapsibleCard
             title="次回振込予定の案件"
-            subtitle="前月以前に完了した未払い案件です"
+            subtitle={`${previousMonthLabel}以前に完了した未払い案件です`}
             badge={
-              <StatusPill className="bg-slate-100 text-slate-700 ring-slate-200">
+              <StatusPill className="bg-slate-50 text-slate-600 ring-slate-100">
                 {closedUnpaidOrders.length}件
               </StatusPill>
             }
@@ -1529,9 +1592,9 @@ export default function PayoutsClient() {
 
           <CollapsibleCard
             title="支払い済みの案件"
-            subtitle="過去に振込済みになった案件です"
+            subtitle="過去に支払い済みになった案件です"
             badge={
-              <StatusPill className="bg-slate-100 text-slate-700 ring-slate-200">
+              <StatusPill className="bg-slate-50 text-slate-600 ring-slate-100">
                 {paidOrders.length}件
               </StatusPill>
             }
@@ -1551,10 +1614,10 @@ function PayoutOrderList({
   orders: PayoutOrderRow[];
   locale: "ja" | "en";
 }) {
-  if (orders.length <= 0) {
+  if (orders.length === 0) {
     return (
-      <div className="rounded-[16px] bg-slate-50/75 p-4 text-center ring-1 ring-slate-100">
-        <p className="text-[13px] font-bold text-slate-700">
+      <div className="rounded-[16px] bg-slate-50 px-4 py-5 text-center ring-1 ring-slate-100">
+        <p className="text-[13px] font-bold text-slate-600">
           対象の案件はありません
         </p>
         <p className="mt-1 text-xs font-medium leading-5 text-slate-500">
@@ -1580,7 +1643,7 @@ function PayoutOrderList({
             </div>
 
             <div className="shrink-0 text-right">
-              <p className="text-[13px] font-bold text-slate-950">
+              <p className="whitespace-nowrap text-[13px] font-bold text-slate-950">
                 {formatMoney(
                   order.creator_payout_amount,
                   order.currency,
