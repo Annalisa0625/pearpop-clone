@@ -467,7 +467,7 @@ function TabButton({
     >
       {label}
       {badge && badge > 0 ? (
-        <span className="grid min-w-5 place-items-center rounded-full bg-[#ff3860] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gradient-to-br from-[#ff7a86] via-[#ff4f67] to-[#ff3860] px-1.5 text-[10px] font-bold leading-none text-white shadow-[0_6px_14px_rgba(255,56,96,0.24)] ring-2 ring-white">
           {badge > 99 ? "99+" : badge}
         </span>
       ) : null}
@@ -547,42 +547,20 @@ function ChatRowItem({
   return (
     <Link href={`/creator/chats/${item.order.id}`} className="block">
       <article
-        className={`relative flex items-center gap-3 rounded-[22px] bg-white px-4 py-3.5 ring-1 transition active:scale-[0.99] ${
-          unread ? "ring-rose-100" : "ring-slate-100"
+        className={`flex items-center gap-3 rounded-[22px] px-4 py-3.5 ring-1 transition active:scale-[0.99] ${
+          unread
+            ? "bg-gradient-to-r from-white via-white to-rose-50/45 ring-rose-100"
+            : "bg-white ring-slate-100"
         }`}
       >
-        {unread ? (
-          <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-[#ff3860]" />
-        ) : null}
-
-        <div className="min-w-0 flex-1 pl-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex items-center gap-2">
-              <h2
-                className={`truncate text-[15px] tracking-[-0.03em] text-slate-950 ${
-                  unread ? "font-bold" : "font-semibold"
-                }`}
-              >
-                {item.order.title}
-              </h2>
-
-              {unread ? (
-                <span className="shrink-0 rounded-full bg-[#ff3860] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
-                  {item.unreadCount > 99 ? "99+" : item.unreadCount}
-                </span>
-              ) : null}
-            </div>
-
-            {timeText ? (
-              <span
-                className={`shrink-0 text-[11px] font-medium ${
-                  unread ? "text-[#ff3860]" : "text-slate-400"
-                }`}
-              >
-                {timeText}
-              </span>
-            ) : null}
-          </div>
+        <div className="min-w-0 flex-1">
+          <h2
+            className={`truncate text-[15px] tracking-[-0.03em] text-slate-950 ${
+              unread ? "font-bold" : "font-semibold"
+            }`}
+          >
+            {item.order.title}
+          </h2>
 
           <p
             className={`mt-1 truncate text-[12px] leading-5 ${
@@ -593,9 +571,23 @@ function ChatRowItem({
           </p>
         </div>
 
-        <span className="shrink-0 text-slate-300">
-          <ChevronIcon />
-        </span>
+        <div className="flex min-w-[42px] shrink-0 flex-col items-end gap-1.5 self-stretch py-0.5">
+          {timeText ? (
+            <span
+              className={`text-[11px] font-medium leading-none ${
+                unread ? "text-[#ff3860]" : "text-slate-400"
+              }`}
+            >
+              {timeText}
+            </span>
+          ) : null}
+
+          {unread ? (
+            <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gradient-to-br from-[#ff7a86] via-[#ff4f67] to-[#ff3860] px-1.5 text-[10px] font-bold leading-none text-white shadow-[0_6px_14px_rgba(255,56,96,0.24)] ring-2 ring-white">
+              {item.unreadCount > 99 ? "99+" : item.unreadCount}
+            </span>
+          ) : null}
+        </div>
       </article>
     </Link>
   );
