@@ -7,15 +7,6 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
-  CreatorBadge,
-  CreatorButton,
-  CreatorCard,
-  CreatorChevron,
-  CreatorEmptyState,
-  CreatorHero,
-  CreatorLinkButton,
-  CreatorMetric,
-  CreatorMiniInfo,
   CreatorNotice,
   CreatorPage,
   CreatorSkeleton,
@@ -50,11 +41,22 @@ type SocialAccount = {
   url: string;
 };
 
+type Locale = "ja" | "en";
+
+const MENU_BADGES = [
+  "Instagram投稿",
+  "Instagramリール",
+  "Instagramストーリーズ",
+  "TikTok投稿",
+  "YouTubeショート",
+  "UGC制作",
+];
+
 function formatPrice(
   value: number | null,
   currency: string | null | undefined,
   legacyReferenceText: string | null,
-  locale: "ja" | "en"
+  locale: Locale,
 ) {
   const safeCurrency = currency || "JPY";
 
@@ -76,12 +78,8 @@ function formatPrice(
   return locale === "ja" ? "未設定" : "Not set";
 }
 
-function formatDeliveryDays(
-  value: number | null,
-  locale: "ja" | "en",
-  fallback: string
-) {
-  if (value == null) return fallback;
+function formatDeliveryDays(value: number | null, locale: Locale) {
+  if (value == null) return locale === "ja" ? "未設定" : "Not set";
   return locale === "ja" ? `${value}日` : `${value} days`;
 }
 
@@ -89,34 +87,147 @@ function normalizePlatform(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
-function menuTypeLabel(
-  value: string | null,
-  locale: "ja" | "en",
-  fallback: string
-) {
-  const key = value || "";
+function inferPlatform(menu: CreatorMenu) {
+  const raw = `${menu.platform ?? ""} ${menu.sns ?? ""} ${menu.title ?? ""}`.toLowerCase();
+
+  if (raw.includes("instagram")) return "Instagram";
+  if (raw.includes("tiktok")) return "TikTok";
+  if (raw.includes("youtube")) return "YouTube";
+  if (raw.includes("ugc") || raw.includes("素材") || raw.includes("投稿なし")) return "UGC";
+  if (raw.includes("event") || raw.includes("イベント") || raw.includes("訪問")) return "Event";
+
+  return menu.platform || menu.sns || "Other";
+}
+
+function menuFormatLabel(menu: CreatorMenu, locale: Locale) {
+  const title = menu.title ?? "";
+
+  if (title.includes("Instagram投稿")) {
+    return locale === "ja" ? "投稿" : "Post";
+  }
+  if (title.includes("Instagramリール")) {
+    return locale === "ja" ? "リール" : "Reel";
+  }
+  if (title.includes("Instagramストーリーズ")) {
+    return locale === "ja" ? "ストーリーズ" : "Stories";
+  }
+  if (title.includes("TikTok")) {
+    return locale === "ja" ? "動画" : "Video";
+  }
+  if (title.includes("YouTubeショート")) {
+    return locale === "ja" ? "ショート" : "Short";
+  }
+  if (title.includes("YouTube動画")) {
+    return locale === "ja" ? "動画" : "Video";
+  }
+  if (title.includes("動画素材")) {
+    return locale === "ja" ? "動画素材" : "Video asset";
+  }
+  if (title.includes("写真素材")) {
+    return locale === "ja" ? "写真素材" : "Photo asset";
+  }
+  if (title.includes("イベント")) {
+    return locale === "ja" ? "訪問" : "Visit";
+  }
 
   const labels: Record<string, { ja: string; en: string }> = {
     post: { ja: "投稿", en: "Post" },
     short_video: { ja: "ショート動画", en: "Short video" },
     story: { ja: "ストーリー", en: "Story" },
     video: { ja: "動画", en: "Video" },
-    ugc: { ja: "UGC制作", en: "UGC creation" },
+    ugc: { ja: "UGC制作", en: "UGC" },
+    ugc_video: { ja: "動画素材", en: "Video asset" },
+    ugc_photo: { ja: "写真素材", en: "Photo asset" },
     package: { ja: "セット", en: "Package" },
     other: { ja: "その他", en: "Other" },
   };
 
-  return labels[key]?.[locale] || fallback;
+  return labels[menu.menu_type ?? ""]?.[locale] || (locale === "ja" ? "メニュー" : "Menu");
 }
 
-function MenuIcon() {
+function platformTone(platform: string) {
+  if (platform === "Instagram") {
+    return "bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 text-white ring-transparent shadow-[0_8px_20px_rgba(244,63,94,0.18)]";
+  }
+
+  if (platform === "TikTok") {
+    return "bg-slate-950 text-white ring-slate-950";
+  }
+
+  if (platform === "YouTube") {
+    return "bg-red-600 text-white ring-red-600";
+  }
+
+  if (platform === "UGC") {
+    return "bg-violet-50 text-violet-700 ring-violet-100";
+  }
+
+  if (platform === "Event") {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  }
+
+  return "bg-slate-50 text-slate-600 ring-slate-100";
+}
+
+function platformIcon(platform: string) {
+  if (platform === "Instagram") return "◎";
+  if (platform === "TikTok") return "♪";
+  if (platform === "YouTube") return "▶";
+  if (platform === "UGC") return "UGC";
+  if (platform === "Event") return "✓";
+  return "•";
+}
+
+function PlatformBadge({ platform }: { platform: string }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <span
+      className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold ring-1 ${platformTone(
+        platform,
+      )}`}
+    >
+      <span className={platform === "UGC" ? "text-[10px]" : "text-[13px]"}>
+        {platformIcon(platform)}
+      </span>
+      {platform}
+    </span>
+  );
+}
+
+function StatusBadge({
+  active,
+  locale,
+}: {
+  active: boolean;
+  locale: Locale;
+}) {
+  return (
+    <span
+      className={`inline-flex h-8 items-center rounded-full px-3 text-[12px] font-semibold ring-1 ${
+        active
+          ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+          : "bg-slate-50 text-slate-500 ring-slate-100"
+      }`}
+    >
+      {active
+        ? locale === "ja"
+          ? "公開中"
+          : "Public"
+        : locale === "ja"
+          ? "非公開"
+          : "Private"}
+    </span>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
       <path
-        d="M6 7h12M6 12h12M6 17h7"
+        d="m9 5 7 7-7 7"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.1"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -135,68 +246,111 @@ function EmptyMenuIcon() {
   );
 }
 
-function EyeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M3.5 12s3-5.5 8.5-5.5S20.5 12 20.5 12s-3 5.5-8.5 5.5S3.5 12 3.5 12Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function HiddenIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M4 4l16 16M9.2 5.4A9.4 9.4 0 0 1 12 5c5.5 0 8.5 7 8.5 7a13.3 13.3 0 0 1-2.1 3.1M6.4 7.4C4.5 9 3.5 12 3.5 12s3 7 8.5 7a8.9 8.9 0 0 0 3.7-.8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PlatformIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <rect
-        x="4"
-        y="4"
-        width="16"
-        height="16"
-        rx="5"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M16.8 7.2h.01"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function LoadingView() {
   return (
     <CreatorPage>
-      <CreatorSkeleton className="h-32" />
-      <div className="grid grid-cols-2 gap-3">
-        <CreatorSkeleton className="h-24" />
-        <CreatorSkeleton className="h-24" />
-      </div>
-      <CreatorSkeleton className="h-44" />
-      <CreatorSkeleton className="h-44" />
+      <CreatorSkeleton className="h-24" />
+      <CreatorSkeleton className="h-20" />
+      <CreatorSkeleton className="h-36" />
+      <CreatorSkeleton className="h-36" />
     </CreatorPage>
+  );
+}
+
+function Header({
+  title,
+  subtitle,
+  createLabel,
+}: {
+  title: string;
+  subtitle: string;
+  createLabel: string;
+}) {
+  return (
+    <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
+            {title}
+          </h1>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            {subtitle}
+          </p>
+        </div>
+
+        <Link
+          href="/creator/menus/new"
+          className="shrink-0 rounded-full bg-[#ff5f67] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)] transition active:scale-[0.98]"
+        >
+          + {createLabel}
+        </Link>
+      </div>
+
+      <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {MENU_BADGES.map((badge) => {
+          const platform = badge.includes("Instagram")
+            ? "Instagram"
+            : badge.includes("TikTok")
+              ? "TikTok"
+              : badge.includes("YouTube")
+                ? "YouTube"
+                : "UGC";
+
+          return (
+            <span
+              key={badge}
+              className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11px] font-semibold ring-1 ${platformTone(
+                platform,
+              )}`}
+            >
+              {badge}
+            </span>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SummaryStrip({
+  menus,
+  locale,
+}: {
+  menus: CreatorMenu[];
+  locale: Locale;
+}) {
+  const publicCount = menus.filter((menu) => !!menu.is_active).length;
+  const privateCount = menus.length - publicCount;
+
+  return (
+    <section className="grid grid-cols-3 gap-2">
+      <div className="rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100">
+        <p className="text-[11px] font-medium text-slate-500">
+          {locale === "ja" ? "合計" : "Total"}
+        </p>
+        <p className="mt-1 text-[20px] font-semibold tracking-[-0.045em] text-slate-950">
+          {menus.length}
+        </p>
+      </div>
+
+      <div className="rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100">
+        <p className="text-[11px] font-medium text-slate-500">
+          {locale === "ja" ? "公開中" : "Public"}
+        </p>
+        <p className="mt-1 text-[20px] font-semibold tracking-[-0.045em] text-emerald-700">
+          {publicCount}
+        </p>
+      </div>
+
+      <div className="rounded-[20px] bg-white px-4 py-3 ring-1 ring-slate-100">
+        <p className="text-[11px] font-medium text-slate-500">
+          {locale === "ja" ? "非公開" : "Private"}
+        </p>
+        <p className="mt-1 text-[20px] font-semibold tracking-[-0.045em] text-slate-700">
+          {privateCount}
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -210,29 +364,21 @@ function MenuCard({
   onDelete,
 }: {
   menu: CreatorMenu;
-  locale: "ja" | "en";
+  locale: Locale;
   copy: {
-    platformUnset: string;
     price: string;
     deliveryDays: string;
-    accountUrl: string;
     viewAccount: string;
-    notSet: string;
-    public: string;
-    private: string;
-    visibleToCompanies: string;
-    hiddenFromCompanies: string;
-    makePrivate: string;
-    makePublic: string;
     edit: string;
     delete: string;
     deleting: string;
     updating: string;
+    makePrivate: string;
+    makePublic: string;
+    adUse: string;
+    adUseAllowed: string;
+    adUseNotIncluded: string;
     legacyPriceNotice: string;
-    menuType: string;
-    secondaryUse: string;
-    allow: string;
-    disallow: string;
   };
   accountUrl: string | null;
   isLoading: boolean;
@@ -240,138 +386,163 @@ function MenuCard({
   onDelete: () => void;
 }) {
   const isPublic = !!menu.is_active;
-  const platformLabel = menu.platform || menu.sns || copy.platformUnset;
+  const platform = inferPlatform(menu);
   const hasLegacyReferenceOnly =
     menu.price == null && !!menu.reference_price_text?.trim();
 
   return (
-    <CreatorCard className="p-4">
-      <div className="flex items-start gap-4">
-        <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] ring-1 ${
-            isPublic
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-              : "bg-slate-50 text-slate-500 ring-slate-100"
-          }`}
-        >
-          {isPublic ? <EyeIcon /> : <HiddenIcon />}
+    <article className="rounded-[26px] bg-white p-4 ring-1 ring-slate-100">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            <PlatformBadge platform={platform} />
+            <StatusBadge active={isPublic} locale={locale} />
+            <span className="inline-flex h-8 items-center rounded-full bg-slate-50 px-3 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-100">
+              {menuFormatLabel(menu, locale)}
+            </span>
+          </div>
+
+          <h2 className="line-clamp-2 text-[18px] font-semibold leading-6 tracking-[-0.04em] text-slate-950">
+            {menu.title}
+          </h2>
+
+          {menu.description?.trim() ? (
+            <p className="mt-1.5 line-clamp-2 text-[12px] font-medium leading-5 text-slate-500">
+              {menu.description.trim()}
+            </p>
+          ) : null}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex flex-wrap gap-2">
-            <CreatorBadge tone={isPublic ? "green" : "slate"}>
-              {isPublic ? copy.public : copy.private}
-            </CreatorBadge>
+        <Link
+          href={`/creator/menus/${menu.id}/edit`}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100 transition active:scale-95"
+          aria-label={copy.edit}
+        >
+          <ChevronIcon />
+        </Link>
+      </div>
 
-            <CreatorBadge tone="slate">{platformLabel}</CreatorBadge>
-
-            {menu.menu_type ? (
-              <CreatorBadge tone="blue">
-                {menuTypeLabel(menu.menu_type, locale, copy.notSet)}
-              </CreatorBadge>
-            ) : null}
-          </div>
-
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-[18px] font-black leading-tight tracking-[-0.045em] text-slate-950">
-                {menu.title}
-              </h2>
-
-              <p className="mt-1.5 text-xs font-bold text-slate-400">
-                {isPublic ? copy.visibleToCompanies : copy.hiddenFromCompanies}
-              </p>
-            </div>
-
-            <Link
-              href={`/creator/menus/${menu.id}/edit`}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100 transition active:scale-95"
-              aria-label={copy.edit}
-            >
-              <CreatorChevron />
-            </Link>
-          </div>
-
-          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
-            <CreatorMiniInfo
-              label={copy.price}
-              value={formatPrice(
+      <div className="mt-4 rounded-[22px] bg-[#f8f9fb] px-4 py-3.5 ring-1 ring-slate-100">
+        <div className="flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-slate-500">{copy.price}</p>
+            <p className="mt-1 whitespace-nowrap text-[24px] font-semibold tracking-[-0.055em] text-slate-950">
+              {formatPrice(
                 menu.price,
                 menu.currency,
                 menu.reference_price_text,
-                locale
-              )}
-              strong
-            />
-
-            <CreatorMiniInfo
-              label={copy.deliveryDays}
-              value={formatDeliveryDays(
-                menu.delivery_days,
                 locale,
-                copy.notSet
               )}
-            />
+            </p>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-3 rounded-[22px] bg-[#F8F9FA] px-4 py-3.5 ring-1 ring-slate-100">
-            <CreatorMiniInfo
-              label={copy.menuType}
-              value={menuTypeLabel(menu.menu_type, locale, copy.notSet)}
-            />
-
-            <CreatorMiniInfo
-              label={copy.secondaryUse}
-              value={menu.allow_secondary_use ? copy.allow : copy.disallow}
-            />
-          </div>
-
-          {accountUrl ? (
-            <a
-              href={accountUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.98]"
-            >
-              <PlatformIcon />
-              {copy.viewAccount}
-            </a>
-          ) : null}
-
-          {hasLegacyReferenceOnly ? (
-            <CreatorNotice
-              tone="amber"
-              title={copy.legacyPriceNotice}
-            />
-          ) : null}
-
-          <div className="mt-4 grid grid-cols-3 gap-2.5">
-            <CreatorButton
-              type="button"
-              variant={isPublic ? "soft" : "primary"}
-              onClick={onToggle}
-              disabled={isLoading}
-              className="col-span-2 px-3 py-3 text-xs"
-            >
-              {isLoading
-                ? copy.updating
-                : isPublic
-                  ? copy.makePrivate
-                  : copy.makePublic}
-            </CreatorButton>
-
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={isLoading}
-              className="rounded-full bg-rose-50 px-3 py-3 text-xs font-black text-[#FF3B5C] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? copy.deleting : copy.delete}
-            </button>
+          <div className="shrink-0 text-right">
+            <p className="text-[11px] font-medium text-slate-500">
+              {copy.deliveryDays}
+            </p>
+            <p className="mt-1 text-[15px] font-semibold text-slate-950">
+              {formatDeliveryDays(menu.delivery_days, locale)}
+            </p>
           </div>
         </div>
       </div>
-    </CreatorCard>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-100">
+          {copy.adUse}：
+          {menu.allow_secondary_use ? copy.adUseAllowed : copy.adUseNotIncluded}
+        </span>
+
+        {accountUrl ? (
+          <a
+            href={accountUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 transition active:scale-[0.98]"
+          >
+            {copy.viewAccount}
+          </a>
+        ) : null}
+      </div>
+
+      {hasLegacyReferenceOnly ? (
+        <div className="mt-3 rounded-[18px] bg-amber-50 px-3 py-2 text-[11px] font-medium leading-5 text-amber-800 ring-1 ring-amber-100">
+          {copy.legacyPriceNotice}
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_96px] gap-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={isLoading}
+          className={`h-11 rounded-full text-[13px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+            isPublic
+              ? "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
+              : "bg-[#ff5f67] text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)]"
+          }`}
+        >
+          {isLoading
+            ? copy.updating
+            : isPublic
+              ? copy.makePrivate
+              : copy.makePublic}
+        </button>
+
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={isLoading}
+          className="h-11 rounded-full bg-rose-50 text-[13px] font-semibold text-[#ff3860] ring-1 ring-rose-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isLoading ? copy.deleting : copy.delete}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function EmptyState({
+  title,
+  body,
+  createLabel,
+}: {
+  title: string;
+  body: string;
+  createLabel: string;
+}) {
+  return (
+    <section className="rounded-[28px] bg-white px-5 py-10 text-center ring-1 ring-slate-100">
+      <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
+        <EmptyMenuIcon />
+      </div>
+
+      <h2 className="mt-5 text-[17px] font-semibold tracking-[-0.04em] text-slate-950">
+        {title}
+      </h2>
+
+      <p className="mx-auto mt-2 max-w-sm text-[13px] font-medium leading-6 text-slate-500">
+        {body}
+      </p>
+
+      <div className="mt-5 flex flex-wrap justify-center gap-1.5">
+        {MENU_BADGES.slice(0, 4).map((badge) => (
+          <span
+            key={badge}
+            className="rounded-full bg-rose-50 px-3 py-1.5 text-[11px] font-semibold text-[#ff3860] ring-1 ring-rose-100"
+          >
+            {badge}
+          </span>
+        ))}
+      </div>
+
+      <Link
+        href="/creator/menus/new"
+        className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#ff5f67] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(255,95,103,0.18)]"
+      >
+        + {createLabel}
+      </Link>
+    </section>
   );
 }
 
@@ -386,14 +557,14 @@ export default function CreatorMenusPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
+  const safeLocale: Locale = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
-            title: "メニュー",
-            subtitle: "企業が注文できる投稿メニューと価格を管理します。",
+            title: "メニュー・価格",
+            subtitle: "企業が購入できるメニューを管理します。",
             loginRequired: "ログインしてください",
             creatorNotFound: "クリエイター情報が見つかりません",
             toggleFailed: "公開状態の切り替えに失敗しました",
@@ -405,15 +576,11 @@ export default function CreatorMenusPage() {
             emptyTitle: "まだメニューがありません",
             empty:
               "Instagram投稿、TikTok動画、UGC制作など、企業が注文できるメニューを作成しましょう。",
-            platformUnset: "SNS未設定",
-            accountUrl: "アカウント",
             price: "価格",
             deliveryDays: "目安",
-            secondaryUse: "二次利用",
-            menuType: "形式",
-            notSet: "未設定",
-            allow: "可",
-            disallow: "不可",
+            adUse: "広告素材としての利用",
+            adUseAllowed: "OK",
+            adUseNotIncluded: "なし",
             public: "公開中",
             private: "非公開",
             makePrivate: "非公開にする",
@@ -422,21 +589,14 @@ export default function CreatorMenusPage() {
             delete: "削除",
             deleting: "削除中",
             updating: "更新中",
-            totalMenus: "メニュー",
-            publicMenus: "公開中",
-            privateMenus: "非公開",
-            visibleToCompanies: "企業に表示されています",
-            hiddenFromCompanies: "企業には表示されていません",
             legacyPriceNotice:
               "旧形式の参考価格です。編集画面で固定価格にすると注文されやすくなります。",
             viewAccount: "SNSを開く",
-            quickHint:
-              "公開中のメニューだけが企業側のクリエイター詳細ページに表示されます。",
             errorTitle: "エラー",
           }
         : {
-            title: "Menus",
-            subtitle: "Manage post menus and prices that brands can order.",
+            title: "Menus & rates",
+            subtitle: "Manage menus brands can order.",
             loginRequired: "Please log in",
             creatorNotFound: "Creator information was not found",
             toggleFailed: "Failed to change visibility",
@@ -448,15 +608,11 @@ export default function CreatorMenusPage() {
             emptyTitle: "No menus yet",
             empty:
               "Create menus companies can order, such as Instagram posts, TikTok videos, or UGC creation.",
-            platformUnset: "SNS not set",
-            accountUrl: "Account",
             price: "Price",
             deliveryDays: "Delivery",
-            secondaryUse: "Secondary use",
-            menuType: "Type",
-            notSet: "Not set",
-            allow: "Allowed",
-            disallow: "Not allowed",
+            adUse: "Ad usage",
+            adUseAllowed: "Allowed",
+            adUseNotIncluded: "Not included",
             public: "Public",
             private: "Private",
             makePrivate: "Make private",
@@ -465,19 +621,12 @@ export default function CreatorMenusPage() {
             delete: "Delete",
             deleting: "Deleting",
             updating: "Updating",
-            totalMenus: "Menus",
-            publicMenus: "Public",
-            privateMenus: "Private",
-            visibleToCompanies: "Visible to brands",
-            hiddenFromCompanies: "Hidden from brands",
             legacyPriceNotice:
               "This menu uses a legacy reference price. Set a fixed price from the edit page.",
             viewAccount: "Open SNS",
-            quickHint:
-              "Only public menus are shown on the brand-facing creator detail page.",
             errorTitle: "Error",
           },
-    [safeLocale]
+    [safeLocale],
   );
 
   const fetchMenus = async () => {
@@ -598,9 +747,6 @@ export default function CreatorMenusPage() {
     setMenus((prev) => prev.filter((menu) => menu.id !== id));
   };
 
-  const publicCount = menus.filter((menu) => !!menu.is_active).length;
-  const privateCount = menus.filter((menu) => !menu.is_active).length;
-
   const socialMap = useMemo(() => {
     const map = new Map<string, string[]>();
 
@@ -627,6 +773,12 @@ export default function CreatorMenusPage() {
       return matchedBySns[0];
     }
 
+    const inferred = inferPlatform(menu);
+    const matchedByInferred = socialMap.get(normalizePlatform(inferred));
+    if (matchedByInferred && matchedByInferred.length > 0) {
+      return matchedByInferred[0];
+    }
+
     return null;
   };
 
@@ -636,46 +788,13 @@ export default function CreatorMenusPage() {
 
   return (
     <CreatorPage>
-      <CreatorHero
+      <Header
         title={copy.title}
-        description={copy.subtitle}
-        right={
-          <CreatorLinkButton href="/creator/menus/new" className="px-4 py-2.5">
-            + 作成
-          </CreatorLinkButton>
-        }
-      >
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="rounded-[22px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
-            <p className="text-[11px] font-black text-slate-400">
-              {copy.totalMenus}
-            </p>
-            <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
-              {menus.length}
-            </p>
-          </div>
+        subtitle={copy.subtitle}
+        createLabel={copy.createNew}
+      />
 
-          <div className="rounded-[22px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
-            <p className="text-[11px] font-black text-slate-400">
-              {copy.publicMenus}
-            </p>
-            <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
-              {publicCount}
-            </p>
-          </div>
-
-          <div className="rounded-[22px] bg-white/70 p-3 shadow-sm ring-1 ring-white/80 backdrop-blur">
-            <p className="text-[11px] font-black text-slate-400">
-              {copy.privateMenus}
-            </p>
-            <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
-              {privateCount}
-            </p>
-          </div>
-        </div>
-      </CreatorHero>
-
-      <CreatorNotice tone="blue" title={copy.quickHint} />
+      <SummaryStrip menus={menus} locale={safeLocale} />
 
       {error ? (
         <CreatorNotice
@@ -686,18 +805,11 @@ export default function CreatorMenusPage() {
       ) : null}
 
       {menus.length === 0 ? (
-        <CreatorCard className="p-5">
-          <CreatorEmptyState
-            icon={<EmptyMenuIcon />}
-            title={copy.emptyTitle}
-            description={copy.empty}
-            action={
-              <CreatorLinkButton href="/creator/menus/new">
-                + {copy.createNew}
-              </CreatorLinkButton>
-            }
-          />
-        </CreatorCard>
+        <EmptyState
+          title={copy.emptyTitle}
+          body={copy.empty}
+          createLabel={copy.createNew}
+        />
       ) : (
         <section className="space-y-3">
           {menus.map((menu) => (
