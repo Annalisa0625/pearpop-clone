@@ -27,7 +27,6 @@ type NotificationRow = {
 };
 
 type NotificationTab = "direct" | "news";
-type VisualTone = "rose" | "amber" | "emerald" | "sky" | "slate";
 
 const NEWS_TYPES = new Set([
   "news",
@@ -40,7 +39,7 @@ const NEWS_TYPES = new Set([
 
 function getMetadataString(
   metadata: Record<string, unknown> | null,
-  key: string
+  key: string,
 ) {
   const value = metadata?.[key];
 
@@ -101,7 +100,7 @@ function getNotificationText(item: NotificationRow, locale: "ja" | "en") {
           title: `${companyName}から新しい注文が届きました`,
           body:
             orderLabel === "注文"
-              ? "内容を確認して、受けるか相談してください。"
+              ? "内容を確認して、受けるか判断できます。"
               : `${orderLabel}の内容を確認してください。`,
         };
 
@@ -150,8 +149,8 @@ function getNotificationText(item: NotificationRow, locale: "ja" | "en") {
           title: "商品が受け取られました",
           body:
             orderLabel === "注文"
-              ? "インフルエンサーが商品を受け取りました。"
-              : `${orderLabel}の商品がインフルエンサーに届きました。`,
+              ? "クリエイターが商品を受け取りました。"
+              : `${orderLabel}の商品がクリエイターに届きました。`,
         };
 
       case "materials_confirmed":
@@ -159,7 +158,7 @@ function getNotificationText(item: NotificationRow, locale: "ja" | "en") {
           title: "素材・投稿情報が確認されました",
           body:
             orderLabel === "注文"
-              ? "インフルエンサーが素材・投稿情報を確認しました。"
+              ? "素材・投稿情報が確認されました。"
               : `${orderLabel}の素材・投稿情報が確認されました。`,
         };
 
@@ -229,6 +228,15 @@ function getNotificationText(item: NotificationRow, locale: "ja" | "en") {
             : `${orderLabel} is now in progress.`,
       };
 
+    case "order_declined":
+      return {
+        title: `${creatorName} declined the order`,
+        body:
+          orderLabel === "Order"
+            ? "The order was canceled."
+            : `${orderLabel} was canceled.`,
+      };
+
     case "shipping_address_shared":
       return {
         title: "Delivery address shared",
@@ -265,7 +273,7 @@ function getNotificationText(item: NotificationRow, locale: "ja" | "en") {
         title: "Materials confirmed",
         body:
           orderLabel === "Order"
-            ? "The creator confirmed the materials."
+            ? "Materials were confirmed."
             : `Materials for ${orderLabel} were confirmed.`,
       };
 
@@ -310,90 +318,62 @@ function getNotificationText(item: NotificationRow, locale: "ja" | "en") {
   }
 }
 
-function getVisualTone(item: NotificationRow, news: boolean): VisualTone {
-  if (news) return "emerald";
-
-  if (item.importance === "high") return "rose";
-
-  switch (item.notification_type) {
-    case "new_order":
-    case "order_delivered":
-    case "revision_requested":
-      return "rose";
-
-    case "shipping_address_shared":
-    case "product_shipped":
-    case "product_received":
-    case "materials_confirmed":
-      return "amber";
-
-    case "order_accepted":
-    case "order_completed":
-      return "emerald";
-
-    case "message_received":
-      return "sky";
-
-    default:
-      return "slate";
-  }
-}
-
-function getToneClass(tone: VisualTone) {
-  switch (tone) {
-    case "rose":
-      return "bg-rose-50 text-[#ff3b5c] ring-rose-100";
-    case "amber":
-      return "bg-amber-50 text-amber-700 ring-amber-100";
-    case "emerald":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
-    case "sky":
-      return "bg-sky-50 text-sky-600 ring-sky-100";
-    default:
-      return "bg-slate-50 text-slate-500 ring-slate-100";
-  }
-}
-
 function formatRelativeTime(value: string, locale: "ja" | "en") {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return value;
 
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.floor(diffMs / 1000 / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const startOfTarget = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+  const diffDays = Math.floor(
+    (startOfToday.getTime() - startOfTarget.getTime()) / 86400000,
+  );
 
-  if (locale === "ja") {
-    if (diffMinutes < 1) return "たった今";
-    if (diffMinutes < 60) return `${diffMinutes}分前`;
-    if (diffHours < 24) return `${diffHours}時間前`;
-    if (diffDays < 30) return `${diffDays}日前`;
+  if (diffDays <= 0) {
+    return date.toLocaleTimeString(locale === "ja" ? "ja-JP" : "en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
 
-    return date.toLocaleDateString("ja-JP", {
+  if (diffDays === 1) {
+    return locale === "ja" ? "昨日" : "Yesterday";
+  }
+
+  if (diffDays <= 6) {
+    return locale === "ja" ? `${diffDays}日前` : `${diffDays}d ago`;
+  }
+
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
       month: "numeric",
       day: "numeric",
     });
   }
 
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 30) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
+  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+    year: "numeric",
+    month: "numeric",
     day: "numeric",
   });
 }
 
 function BackIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
       <path
         d="M15 5 8 12l7 7"
         stroke="currentColor"
-        strokeWidth="2.5"
+        strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -403,11 +383,11 @@ function BackIcon() {
 
 function ChevronIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
       <path
         d="m9 5 7 7-7 7"
         stroke="currentColor"
-        strokeWidth="2.4"
+        strokeWidth="2.1"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -415,14 +395,9 @@ function ChevronIcon() {
   );
 }
 
-function BellMiniIcon() {
+function EmptyBellIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[22px] w-[22px]"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
       <path
         d="M18 8.5a6 6 0 0 0-12 0c0 7-3 7-3 8.7h18c0-1.7-3-1.7-3-8.7Z"
         stroke="currentColor"
@@ -441,138 +416,41 @@ function BellMiniIcon() {
   );
 }
 
-function MessageMiniIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[22px] w-[22px]"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 7.5A3.5 3.5 0 0 1 8.5 4h7A3.5 3.5 0 0 1 19 7.5v5A3.5 3.5 0 0 1 15.5 16H11l-5 4v-4.5A3.5 3.5 0 0 1 5 12V7.5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PackageMiniIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[22px] w-[22px]"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 8.2 12 4.5l7 3.7v7.1l-7 4.2-7-4.2V8.2Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M5.5 8.5 12 12l6.5-3.5M12 12v7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function CheckMiniIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[22px] w-[22px]"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="m5 12 4.2 4.2L19 6.5"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function AlertMiniIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[22px] w-[22px]"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M12 8v5M12 17h.01M10.3 4.7 3.8 17a2 2 0 0 0 1.8 3h12.8a2 2 0 0 0 1.8-3L13.7 4.7a1.9 1.9 0 0 0-3.4 0Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ServiceMiniIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[22px] w-[22px]"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M6 7.5A3.5 3.5 0 0 1 9.5 4h5A3.5 3.5 0 0 1 18 7.5v9A3.5 3.5 0 0 1 14.5 20h-5A3.5 3.5 0 0 1 6 16.5v-9Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M9 8h6M9 12h6M9 16h3"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function NotificationIcon({
-  item,
-  news,
+function TabButton({
+  active,
+  label,
+  count,
+  onClick,
 }: {
-  item: NotificationRow;
-  news: boolean;
+  active: boolean;
+  label: string;
+  count: number;
+  onClick: () => void;
 }) {
-  switch (item.notification_type) {
-    case "message_received":
-      return <MessageMiniIcon />;
-
-    case "shipping_address_shared":
-    case "product_shipped":
-    case "product_received":
-      return <PackageMiniIcon />;
-
-    case "order_accepted":
-    case "order_completed":
-    case "materials_confirmed":
-      return <CheckMiniIcon />;
-
-    case "revision_requested":
-    case "order_delivered":
-    case "new_order":
-      return <AlertMiniIcon />;
-
-    default:
-      return news ? <ServiceMiniIcon /> : <BellMiniIcon />;
-  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex h-12 items-center justify-center gap-2 border-b-2 px-3 text-[14px] font-semibold transition ${
+        active
+          ? "border-[#ff3860] text-slate-950"
+          : "border-transparent text-slate-400"
+      }`}
+    >
+      <span>{label}</span>
+      {count > 0 ? (
+        <span
+          className={`grid min-w-5 place-items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+            active
+              ? "bg-gradient-to-br from-[#ff5f67] to-[#ff3860] text-white shadow-[0_5px_14px_rgba(255,56,96,0.22)]"
+              : "bg-slate-100 text-slate-500"
+          }`}
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      ) : null}
+    </button>
+  );
 }
 
 function EmptyState({
@@ -583,13 +461,15 @@ function EmptyState({
   body: string;
 }) {
   return (
-    <div className="flex min-h-[320px] items-center justify-center px-8 py-16 text-center">
+    <div className="flex min-h-[360px] items-center justify-center px-6 py-16 text-center">
       <div>
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
-          <BellMiniIcon />
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white text-slate-300 ring-1 ring-slate-100">
+          <EmptyBellIcon />
         </div>
-        <p className="mt-5 text-base font-black text-slate-800">{title}</p>
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-400">
+        <p className="mt-5 text-[16px] font-semibold tracking-[-0.035em] text-slate-900">
+          {title}
+        </p>
+        <p className="mx-auto mt-2 max-w-[280px] text-[13px] font-medium leading-6 text-slate-500">
           {body}
         </p>
       </div>
@@ -599,18 +479,20 @@ function EmptyState({
 
 function SkeletonList() {
   return (
-    <section className="px-4 py-5">
-      <div className="space-y-3">
+    <section className="px-4 py-4">
+      <div className="space-y-2.5">
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="flex animate-pulse gap-4 rounded-[24px] bg-white p-4 ring-1 ring-slate-100"
+            className="animate-pulse rounded-[22px] bg-white px-4 py-4 ring-1 ring-slate-100"
           >
-            <div className="h-12 w-12 shrink-0 rounded-[18px] bg-slate-100" />
-            <div className="flex-1 space-y-3">
-              <div className="h-4 w-10/12 rounded-full bg-slate-100" />
-              <div className="h-4 w-8/12 rounded-full bg-slate-100" />
-              <div className="h-3 w-20 rounded-full bg-slate-100" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="h-4 w-8/12 rounded-full bg-slate-100" />
+                <div className="h-3 w-11/12 rounded-full bg-slate-100" />
+                <div className="h-3 w-20 rounded-full bg-slate-100" />
+              </div>
+              <div className="h-3 w-9 rounded-full bg-slate-100" />
             </div>
           </div>
         ))}
@@ -619,29 +501,104 @@ function SkeletonList() {
   );
 }
 
+function NotificationItem({
+  item,
+  locale,
+  unreadLabel,
+  importantLabel,
+  onOpen,
+}: {
+  item: NotificationRow;
+  locale: "ja" | "en";
+  unreadLabel: string;
+  importantLabel: string;
+  onOpen: (item: NotificationRow) => void;
+}) {
+  const unread = !item.read_at;
+  const display = getNotificationText(item, locale);
+  const timeText = formatRelativeTime(item.created_at, locale);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(item)}
+      className={`relative w-full rounded-[22px] bg-white px-4 py-4 text-left ring-1 transition active:scale-[0.99] ${
+        unread
+          ? "ring-rose-100 shadow-[0_10px_30px_rgba(255,56,96,0.06)]"
+          : "ring-slate-100"
+      }`}
+    >
+      {unread ? (
+        <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-[#ff5f67] to-[#ff3860]" />
+      ) : null}
+
+      <div className="flex items-start justify-between gap-3 pl-1">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {unread ? (
+              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-[#ff3860] ring-1 ring-rose-100">
+                {unreadLabel}
+              </span>
+            ) : null}
+
+            {item.importance === "high" ? (
+              <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-semibold text-white">
+                {importantLabel}
+              </span>
+            ) : null}
+          </div>
+
+          <p
+            className={`mt-1.5 break-words text-[15px] leading-6 tracking-[-0.025em] ${
+              unread
+                ? "font-semibold text-slate-950"
+                : "font-medium text-slate-800"
+            }`}
+          >
+            {display.title}
+          </p>
+
+          {display.body ? (
+            <p className="mt-1 line-clamp-2 break-words text-[13px] font-medium leading-6 text-slate-500">
+              {display.body}
+            </p>
+          ) : null}
+
+          <p className="mt-2 text-[11px] font-medium text-slate-400">
+            {timeText}
+          </p>
+        </div>
+
+        <span className="mt-5 shrink-0 text-slate-300">
+          <ChevronIcon />
+        </span>
+      </div>
+    </button>
+  );
+}
+
 export default function NotificationsPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
             title: "通知",
-            subtitle: "注文・メッセージ・大切なお知らせを確認できます。",
-            direct: "あなた宛",
+            subtitle: "注文・メッセージ・お知らせを確認できます。",
+            direct: "あなた",
             news: "お知らせ",
             unread: "未読",
-            all: "すべて",
             important: "重要",
             loading: "読み込み中...",
-            loginRequired: "ログインが必要です。",
+            loginRequired: "ログインが必要です",
             loginBody: "通知を確認するにはログインしてください。",
-            directEmpty: "あなた宛の通知はありません。",
+            directEmpty: "あなた宛の通知はありません",
             directEmptyBody: "注文・メッセージ・納品などの通知がここに表示されます。",
-            newsEmpty: "お知らせはありません。",
+            newsEmpty: "お知らせはありません",
             newsEmptyBody: "Trendreからのお知らせや重要な案内がここに表示されます。",
             loadFailed: "通知の取得に失敗しました。",
             readFailed: "既読処理に失敗しました。",
@@ -649,26 +606,25 @@ export default function NotificationsPage() {
           }
         : {
             title: "Notifications",
-            subtitle: "Check orders, messages, and important updates.",
+            subtitle: "Check orders, messages, and updates.",
             direct: "For you",
             news: "News",
             unread: "Unread",
-            all: "All",
             important: "Important",
             loading: "Loading...",
-            loginRequired: "Login required.",
+            loginRequired: "Login required",
             loginBody: "Please log in to view notifications.",
-            directEmpty: "No notifications for you.",
+            directEmpty: "No notifications for you",
             directEmptyBody:
               "Order, message, and delivery updates will appear here.",
-            newsEmpty: "No news.",
+            newsEmpty: "No news",
             newsEmptyBody:
               "Important updates and announcements from Trendre will appear here.",
             loadFailed: "Failed to load notifications.",
             readFailed: "Failed to mark as read.",
             login: "Login",
           },
-    [safeLocale]
+    [safeLocale],
   );
 
   const [items, setItems] = useState<NotificationRow[]>([]);
@@ -755,7 +711,7 @@ export default function NotificationsPage() {
           },
           () => {
             void loadNotifications();
-          }
+          },
         )
         .subscribe();
     };
@@ -791,25 +747,24 @@ export default function NotificationsPage() {
 
   const directItems = useMemo(
     () => items.filter((item) => !isNewsNotification(item)),
-    [items]
+    [items],
   );
 
   const newsItems = useMemo(
     () => items.filter((item) => isNewsNotification(item)),
-    [items]
+    [items],
   );
 
   const directUnreadCount = useMemo(
     () => directItems.filter((item) => !item.read_at).length,
-    [directItems]
+    [directItems],
   );
 
   const newsUnreadCount = useMemo(
     () => newsItems.filter((item) => !item.read_at).length,
-    [newsItems]
+    [newsItems],
   );
 
-  const totalUnreadCount = directUnreadCount + newsUnreadCount;
   const currentItems = activeTab === "direct" ? directItems : newsItems;
 
   const markAsRead = async (id: string) => {
@@ -844,8 +799,8 @@ export default function NotificationsPage() {
                 ...item,
                 read_at: item.read_at ?? now,
               }
-            : item
-        )
+            : item,
+        ),
       );
 
       window.dispatchEvent(new Event("trendre:notification-changed"));
@@ -878,237 +833,102 @@ export default function NotificationsPage() {
   };
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#F8F9FA] text-slate-950">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-rose-100/60 blur-3xl" />
-        <div className="absolute -right-24 top-48 h-72 w-72 rounded-full bg-emerald-100/60 blur-3xl" />
-      </div>
+    <main className="min-h-screen overflow-x-hidden bg-[#f8f9fb] text-slate-950">
+      <div className="mx-auto min-h-screen w-full max-w-[760px] px-4 pb-8 pt-4">
+        <header className="sticky top-0 z-20 -mx-4 bg-[#f8f9fb]/95 px-4 pb-2 pt-1 backdrop-blur-xl">
+          <div className="relative flex min-h-[58px] items-center justify-center">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="absolute left-0 top-2 grid h-10 w-10 place-items-center rounded-full bg-white text-slate-800 ring-1 ring-slate-100 transition active:scale-95"
+              aria-label="back"
+            >
+              <BackIcon />
+            </button>
 
-      <div className="relative mx-auto min-h-screen w-full max-w-[820px] px-3 py-3 sm:px-5 sm:py-8">
-        <div className="overflow-hidden rounded-[32px] bg-white shadow-[0_22px_70px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
-          <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
-            <div className="relative px-5 pb-4 pt-5">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="absolute left-4 top-5 flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-900 ring-1 ring-slate-100 transition hover:bg-slate-100 active:scale-95"
-                aria-label="back"
-              >
-                <BackIcon />
-              </button>
-
-              <div className="px-12 text-center">
-                <h1 className="text-[25px] font-black tracking-[-0.055em] text-slate-950">
-                  {copy.title}
-                </h1>
-                <p className="mx-auto mt-1 max-w-[360px] text-xs font-bold leading-5 text-slate-400">
-                  {copy.subtitle}
-                </p>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-[22px] bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
-                  <p className="text-[11px] font-black text-slate-400">
-                    {copy.unread}
-                  </p>
-                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
-                    {totalUnreadCount}
-                    <span className="ml-1 text-sm tracking-normal text-slate-400">
-                      件
-                    </span>
-                  </p>
-                </div>
-
-                <div className="rounded-[22px] bg-rose-50/70 px-4 py-3 ring-1 ring-rose-100">
-                  <p className="text-[11px] font-black text-rose-400">
-                    {copy.all}
-                  </p>
-                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em] text-slate-950">
-                    {items.length}
-                    <span className="ml-1 text-sm tracking-normal text-slate-400">
-                      件
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 border-t border-slate-50">
-              <button
-                type="button"
-                onClick={() => setActiveTab("direct")}
-                className={`relative flex h-[58px] items-center justify-center text-sm font-black transition ${
-                  activeTab === "direct"
-                    ? "text-[#ff3b5c]"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <span className="relative inline-flex items-center gap-2">
-                  {copy.direct}
-
-                  {directUnreadCount > 0 ? (
-                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3b5c] px-[5px] text-[10px] font-black leading-none text-white">
-                      {directUnreadCount > 99 ? "99+" : directUnreadCount}
-                    </span>
-                  ) : null}
-                </span>
-
-                {activeTab === "direct" ? (
-                  <span className="absolute bottom-0 left-4 right-4 h-[4px] rounded-full bg-[#ff3b5c]" />
-                ) : null}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("news")}
-                className={`relative flex h-[58px] items-center justify-center text-sm font-black transition ${
-                  activeTab === "news"
-                    ? "text-[#ff3b5c]"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <span className="relative inline-flex items-center gap-2">
-                  {copy.news}
-
-                  {newsUnreadCount > 0 ? (
-                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3b5c] px-[5px] text-[10px] font-black leading-none text-white">
-                      {newsUnreadCount > 99 ? "99+" : newsUnreadCount}
-                    </span>
-                  ) : null}
-                </span>
-
-                {activeTab === "news" ? (
-                  <span className="absolute bottom-0 left-4 right-4 h-[4px] rounded-full bg-[#ff3b5c]" />
-                ) : null}
-              </button>
-            </div>
-          </header>
-
-          {loading ? (
-            <SkeletonList />
-          ) : !loggedIn ? (
-            <section className="px-6 py-16 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
-                <BellMiniIcon />
-              </div>
-
-              <h2 className="mt-5 text-xl font-black text-slate-950">
-                {copy.loginRequired}
-              </h2>
-
-              <p className="mt-2 text-sm font-semibold leading-7 text-slate-400">
-                {copy.loginBody}
+            <div className="px-12 text-center">
+              <h1 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
+                {copy.title}
+              </h1>
+              <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500">
+                {copy.subtitle}
               </p>
+            </div>
+          </div>
 
-              <button
-                type="button"
-                onClick={() => router.push("/login")}
-                className="mt-6 rounded-full bg-slate-950 px-6 py-3 text-sm font-black text-white"
-              >
-                {copy.login}
-              </button>
-            </section>
-          ) : (
-            <section className="min-h-[420px] bg-slate-50/60 px-3 py-3 sm:px-4 sm:py-4">
-              {error ? (
-                <div className="mb-3 rounded-[22px] bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">
-                  {error}
-                </div>
-              ) : null}
+          <div className="mt-3 grid grid-cols-2 border-b border-slate-200/80">
+            <TabButton
+              active={activeTab === "direct"}
+              label={copy.direct}
+              count={directUnreadCount}
+              onClick={() => setActiveTab("direct")}
+            />
+            <TabButton
+              active={activeTab === "news"}
+              label={copy.news}
+              count={newsUnreadCount}
+              onClick={() => setActiveTab("news")}
+            />
+          </div>
+        </header>
 
-              {currentItems.length === 0 ? (
-                <div className="rounded-[28px] bg-white ring-1 ring-slate-100">
-                  <EmptyState
-                    title={
-                      activeTab === "direct" ? copy.directEmpty : copy.newsEmpty
-                    }
-                    body={
-                      activeTab === "direct"
-                        ? copy.directEmptyBody
-                        : copy.newsEmptyBody
-                    }
+        {loading ? (
+          <SkeletonList />
+        ) : !loggedIn ? (
+          <section className="px-6 py-20 text-center">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white text-slate-300 ring-1 ring-slate-100">
+              <EmptyBellIcon />
+            </div>
+
+            <h2 className="mt-5 text-[18px] font-semibold tracking-[-0.035em] text-slate-950">
+              {copy.loginRequired}
+            </h2>
+
+            <p className="mt-2 text-[13px] font-medium leading-6 text-slate-500">
+              {copy.loginBody}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="mt-6 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
+            >
+              {copy.login}
+            </button>
+          </section>
+        ) : (
+          <section className="pt-3">
+            {error ? (
+              <div className="mb-3 rounded-[20px] bg-rose-50 px-4 py-3 text-[13px] font-medium text-rose-700 ring-1 ring-rose-100">
+                {error}
+              </div>
+            ) : null}
+
+            {currentItems.length === 0 ? (
+              <EmptyState
+                title={activeTab === "direct" ? copy.directEmpty : copy.newsEmpty}
+                body={
+                  activeTab === "direct"
+                    ? copy.directEmptyBody
+                    : copy.newsEmptyBody
+                }
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {currentItems.map((item) => (
+                  <NotificationItem
+                    key={item.id}
+                    item={item}
+                    locale={safeLocale}
+                    unreadLabel={copy.unread}
+                    importantLabel={copy.important}
+                    onOpen={(target) => void openNotification(target)}
                   />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {currentItems.map((item) => {
-                    const unread = !item.read_at;
-                    const news = isNewsNotification(item);
-                    const tone = getVisualTone(item, news);
-                    const display = getNotificationText(item, safeLocale);
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => void openNotification(item)}
-                        className={`group flex w-full gap-3 rounded-[26px] bg-white p-4 text-left shadow-[0_10px_28px_rgba(15,23,42,0.035)] ring-1 transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,0.06)] active:scale-[0.99] ${
-                          unread
-                            ? "ring-rose-100"
-                            : "ring-slate-100 hover:ring-slate-200"
-                        }`}
-                      >
-                        <div className="relative shrink-0">
-                          <div
-                            className={`flex h-[52px] w-[52px] items-center justify-center rounded-[20px] ring-1 ${getToneClass(
-                              tone
-                            )}`}
-                          >
-                            <NotificationIcon item={item} news={news} />
-                          </div>
-
-                          {unread ? (
-                            <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full bg-[#ff3b5c] ring-[3px] ring-white" />
-                          ) : null}
-                        </div>
-
-                        <div className="min-w-0 flex-1 pt-0.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {unread ? (
-                              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-[#ff3b5c] ring-1 ring-rose-100">
-                                {copy.unread}
-                              </span>
-                            ) : null}
-
-                            {item.importance === "high" ? (
-                              <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-black text-white">
-                                {copy.important}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <p
-                            className={`mt-1 break-words text-[15px] leading-6 tracking-[-0.02em] ${
-                              unread
-                                ? "font-black text-slate-950"
-                                : "font-bold text-slate-700"
-                            }`}
-                          >
-                            {display.title}
-                          </p>
-
-                          {display.body ? (
-                            <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-500">
-                              {display.body}
-                            </p>
-                          ) : null}
-
-                          <p className="mt-2 text-xs font-black text-slate-400">
-                            {formatRelativeTime(item.created_at, safeLocale)}
-                          </p>
-                        </div>
-
-                        <div className="flex shrink-0 items-center text-slate-300 transition group-hover:text-slate-500">
-                          <ChevronIcon />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </main>
   );
