@@ -308,6 +308,55 @@ function LoadingView() {
   );
 }
 
+function PayoutMotionStyle() {
+  return (
+    <style jsx global>{`
+      @keyframes trendrePayoutPop {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+        50% {
+          transform: translate3d(0, -1px, 0) scale(1.012);
+        }
+      }
+
+      @keyframes trendrePayoutShine {
+        0% {
+          transform: translateX(-140%) rotate(12deg);
+          opacity: 0;
+        }
+        18% {
+          opacity: 0.7;
+        }
+        55% {
+          opacity: 0.35;
+        }
+        100% {
+          transform: translateX(280%) rotate(12deg);
+          opacity: 0;
+        }
+      }
+
+      .trendre-payout-pop {
+        animation: trendrePayoutPop 2.7s ease-in-out infinite;
+        transform-origin: left center;
+      }
+
+      .trendre-payout-shine {
+        animation: trendrePayoutShine 3.8s ease-in-out infinite;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .trendre-payout-pop,
+        .trendre-payout-shine {
+          animation: none;
+        }
+      }
+    `}</style>
+  );
+}
+
 function Surface({
   children,
   className = "",
@@ -541,9 +590,17 @@ function PayoutHero({
   nextPayoutDateLabel: string;
   locale: "ja" | "en";
 }) {
+  const hasCurrentReward = currentMonthAmount > 0;
+  const encouragement = hasCurrentReward
+    ? "いいペースです。完了した分が今月の報酬として積み上がっています。"
+    : "案件が完了すると、ここに今月の報酬が積み上がります。";
+
   return (
-    <Surface className="overflow-hidden">
-      <div className="px-4 py-4 sm:px-5">
+    <Surface className="relative overflow-hidden bg-gradient-to-br from-white via-white to-rose-50/80">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#ff5f67]/12 blur-3xl" />
+      <div className="pointer-events-none absolute left-8 top-24 h-16 w-16 rounded-full bg-amber-200/20 blur-2xl" />
+
+      <div className="relative px-4 py-4 sm:px-5">
         <h1 className="text-[22px] font-bold tracking-[-0.045em] text-slate-950">
           報酬
         </h1>
@@ -552,30 +609,55 @@ function PayoutHero({
         </p>
       </div>
 
-      <div className="border-t border-slate-100 px-4 py-4 sm:px-5">
-        <p className="text-[12px] font-semibold text-slate-500">今月の報酬</p>
-        <p className="mt-1 whitespace-nowrap text-[34px] font-bold tracking-[-0.055em] text-slate-950">
-          {formatMoney(currentMonthAmount, "JPY", locale)}
-        </p>
-        <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
-          {currentMonthLabel}に完了した案件が積み上がります。
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-semibold text-slate-500">今月完了</p>
-            <p className="mt-1 text-[16px] font-bold text-slate-950">
-              {currentMonthCount}件
+      <div className="relative border-t border-rose-100/60 px-4 pb-4 pt-5 sm:px-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[12px] font-bold text-[#ff5f67]">
+              今月の報酬
+            </p>
+            <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500">
+              {currentMonthLabel}に完了した案件
             </p>
           </div>
 
-          <div className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-semibold text-slate-500">次回予定</p>
-            <p className="mt-1 text-[16px] font-bold text-slate-950">
-              {formatMoney(nextPayoutAmount, "JPY", locale)}
+          <span className="shrink-0 rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm ring-1 ring-rose-100">
+            {currentMonthCount}件完了
+          </span>
+        </div>
+
+        <div className="mt-3 rounded-[24px] bg-gradient-to-br from-[#ff5f67] via-[#ff3860] to-[#ff7a59] p-[1px] shadow-[0_18px_45px_rgba(255,80,100,0.22)]">
+          <div className="relative overflow-hidden rounded-[23px] bg-white/92 px-4 py-5">
+            <div className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/2 rotate-12 bg-white/45 blur-xl trendre-payout-shine" />
+            <p className="text-[12px] font-bold text-slate-500">今月ここまで</p>
+            <p className="mt-1 whitespace-nowrap text-[40px] font-black leading-none tracking-[-0.065em] text-slate-950 trendre-payout-pop">
+              {formatMoney(currentMonthAmount, "JPY", locale)}
+            </p>
+            <p className="mt-3 text-[12px] font-medium leading-5 text-slate-600">
+              {encouragement}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded-[18px] bg-white/85 px-3 py-3 shadow-sm ring-1 ring-rose-100/70">
+            <p className="text-[11px] font-semibold text-slate-500">今月分の反映</p>
+            <p className="mt-1 text-[13px] font-bold text-slate-950">
+              月末締め
             </p>
             <p className="mt-1 text-[10px] font-medium text-slate-400">
-              {nextPayoutCount > 0 ? nextPayoutDateLabel : "対象なし"}
+              翌月25日頃に振込予定へ
+            </p>
+          </div>
+
+          <div className="rounded-[18px] bg-white/85 px-3 py-3 shadow-sm ring-1 ring-rose-100/70">
+            <p className="text-[11px] font-semibold text-slate-500">次回予定</p>
+            <p className="mt-1 whitespace-nowrap text-[15px] font-bold text-slate-950">
+              {nextPayoutCount > 0
+                ? formatMoney(nextPayoutAmount, "JPY", locale)
+                : "対象なし"}
+            </p>
+            <p className="mt-1 text-[10px] font-medium text-slate-400">
+              {nextPayoutCount > 0 ? nextPayoutDateLabel : "前月分が入ると表示"}
             </p>
           </div>
         </div>
@@ -601,6 +683,8 @@ function NextPayoutCard({
   blockedReason: string | null;
   locale: "ja" | "en";
 }) {
+  const hasNextPayout = gross > 0;
+
   return (
     <Surface className="p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
@@ -618,18 +702,37 @@ function NextPayoutCard({
         </StatusPill>
       </div>
 
-      <div className="mt-4 rounded-[18px] bg-rose-50/55 px-4 py-4 ring-1 ring-rose-100">
-        <p className="text-[12px] font-semibold text-slate-600">
-          振込予定額
-        </p>
-        <p className="mt-1 whitespace-nowrap text-[30px] font-bold tracking-[-0.045em] text-slate-950">
-          {formatMoney(net, "JPY", locale)}
-        </p>
-      </div>
+      {hasNextPayout ? (
+        <div className="mt-4 rounded-[20px] bg-slate-950 px-4 py-4 shadow-[0_14px_34px_rgba(15,23,42,0.14)]">
+          <p className="text-[12px] font-semibold text-slate-300">
+            振込予定額
+          </p>
+          <p className="mt-1 whitespace-nowrap text-[30px] font-bold tracking-[-0.045em] text-white">
+            {formatMoney(net, "JPY", locale)}
+          </p>
+          <p className="mt-2 text-[11px] font-medium text-slate-300">
+            {payoutDateLabel}に振込予定です。
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-[20px] bg-slate-50 px-4 py-4 ring-1 ring-slate-100">
+          <p className="text-[12px] font-semibold text-slate-500">
+            振込予定額
+          </p>
+          <p className="mt-1 text-[20px] font-bold text-slate-950">
+            まだ対象はありません
+          </p>
+          <p className="mt-2 text-[11px] font-medium leading-5 text-slate-500">
+            前月分の未払い報酬がある場合、ここに振込予定が表示されます。
+          </p>
+        </div>
+      )}
 
       <div className="mt-3 divide-y divide-slate-100 rounded-[16px] bg-slate-50/45 px-4 py-1 ring-1 ring-slate-100">
         <DetailRow label="対象報酬" value={formatMoney(gross, "JPY", locale)} strong />
-        <DetailRow label="振込手数料" value={`-${formatMoney(fee, "JPY", locale)}`} />
+        {fee > 0 ? (
+          <DetailRow label="振込手数料" value={`-${formatMoney(fee, "JPY", locale)}`} />
+        ) : null}
       </div>
 
       <p className="mt-3 text-[11px] font-medium leading-5 text-slate-500">
@@ -1202,6 +1305,7 @@ export default function PayoutsClient() {
 
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
+      <PayoutMotionStyle />
       {fromSignup ? (
         <div className="mb-3">
           <Alert
