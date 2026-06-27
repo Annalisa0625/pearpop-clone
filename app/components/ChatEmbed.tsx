@@ -474,53 +474,60 @@ export default function ChatEmbed({
     setError(null);
 
     try {
-      const insertResult: any = await withTimeout(
-        supabase
-          .from("messages")
-          .insert({
-            chat_id: chat.id,
-            sender_user_id: currentUserId,
-            content,
-          })
-          .select("id, chat_id, sender_user_id, content, created_at")
-          .single(),
-        SEND_TIMEOUT_MS,
-        copy.sendError
+      const sessionResult: any = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        copy.loginError
       );
 
-      if (insertResult?.error) {
-        setError(insertResult.error.message);
+      const accessToken = sessionResult?.data?.session?.access_token ?? null;
+
+      if (!accessToken) {
+        setError(copy.loginError);
         setSending(false);
         return;
       }
 
-      const inserted = insertResult?.data as MessageRow | null;
+      const res = await fetchWithTimeout(
+        `/api/chats/${chat.id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            content,
+          }),
+        },
+        SEND_TIMEOUT_MS,
+        copy.sendError
+      );
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(json?.error ?? copy.sendError);
+        setSending(false);
+        return;
+      }
+
+      const inserted = (json?.message ?? null) as MessageRow | null;
 
       if (inserted) {
         addMessageIfNotExists(inserted);
       }
 
-      const now = new Date().toISOString();
+      const lastMessageAt = inserted?.created_at ?? new Date().toISOString();
 
-      const { error: chatUpdateError } = await supabase
-        .from("chats")
-        .update({
-          last_message_at: now,
-        })
-        .eq("id", chat.id);
-
-      if (chatUpdateError) {
-        console.error("chat last_message_at update error:", chatUpdateError);
-      } else {
-        setChat((prev) =>
-          prev
-            ? {
-                ...prev,
-                last_message_at: now,
-              }
-            : prev
-        );
-      }
+      setChat((prev) =>
+        prev
+          ? {
+              ...prev,
+              last_message_at: lastMessageAt,
+            }
+          : prev
+      );
 
       await markChatAsRead(chat.id, currentUserId);
 
