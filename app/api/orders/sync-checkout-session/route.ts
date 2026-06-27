@@ -14,6 +14,21 @@ const STRIPE_TIMEOUT_MS = 15000;
 type ServerDeps = {
   supabaseAdmin: any;
   getStripe: () => any;
+  buildLineMessage: (input: {
+    title: string;
+    body?: string | null;
+    linkPath?: string | null;
+  }) => string;
+  sendLineTextToUserId: (
+    appUserId: string,
+    message: string,
+    options?: {
+      notificationType?: string;
+      creatorId?: string | null;
+      entityType?: string | null;
+      entityId?: string | null;
+    }
+  ) => Promise<any>;
 };
 
 function withTimeout<T = any>(
@@ -37,14 +52,17 @@ function withTimeout<T = any>(
 }
 
 async function loadServerDeps(): Promise<ServerDeps> {
-  const [supabaseModule, stripeModule] = await Promise.all([
+  const [supabaseModule, stripeModule, lineModule] = await Promise.all([
     import("@/lib/supabaseAdmin"),
     import("@/lib/stripe"),
+    import("@/lib/notifications/line"),
   ]);
 
   return {
     supabaseAdmin: (supabaseModule as any).supabaseAdmin,
     getStripe: (stripeModule as any).getStripe,
+    buildLineMessage: (lineModule as any).buildLineMessage,
+    sendLineTextToUserId: (lineModule as any).sendLineTextToUserId,
   };
 }
 
@@ -102,6 +120,47 @@ function addHoursIso(hours: number) {
   return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 }
 
+function formatOrderAmount(amount: unknown, currency: unknown) {
+  const numberAmount =
+    typeof amount === "number"
+      ? amount
+      : typeof amount === "string" && amount.trim()
+        ? Number(amount)
+        : null;
+
+  if (!numberAmount || !Number.isFinite(numberAmount)) return null;
+
+  const currencyCode =
+    typeof currency === "string" && currency.trim()
+      ? currency.trim().toUpperCase()
+      : "JPY";
+
+  try {
+    return new Intl.NumberFormat("ja-JP", {
+      style: "currency",
+      currency: currencyCode,
+      maximumFractionDigits: currencyCode === "JPY" ? 0 : 2,
+    }).format(numberAmount);
+  } catch {
+    if (currencyCode === "JPY") return `¥${Math.round(numberAmount).toLocaleString("ja-JP")}`;
+    return `${Math.round(numberAmount).toLocaleString("ja-JP")} ${currencyCode}`;
+  }
+}
+
+function formatDeadlineForLine(value: string | null | undefined) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleString("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 async function safeInsertOrderEvent(args: {
   supabaseAdmin: any;
   orderId: string;
@@ -124,6 +183,122 @@ async function safeInsertOrderEvent(args: {
     );
   } catch (error) {
     console.warn("order event insert skipped", error);
+  }
+}
+
+async function safeSendCreatorNewOrderLineNotification(args: {
+  supabaseAdmin: any;
+  sendLineTextToUserId: ServerDeps["sendLineTextToUserId"];
+  buildLineMessage: ServerDeps["buildLineMessage"];
+  order: {
+    id: string;
+    creator_id?: string | null;
+    creator_user_id?: string | null;
+    product_name?: string | null;
+    menu_title_snapshot?: string | null;
+    buyer_total_amount?: number | string | null;
+    currency?: string | null;
+  };
+  actorUserId: string;
+  creatorAcceptDeadline: string | null;
+}) {
+  const creatorUserId =
+    typeof args.order.creator_user_id === "string"
+      ? args.order.creator_user_id
+      : null;
+
+  if (!creatorUserId) {
+    await safeInsertOrderEvent({
+      supabaseAdmin: args.supabaseAdmin,
+      orderId: args.order.id,
+      actorUserId: args.actorUserId,
+      eventType: "line_order_created_notification_skipped",
+      eventData: {
+        reason: "creator_user_id_missing",
+      },
+    });
+
+    return;
+  }
+
+  const title =
+    args.order.product_name?.trim() ||
+    args.order.menu_title_snapshot?.trim() ||
+    "新しい注文";
+
+  const amountText = formatOrderAmount(
+    args.order.buyer_total_amount,
+    args.order.currency
+  );
+
+  const deadlineText = formatDeadlineForLine(args.creatorAcceptDeadline);
+
+  const bodyLines = [
+    "新しい注文が届きました。",
+    "内容を確認して、受ける / 辞退するを選んでください。",
+    "",
+    `案件：${title}`,
+  ];
+
+  if (
+    args.order.menu_title_snapshot?.trim() &&
+    args.order.menu_title_snapshot.trim() !== title
+  ) {
+    bodyLines.push(`メニュー：${args.order.menu_title_snapshot.trim()}`);
+  }
+
+  if (amountText) {
+    bodyLines.push(`注文金額：${amountText}`);
+  }
+
+  if (deadlineText) {
+    bodyLines.push(`返答期限：${deadlineText}`);
+  }
+
+  const message = args.buildLineMessage({
+    title: "新しい注文が届きました",
+    body: bodyLines.join("\n"),
+    linkPath: `/creator/orders/${args.order.id}`,
+  });
+
+  try {
+    const result = await args.sendLineTextToUserId(creatorUserId, message, {
+      notificationType: "order_created",
+      creatorId: args.order.creator_id ?? null,
+      entityType: "order",
+      entityId: args.order.id,
+    });
+
+    await safeInsertOrderEvent({
+      supabaseAdmin: args.supabaseAdmin,
+      orderId: args.order.id,
+      actorUserId: args.actorUserId,
+      eventType: result?.ok
+        ? "line_order_created_notification_sent"
+        : result?.skipped
+          ? "line_order_created_notification_skipped"
+          : "line_order_created_notification_failed",
+      eventData: {
+        ok: Boolean(result?.ok),
+        skipped: Boolean(result?.skipped),
+        error: result?.error ?? null,
+      },
+    });
+  } catch (error) {
+    await safeInsertOrderEvent({
+      supabaseAdmin: args.supabaseAdmin,
+      orderId: args.order.id,
+      actorUserId: args.actorUserId,
+      eventType: "line_order_created_notification_failed",
+      eventData: {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unknown LINE order notification error",
+      },
+    });
+
+    console.warn("line order notification skipped", error);
   }
 }
 
@@ -168,7 +343,8 @@ export async function POST(req: NextRequest) {
 
     deps = await loadServerDeps();
 
-    const { supabaseAdmin, getStripe } = deps;
+    const { supabaseAdmin, getStripe, buildLineMessage, sendLineTextToUserId } =
+      deps;
 
     const { user, error: authError } = await getAuthenticatedUser({
       supabaseAdmin,
@@ -213,6 +389,12 @@ export async function POST(req: NextRequest) {
           `
           id,
           b_user_id,
+          creator_id,
+          creator_user_id,
+          product_name,
+          menu_title_snapshot,
+          buyer_total_amount,
+          currency,
           status,
           payment_status,
           stripe_checkout_session_id,
@@ -329,6 +511,17 @@ export async function POST(req: NextRequest) {
           creator_accept_window_hours: 72,
         },
       });
+
+      if (shouldSetDeadline) {
+        await safeSendCreatorNewOrderLineNotification({
+          supabaseAdmin,
+          sendLineTextToUserId,
+          buildLineMessage,
+          order,
+          actorUserId: user.id,
+          creatorAcceptDeadline,
+        });
+      }
 
       return NextResponse.json({
         ok: true,
