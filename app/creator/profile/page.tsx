@@ -69,6 +69,16 @@ type SocialAccountForm = {
   audience_country: string;
 };
 
+type LineLinkInfo = {
+  id?: string;
+  line_user_id?: string | null;
+  line_display_name?: string | null;
+  line_picture_url?: string | null;
+  is_enabled?: boolean | null;
+  linked_at?: string | null;
+  blocked_at?: string | null;
+};
+
 type LocaleOption = {
   value: string;
   ja: string;
@@ -77,6 +87,8 @@ type LocaleOption = {
 
 const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
+
+const LINE_OFFICIAL_URL = process.env.NEXT_PUBLIC_LINE_OFFICIAL_URL || "";
 
 const COUNTRY_DEFAULT = "日本";
 
@@ -550,6 +562,25 @@ function YenIcon() {
   );
 }
 
+function LineIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M12 4C7.6 4 4 6.9 4 10.5c0 3.2 2.7 5.9 6.4 6.4.3.1.5.3.5.6v1.8c0 .4.5.6.8.3l2.4-2.2c.2-.2.4-.2.7-.3 3.1-.8 5.2-3.4 5.2-6.5C20 6.9 16.4 4 12 4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 10.2h1.7M8 12.3h1.7M11.2 10.2v2.1M13.1 10.2v2.1l1.8-2.1v2.1M16.3 10.2h1.7M16.3 12.3h1.7"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function UserIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
@@ -815,6 +846,173 @@ function SectionCard({
   );
 }
 
+function formatLineDate(value: string | null | undefined, locale: Locale) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+function LineConnectionCard({
+  locale,
+  copy,
+  loading,
+  linked,
+  linkInfo,
+  code,
+  expiresAt,
+  generating,
+  unlinking,
+  onGenerate,
+  onUnlink,
+}: {
+  locale: Locale;
+  copy: {
+    lineTitle: string;
+    lineBody: string;
+    lineLinked: string;
+    lineNotLinked: string;
+    lineConnectedAs: string;
+    lineGenerate: string;
+    lineGenerating: string;
+    lineUnlink: string;
+    lineUnlinking: string;
+    lineCodeLabel: string;
+    lineCodeHelp: string;
+    lineExpires: string;
+    lineOpenLine: string;
+    lineOfficialMissing: string;
+    lineLoading: string;
+  };
+  loading: boolean;
+  linked: boolean;
+  linkInfo: LineLinkInfo | null;
+  code: string | null;
+  expiresAt: string | null;
+  generating: boolean;
+  unlinking: boolean;
+  onGenerate: () => void;
+  onUnlink: () => void;
+}) {
+  return (
+    <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
+      <div className="flex items-start gap-3">
+        <div
+          className={`grid h-11 w-11 shrink-0 place-items-center rounded-[18px] ring-1 ${
+            linked
+              ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+              : "bg-slate-50 text-slate-700 ring-slate-100"
+          }`}
+        >
+          <LineIcon />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-slate-950">
+              {copy.lineTitle}
+            </h2>
+
+            <CreatorBadge tone={linked ? "green" : "amber"}>
+              {loading ? copy.lineLoading : linked ? copy.lineLinked : copy.lineNotLinked}
+            </CreatorBadge>
+          </div>
+
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            {copy.lineBody}
+          </p>
+
+          {linked ? (
+            <div className="mt-4 rounded-[20px] bg-emerald-50 px-4 py-3 ring-1 ring-emerald-100">
+              <p className="text-[12px] font-semibold text-emerald-800">
+                {copy.lineConnectedAs}
+                {linkInfo?.line_display_name ? `：${linkInfo.line_display_name}` : ""}
+              </p>
+              {linkInfo?.linked_at ? (
+                <p className="mt-1 text-[11px] font-medium text-emerald-700/80">
+                  {formatLineDate(linkInfo.linked_at, locale)}
+                </p>
+              ) : null}
+            </div>
+          ) : code ? (
+            <div className="mt-4 rounded-[22px] bg-slate-950 px-4 py-4 text-white">
+              <p className="text-[11px] font-medium text-white/60">
+                {copy.lineCodeLabel}
+              </p>
+
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="font-mono text-[28px] font-semibold tracking-[0.18em]">
+                  {code}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(code)}
+                  className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white ring-1 ring-white/10 transition active:scale-[0.98]"
+                >
+                  COPY
+                </button>
+              </div>
+
+              <p className="mt-3 text-[12px] font-medium leading-5 text-white/72">
+                {copy.lineCodeHelp}
+              </p>
+
+              {expiresAt ? (
+                <p className="mt-2 text-[11px] font-medium text-white/50">
+                  {copy.lineExpires}：{formatLineDate(expiresAt, locale)}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {linked ? (
+              <button
+                type="button"
+                onClick={onUnlink}
+                disabled={unlinking}
+                className="rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {unlinking ? copy.lineUnlinking : copy.lineUnlink}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onGenerate}
+                disabled={generating}
+                className="rounded-full bg-slate-950 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {generating ? copy.lineGenerating : copy.lineGenerate}
+              </button>
+            )}
+
+            {LINE_OFFICIAL_URL ? (
+              <a
+                href={LINE_OFFICIAL_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-emerald-50 px-4 py-2 text-[12px] font-semibold text-emerald-700 ring-1 ring-emerald-100 transition active:scale-[0.98]"
+              >
+                {copy.lineOpenLine}
+              </a>
+            ) : (
+              <span className="rounded-full bg-slate-50 px-4 py-2 text-[11px] font-medium text-slate-400 ring-1 ring-slate-100">
+                {copy.lineOfficialMissing}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function QuickLink({
   href,
   icon,
@@ -943,6 +1141,28 @@ export default function CreatorProfilePage() {
             japanesePrefectureOnly: "日本以外の場合は地域名を入力できます。",
             snsGuide: "媒体を選ぶと入力形式が変わります。",
             portfolioRecommended: "3枚以上がおすすめ",
+            lineTitle: "LINE通知",
+            lineBody:
+              "新しい注文・メッセージ・修正依頼・完了通知をLINEで受け取れます。",
+            lineLinked: "連携済み",
+            lineNotLinked: "未連携",
+            lineConnectedAs: "連携中",
+            lineGenerate: "連携コードを発行",
+            lineGenerating: "発行中...",
+            lineUnlink: "連携を解除",
+            lineUnlinking: "解除中...",
+            lineCodeLabel: "LINE連携コード",
+            lineCodeHelp:
+              "LINE公式アカウントを友だち追加し、この6桁コードをそのまま送信してください。",
+            lineExpires: "有効期限",
+            lineOpenLine: "LINEを開く",
+            lineOfficialMissing: "LINE公式URL未設定",
+            lineLoading: "確認中",
+            lineCodeCreated: "LINE連携コードを発行しました。",
+            lineUnlinked: "LINE連携を解除しました。",
+            lineLoadFailed: "LINE連携状況を取得できませんでした。",
+            lineCreateFailed: "LINE連携コードを発行できませんでした。",
+            lineUnlinkFailed: "LINE連携を解除できませんでした。",
           }
         : {
             title: "Profile",
@@ -1012,6 +1232,28 @@ export default function CreatorProfilePage() {
             japanesePrefectureOnly: "Enter the area name for countries outside Japan.",
             snsGuide: "Input format changes by platform.",
             portfolioRecommended: "3+ recommended",
+            lineTitle: "LINE notifications",
+            lineBody:
+              "Receive new order, message, revision, and completion alerts on LINE.",
+            lineLinked: "Linked",
+            lineNotLinked: "Not linked",
+            lineConnectedAs: "Connected as",
+            lineGenerate: "Generate code",
+            lineGenerating: "Generating...",
+            lineUnlink: "Unlink",
+            lineUnlinking: "Unlinking...",
+            lineCodeLabel: "LINE link code",
+            lineCodeHelp:
+              "Add the official LINE account and send this 6-character code in the chat.",
+            lineExpires: "Expires",
+            lineOpenLine: "Open LINE",
+            lineOfficialMissing: "LINE URL not set",
+            lineLoading: "Checking",
+            lineCodeCreated: "LINE link code generated.",
+            lineUnlinked: "LINE connection removed.",
+            lineLoadFailed: "Failed to load LINE connection status.",
+            lineCreateFailed: "Failed to generate LINE link code.",
+            lineUnlinkFailed: "Failed to unlink LINE.",
           },
     [safeLocale],
   );
@@ -1053,6 +1295,14 @@ export default function CreatorProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const [lineLoading, setLineLoading] = useState(false);
+  const [lineGenerating, setLineGenerating] = useState(false);
+  const [lineUnlinking, setLineUnlinking] = useState(false);
+  const [lineLinked, setLineLinked] = useState(false);
+  const [lineLinkInfo, setLineLinkInfo] = useState<LineLinkInfo | null>(null);
+  const [lineCode, setLineCode] = useState<string | null>(null);
+  const [lineCodeExpiresAt, setLineCodeExpiresAt] = useState<string | null>(null);
+
   const activeGenre = useMemo(
     () =>
       GENRE_GROUPS.find((group) => group.key === activeGenreGroup) ??
@@ -1062,6 +1312,134 @@ export default function CreatorProfilePage() {
 
   const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
   const profileName = displayName || "Trendre";
+
+  const getAccessToken = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return session?.access_token ?? null;
+  };
+
+  const loadLineStatus = async () => {
+    const token = await getAccessToken();
+
+    if (!token) return;
+
+    setLineLoading(true);
+
+    try {
+      const res = await fetch("/api/line/link-code", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = (await res.json()) as {
+        ok?: boolean;
+        linked?: boolean;
+        link?: LineLinkInfo | null;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        throw new Error(json.error || copy.lineLoadFailed);
+      }
+
+      setLineLinked(Boolean(json.linked));
+      setLineLinkInfo(json.link ?? null);
+    } catch (lineStatusError) {
+      console.error("line status load error:", lineStatusError);
+    } finally {
+      setLineLoading(false);
+    }
+  };
+
+  const generateLineLinkCode = async () => {
+    const token = await getAccessToken();
+
+    if (!token) {
+      setError(copy.lineCreateFailed);
+      return;
+    }
+
+    setLineGenerating(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/line/link-code", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = (await res.json()) as {
+        ok?: boolean;
+        code?: string;
+        expires_at?: string;
+        error?: string;
+      };
+
+      if (!res.ok || !json.code) {
+        throw new Error(json.error || copy.lineCreateFailed);
+      }
+
+      setLineCode(json.code);
+      setLineCodeExpiresAt(json.expires_at ?? null);
+      setLineLinked(false);
+      setSuccess(copy.lineCodeCreated);
+    } catch (lineCodeError) {
+      console.error("line code create error:", lineCodeError);
+      setError(copy.lineCreateFailed);
+    } finally {
+      setLineGenerating(false);
+    }
+  };
+
+  const unlinkLine = async () => {
+    const token = await getAccessToken();
+
+    if (!token) {
+      setError(copy.lineUnlinkFailed);
+      return;
+    }
+
+    setLineUnlinking(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/line/link-code", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        throw new Error(json.error || copy.lineUnlinkFailed);
+      }
+
+      setLineLinked(false);
+      setLineLinkInfo(null);
+      setLineCode(null);
+      setLineCodeExpiresAt(null);
+      setSuccess(copy.lineUnlinked);
+    } catch (lineUnlinkError) {
+      console.error("line unlink error:", lineUnlinkError);
+      setError(copy.lineUnlinkFailed);
+    } finally {
+      setLineUnlinking(false);
+    }
+  };
 
   const loadPortfolioAssets = async (creatorIdValue: string) => {
     const { data, error: portfolioError } = await supabase
@@ -1178,6 +1556,7 @@ export default function CreatorProfilePage() {
       );
 
       await loadPortfolioAssets(creatorRow.id);
+      void loadLineStatus();
 
       setLoading(false);
     };
@@ -1996,6 +2375,20 @@ export default function CreatorProfilePage() {
           />
         </div>
       </SectionCard>
+
+      <LineConnectionCard
+        locale={safeLocale}
+        copy={copy}
+        loading={lineLoading}
+        linked={lineLinked}
+        linkInfo={lineLinkInfo}
+        code={lineCode}
+        expiresAt={lineCodeExpiresAt}
+        generating={lineGenerating}
+        unlinking={lineUnlinking}
+        onGenerate={() => void generateLineLinkCode()}
+        onUnlink={() => void unlinkLine()}
+      />
 
       <SectionCard title={copy.settings}>
         <section className="grid gap-2">
