@@ -2,6 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { Json } from "@/types/database.types";
+import {
+  buildLineMessage,
+  sendLineTextToUserId,
+} from "@/lib/notifications/line";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,6 +27,10 @@ type OrderForComplete = {
   payout_status: PayoutStatus | null;
   payout_due_at: string | null;
   payout_paid_at: string | null;
+  product_name: string | null;
+  menu_title_snapshot: string | null;
+  creator_payout_amount: number | null;
+  currency: string | null;
 };
 
 async function getAuthenticatedUser(req: NextRequest) {
@@ -57,6 +65,35 @@ function normalizePayoutStatus(value: unknown): PayoutStatus {
   if (value === "failed") return "failed";
   if (value === "pending") return "pending";
   return "unpaid";
+}
+
+function getOrderTitle(
+  order: Pick<OrderForComplete, "product_name" | "menu_title_snapshot">
+) {
+  const productName = order.product_name?.trim();
+  const menuTitle = order.menu_title_snapshot?.trim();
+
+  return productName || menuTitle || "注文";
+}
+
+function formatAmount(value: number | null | undefined, currency: string | null) {
+  if (value == null) {
+    return null;
+  }
+
+  const safeCurrency = currency || "JPY";
+
+  try {
+    return new Intl.NumberFormat("ja-JP", {
+      style: "currency",
+      currency: safeCurrency,
+      maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
+    }).format(value);
+  } catch {
+    return safeCurrency === "USD"
+      ? `$${Number(value).toLocaleString()}`
+      : `¥${Number(value).toLocaleString()}`;
+  }
 }
 
 /**
@@ -95,6 +132,61 @@ async function safeInsertOrderEvent(args: {
   }
 }
 
+async function safeSendOrderCompletedLineNotification(args: {
+  order: OrderForComplete;
+  payoutStatus: PayoutStatus;
+  payoutDueAt: string | null;
+}) {
+  try {
+    if (!args.order.creator_user_id) {
+      return;
+    }
+
+    const amountText = formatAmount(
+      args.order.creator_payout_amount,
+      args.order.currency
+    );
+
+    const bodyLines = [
+      "納品が承認され、注文が完了しました。",
+      "",
+      `案件：${getOrderTitle(args.order)}`,
+    ];
+
+    if (amountText) {
+      bodyLines.push(`報酬予定：${amountText}`);
+    }
+
+    bodyLines.push("", "報酬ページにも反映されます。");
+
+    const message = buildLineMessage({
+      title: "納品が承認されました",
+      body: bodyLines.join("\n"),
+      linkPath: `/creator/orders/${args.order.id}`,
+    });
+
+    const result = await sendLineTextToUserId(args.order.creator_user_id, message, {
+      notificationType: "order_completed",
+      creatorId: args.order.creator_id,
+      entityType: "order",
+      entityId: args.order.id,
+    });
+
+    if (!result?.ok) {
+      console.warn("order completed LINE notification not sent:", {
+        orderId: args.order.id,
+        creatorUserId: args.order.creator_user_id,
+        payoutStatus: args.payoutStatus,
+        payoutDueAt: args.payoutDueAt,
+        skipped: result?.skipped ?? false,
+        error: result?.error ?? null,
+      });
+    }
+  } catch (error) {
+    console.warn("order completed LINE notification skipped:", error);
+  }
+}
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -123,7 +215,11 @@ export async function POST(
         payout_method,
         payout_status,
         payout_due_at,
-        payout_paid_at
+        payout_paid_at,
+        product_name,
+        menu_title_snapshot,
+        creator_payout_amount,
+        currency
       `
       )
       .eq("id", orderId)
@@ -239,6 +335,13 @@ export async function POST(
         },
       });
     }
+
+    await safeSendOrderCompletedLineNotification({
+      order,
+      payoutStatus: nextPayoutStatus,
+      payoutDueAt:
+        nextPayoutStatus === "pending" ? payoutDueAt : order.payout_due_at,
+    });
 
     return NextResponse.json({
       ok: true,
