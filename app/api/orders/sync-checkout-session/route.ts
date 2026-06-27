@@ -196,7 +196,7 @@ async function safeSendCreatorNewOrderLineNotification(args: {
     creator_user_id?: string | null;
     product_name?: string | null;
     menu_title_snapshot?: string | null;
-    buyer_total_amount?: number | string | null;
+    menu_price_amount?: number | string | null;
     currency?: string | null;
   };
   actorUserId: string;
@@ -226,8 +226,8 @@ async function safeSendCreatorNewOrderLineNotification(args: {
     args.order.menu_title_snapshot?.trim() ||
     "新しい注文";
 
-  const amountText = formatOrderAmount(
-    args.order.buyer_total_amount,
+  const menuPriceText = formatOrderAmount(
+    args.order.menu_price_amount,
     args.order.currency
   );
 
@@ -247,8 +247,8 @@ async function safeSendCreatorNewOrderLineNotification(args: {
     bodyLines.push(`メニュー：${args.order.menu_title_snapshot.trim()}`);
   }
 
-  if (amountText) {
-    bodyLines.push(`注文金額：${amountText}`);
+  if (menuPriceText) {
+    bodyLines.push(`メニュー価格：${menuPriceText}`);
   }
 
   if (deadlineText) {
@@ -393,7 +393,7 @@ export async function POST(req: NextRequest) {
           creator_user_id,
           product_name,
           menu_title_snapshot,
-          buyer_total_amount,
+          menu_price_amount,
           currency,
           status,
           payment_status,
