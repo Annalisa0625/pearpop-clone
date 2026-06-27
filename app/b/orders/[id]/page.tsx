@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import DeadlineBadge from "@/app/components/DeadlineBadge";
@@ -1537,6 +1537,7 @@ function DeliveryReviewCard({
 
 export default function CompanyOrderDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const orderId = String(params.id ?? "");
 
   const { locale } = useAppLocale();
@@ -1817,10 +1818,8 @@ export default function CompanyOrderDetailPage() {
       const userError = authResult?.error ?? null;
 
       if (userError || !user) {
-        setError(copy.authFailed);
-        setOrder(null);
-        setInfluencer(null);
-        setLoading(false);
+        const nextPath = `/b/orders/${orderId}`;
+        router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
 
@@ -1956,7 +1955,7 @@ export default function CompanyOrderDetailPage() {
       setInfluencer(null);
       setLoading(false);
     }
-  }, [copy.authFailed, copy.notFound, orderId, supabase]);
+  }, [copy.authFailed, copy.notFound, orderId, router, supabase]);
 
   useEffect(() => {
     void loadOrder();

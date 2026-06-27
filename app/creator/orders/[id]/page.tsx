@@ -3122,10 +3122,8 @@ export default function CreatorOrderDetailPage() {
       const token = session?.access_token ?? null;
 
       if (authResult?.error || !user || !token) {
-        setError(copy.authFailed);
-        setOrder(null);
-        setReferenceAssets([]);
-        setLoading(false);
+        const nextPath = `/creator/orders/${orderId}`;
+        router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
 
@@ -3230,6 +3228,7 @@ export default function CreatorOrderDetailPage() {
     copy.notFound,
     loadReferenceAssets,
     orderId,
+    router,
     supabase,
   ]);
 
