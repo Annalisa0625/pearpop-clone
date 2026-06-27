@@ -869,8 +869,10 @@ function LineConnectionCard({
   expiresAt,
   generating,
   unlinking,
+  testing,
   onGenerate,
   onUnlink,
+  onTest,
 }: {
   locale: Locale;
   copy: {
@@ -889,6 +891,8 @@ function LineConnectionCard({
     lineOpenLine: string;
     lineOfficialMissing: string;
     lineLoading: string;
+    lineTestSend: string;
+    lineTestSending: string;
   };
   loading: boolean;
   linked: boolean;
@@ -897,8 +901,10 @@ function LineConnectionCard({
   expiresAt: string | null;
   generating: boolean;
   unlinking: boolean;
+  testing: boolean;
   onGenerate: () => void;
   onUnlink: () => void;
+  onTest: () => void;
 }) {
   return (
     <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
@@ -973,14 +979,25 @@ function LineConnectionCard({
 
           <div className="mt-4 flex flex-wrap gap-2">
             {linked ? (
-              <button
-                type="button"
-                onClick={onUnlink}
-                disabled={unlinking}
-                className="rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {unlinking ? copy.lineUnlinking : copy.lineUnlink}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onTest}
+                  disabled={testing}
+                  className="rounded-full bg-slate-950 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {testing ? copy.lineTestSending : copy.lineTestSend}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onUnlink}
+                  disabled={unlinking}
+                  className="rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {unlinking ? copy.lineUnlinking : copy.lineUnlink}
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -1158,11 +1175,15 @@ export default function CreatorProfilePage() {
             lineOpenLine: "LINEを開く",
             lineOfficialMissing: "LINE公式URL未設定",
             lineLoading: "確認中",
+            lineTestSend: "テスト通知を送る",
+            lineTestSending: "送信中...",
             lineCodeCreated: "LINE連携コードを発行しました。",
+            lineTestSent: "LINEにテスト通知を送信しました。",
             lineUnlinked: "LINE連携を解除しました。",
             lineLoadFailed: "LINE連携状況を取得できませんでした。",
             lineCreateFailed: "LINE連携コードを発行できませんでした。",
             lineUnlinkFailed: "LINE連携を解除できませんでした。",
+            lineTestFailed: "LINEテスト通知を送信できませんでした。",
           }
         : {
             title: "Profile",
@@ -1249,11 +1270,15 @@ export default function CreatorProfilePage() {
             lineOpenLine: "Open LINE",
             lineOfficialMissing: "LINE URL not set",
             lineLoading: "Checking",
+            lineTestSend: "Send test",
+            lineTestSending: "Sending...",
             lineCodeCreated: "LINE link code generated.",
+            lineTestSent: "Test notification sent to LINE.",
             lineUnlinked: "LINE connection removed.",
             lineLoadFailed: "Failed to load LINE connection status.",
             lineCreateFailed: "Failed to generate LINE link code.",
             lineUnlinkFailed: "Failed to unlink LINE.",
+            lineTestFailed: "Failed to send LINE test notification.",
           },
     [safeLocale],
   );
@@ -1298,6 +1323,7 @@ export default function CreatorProfilePage() {
   const [lineLoading, setLineLoading] = useState(false);
   const [lineGenerating, setLineGenerating] = useState(false);
   const [lineUnlinking, setLineUnlinking] = useState(false);
+  const [lineTesting, setLineTesting] = useState(false);
   const [lineLinked, setLineLinked] = useState(false);
   const [lineLinkInfo, setLineLinkInfo] = useState<LineLinkInfo | null>(null);
   const [lineCode, setLineCode] = useState<string | null>(null);
@@ -1438,6 +1464,44 @@ export default function CreatorProfilePage() {
       setError(copy.lineUnlinkFailed);
     } finally {
       setLineUnlinking(false);
+    }
+  };
+
+  const sendLineTestNotification = async () => {
+    const token = await getAccessToken();
+
+    if (!token) {
+      setError(copy.lineTestFailed);
+      return;
+    }
+
+    setLineTesting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/line/test", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || copy.lineTestFailed);
+      }
+
+      setSuccess(copy.lineTestSent);
+    } catch (lineTestError) {
+      console.error("line test notification error:", lineTestError);
+      setError(copy.lineTestFailed);
+    } finally {
+      setLineTesting(false);
     }
   };
 
@@ -2386,8 +2450,10 @@ export default function CreatorProfilePage() {
         expiresAt={lineCodeExpiresAt}
         generating={lineGenerating}
         unlinking={lineUnlinking}
+        testing={lineTesting}
         onGenerate={() => void generateLineLinkCode()}
         onUnlink={() => void unlinkLine()}
+        onTest={() => void sendLineTestNotification()}
       />
 
       <SectionCard title={copy.settings}>
