@@ -735,7 +735,7 @@ export default function SignupCreatorClient() {
             lineSetupHeadline:
               "注文を見逃さないために、LINE通知を設定しましょう",
             lineSetupLead:
-              "Trendre公式LINEを追加し、下の6桁コードをトークに送るだけで完了します。",
+              "ボタンを押すとLINEに移動します。許可後は自動でTrendreに戻り、通知連携が完了します。",
             lineBenefitOrder: "新しい注文が届いたらすぐ通知",
             lineBenefitChat: "チャットや修正依頼も見逃しにくい",
             lineBenefitPrivate: "LINEの友だちや企業には表示されません",
@@ -744,7 +744,7 @@ export default function SignupCreatorClient() {
             lineStepDone: "3. 連携完了",
             lineCodeLabel: "連携コード",
             lineCodeHelp: "このコードをTrendre公式LINEのトークに送信してください。",
-            lineOpenButton: "LINEで公式アカウントを開く",
+            lineOpenButton: "LINEで通知を受け取る",
             lineCopyCode: "コードをコピー",
             lineCopied: "コードをコピーしました",
             lineRefreshCode: "コードを再発行",
@@ -862,7 +862,7 @@ export default function SignupCreatorClient() {
             lineSetupHeadline:
               "Set up LINE notifications so you do not miss new orders",
             lineSetupLead:
-              "Add the Trendre official LINE account and send the 6-digit code below in the chat.",
+              "Tap the button to open LINE. After allowing access, you will automatically return to Trendre.",
             lineBenefitOrder: "Get notified as soon as a new order arrives",
             lineBenefitChat: "Do not miss chats or revision requests",
             lineBenefitPrivate: "Your LINE friends and brands will not see it",
@@ -871,7 +871,7 @@ export default function SignupCreatorClient() {
             lineStepDone: "3. Connected",
             lineCodeLabel: "Link code",
             lineCodeHelp: "Send this code to the Trendre official LINE chat.",
-            lineOpenButton: "Open official LINE",
+            lineOpenButton: "Receive notifications on LINE",
             lineCopyCode: "Copy code",
             lineCopied: "Code copied",
             lineRefreshCode: "Issue new code",
@@ -1775,6 +1775,43 @@ export default function SignupCreatorClient() {
     }
   };
 
+
+  const startLineLogin = async () => {
+    const token = await getCurrentAccessToken();
+
+    if (!token) {
+      setLineLinkMessage(copy.sessionMissing);
+      return;
+    }
+
+    setLineLinkLoading(true);
+    setLineLinkMessage(null);
+
+    try {
+      const res = await fetch("/api/line/login/start", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          return_to: "/creator/payouts?from=signup&line=linked",
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || typeof json?.url !== "string") {
+        throw new Error(json?.error ?? copy.lineCodeFailed);
+      }
+
+      window.location.href = json.url;
+    } catch (e) {
+      setLineLinkLoading(false);
+      setLineLinkMessage(e instanceof Error ? e.message : copy.lineCodeFailed);
+    }
+  };
+
   const finishSignupAfterLine = () => {
     router.replace(
       lineLinked
@@ -1912,7 +1949,6 @@ export default function SignupCreatorClient() {
 
       localStorage.removeItem(STORAGE_KEY);
       setLineSetupVisible(true);
-      await createLineLinkCode();
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : copy.signupFailed);
@@ -1922,18 +1958,8 @@ export default function SignupCreatorClient() {
   };
 
 
-  const renderLineSetup = () => {
-    const expiresText = lineLinkExpiresAt
-      ? new Date(lineLinkExpiresAt).toLocaleTimeString(
-          appLocale === "ja" ? "ja-JP" : "en-US",
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        )
-      : null;
 
-    const steps = [copy.lineStepAdd, copy.lineStepSend, copy.lineStepDone];
+  const renderLineSetup = () => {
     const benefits = [
       copy.lineBenefitOrder,
       copy.lineBenefitChat,
@@ -1961,8 +1987,8 @@ export default function SignupCreatorClient() {
         </header>
 
         <div className="mx-auto w-full max-w-[760px] px-3 pb-24">
-          <section className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#06c755] via-[#10d866] to-[#00b900] px-5 py-7 text-white">
+          <section className="overflow-hidden rounded-[32px] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#06c755] via-[#10d866] to-[#00b900] px-5 py-8 text-white sm:px-7 sm:py-10">
               <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-white/15 blur-2xl" />
               <div className="absolute -bottom-20 -left-16 h-44 w-44 rounded-full bg-white/15 blur-2xl" />
 
@@ -1974,12 +2000,12 @@ export default function SignupCreatorClient() {
                   {copy.lineSetupBadge}
                 </div>
 
-                <h1 className="mt-4 text-[26px] font-black leading-tight tracking-[-0.055em] sm:text-[32px]">
-                  {lineLinked ? copy.lineLinkedTitle : copy.lineSetupHeadline}
+                <h1 className="mt-4 text-[27px] font-black leading-tight tracking-[-0.055em] sm:text-[34px]">
+                  {copy.lineSetupHeadline}
                 </h1>
 
-                <p className="mt-3 max-w-[560px] text-sm font-bold leading-7 text-white/88">
-                  {lineLinked ? copy.lineLinkedBody : copy.lineSetupLead}
+                <p className="mt-3 max-w-[560px] text-sm font-bold leading-7 text-white/90">
+                  {copy.lineSetupLead}
                 </p>
               </div>
             </div>
@@ -2002,131 +2028,56 @@ export default function SignupCreatorClient() {
               </div>
 
               <div className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
-                {lineLinked ? (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#06c755] text-xl font-black text-white shadow-[0_12px_24px_rgba(6,199,85,0.22)]">
-                      ✓
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-lg font-black tracking-[-0.04em] text-slate-950">
-                        {copy.lineLinkedTitle}
-                      </p>
-                      <p className="mt-1 text-sm font-bold leading-6 text-slate-500">
-                        {lineDisplayName
-                          ? `${lineDisplayName} / ${copy.lineLinkedBody}`
-                          : copy.lineLinkedBody}
-                      </p>
-                    </div>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#06c755] text-sm font-black text-white shadow-[0_12px_24px_rgba(6,199,85,0.22)]">
+                    LINE
                   </div>
-                ) : (
-                  <>
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      {steps.map((item, index) => (
-                        <div
-                          key={item}
-                          className="rounded-[16px] bg-slate-50 px-3 py-3 ring-1 ring-slate-100"
-                        >
-                          <p className="text-[12px] font-black text-slate-800">
-                            {item}
-                          </p>
-                          {index === 0 && lineOfficialUrl ? (
-                            <a
-                              href={lineOfficialUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-2 inline-flex rounded-full bg-[#06c755] px-3 py-2 text-[11px] font-black text-white shadow-sm"
-                            >
-                              {copy.lineOpenButton}
-                            </a>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
 
-                    <div className="mt-4 rounded-[22px] bg-slate-950 p-4 text-white">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-black text-white/50">
-                            {copy.lineCodeLabel}
-                          </p>
-                          <p className="mt-1 text-xs font-bold leading-5 text-white/70">
-                            {copy.lineCodeHelp}
-                            {expiresText ? ` (${expiresText})` : ""}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => void createLineLinkCode()}
-                          disabled={lineLinkLoading}
-                          className="shrink-0 rounded-full bg-white/10 px-3 py-2 text-[11px] font-black text-white ring-1 ring-white/15 disabled:opacity-50"
-                        >
-                          {lineLinkLoading
-                            ? copy.lineCreatingCode
-                            : lineLinkCode
-                              ? copy.lineRefreshCode
-                              : copy.lineCreateCode}
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => void copyLineCode()}
-                        disabled={!lineLinkCode}
-                        className="mt-4 flex w-full items-center justify-center rounded-[18px] bg-white px-4 py-4 text-center font-mono text-[30px] font-black tracking-[0.24em] text-slate-950 shadow-sm disabled:opacity-50"
-                      >
-                        {lineLinkCode ?? "------"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => void copyLineCode()}
-                        disabled={!lineLinkCode}
-                        className="mt-3 w-full rounded-full bg-white/10 px-4 py-3 text-sm font-black text-white ring-1 ring-white/15 disabled:opacity-50"
-                      >
-                        {copy.lineCopyCode}
-                      </button>
-                    </div>
-                  </>
-                )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg font-black tracking-[-0.04em] text-slate-950">
+                      {copy.lineSetupTitle}
+                    </p>
+                    <p className="mt-1 text-sm font-bold leading-6 text-slate-500">
+                      {copy.lineSetupBody}
+                    </p>
+                  </div>
+                </div>
 
                 {lineLinkMessage ? (
-                  <div className="mt-4 rounded-[16px] bg-slate-50 px-3 py-3 text-xs font-black leading-5 text-slate-600 ring-1 ring-slate-100">
+                  <div className="mt-4 rounded-[16px] bg-rose-50 px-3 py-3 text-xs font-black leading-5 text-rose-700 ring-1 ring-rose-100">
                     {lineLinkMessage}
                   </div>
                 ) : null}
 
-                {!lineOfficialUrl && !lineLinked ? (
-                  <div className="mt-4 rounded-[16px] bg-amber-50 px-3 py-3 text-xs font-black leading-5 text-amber-800 ring-1 ring-amber-100">
-                    {copy.lineOfficialMissing}
-                  </div>
-                ) : null}
-
-                <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  {!lineLinked ? (
-                    <button
-                      type="button"
-                      onClick={() => void loadLineStatus()}
-                      disabled={lineStatusLoading}
-                      className="h-12 rounded-full bg-slate-950 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {lineStatusLoading ? copy.lineChecking : copy.lineCheckStatus}
-                    </button>
-                  ) : null}
+                <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px]">
+                  <button
+                    type="button"
+                    onClick={() => void startLineLogin()}
+                    disabled={lineLinkLoading}
+                    className="h-12 rounded-full bg-[#06c755] text-sm font-black text-white shadow-[0_12px_28px_rgba(6,199,85,0.24)] transition hover:bg-[#05bd51] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {lineLinkLoading
+                      ? appLocale === "ja"
+                        ? "LINEへ移動中..."
+                        : "Opening LINE..."
+                      : copy.lineOpenButton}
+                  </button>
 
                   <button
                     type="button"
                     onClick={finishSignupAfterLine}
-                    className={`h-12 rounded-full text-sm font-black transition ${
-                      lineLinked
-                        ? "bg-[#ff3860] text-white shadow-[0_10px_24px_rgba(255,56,96,0.22)]"
-                        : "bg-white text-slate-700 ring-1 ring-slate-200"
-                    }`}
+                    disabled={lineLinkLoading}
+                    className="h-12 rounded-full bg-white text-sm font-black text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {lineLinked ? copy.lineContinue : copy.lineSkip}
+                    {copy.lineSkip}
                   </button>
                 </div>
+
+                <p className="mt-3 text-center text-[11px] font-bold leading-5 text-slate-400">
+                  {appLocale === "ja"
+                    ? "LINEで許可すると、自動でTrendreに戻ります。"
+                    : "After allowing on LINE, you will return to Trendre automatically."}
+                </p>
               </div>
             </div>
           </section>
