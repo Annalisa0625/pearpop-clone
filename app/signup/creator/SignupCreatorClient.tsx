@@ -1608,7 +1608,11 @@ export default function SignupCreatorClient() {
     } = await supabase.auth.getSession();
 
     if (currentSession?.user && currentSession.access_token) {
-      return currentSession;
+      if (oauthSessionEmail) {
+        return currentSession;
+      }
+
+      await supabase.auth.signOut();
     }
 
     if (!email.trim()) throw new Error(copy.emailRequired);
