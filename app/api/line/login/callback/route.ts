@@ -199,8 +199,8 @@ async function saveLineLink(args: {
       line_display_name: args.profile.displayName ?? null,
       line_picture_url: args.profile.pictureUrl ?? null,
       line_status_message: args.profile.statusMessage ?? null,
-      is_enabled: args.isFriend,
-      blocked_at: args.isFriend ? null : now,
+      is_enabled: true,
+      blocked_at: null,
       linked_at: now,
       last_event_at: now,
       updated_at: now,
@@ -238,10 +238,6 @@ export async function GET(request: NextRequest) {
       typeof friendship?.friendFlag === "boolean" ? friendship.friendFlag : true;
 
     await saveLineLink({ state, profile, isFriend });
-
-    if (!isFriend) {
-      return redirectTo(request, "/creator/payouts?from=signup&line=not_friend");
-    }
 
     return redirectTo(request, state.return_to);
   } catch (error) {
