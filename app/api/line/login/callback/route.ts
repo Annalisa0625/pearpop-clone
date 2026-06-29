@@ -27,6 +27,13 @@ type LineProfileResponse = {
 };
 type LineFriendshipResponse = { friendFlag?: boolean };
 
+class LineAlreadyLinkedError extends Error {
+  constructor() {
+    super("This LINE account is already linked to another creator account.");
+    this.name = "LineAlreadyLinkedError";
+  }
+}
+
 function getLineLoginChannelId() {
   return process.env.LINE_LOGIN_CHANNEL_ID?.trim() ?? "";
 }
@@ -182,14 +189,29 @@ async function saveLineLink(args: {
   profile: LineProfileResponse;
   isFriend: boolean;
 }) {
+  if (!args.profile.userId) {
+    throw new Error("LINE userId is missing");
+  }
+
   const admin = supabaseAdmin as any;
   const now = new Date().toISOString();
 
-  await admin
+  const { data: existingLineLink, error: existingLineLinkError } = await admin
     .from("line_user_links")
-    .update({ is_enabled: false, unlinked_at: now, updated_at: now })
+    .select("id, app_user_id")
     .eq("line_user_id", args.profile.userId)
-    .neq("app_user_id", args.state.app_user_id);
+    .maybeSingle();
+
+  if (existingLineLinkError) {
+    throw existingLineLinkError;
+  }
+
+  if (
+    existingLineLink?.app_user_id &&
+    existingLineLink.app_user_id !== args.state.app_user_id
+  ) {
+    throw new LineAlreadyLinkedError();
+  }
 
   const { error } = await admin.from("line_user_links").upsert(
     {
@@ -241,6 +263,10 @@ export async function GET(request: NextRequest) {
 
     return redirectTo(request, state.return_to);
   } catch (error) {
+    if (error instanceof LineAlreadyLinkedError) {
+      return redirectTo(request, "/creator/payouts?from=signup&line=already_linked");
+    }
+
     console.error("LINE Login callback error:", error);
     return redirectTo(request, "/creator/payouts?from=signup&line=error");
   }
