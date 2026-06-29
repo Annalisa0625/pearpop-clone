@@ -1964,39 +1964,41 @@ export default function SignupCreatorClient() {
 
 
   const renderLineSetup = () => {
-    const benefits = [
+    const tips = [
       {
         title:
           appLocale === "ja"
-            ? "新規案件をすぐ通知"
-            : "Instant new order alerts",
+            ? "注文通知をすぐ受け取る"
+            : "Receive order alerts immediately",
         body:
           appLocale === "ja"
-            ? "企業から依頼が入ったタイミングでLINEに届きます。"
-            : "Get a LINE alert when a brand sends a new order.",
+            ? "企業から注文や依頼が届いたときにLINEで確認できます。"
+            : "Get notified on LINE when a brand sends an order or request.",
       },
       {
         title:
           appLocale === "ja"
-            ? "チャット・修正依頼も見逃さない"
-            : "Never miss chats or revisions",
+            ? "チャットを見逃さない"
+            : "Do not miss chats",
         body:
           appLocale === "ja"
-            ? "やり取りや修正依頼を見落としにくくなります。"
-            : "Stay on top of chats and revision requests.",
+            ? "案件中の確認や修正依頼にも気づきやすくなります。"
+            : "Stay on top of confirmations and revision requests during jobs.",
       },
       {
         title:
-          appLocale === "ja" ? "あとから解除できます" : "You can turn it off later",
+          appLocale === "ja"
+            ? "プロフィールは後から編集できます"
+            : "You can edit your profile later",
         body:
           appLocale === "ja"
-            ? "プロフィール画面から通知設定を確認できます。"
-            : "You can manage notification settings from your profile.",
+            ? "メニュー数を増やすと、企業に選ばれる機会も増えます。"
+            : "Adding more menus can increase your chances of receiving orders.",
       },
     ];
 
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7f8_0,#f6f8fb_34%,#f6f8fb_100%)] text-slate-950">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7f8_0,#f6f8fb_36%,#f6f8fb_100%)] text-slate-950">
         <header className="mx-auto flex w-full max-w-[920px] items-center justify-between px-4 py-3">
           <Link href="/for-creators" className="inline-flex items-center">
             <img
@@ -2015,125 +2017,130 @@ export default function SignupCreatorClient() {
           </button>
         </header>
 
-        <div className="mx-auto grid w-full max-w-[920px] gap-4 px-3 pb-24 pt-2 md:grid-cols-[minmax(0,1fr)_340px] md:items-center">
+        <div className="mx-auto w-full max-w-[920px] px-3 pb-24 pt-2">
           <section className="overflow-hidden rounded-[32px] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
-            <div className="relative overflow-hidden px-5 pb-6 pt-7 sm:px-7 sm:pb-7 sm:pt-8">
-              <div className="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-[#06c755]/10 blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-[#ff3860]/10 blur-3xl" />
+            <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="relative overflow-hidden px-5 pb-6 pt-7 sm:px-8 sm:py-9">
+                <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#ff3860]/10 blur-3xl" />
+                <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-[#06c755]/10 blur-3xl" />
 
-              <div className="relative">
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">
-                    ✓
-                  </span>
-                  {appLocale === "ja"
-                    ? "プロフィール作成が完了しました"
-                    : "Your profile has been created"}
+                <div className="relative">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">
+                      ✓
+                    </span>
+                    {appLocale === "ja"
+                      ? "登録内容を保存しました"
+                      : "Your registration has been saved"}
+                  </div>
+
+                  <h1 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950 sm:text-[38px]">
+                    {appLocale === "ja"
+                      ? "あと一歩で、注文を受け取れる状態になります"
+                      : "One more step to start receiving orders"}
+                  </h1>
+
+                  <p className="mt-3 max-w-[620px] text-sm font-bold leading-7 text-slate-500">
+                    {appLocale === "ja"
+                      ? "注文を受けるには、LINEで通知を受け取る設定が必要です。新規注文、チャット、修正依頼、納品承認などの大切な連絡を見逃さないように、先にLINE連携を完了してください。"
+                      : "To receive orders, you need to enable LINE notifications. Connect LINE now so you do not miss new orders, chats, revision requests, or approvals."}
+                  </p>
+
+                  <div className="mt-5 grid gap-2 sm:max-w-[420px]">
+                    <button
+                      type="button"
+                      onClick={() => void startLineLogin()}
+                      disabled={lineLinkLoading || lineLinked}
+                      className="h-13 min-h-13 rounded-full bg-[#06c755] px-5 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(6,199,85,0.28)] transition hover:bg-[#05bd51] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {lineLinked
+                        ? copy.lineLinkedTitle
+                        : lineLinkLoading
+                          ? appLocale === "ja"
+                            ? "LINEを開いています..."
+                            : "Opening LINE..."
+                          : copy.lineOpenButton}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={finishSignupAfterLine}
+                      disabled={lineLinkLoading}
+                      className="h-12 rounded-full bg-white text-sm font-black text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {lineLinked
+                        ? copy.lineContinue
+                        : appLocale === "ja"
+                          ? "あとで設定する"
+                          : "Set up later"}
+                    </button>
+                  </div>
+
+                  <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400 sm:max-w-[420px]">
+                    {appLocale === "ja"
+                      ? "LINEの友だちや企業に、通知設定が見えることはありません。"
+                      : "Your LINE notification setting is not visible to your friends or brands."}
+                  </p>
+
+                  {lineLinked ? (
+                    <div className="mt-4 max-w-[420px] rounded-[18px] bg-emerald-50 px-3 py-3 text-xs font-black leading-5 text-emerald-700 ring-1 ring-emerald-100">
+                      {copy.lineLinkedTitle}
+                      {lineDisplayName ? `：${lineDisplayName}` : ""}
+                    </div>
+                  ) : null}
+
+                  {lineLinkMessage ? (
+                    <div className="mt-4 max-w-[420px] rounded-[18px] bg-rose-50 px-3 py-3 text-xs font-black leading-5 text-rose-700 ring-1 ring-rose-100">
+                      {lineLinkMessage}
+                    </div>
+                  ) : null}
                 </div>
-
-                <h1 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950 sm:text-[38px]">
-                  {appLocale === "ja"
-                    ? "LINE通知をオンにして、案件を逃さない"
-                    : "Turn on LINE alerts and never miss an order"}
-                </h1>
-
-                <p className="mt-3 max-w-[620px] text-sm font-bold leading-7 text-slate-500">
-                  {appLocale === "ja"
-                    ? "新規依頼、チャット、修正依頼、納品承認などの大事な連絡をLINEで受け取れます。登録後すぐに案件対応できるよう、ここで設定しておくのがおすすめです。"
-                    : "Receive important updates such as new orders, chats, revision requests, and approvals on LINE. We recommend setting this up now."}
-                </p>
               </div>
-            </div>
 
-            <div className="grid gap-3 border-t border-slate-100 bg-slate-50/70 p-4 sm:p-5">
-              {benefits.map((item, index) => (
-                <div
-                  key={item.title}
-                  className="flex gap-3 rounded-[22px] bg-white p-3.5 shadow-sm ring-1 ring-slate-100"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xs font-black text-white">
-                    {index + 1}
+              <aside className="border-t border-slate-100 bg-slate-50/70 p-4 md:border-l md:border-t-0 sm:p-5">
+                <div className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#06c755] text-sm font-black text-white shadow-[0_12px_26px_rgba(6,199,85,0.24)]">
+                      LINE
+                    </div>
+                    <div>
+                      <p className="text-base font-black tracking-[-0.04em] text-slate-950">
+                        {appLocale === "ja"
+                          ? "通知設定を完了しましょう"
+                          : "Complete notification setup"}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-bold leading-5 text-slate-500">
+                        {appLocale === "ja"
+                          ? "案件対応に必要な連絡を受け取れます"
+                          : "Receive the updates needed for orders"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-black tracking-[-0.03em] text-slate-950">
-                      {item.title}
-                    </p>
-                    <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
-                      {item.body}
-                    </p>
+
+                  <div className="mt-4 grid gap-3">
+                    {tips.map((item, index) => (
+                      <div
+                        key={item.title}
+                        className="flex gap-3 rounded-[20px] bg-slate-50 p-3 ring-1 ring-slate-100"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-white text-xs font-black text-[#ff3860] shadow-sm ring-1 ring-slate-100">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black leading-5 text-slate-950">
+                            {item.title}
+                          </p>
+                          <p className="mt-0.5 text-[11px] font-bold leading-5 text-slate-500">
+                            {item.body}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              </aside>
             </div>
           </section>
-
-          <aside className="rounded-[32px] bg-white p-4 shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
-            <div className="rounded-[26px] bg-slate-950 p-3 text-white shadow-[0_18px_50px_rgba(15,23,42,0.24)]">
-              <div className="rounded-[22px] bg-white p-3 text-slate-950">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#06c755] text-sm font-black text-white shadow-[0_12px_26px_rgba(6,199,85,0.24)]">
-                    LINE
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="text-base font-black tracking-[-0.04em] text-slate-950">
-                      {copy.lineSetupTitle}
-                    </p>
-                    <p className="mt-0.5 text-[11px] font-bold leading-5 text-slate-500">
-                      {appLocale === "ja"
-                        ? "ボタンを押すだけで連携できます"
-                        : "Connect with one tap"}
-                    </p>
-                  </div>
-                </div>
-
-                {lineLinked ? (
-                  <div className="mt-4 rounded-[18px] bg-emerald-50 px-3 py-3 text-xs font-black leading-5 text-emerald-700 ring-1 ring-emerald-100">
-                    {copy.lineLinkedTitle}
-                    {lineDisplayName ? `：${lineDisplayName}` : ""}
-                  </div>
-                ) : null}
-
-                {lineLinkMessage ? (
-                  <div className="mt-4 rounded-[18px] bg-rose-50 px-3 py-3 text-xs font-black leading-5 text-rose-700 ring-1 ring-rose-100">
-                    {lineLinkMessage}
-                  </div>
-                ) : null}
-
-                <div className="mt-5 grid gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void startLineLogin()}
-                    disabled={lineLinkLoading || lineLinked}
-                    className="h-12 rounded-full bg-[#06c755] text-sm font-black text-white shadow-[0_14px_30px_rgba(6,199,85,0.26)] transition hover:bg-[#05bd51] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {lineLinked
-                      ? copy.lineLinkedTitle
-                      : lineLinkLoading
-                        ? appLocale === "ja"
-                          ? "LINEへ移動中..."
-                          : "Opening LINE..."
-                        : copy.lineOpenButton}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={finishSignupAfterLine}
-                    disabled={lineLinkLoading}
-                    className="h-12 rounded-full bg-white text-sm font-black text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {lineLinked ? copy.lineContinue : copy.lineSkip}
-                  </button>
-                </div>
-
-                <p className="mt-3 text-center text-[11px] font-bold leading-5 text-slate-400">
-                  {appLocale === "ja"
-                    ? "LINEの友だちや企業に通知設定が見えることはありません。"
-                    : "Your LINE settings are not visible to your friends or brands."}
-                </p>
-              </div>
-            </div>
-          </aside>
         </div>
       </main>
     );
@@ -2702,38 +2709,32 @@ export default function SignupCreatorClient() {
     <main className="min-h-screen bg-[#f6f8fb] text-slate-950">
       {loading && step === TOTAL_STEPS - 1 ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[360px] rounded-[28px] bg-white p-5 text-center shadow-[0_24px_80px_rgba(15,23,42,0.22)] ring-1 ring-slate-100">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 ring-1 ring-rose-100">
+          <div className="w-full max-w-[380px] rounded-[30px] bg-white p-5 text-center shadow-[0_24px_80px_rgba(15,23,42,0.22)] ring-1 ring-slate-100">
+            <img
+              src="/brand/trendre-logo-full.png"
+              alt="Trendre"
+              className="mx-auto h-8 w-auto object-contain"
+            />
+
+            <div className="mx-auto mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 ring-1 ring-rose-100">
               <div className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#ff3860] border-t-transparent" />
             </div>
+
             <p className="mt-4 text-lg font-black tracking-[-0.04em] text-slate-950">
               {appLocale === "ja"
-                ? "プロフィールを作成しています"
-                : "Creating your profile"}
+                ? "プロフィールを準備しています"
+                : "Preparing your profile"}
             </p>
+
             <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
               {appLocale === "ja"
-                ? "画像アップロードとアカウント設定を保存しています。完了するとLINE通知の案内に進みます。"
-                : "Uploading images and saving your account settings. LINE setup will appear next."}
+                ? "もう少しで完了です。入力内容は後から変更できます。メニュー数を増やすと、企業に選ばれる機会も広がります。"
+                : "Almost done. You can edit your details later. Adding more menus can increase your chances of receiving orders."}
             </p>
-            <div className="mt-4 grid gap-2 text-left">
-              {[
-                appLocale === "ja" ? "アカウント情報を保存中" : "Saving account details",
-                appLocale === "ja" ? "画像をアップロード中" : "Uploading images",
-                appLocale === "ja" ? "LINE連携の準備中" : "Preparing LINE setup",
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-500 ring-1 ring-slate-100"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#ff3860]" />
-                  {item}
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       ) : null}
+
       <header className="mx-auto flex w-full max-w-[760px] items-center justify-between px-4 py-3">
         <Link href="/for-creators" className="inline-flex items-center">
           <img
@@ -2840,8 +2841,8 @@ export default function SignupCreatorClient() {
                 >
                   {loading
                     ? appLocale === "ja"
-                      ? "プロフィール作成中..."
-                      : "Creating profile..."
+                      ? "準備しています..."
+                      : "Preparing..."
                     : copy.finish}
                 </button>
               )}
