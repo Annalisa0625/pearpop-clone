@@ -66,6 +66,11 @@ function redirectTo(request: NextRequest, path: string) {
   return NextResponse.redirect(new URL(path, getAppBaseUrl(request)));
 }
 
+function appendLineResult(path: string, result: string) {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}line=${encodeURIComponent(result)}`;
+}
+
 function base64UrlEncode(value: string | Buffer) {
   return Buffer.from(value)
     .toString("base64")
@@ -244,7 +249,13 @@ export async function GET(request: NextRequest) {
       error: providerError,
       description: url.searchParams.get("error_description"),
     });
-    return redirectTo(request, "/creator/payouts?from=signup&line=cancelled");
+    const errorState = verifyState(stateValue);
+    return redirectTo(
+      request,
+      errorState
+        ? appendLineResult(errorState.return_to, "cancelled")
+        : "/creator/payouts?from=signup&line=cancelled"
+    );
   }
 
   const state = verifyState(stateValue);
@@ -264,10 +275,10 @@ export async function GET(request: NextRequest) {
     return redirectTo(request, state.return_to);
   } catch (error) {
     if (error instanceof LineAlreadyLinkedError) {
-      return redirectTo(request, "/creator/payouts?from=signup&line=already_linked");
+      return redirectTo(request, appendLineResult(state.return_to, "already_linked"));
     }
 
     console.error("LINE Login callback error:", error);
-    return redirectTo(request, "/creator/payouts?from=signup&line=error");
+    return redirectTo(request, appendLineResult(state.return_to, "error"));
   }
 }

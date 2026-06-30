@@ -159,8 +159,19 @@ function isMaterialOnlyMenu(menuValue: string) {
   );
 }
 
+function parseYenInput(value: string) {
+  const digits = value.replace(/[^0-9]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function formatYenInput(value: string) {
+  const digits = value.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("ja-JP");
+}
+
 function formatPrice(value: string, locale: Locale) {
-  const amount = Number(value);
+  const amount = parseYenInput(value);
 
   if (!Number.isFinite(amount) || amount <= 0) {
     return locale === "ja" ? "未設定" : "Not set";
@@ -510,19 +521,19 @@ export default function NewMenuPage() {
             loginRequired: "ログインしてください",
             creatorNotFound: "クリエイター情報が見つかりません",
             saveFailed: "メニューの保存に失敗しました",
-            menu: "メニュー内容",
-            menuHelp: "提供できる内容を1つ選択します。",
+            menu: "SNS種別",
+            menuHelp: "販売するSNS種別・納品内容を1つ選択します。",
             price: "価格",
             priceHelp: "企業が注文する際の基本価格です。",
             yenOnly: "JPY / 日本円",
-            pricePlaceholder: "例：30000",
+            pricePlaceholder: "例）11,000",
             secondaryUseTitle: "二次利用",
             secondaryUseBody:
               "納品物は広告ブランドのSNSによって二次利用・引用されることがあります。",
             materialUseNote:
               "素材はブランドのSNSやHPにて使用されることがあります。",
             denySecondaryUse: "二次利用を認めない",
-            menuRequired: "メニュー内容を選択してください",
+            menuRequired: "SNS種別を選択してください",
             priceRequired: "価格を入力してください",
             priceInvalid: "価格は1以上の数字で入力してください",
             previewBody: "メニューを選択してください",
@@ -537,12 +548,12 @@ export default function NewMenuPage() {
             loginRequired: "Please log in",
             creatorNotFound: "Creator information was not found",
             saveFailed: "Failed to save the menu",
-            menu: "Menu",
-            menuHelp: "Choose one service you can offer.",
+            menu: "SNS type",
+            menuHelp: "Choose one SNS type or deliverable you can offer.",
             price: "Price",
             priceHelp: "Base price brands will pay when ordering.",
             yenOnly: "JPY / Japanese yen",
-            pricePlaceholder: "Example: 30000",
+            pricePlaceholder: "Example: 11,000",
             secondaryUseTitle: "Secondary use",
             secondaryUseBody:
               "Deliverables may be reused or quoted by the brand on its social accounts.",
@@ -570,9 +581,9 @@ export default function NewMenuPage() {
     if (!selectedMenu) return copy.menuRequired;
     if (!price.trim()) return copy.priceRequired;
 
-    const priceNumber = Number(price);
+    const priceNumber = parseYenInput(price);
 
-    if (!Number.isFinite(priceNumber) || priceNumber <= 0) {
+    if (priceNumber <= 0) {
       return copy.priceInvalid;
     }
 
@@ -618,7 +629,7 @@ export default function NewMenuPage() {
       return;
     }
 
-    const priceNumber = Number(price);
+    const priceNumber = parseYenInput(price);
     const now = new Date().toISOString();
     const platform = derivePlatform(selectedMenu.value);
     const menuType = deriveMenuType(selectedMenu.value);
@@ -690,12 +701,10 @@ export default function NewMenuPage() {
         <SectionCard step="2" title={copy.price} description={copy.priceHelp}>
           <CreatorField label={copy.price} help={copy.yenOnly}>
             <CreatorInput
-              type="number"
-              min={1}
-              step={1}
+              type="text"
               inputMode="numeric"
               value={price}
-              onChange={(event) => setPrice(event.target.value)}
+              onChange={(event) => setPrice(formatYenInput(event.target.value))}
               placeholder={copy.pricePlaceholder}
             />
           </CreatorField>

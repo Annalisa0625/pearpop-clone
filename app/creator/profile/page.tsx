@@ -376,6 +376,19 @@ function normalizeHandle(input: string) {
   return input.trim().replace(/^@/, "");
 }
 
+function splitPrefectures(value: string | null | undefined) {
+  return (value ?? "")
+    .split(/[、,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toggleString(list: string[], value: string) {
+  return list.includes(value)
+    ? list.filter((item) => item !== value)
+    : [...list, value];
+}
+
 function getSocialConfig(platform: string, locale: Locale) {
   if (platform === "Instagram") {
     return {
@@ -420,7 +433,7 @@ function getSocialConfig(platform: string, locale: Locale) {
   return {
     prefix: "",
     placeholder: locale === "ja" ? "ユーザー名" : "Username",
-    guide: locale === "ja" ? "媒体を選択してください" : "Select platform.",
+    guide: locale === "ja" ? "SNS種別を選択してください" : "Select SNS type.",
   };
 }
 
@@ -946,7 +959,7 @@ function LineConnectionCard({
                 </p>
               ) : null}
             </div>
-          ) : code ? (
+          ) : false && code ? (
             <div className="mt-4 rounded-[22px] bg-slate-950 px-4 py-4 text-white">
               <p className="text-[11px] font-medium text-white/60">
                 {copy.lineCodeLabel}
@@ -958,7 +971,7 @@ function LineConnectionCard({
                 </p>
                 <button
                   type="button"
-                  onClick={() => void navigator.clipboard?.writeText(code)}
+                  onClick={() => void navigator.clipboard?.writeText(code ?? "")}
                   className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white ring-1 ring-white/10 transition active:scale-[0.98]"
                 >
                   COPY
@@ -1009,20 +1022,7 @@ function LineConnectionCard({
               </button>
             )}
 
-            {LINE_OFFICIAL_URL ? (
-              <a
-                href={LINE_OFFICIAL_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full bg-emerald-50 px-4 py-2 text-[12px] font-semibold text-emerald-700 ring-1 ring-emerald-100 transition active:scale-[0.98]"
-              >
-                {copy.lineOpenLine}
-              </a>
-            ) : (
-              <span className="rounded-full bg-slate-50 px-4 py-2 text-[11px] font-medium text-slate-400 ring-1 ring-slate-100">
-                {copy.lineOfficialMissing}
-              </span>
-            )}
+
           </div>
         </div>
       </div>
@@ -1101,9 +1101,9 @@ export default function CreatorProfilePage() {
             categoryBody: "得意なジャンルを5つまで選んでください。",
             categoryCount: "選択中",
             areaTitle: "対応エリア",
-            areaBody: "体験対応エリアと商品配送PRの可否を設定します。",
-            prefecture: "体験対応エリア",
-            selectPrefecture: "都道府県を選択",
+            areaBody: "対応できるエリアをすべて選び、商品配送PRの可否を設定します。",
+            prefecture: "対応可能エリア",
+            selectPrefecture: "対応できる都道府県を選択",
             productPr: "商品配送PR",
             productPrYes: "商品を受け取ってPRできる",
             productPrNo: "商品配送PRは受け付けない",
@@ -1139,7 +1139,7 @@ export default function CreatorProfilePage() {
             usernameDuplicate: "このユーザーネームは既に使われています",
             categoryRequired: "ジャンルを1つ以上選択してください",
             categoryLimit: "ジャンルは5つまで選択できます",
-            areaRequired: "体験対応できるエリアを選択してください",
+            areaRequired: "対応可能エリアを1つ以上選択してください",
             productPrRequired: "商品配送PRの可否を選択してください",
             languageRequired: "発信言語と対応言語を選択してください",
             socialRequired: "SNSを少なくとも1件、正しく入力してください",
@@ -1156,32 +1156,32 @@ export default function CreatorProfilePage() {
             payoutsBody: "受取設定と報酬履歴を確認",
             statusPrefix: "表示状態",
             japanesePrefectureOnly: "日本以外の場合は地域名を入力できます。",
-            snsGuide: "媒体を選ぶと入力形式が変わります。",
+            snsGuide: "SNS種別を選ぶと入力形式が変わります。",
             portfolioRecommended: "3枚以上がおすすめ",
             lineTitle: "LINE通知",
             lineBody:
-              "新しい注文・メッセージ・修正依頼・完了通知をLINEで受け取れます。",
+              "注文を受けるには、LINEで通知を受け取る設定が必要です。新しい注文・チャット・修正依頼を見逃さないようにできます。",
             lineLinked: "連携済み",
             lineNotLinked: "未連携",
             lineConnectedAs: "連携中",
-            lineGenerate: "連携コードを発行",
-            lineGenerating: "発行中...",
+            lineGenerate: "LINEで通知を受け取る",
+            lineGenerating: "LINEを開いています...",
             lineUnlink: "連携を解除",
             lineUnlinking: "解除中...",
             lineCodeLabel: "LINE連携コード",
             lineCodeHelp:
               "LINE公式アカウントを友だち追加し、この6桁コードをそのまま送信してください。",
             lineExpires: "有効期限",
-            lineOpenLine: "LINEを開く",
+            lineOpenLine: "LINEで通知を受け取る",
             lineOfficialMissing: "LINE公式URL未設定",
             lineLoading: "確認中",
             lineTestSend: "テスト通知を送る",
             lineTestSending: "送信中...",
-            lineCodeCreated: "LINE連携コードを発行しました。",
+            lineCodeCreated: "LINE連携を開始しました。",
             lineTestSent: "LINEにテスト通知を送信しました。",
             lineUnlinked: "LINE連携を解除しました。",
             lineLoadFailed: "LINE連携状況を取得できませんでした。",
-            lineCreateFailed: "LINE連携コードを発行できませんでした。",
+            lineCreateFailed: "LINE連携を開始できませんでした。",
             lineUnlinkFailed: "LINE連携を解除できませんでした。",
             lineTestFailed: "LINEテスト通知を送信できませんでした。",
           }
@@ -1196,9 +1196,9 @@ export default function CreatorProfilePage() {
             categoryBody: "Select up to 5 categories.",
             categoryCount: "Selected",
             areaTitle: "Area",
-            areaBody: "Set your available area and product PR setting.",
-            prefecture: "Available area",
-            selectPrefecture: "Select prefecture",
+            areaBody: "Select every area you can support and set your product PR setting.",
+            prefecture: "Available areas",
+            selectPrefecture: "Select all available areas",
             productPr: "Product shipping PR",
             productPrYes: "I can receive products",
             productPrNo: "I do not accept shipped product PR",
@@ -1234,7 +1234,7 @@ export default function CreatorProfilePage() {
             usernameDuplicate: "This username is already in use",
             categoryRequired: "Please select at least one category",
             categoryLimit: "You can select up to 5 categories",
-            areaRequired: "Please select your available area",
+            areaRequired: "Please select at least one available area",
             productPrRequired: "Please select whether you can receive products",
             languageRequired: "Please select content and response languages",
             socialRequired: "Please add at least one valid social account",
@@ -1251,7 +1251,7 @@ export default function CreatorProfilePage() {
             payoutsBody: "Check payout setup and history.",
             statusPrefix: "Status",
             japanesePrefectureOnly: "Enter the area name for countries outside Japan.",
-            snsGuide: "Input format changes by platform.",
+            snsGuide: "Input format changes by SNS type.",
             portfolioRecommended: "3+ recommended",
             lineTitle: "LINE notifications",
             lineBody:
@@ -1259,8 +1259,8 @@ export default function CreatorProfilePage() {
             lineLinked: "Linked",
             lineNotLinked: "Not linked",
             lineConnectedAs: "Connected as",
-            lineGenerate: "Generate code",
-            lineGenerating: "Generating...",
+            lineGenerate: "Receive notifications on LINE",
+            lineGenerating: "Opening LINE...",
             lineUnlink: "Unlink",
             lineUnlinking: "Unlinking...",
             lineCodeLabel: "LINE link code",
@@ -1272,11 +1272,11 @@ export default function CreatorProfilePage() {
             lineLoading: "Checking",
             lineTestSend: "Send test",
             lineTestSending: "Sending...",
-            lineCodeCreated: "LINE link code generated.",
+            lineCodeCreated: "LINE linking started.",
             lineTestSent: "Test notification sent to LINE.",
             lineUnlinked: "LINE connection removed.",
             lineLoadFailed: "Failed to load LINE connection status.",
-            lineCreateFailed: "Failed to generate LINE link code.",
+            lineCreateFailed: "Failed to start LINE linking.",
             lineUnlinkFailed: "Failed to unlink LINE.",
             lineTestFailed: "Failed to send LINE test notification.",
           },
@@ -1289,7 +1289,7 @@ export default function CreatorProfilePage() {
 
   const [displayName, setDisplayName] = useState("");
   const [country] = useState(COUNTRY_DEFAULT);
-  const [prefecture, setPrefecture] = useState("");
+  const [prefectures, setPrefectures] = useState<string[]>([]);
   const [canReceiveProductsChoice, setCanReceiveProductsChoice] = useState("");
   const [contentLanguage, setContentLanguage] = useState("日本語");
   const [responseLanguage, setResponseLanguage] = useState("日本語");
@@ -1395,32 +1395,30 @@ export default function CreatorProfilePage() {
     setSuccess(null);
 
     try {
-      const res = await fetch("/api/line/link-code", {
+      const res = await fetch("/api/line/login/start", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          return_to: "/creator/profile?line=linked",
+        }),
       });
 
-      const json = (await res.json()) as {
-        ok?: boolean;
-        code?: string;
-        expires_at?: string;
+      const json = (await res.json().catch(() => ({}))) as {
+        url?: string;
         error?: string;
       };
 
-      if (!res.ok || !json.code) {
+      if (!res.ok || typeof json.url !== "string") {
         throw new Error(json.error || copy.lineCreateFailed);
       }
 
-      setLineCode(json.code);
-      setLineCodeExpiresAt(json.expires_at ?? null);
-      setLineLinked(false);
-      setSuccess(copy.lineCodeCreated);
-    } catch (lineCodeError) {
-      console.error("line code create error:", lineCodeError);
+      window.location.href = json.url;
+    } catch (lineLoginError) {
+      console.error("line login start error:", lineLoginError);
       setError(copy.lineCreateFailed);
-    } finally {
       setLineGenerating(false);
     }
   };
@@ -1575,7 +1573,7 @@ export default function CreatorProfilePage() {
       setCreatorUserId(creatorRow.user_id);
       setApprovalStatus(creatorRow.approval_status ?? null);
       setDisplayName(creatorRow.display_name ?? "");
-      setPrefecture(creatorRow.prefecture ?? "");
+      setPrefectures(splitPrefectures(creatorRow.prefecture));
       setCanReceiveProductsChoice(
         creatorRow.can_receive_products === true
           ? "yes"
@@ -1671,7 +1669,7 @@ export default function CreatorProfilePage() {
     if (selectedCategories.length === 0) return copy.categoryRequired;
     if (selectedCategories.length > 5) return copy.categoryLimit;
 
-    if (!prefecture.trim()) return copy.areaRequired;
+    if (prefectures.length === 0) return copy.areaRequired;
     if (!canReceiveProductsChoice) return copy.productPrRequired;
 
     if (!contentLanguage.trim() || !responseLanguage.trim()) {
@@ -1782,7 +1780,7 @@ export default function CreatorProfilePage() {
 
     try {
       const normalizedDisplayName = displayName.trim().toLowerCase();
-      const normalizedPrefecture = prefecture.trim();
+      const normalizedPrefecture = prefectures.join("、");
       const normalizedContentLanguage = contentLanguage.trim();
       const normalizedResponseLanguage = responseLanguage.trim();
       const normalizedCanReceiveProducts = canReceiveProductsChoice === "yes";
@@ -1974,7 +1972,7 @@ export default function CreatorProfilePage() {
       });
 
       setDisplayName(normalizedDisplayName);
-      setPrefecture(normalizedPrefecture);
+      setPrefectures(splitPrefectures(normalizedPrefecture));
       setCanReceiveProductsChoice(normalizedCanReceiveProducts ? "yes" : "no");
       setContentLanguage(normalizedContentLanguage);
       setResponseLanguage(normalizedResponseLanguage);
@@ -2177,18 +2175,50 @@ export default function CreatorProfilePage() {
             />
           </CreatorField>
 
-          <CreatorField label={copy.prefecture}>
-            <CreatorSelect
-              value={prefecture}
-              onChange={(e) => setPrefecture(e.target.value)}
-            >
-              <option value="">{copy.selectPrefecture}</option>
-              {PREFECTURE_OPTIONS.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </CreatorSelect>
+          <CreatorField
+            label={`${copy.prefecture}（${prefectures.length}）`}
+            help={copy.selectPrefecture}
+          >
+            <div className="grid max-h-[260px] grid-cols-2 gap-2 overflow-y-auto rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100 sm:grid-cols-3">
+              {PREFECTURE_OPTIONS.map((item) => {
+                const selected = prefectures.includes(item);
+
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() =>
+                      setPrefectures((prev) => toggleString(prev, item))
+                    }
+                    className={`min-h-[40px] rounded-xl px-3 py-2 text-left text-xs font-semibold transition ${
+                      selected
+                        ? "bg-[#ff3860] text-white shadow-[0_10px_24px_rgba(255,56,96,0.18)]"
+                        : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {selected ? "✓ " : ""}
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+
+            {prefectures.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {prefectures.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() =>
+                      setPrefectures((prev) => toggleString(prev, item))
+                    }
+                    className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-[#ff3860] ring-1 ring-rose-100"
+                  >
+                    {item} ×
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </CreatorField>
 
           <CreatorField label={copy.productPr}>
