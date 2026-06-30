@@ -567,7 +567,7 @@ function getSocialConfig(platform: string, locale: Locale) {
   return {
     prefix: "",
     placeholder: locale === "ja" ? "ユーザー名" : "Username",
-    guide: locale === "ja" ? "媒体を選択してください" : "Select platform.",
+    guide: locale === "ja" ? "SNS種別を選択してください" : "Select SNS type.",
   };
 }
 
@@ -804,7 +804,7 @@ export default function SignupCreatorClient() {
 
             socialTitle: "SNS",
             socialBody: "企業が確認するSNSを1つ以上登録してください。",
-            platform: "媒体",
+            platform: "SNS種別",
             socialHandle: "ユーザーネーム",
             followerRange: "フォロワー数",
             audienceCountry: "主なフォロワー層",
@@ -931,7 +931,7 @@ export default function SignupCreatorClient() {
 
             socialTitle: "Socials",
             socialBody: "Add at least one social account.",
-            platform: "Platform",
+            platform: "SNS type",
             socialHandle: "Username",
             followerRange: "Follower range",
             audienceCountry: "Main audience country",
@@ -1060,6 +1060,18 @@ export default function SignupCreatorClient() {
       GENRE_GROUPS[0],
     [activeGenreGroup]
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [step, lineSetupVisible]);
 
   const goToStep = (nextStep: number, pushHistory = true) => {
     const safeStep = Math.max(0, Math.min(nextStep, TOTAL_STEPS - 1));
