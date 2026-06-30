@@ -112,6 +112,32 @@ const PREFECTURE_OPTIONS = [
   "沖縄県",
 ];
 
+const PREFECTURE_DELIMITER = "、";
+
+function parseSelectedPrefectures(value: string) {
+  return value
+    .split(PREFECTURE_DELIMITER)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinSelectedPrefectures(items: string[]) {
+  return Array.from(new Set(items))
+    .filter((item) => PREFECTURE_OPTIONS.includes(item))
+    .join(PREFECTURE_DELIMITER);
+}
+
+function formatPriceInput(value: string) {
+  const digits = value.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function parsePriceNumber(value: string) {
+  return Number(value.replace(/,/g, ""));
+}
+
+
 const GENRE_GROUPS = [
   {
     key: "beauty",
@@ -769,9 +795,9 @@ export default function SignupCreatorClient() {
             categoryCount: "選択中",
 
             areaTitle: "対応エリア",
-            areaBody: "体験対応エリアと商品配送PRの可否を選んでください。",
-            prefecture: "体験対応エリア",
-            selectPrefecture: "都道府県を選択",
+            areaBody: "訪問・体験案件で対応できるエリアをすべて選んでください。",
+            prefecture: "対応可能エリア",
+            selectPrefecture: "複数選択できます",
             productPr: "商品配送PR",
             productPrYes: "商品を受け取ってPRできる",
             productPrNo: "商品配送PRは受け付けない",
@@ -797,8 +823,8 @@ export default function SignupCreatorClient() {
 
             menuTitle: "メニュー",
             menuBody: "企業が購入できるメニューを1つ以上作成してください。",
-            menuType: "メニュー内容",
-            price: "金額（円）",
+            menuType: "SNS種別",
+            price: "例）11,000",
             addMenu: "メニューを追加",
 
             termsTitle: "確認",
@@ -896,9 +922,9 @@ export default function SignupCreatorClient() {
             categoryCount: "Selected",
 
             areaTitle: "Area",
-            areaBody: "Select your available area and product PR setting.",
-            prefecture: "Available area",
-            selectPrefecture: "Select prefecture",
+            areaBody: "Select all areas where you can accept visit or experience jobs.",
+            prefecture: "Available areas",
+            selectPrefecture: "Multiple selections allowed",
             productPr: "Product shipping PR",
             productPrYes: "I can receive products",
             productPrNo: "I do not accept shipped product PR",
@@ -924,8 +950,8 @@ export default function SignupCreatorClient() {
 
             menuTitle: "Menus",
             menuBody: "Create at least one menu brands can order.",
-            menuType: "Menu content",
-            price: "Price (JPY)",
+            menuType: "SNS type",
+            price: "Example: 11,000",
             addMenu: "Add menu",
 
             termsTitle: "Confirm",
@@ -1317,6 +1343,17 @@ export default function SignupCreatorClient() {
     });
   };
 
+  const togglePrefecture = (item: string) => {
+    setPrefecture((prev) => {
+      const current = parseSelectedPrefectures(prev);
+      const next = current.includes(item)
+        ? current.filter((value) => value !== item)
+        : [...current, item];
+
+      return joinSelectedPrefectures(next);
+    });
+  };
+
   const updateSocial = (
     index: number,
     key: keyof SocialAccountForm,
@@ -1339,8 +1376,10 @@ export default function SignupCreatorClient() {
   };
 
   const updateMenu = (index: number, key: keyof MenuForm, value: string) => {
+    const nextValue = key === "price" ? formatPriceInput(value) : value;
+
     setMenus((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [key]: value } : item))
+      prev.map((item, i) => (i === index ? { ...item, [key]: nextValue } : item))
     );
   };
 
@@ -1512,7 +1551,7 @@ export default function SignupCreatorClient() {
       }
 
       const hasInvalidMenu = filledMenus.some((menu) => {
-        const priceNumber = Number(menu.price);
+        const priceNumber = parsePriceNumber(menu.price);
         return (
           !menu.menu_type.trim() ||
           !menu.price.trim() ||
@@ -1850,7 +1889,7 @@ export default function SignupCreatorClient() {
       const validMenus = menus
         .map((menu) => ({
           menu_type: menu.menu_type.trim(),
-          price: Number(menu.price),
+          price: parsePriceNumber(menu.price),
           description: null,
         }))
         .filter((menu) => menu.menu_type && menu.price > 0);
@@ -2313,21 +2352,48 @@ export default function SignupCreatorClient() {
     }
 
     if (step === 3) {
+      const selectedPrefectures = parseSelectedPrefectures(prefecture);
+
       return (
         <StepShell title={copy.areaTitle} body={copy.areaBody}>
           <div className="grid gap-3">
-            <Field label={copy.prefecture}>
-              <SelectInput
-                value={prefecture}
-                onChange={(e) => setPrefecture(e.target.value)}
-              >
-                <option value="">{copy.selectPrefecture}</option>
-                {PREFECTURE_OPTIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </SelectInput>
+            <Field label={copy.prefecture} help={copy.selectPrefecture}>
+              <div className="grid max-h-[280px] grid-cols-2 gap-1.5 overflow-y-auto rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100 sm:grid-cols-3">
+                {PREFECTURE_OPTIONS.map((item) => {
+                  const selected = selectedPrefectures.includes(item);
+
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => togglePrefecture(item)}
+                      className={`min-h-[38px] rounded-xl px-2.5 py-2 text-left text-xs font-black transition ${
+                        selected
+                          ? "bg-[#ff3860] text-white shadow-[0_8px_18px_rgba(255,56,96,0.18)]"
+                          : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {selected ? "✓ " : ""}
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedPrefectures.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {selectedPrefectures.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => togglePrefecture(item)}
+                      className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-[#ff3860] ring-1 ring-rose-100"
+                    >
+                      {item} ×
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </Field>
 
             <Field label={copy.productPr}>
@@ -2616,19 +2682,21 @@ export default function SignupCreatorClient() {
               </div>
 
               <div className="grid gap-2.5">
-                <SelectInput
-                  value={menu.menu_type}
-                  onChange={(e) =>
-                    updateMenu(index, "menu_type", e.target.value)
-                  }
-                >
-                  <option value="">{copy.selectPlease}</option>
-                  {MENU_OPTIONS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {appLocale === "ja" ? item.labelJa : item.labelEn}
-                    </option>
-                  ))}
-                </SelectInput>
+                <Field label={copy.menuType}>
+                  <SelectInput
+                    value={menu.menu_type}
+                    onChange={(e) =>
+                      updateMenu(index, "menu_type", e.target.value)
+                    }
+                  >
+                    <option value="">{copy.selectPlease}</option>
+                    {MENU_OPTIONS.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {appLocale === "ja" ? item.labelJa : item.labelEn}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </Field>
 
                 {menu.menu_type ? (
                   <p className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold leading-5 text-slate-500 ring-1 ring-slate-100">
@@ -2636,13 +2704,15 @@ export default function SignupCreatorClient() {
                   </p>
                 ) : null}
 
-                <TextInput
-                  type="number"
-                  inputMode="numeric"
-                  value={menu.price}
-                  onChange={(e) => updateMenu(index, "price", e.target.value)}
-                  placeholder={copy.price}
-                />
+                <Field label={appLocale === "ja" ? "金額（円）" : "Price (JPY)"}>
+                  <TextInput
+                    type="text"
+                    inputMode="numeric"
+                    value={menu.price}
+                    onChange={(e) => updateMenu(index, "price", e.target.value)}
+                    placeholder={copy.price}
+                  />
+                </Field>
               </div>
             </div>
           ))}
