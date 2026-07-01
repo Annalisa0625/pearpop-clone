@@ -260,119 +260,183 @@ export default function LoginClient() {
   const isSubmitting = loading || oauthLoading;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f7f9fb]">
+    <main className="relative min-h-dvh overflow-hidden bg-[#f8fafc] text-slate-950">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-rose-100/55 blur-3xl" />
-        <div className="absolute right-0 top-16 h-[620px] w-[620px] rounded-full bg-emerald-100/70 blur-3xl" />
-        <div className="absolute bottom-0 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-white blur-3xl" />
+        <div className="absolute -left-28 -top-28 h-72 w-72 rounded-full bg-rose-100/70 blur-3xl" />
+        <div className="absolute -right-28 top-8 h-80 w-80 rounded-full bg-emerald-100/70 blur-3xl" />
+        <div className="absolute bottom-[-160px] left-1/2 h-80 w-[720px] -translate-x-1/2 rounded-full bg-white blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-8">
-        <div className="flex justify-center">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-4 sm:px-6 sm:py-6">
+        <header className="flex items-center justify-between">
           <Link href="/home" className="inline-flex items-center">
             <img
               src="/brand/trendre-logo-full.png"
               alt="Trendre"
-              className="h-11 w-auto object-contain"
+              className="h-8 w-auto object-contain sm:h-9"
             />
           </Link>
-        </div>
 
-        <div className="flex flex-1 items-center justify-center py-10">
-          <section className="w-full max-w-[620px] rounded-[34px] border border-white/80 bg-white/88 p-6 shadow-[0_32px_90px_rgba(15,23,42,0.12)] backdrop-blur-xl md:p-9">
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="text-center">
-                <h1 className="text-3xl font-black tracking-[-0.04em] text-slate-950 md:text-4xl">
-                  {copy.title}
-                </h1>
+          <Link
+            href="/home"
+            className="rounded-full bg-white/80 px-3 py-2 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-slate-100 backdrop-blur transition hover:text-slate-900"
+          >
+            {safeLocale === "ja" ? "トップへ" : "Home"}
+          </Link>
+        </header>
 
-                <p className="mx-auto mt-3 max-w-md text-sm font-semibold leading-7 text-slate-500">
-                  {copy.subtitle}
-                </p>
+        <div className="grid flex-1 items-center gap-5 py-5 lg:grid-cols-[minmax(0,0.95fr)_430px] lg:gap-12 lg:py-8">
+          <section className="hidden lg:block">
+            <div className="max-w-[520px]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-black text-[#ff3860] shadow-sm ring-1 ring-rose-100 backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#ff3860]" />
+                Influencer marketing marketplace
               </div>
 
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <GoogleIcon />
-                <span>
-                  {oauthLoading ? copy.googleLoggingIn : copy.googleLogin}
-                </span>
-              </button>
+              <h1 className="mt-5 text-[46px] font-black leading-[1.02] tracking-[-0.075em] text-slate-950">
+                {safeLocale === "ja"
+                  ? "企業とクリエイターの案件管理を、ひとつの場所で。"
+                  : "Manage brand and creator collaborations in one place."}
+              </h1>
 
-              <div className="flex items-center gap-4">
-                <div className="h-px flex-1 bg-slate-200" />
-                <span className="text-xs font-black text-slate-300">
-                  {copy.orText}
-                </span>
-                <div className="h-px flex-1 bg-slate-200" />
+              <p className="mt-4 max-w-[460px] text-sm font-bold leading-7 text-slate-500">
+                {safeLocale === "ja"
+                  ? "注文、チャット、納品、承認までをTrendre上でスムーズに進められます。企業アカウント・クリエイターアカウント共通のログイン画面です。"
+                  : "Run orders, chats, delivery, and approvals smoothly on Trendre. This login page is shared by brand and creator accounts."}
+              </p>
+
+              <div className="mt-6 grid max-w-[460px] gap-3">
+                {[
+                  safeLocale === "ja" ? "注文状況を一元管理" : "Centralized order status",
+                  safeLocale === "ja" ? "チャット・通知で進行を見逃さない" : "Chats and alerts keep work moving",
+                  safeLocale === "ja" ? "納品から承認までスムーズ" : "Smooth delivery and approval flow",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-3 rounded-2xl bg-white/75 px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-white/80 backdrop-blur"
+                  >
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-50 text-[12px] text-emerald-700 ring-1 ring-emerald-100">
+                      ✓
+                    </span>
+                    {item}
+                  </div>
+                ))}
               </div>
+            </div>
+          </section>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-800">
-                    {copy.email}
-                  </label>
-                  <input
-                    type="email"
-                    placeholder={copy.emailPlaceholder}
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-[16px] font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
-                    autoComplete="email"
-                    disabled={isSubmitting}
-                  />
+          <section className="mx-auto w-full max-w-[430px]">
+            <div className="rounded-[28px] bg-white/92 p-4 shadow-[0_24px_70px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur sm:p-5">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+                    Welcome back
+                  </p>
+                  <h1 className="mt-1 text-[28px] font-black tracking-[-0.06em] text-slate-950">
+                    {copy.title}
+                  </h1>
+
+                  <p className="mt-2 text-[12px] font-bold leading-6 text-slate-500">
+                    {safeLocale === "ja"
+                      ? "企業・クリエイター共通のログインです。"
+                      : "Shared login for brands and creators."}
+                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-800">
-                    {copy.password}
-                  </label>
-                  <input
-                    type="password"
-                    placeholder={copy.passwordPlaceholder}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-[16px] font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
-                    autoComplete="current-password"
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              {error ? (
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold leading-6 text-rose-700">
-                  {error}
-                </div>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ff5f67] px-5 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span>{loading ? copy.loggingIn : copy.login}</span>
-                {!loading ? <ArrowIcon /> : null}
-              </button>
-
-              <div className="pt-1 text-center">
-                <Link
-                  href={companySignupHref}
-                  className="inline-flex text-sm font-black text-slate-700 underline-offset-4 transition hover:text-slate-950 hover:underline"
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isSubmitting}
+                  className="flex min-h-[48px] w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {copy.signup}
-                </Link>
-              </div>
-            </form>
+                  <GoogleIcon />
+                  <span>
+                    {oauthLoading ? copy.googleLoggingIn : copy.googleLogin}
+                  </span>
+                </button>
+
+                <div className="flex items-center gap-4">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-[11px] font-black uppercase text-slate-300">
+                    {copy.orText}
+                  </span>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-black text-slate-800">
+                      {copy.email}
+                    </label>
+                    <input
+                      type="email"
+                      placeholder={copy.emailPlaceholder}
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                      autoComplete="email"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-black text-slate-800">
+                      {copy.password}
+                    </label>
+                    <input
+                      type="password"
+                      placeholder={copy.passwordPlaceholder}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[16px] font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+                      autoComplete="current-password"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                {error ? (
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-[12px] font-bold leading-6 text-rose-700">
+                    {error}
+                  </div>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-[#ff3860] px-5 text-sm font-black text-white shadow-[0_16px_34px_rgba(255,56,96,0.24)] transition hover:bg-[#f92f59] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span>{loading ? copy.loggingIn : copy.login}</span>
+                  {!loading ? <ArrowIcon /> : null}
+                </button>
+
+                <div className="grid gap-2 pt-1">
+                  <Link
+                    href={companySignupHref}
+                    className="flex min-h-[42px] items-center justify-center rounded-2xl bg-slate-50 px-3 text-[12px] font-black text-slate-700 ring-1 ring-slate-100 transition hover:bg-slate-100"
+                  >
+                    {safeLocale === "ja"
+                      ? "企業アカウントを作成"
+                      : "Create a brand account"}
+                  </Link>
+
+                  <Link
+                    href="/signup/creator"
+                    className="flex min-h-[42px] items-center justify-center rounded-2xl bg-white px-3 text-[12px] font-black text-slate-500 ring-1 ring-slate-100 transition hover:bg-slate-50 hover:text-slate-800"
+                  >
+                    {safeLocale === "ja"
+                      ? "クリエイターとして登録"
+                      : "Sign up as a creator"}
+                  </Link>
+                </div>
+              </form>
+            </div>
+
+            <p className="mt-4 text-center text-[11px] font-bold text-slate-400">
+              {copy.copyright}
+            </p>
           </section>
         </div>
-
-        <p className="pb-6 text-center text-xs font-bold text-slate-400">
-          {copy.copyright}
-        </p>
       </div>
     </main>
   );
