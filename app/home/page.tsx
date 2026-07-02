@@ -285,8 +285,8 @@ export default function HomePage() {
           titleLine3: "認知拡大へ。",
           body:
             "Trendreは、Instagram・TikTokなど各種媒体でのPR投稿やUGC制作（広告素材）をインフルエンサーに直接依頼できるマーケットプレイスです。一覧から実際のSNSアカウントや価格を確認・比較し、支払いから納品確認までオンラインで完結できます。",
-          primaryCta: "無料で企業登録",
-          secondaryCta: "インフルエンサーを探す",
+          primaryCta: "インフルエンサーを探す",
+          secondaryCta: "無料で企業登録",
           mini1: "SNSを確認",
           mini2: "表示価格で依頼",
           mini3: "納品まで管理",
@@ -361,8 +361,8 @@ export default function HomePage() {
 
           finalTitle:
             "まずは、商品や店舗に合うインフルエンサーを探してみましょう。",
-          finalPrimary: "無料で企業登録",
-          finalSecondary: "インフルエンサー検索を見る",
+          finalPrimary: "インフルエンサーを探す",
+          finalSecondary: "無料で企業登録",
         }
       : {
           eyebrow: "Influencer PR made easier",
@@ -372,8 +372,8 @@ export default function HomePage() {
           titleLine3: "Start from one request.",
           body:
             "Trendre is a marketplace where brands can request Instagram and TikTok PR posts or UGC creation, including ad-ready photo and video assets, directly from influencers. Compare real social accounts and prices, then manage payment and delivery online.",
-          primaryCta: "Join as a Brand",
-          secondaryCta: "Search Influencers",
+          primaryCta: "Search Influencers",
+          secondaryCta: "Join as a Brand",
           mini1: "Check social accounts",
           mini2: "Order with visible pricing",
           mini3: "Manage delivery online",
@@ -447,8 +447,8 @@ export default function HomePage() {
             "Find influencers who can reach Japanese consumers and support Japan PR.",
 
           finalTitle: "Start by finding influencers that fit your product.",
-          finalPrimary: "Join as a Brand",
-          finalSecondary: "Search Influencers",
+          finalPrimary: "Search Influencers",
+          finalSecondary: "Join as a Brand",
         };
 
   const productCards: ProductCardProps[] = [
@@ -553,14 +553,14 @@ export default function HomePage() {
 
               <div className="mt-10 flex flex-wrap gap-4">
                 <Link
-                  href="/signup/company"
+                  href="/b/creators"
                   className="rounded-full bg-[#ff5f67] px-8 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
                 >
                   {copy.primaryCta}
                 </Link>
 
                 <Link
-                  href="/b/creators"
+                  href="/signup/company"
                   className="rounded-full border-2 border-[#ff5f67] bg-white px-8 py-4 text-sm font-black text-[#ff5f67] transition hover:-translate-y-0.5 hover:bg-rose-50"
                 >
                   {copy.secondaryCta}
@@ -699,14 +699,14 @@ export default function HomePage() {
 
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href="/signup/company"
+                  href="/b/creators"
                   className="rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/20 transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
                 >
                   {copy.finalPrimary}
                 </Link>
 
                 <Link
-                  href="/b/creators"
+                  href="/signup/company"
                   className="rounded-full border border-slate-200 bg-white/80 px-7 py-4 text-sm font-black text-slate-800 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
                 >
                   {copy.finalSecondary}

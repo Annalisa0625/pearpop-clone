@@ -108,9 +108,9 @@ const PLATFORM_OPTIONS = [
 
 const DEAL_TYPE_OPTIONS = [
   { value: "all", label: "すべて" },
-  { value: "experience", label: "体験型" },
-  { value: "product", label: "商品提供型" },
-  { value: "asset", label: "素材提供型" },
+  { value: "experience", label: "来店・体験" },
+  { value: "product", label: "商品を送る" },
+  { value: "asset", label: "素材を提供" },
 ];
 
 const MENU_CONTENT_OPTIONS = [
@@ -1046,7 +1046,7 @@ function MultiPrefectureDropdown({
   return (
     <DropdownShell className="w-[min(520px,calc(100vw-40px))] p-4">
       <p className="mb-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-500">
-        ※体験型での体験可能範囲です。複数選択できます。
+        来店・体験に対応できるエリアです。複数選択できます。
       </p>
 
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -1410,13 +1410,13 @@ export default function CompanyCreatorsPage() {
         ? {
             loading: "読み込み中...",
             fetchError: "インフルエンサー一覧の取得に失敗しました。",
-            platform: "SNSタイプ",
+            platform: "SNS種別",
             category: "カテゴリ",
             categoryPlaceholder: "カテゴリを選択",
             location: "地域",
-            locationHelp: "※体験型での体験可能範囲です",
-            contentType: "メニュー内容",
-            dealType: "案件タイプ",
+            locationHelp: "来店・体験の対応可能エリア",
+            contentType: "投稿・納品内容",
+            dealType: "実施方法",
             followers: "フォロワー数",
             followersMin: "下限",
             followersMax: "上限",
@@ -1432,7 +1432,7 @@ export default function CompanyCreatorsPage() {
             noLocation: "地域未設定",
             menu: "menu",
             menus: "menus",
-            signupRequired: "保存するには企業登録またはログインが必要です。",
+            signupRequired: "保存するには企業アカウントが必要です。",
           }
         : {
             loading: "Loading...",
@@ -1442,8 +1442,8 @@ export default function CompanyCreatorsPage() {
             categoryPlaceholder: "Select category",
             location: "Location",
             locationHelp: "Available area for experience-based projects.",
-            contentType: "Menu content",
-            dealType: "Project type",
+            contentType: "Deliverable",
+            dealType: "How it works",
             followers: "Followers",
             followersMin: "Min followers",
             followersMax: "Max followers",

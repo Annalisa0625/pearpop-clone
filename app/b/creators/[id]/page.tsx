@@ -704,7 +704,7 @@ export default function CreatorDetailPage() {
         ? {
             notFound:
               "インフルエンサーが見つかりません。現在注文受付できない状態の可能性があります。",
-            backToCreators: "インフルエンサー一覧へ戻る",
+            backToCreators: "インフルエンサーを探す",
             share: "Share",
             save: "Save",
             saved: "Saved",
@@ -712,13 +712,13 @@ export default function CreatorDetailPage() {
             packages: "メニュー",
             all: "All",
             noMenus: "公開中のメニューがありません。",
-            selectedPackage: "選択中のメニュー",
-            choosePackage: "メニューを選択",
+            selectedPackage: "選択したメニュー",
+            choosePackage: "メニューを選ぶ",
             selected: "選択中",
             select: "選択する",
-            orderButton: "注文",
+            orderButton: "依頼する",
             howItWorks:
-              "支払いはStripeで保護され、インフルエンサーが72時間以内に承認した場合のみ決済が確定します。",
+              "支払いはStripeで管理され、インフルエンサーが72時間以内に承認した場合のみ決済が確定します。",
             billingRequired:
               "このプランの注文機能を使うには、有料プランの有効化が必要です。",
             checkBilling: "料金プランを見る",
@@ -726,14 +726,14 @@ export default function CreatorDetailPage() {
             marketplaceFee: "Trendre手数料",
             menuPrice: "メニュー価格",
             total: "お支払い合計",
-            signupToOrder: "注文",
+            signupToOrder: "依頼する",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
           }
         : {
             notFound:
               "Influencer not found. This influencer may not currently be ready to receive orders.",
-            backToCreators: "Back to influencers",
+            backToCreators: "Find influencers",
             share: "Share",
             save: "Save",
             saved: "Saved",
@@ -742,10 +742,10 @@ export default function CreatorDetailPage() {
             all: "All",
             noMenus: "There are no public menus.",
             selectedPackage: "Selected menu",
-            choosePackage: "Choose menu",
+            choosePackage: "Choose a menu",
             selected: "Selected",
             select: "Select",
-            orderButton: "Order",
+            orderButton: "Request",
             howItWorks:
               "Payments are protected by Stripe. The payment is captured only if the influencer accepts within 72 hours.",
             billingRequired:
@@ -755,7 +755,7 @@ export default function CreatorDetailPage() {
             marketplaceFee: "Trendre fee",
             menuPrice: "Menu price",
             total: "Total",
-            signupToOrder: "Order",
+            signupToOrder: "Request",
             noPortfolio: "No portfolio images yet",
             showAllPhotos: "Show All Photos",
           },

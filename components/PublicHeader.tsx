@@ -65,14 +65,14 @@ export default function PublicHeader() {
     locale === "ja"
       ? {
           overview: "サービス概要",
-          creatorSearch: "インフルエンサー検索",
+          creatorSearch: "インフルエンサーを探す",
           pricing: "料金プラン",
           login: "ログイン",
-          companySignup: "企業登録",
+          companySignup: "無料で企業登録",
         }
       : {
           overview: "Overview",
-          creatorSearch: "Creator Search",
+          creatorSearch: "Find Influencers",
           pricing: "Pricing",
           login: "Login",
           companySignup: "Join as a Brand",
@@ -155,7 +155,7 @@ export default function PublicHeader() {
             href="/signup/company"
             className="rounded-full bg-[#ff5f67] px-3 py-2 text-xs font-black text-white shadow-md shadow-rose-500/20"
           >
-            {locale === "ja" ? "企業登録" : "Join"}
+            {locale === "ja" ? "無料登録" : "Join"}
           </Link>
         </div>
       </div>
