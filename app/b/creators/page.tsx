@@ -963,61 +963,78 @@ function CategoryDropdown({
     GENRE_GROUPS.find((item) => item.key === activeGroup) ?? GENRE_GROUPS[0];
 
   return (
-    <DropdownShell className="w-[min(720px,calc(100vw-40px))] p-4">
-      <div className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {GENRE_GROUPS.map((item) => {
-          const active = item.key === activeGroup;
+    <DropdownShell className="w-[min(760px,calc(100vw-40px))] p-3">
+      <div className="rounded-[24px] bg-slate-50 p-3">
+        <p className="px-1 pb-2 text-[11px] font-black tracking-[0.16em] text-slate-400">
+          大カテゴリ
+        </p>
 
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setActiveGroup(item.key)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
-                active
-                  ? "bg-slate-950 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              {item.ja}
-            </button>
-          );
-        })}
+        <div className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {GENRE_GROUPS.map((item) => {
+            const active = item.key === activeGroup;
+
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setActiveGroup(item.key)}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
+                  active
+                    ? "bg-slate-950 text-white shadow-sm"
+                    : "bg-white text-slate-600 ring-1 ring-slate-100 hover:bg-slate-100 hover:text-slate-950"
+                }`}
+              >
+                {item.ja}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedCategory("all");
-            close();
-          }}
-          className={`rounded-xl px-3 py-2 text-sm font-black transition ${
-            selectedCategory === "all"
-              ? "bg-slate-950 text-white"
-              : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-          }`}
-        >
-          すべて
-        </button>
+      <div className="mt-3 rounded-[24px] border border-slate-100 bg-white p-3">
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+          <p className="text-[11px] font-black tracking-[0.16em] text-slate-400">
+            詳細カテゴリ
+          </p>
+          <p className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-black text-[#ff5f67]">
+            {group.ja}
+          </p>
+        </div>
 
-        {group.items.map((category) => (
+        <div className="flex flex-wrap gap-2">
           <button
-            key={category}
             type="button"
             onClick={() => {
-              setSelectedCategory(category);
+              setSelectedCategory("all");
               close();
             }}
-            className={`rounded-xl px-3 py-2 text-sm font-black transition ${
-              normalizeText(selectedCategory) === normalizeText(category)
-                ? "bg-slate-950 text-white"
-                : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+            className={`rounded-full px-3.5 py-2 text-sm font-black transition ${
+              selectedCategory === "all"
+                ? "bg-[#ff5f67] text-white shadow-sm shadow-rose-500/20"
+                : "bg-slate-50 text-slate-700 ring-1 ring-slate-100 hover:bg-slate-100 hover:text-slate-950"
             }`}
           >
-            {category}
+            すべて
           </button>
-        ))}
+
+          {group.items.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(category);
+                close();
+              }}
+              className={`rounded-full px-3.5 py-2 text-sm font-black transition ${
+                normalizeText(selectedCategory) === normalizeText(category)
+                  ? "bg-[#ff5f67] text-white shadow-sm shadow-rose-500/20"
+                  : "bg-slate-50 text-slate-700 ring-1 ring-slate-100 hover:bg-slate-100 hover:text-slate-950"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
       </div>
     </DropdownShell>
   );
@@ -2014,13 +2031,7 @@ export default function CompanyCreatorsPage() {
                         setOpenFilter(null);
                       }}
                     >
-                      {item.value === "all" ? (
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-500">
-                          All
-                        </span>
-                      ) : (
-                        getPlatformIcon(item.value)
-                      )}
+                      {item.value !== "all" ? getPlatformIcon(item.value) : null}
                       <span>{item.label}</span>
                     </DropdownOption>
                   ))}
