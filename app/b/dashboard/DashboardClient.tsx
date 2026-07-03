@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -42,11 +42,6 @@ function normalizeSubscriptionStatus(value: string | null | undefined): Subscrip
   return null;
 }
 
-function getBuyerFeeLabel(plan: CompanyPlanCode) {
-  if (plan === "global_pro") return "5%";
-  return "10%";
-}
-
 function ArrowIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
@@ -58,29 +53,6 @@ function ArrowIcon() {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-function CountPill({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "notice";
-}) {
-  return (
-    <div className="rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-100">
-      <p className="text-xs font-bold text-slate-400">{label}</p>
-      <p
-        className={`mt-1 text-2xl font-black tracking-[-0.06em] ${
-          tone === "notice" && value > 0 ? "text-[#ff5f67]" : "text-slate-950"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
   );
 }
 
@@ -96,7 +68,16 @@ function StatusCard({
   tone: "waiting" | "active" | "review" | "done";
 }) {
   const active = count > 0;
-  const activeClass =
+  const accentClass =
+    tone === "review"
+      ? "bg-[#ff5f67]"
+      : tone === "waiting"
+      ? "bg-amber-400"
+      : tone === "active"
+      ? "bg-blue-500"
+      : "bg-emerald-500";
+
+  const pillClass =
     tone === "review"
       ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
       : tone === "waiting"
@@ -108,11 +89,13 @@ function StatusCard({
   return (
     <Link
       href="/b/orders"
-      className="group rounded-[26px] bg-white p-5 ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+      className="group relative overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-slate-100 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_55px_rgba(15,23,42,0.07)]"
     >
+      <span className={`absolute inset-x-0 top-0 h-1 ${active ? accentClass : "bg-slate-100"}`} />
+
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-base font-black tracking-[-0.03em] text-slate-950">
+          <h3 className="text-lg font-black tracking-[-0.04em] text-slate-950">
             {title}
           </h3>
           <p className="mt-1.5 text-xs font-bold leading-5 text-slate-400">
@@ -121,17 +104,17 @@ function StatusCard({
         </div>
 
         <span
-          className={`flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-black ring-1 ${
-            active ? activeClass : "bg-slate-50 text-slate-400 ring-slate-100"
+          className={`flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm font-black ring-1 ${
+            active ? pillClass : "bg-slate-50 text-slate-400 ring-slate-100"
           }`}
         >
           {count}
         </span>
       </div>
 
-      <div className="mt-5 flex items-center justify-between text-xs font-black text-slate-400">
+      <div className="mt-7 flex items-center justify-between text-xs font-black text-slate-400">
         <span>{active ? "確認できます" : "現在なし"}</span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100 transition group-hover:bg-slate-950 group-hover:text-white">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100 transition group-hover:bg-slate-950 group-hover:text-white">
           →
         </span>
       </div>
@@ -153,9 +136,9 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className={`group flex items-center justify-between gap-4 rounded-[22px] px-4 py-4 ring-1 transition hover:-translate-y-0.5 ${
+      className={`group flex items-center justify-between gap-4 rounded-[24px] px-5 py-4 ring-1 transition duration-200 hover:-translate-y-0.5 ${
         primary
-          ? "bg-[#ff5f67] text-white ring-[#ff5f67] shadow-[0_16px_32px_rgba(255,95,103,0.18)]"
+          ? "bg-[#ff5f67] text-white ring-[#ff5f67] shadow-[0_16px_34px_rgba(255,95,103,0.2)]"
           : "bg-white text-slate-950 ring-slate-100 hover:shadow-[0_18px_45px_rgba(15,23,42,0.055)]"
       }`}
     >
@@ -165,12 +148,13 @@ function QuickAction({
         </p>
         <p
           className={`mt-1 text-xs font-bold leading-5 ${
-            primary ? "text-white/70" : "text-slate-400"
+            primary ? "text-white/75" : "text-slate-400"
           }`}
         >
           {body}
         </p>
       </div>
+
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black transition ${
           primary
@@ -184,16 +168,7 @@ function QuickAction({
   );
 }
 
-function UsageLine({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3">
-      <span className="text-sm font-bold text-slate-500">{label}</span>
-      <span className="text-right text-sm font-black text-slate-950">{value}</span>
-    </div>
-  );
-}
-
-function NextStep({
+function StepCard({
   number,
   title,
   body,
@@ -203,14 +178,12 @@ function NextStep({
   body: string;
 }) {
   return (
-    <div className="flex gap-4 rounded-[22px] bg-slate-50 px-4 py-4">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-500 ring-1 ring-slate-100">
+    <div className="rounded-[24px] bg-slate-50 p-4 ring-1 ring-slate-100">
+      <p className="text-[11px] font-black tracking-[0.16em] text-[#ff5f67]">
         {number}
-      </span>
-      <div>
-        <p className="text-sm font-black text-slate-950">{title}</p>
-        <p className="mt-1 text-xs font-bold leading-5 text-slate-400">{body}</p>
-      </div>
+      </p>
+      <h3 className="mt-2 text-sm font-black text-slate-950">{title}</h3>
+      <p className="mt-1 text-xs font-bold leading-5 text-slate-400">{body}</p>
     </div>
   );
 }
@@ -430,8 +403,8 @@ export default function CompanyDashboardClient() {
       return {
         activeOrderCount,
         needsActionCount,
-        title: "確認が必要な納品があります",
-        body: "納品内容を確認して、完了または修正依頼に進めます。",
+        title: "納品を確認しましょう",
+        body: "確認が必要な納品があります。内容を確認して、完了または修正依頼に進めます。",
       };
     }
 
@@ -475,7 +448,6 @@ export default function CompanyDashboardClient() {
     );
   }
 
-  const buyerFee = getBuyerFeeLabel(dashboard.companyPlanCodeDisplay);
   const hasOrders =
     dashboard.counts.pending +
       dashboard.counts.accepted +
@@ -487,7 +459,7 @@ export default function CompanyDashboardClient() {
     <div className="relative min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
         <section className="rounded-[34px] border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.055)] md:p-8">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-black text-slate-400">
                 {dashboard.companyName}
@@ -498,34 +470,22 @@ export default function CompanyDashboardClient() {
               <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
                 {summary.body}
               </p>
-
-              <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-                <Link
-                  href={hasOrders ? "/b/orders" : "/b/creators"}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-                >
-                  {hasOrders ? "注文管理を見る" : "インフルエンサーを探す"}
-                  <ArrowIcon />
-                </Link>
-                <Link
-                  href="/b/saved-creators"
-                  className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
-                >
-                  保存済みを見る
-                </Link>
-              </div>
             </div>
 
-            <div className="rounded-[30px] bg-slate-50 p-4 ring-1 ring-slate-100">
-              <p className="px-1 text-[12px] font-black tracking-[0.18em] text-slate-400">
-                OVERVIEW
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <CountPill label="進行中" value={summary.activeOrderCount} />
-                <CountPill label="要確認" value={summary.needsActionCount} tone="notice" />
-                <CountPill label="保存済み" value={dashboard.savedCount} />
-                <CountPill label="完了" value={dashboard.counts.completed} />
-              </div>
+            <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
+              <Link
+                href={hasOrders ? "/b/orders" : "/b/creators"}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+              >
+                {hasOrders ? "注文管理を見る" : "インフルエンサーを探す"}
+                <ArrowIcon />
+              </Link>
+              <Link
+                href="/b/saved-creators"
+                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
+              >
+                保存済みを見る
+              </Link>
             </div>
           </div>
         </section>
@@ -538,15 +498,12 @@ export default function CompanyDashboardClient() {
 
         <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           <main className="rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
-            <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-[12px] font-black tracking-[0.18em] text-[#ff5f67]">
-                  ORDERS
-                </p>
-                <h2 className="mt-2 text-[26px] font-black tracking-[-0.055em] text-slate-950">
+                <h2 className="text-[28px] font-black tracking-[-0.06em] text-slate-950">
                   注文管理
                 </h2>
-                <p className="mt-1 text-sm font-semibold text-slate-400">
+                <p className="mt-2 text-sm font-semibold text-slate-400">
                   返答待ち、進行中、納品確認、完了をまとめて確認できます。
                 </p>
               </div>
@@ -588,11 +545,11 @@ export default function CompanyDashboardClient() {
             </div>
           </main>
 
-          <aside className="grid gap-4 lg:self-start">
+          <aside className="lg:self-start">
             <section className="rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
-              <p className="text-[12px] font-black tracking-[0.18em] text-[#ff5f67]">
-                NEXT
-              </p>
+              <h2 className="text-[22px] font-black tracking-[-0.05em] text-slate-950">
+                次のアクション
+              </h2>
 
               <div className="mt-4 grid gap-3">
                 <QuickAction
@@ -614,51 +571,18 @@ export default function CompanyDashboardClient() {
                 />
               </div>
             </section>
-
-            <section className="rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[12px] font-black tracking-[0.18em] text-slate-400">
-                    PLAN
-                  </p>
-                  <h2 className="mt-2 text-[24px] font-black tracking-[-0.05em] text-slate-950">
-                    利用状況
-                  </h2>
-                </div>
-
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
-                  利用可能
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-2">
-                <UsageLine label="月額" value="なし" />
-                <UsageLine label="依頼" value="利用可能" />
-                <UsageLine label="案件手数料" value={buyerFee} />
-              </div>
-
-              <Link
-                href="/b/billing"
-                className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
-              >
-                料金を見る
-              </Link>
-            </section>
           </aside>
         </section>
 
         {!hasOrders ? (
           <section className="mt-4 rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
-            <p className="text-[12px] font-black tracking-[0.18em] text-[#ff5f67]">
-              START
-            </p>
-            <h2 className="mt-2 text-[26px] font-black tracking-[-0.055em] text-slate-950">
+            <h2 className="text-[26px] font-black tracking-[-0.055em] text-slate-950">
               最初の依頼までの流れ
             </h2>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
-              <NextStep number="1" title="探す" body="SNS種別や価格で絞り込みます。" />
-              <NextStep number="2" title="確認する" body="メニュー内容と実施条件を確認します。" />
-              <NextStep number="3" title="依頼する" body="支払い後、注文チャットで進めます。" />
+              <StepCard number="01" title="探す" body="SNS種別や価格で絞り込みます。" />
+              <StepCard number="02" title="確認する" body="メニュー内容と実施条件を確認します。" />
+              <StepCard number="03" title="依頼する" body="支払い後、注文チャットで進めます。" />
             </div>
           </section>
         ) : null}

@@ -83,81 +83,89 @@ function ArrowIcon() {
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m4.75 10.3 3.05 3.05 7.45-7.7"
-        stroke="currentColor"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CurrentLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-[22px] bg-slate-50 px-4 py-4">
-      <span className="text-sm font-bold text-slate-500">{label}</span>
-      <span className="text-sm font-black text-slate-950">{value}</span>
-    </div>
-  );
-}
-
 function PlanCard({
   plan,
+  index,
   safeLocale,
 }: {
   plan: FuturePlan;
+  index: number;
   safeLocale: "ja" | "en";
 }) {
+  const highlighted = plan.name === "Pro";
+
   return (
-    <article className="relative overflow-hidden rounded-[28px] bg-slate-50/85 p-5 opacity-60 grayscale ring-1 ring-slate-200/90">
-      <div className="flex items-start justify-between gap-3">
+    <article
+      className={`group relative flex min-h-[520px] w-[82vw] max-w-[340px] shrink-0 snap-center flex-col overflow-hidden rounded-[34px] bg-white p-6 ring-1 transition duration-300 hover:-translate-y-2 hover:shadow-[0_32px_90px_rgba(15,23,42,0.13)] sm:w-[340px] ${
+        highlighted
+          ? "ring-[#ff5f67]/25 shadow-[0_24px_80px_rgba(255,95,103,0.12)]"
+          : "ring-slate-100 shadow-[0_22px_70px_rgba(15,23,42,0.06)]"
+      }`}
+      style={{ animationDelay: `${index * 70}ms` }}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-slate-50 to-transparent" />
+      <div
+        className={`pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full blur-3xl transition duration-300 group-hover:scale-125 ${
+          highlighted ? "bg-rose-100/80" : "bg-slate-100/90"
+        }`}
+      />
+
+      <div className="relative flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-black tracking-[0.18em] text-slate-400">
+          <p className="text-[11px] font-black tracking-[0.2em] text-slate-400">
             {safeLocale === "ja" ? "準備中" : "COMING SOON"}
           </p>
-          <h3 className="mt-2 text-[28px] font-black tracking-[-0.06em] text-slate-900">
+          <h2 className="mt-3 text-[34px] font-black tracking-[-0.075em] text-slate-950">
             {plan.name}
-          </h3>
+          </h2>
         </div>
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-200">
+
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${
+            highlighted
+              ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
+              : "bg-slate-50 text-slate-500 ring-slate-100"
+          }`}
+        >
           {safeLocale === "ja" ? plan.badgeJa : plan.badgeEn}
         </span>
       </div>
 
-      <p className="mt-4 min-h-[52px] text-sm font-semibold leading-7 text-slate-500">
+      <p className="relative mt-5 min-h-[56px] text-sm font-semibold leading-7 text-slate-500">
         {safeLocale === "ja" ? plan.leadJa : plan.leadEn}
       </p>
 
-      <div className="mt-5 rounded-[24px] bg-white p-4 ring-1 ring-slate-200">
+      <div className="relative mt-7 rounded-[28px] bg-slate-950 p-5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
         <div className="flex items-end gap-2">
-          <p className="text-[38px] font-black leading-none tracking-[-0.075em] text-slate-900">
+          <p className="text-[42px] font-black leading-none tracking-[-0.08em]">
             {plan.price}
           </p>
-          <p className="pb-1 text-sm font-black text-slate-400">
+          <p className="pb-1 text-sm font-black text-white/45">
             {safeLocale === "ja" ? "/月" : "/month"}
           </p>
         </div>
+        <p className="mt-3 text-xs font-bold leading-5 text-white/55">
+          {safeLocale === "ja"
+            ? "現在は選択できません。"
+            : "Not available yet."}
+        </p>
       </div>
 
-      <div className="mt-4 grid gap-2">
-        <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-200">
+      <div className="relative mt-5 grid gap-2">
+        <div className="rounded-[22px] bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
           <p className="text-[11px] font-black text-slate-400">
             {safeLocale === "ja" ? "注文型" : "Direct"}
           </p>
-          <p className="mt-1 text-sm font-black text-slate-900">
+          <p className="mt-1 text-sm font-black text-slate-950">
             {safeLocale === "ja" ? plan.directJa : plan.directEn}
           </p>
         </div>
-        <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-200">
+
+        <div className="rounded-[22px] bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
           <p className="text-[11px] font-black text-slate-400">
             {safeLocale === "ja" ? "公募型" : "Open"}
           </p>
-          <p className="mt-1 text-sm font-black text-slate-900">
+          <p className="mt-1 text-sm font-black text-slate-950">
             {safeLocale === "ja" ? plan.openJa : plan.openEn}
           </p>
         </div>
@@ -166,7 +174,7 @@ function PlanCard({
       <button
         type="button"
         disabled
-        className="mt-5 w-full cursor-not-allowed rounded-full bg-slate-200 px-5 py-3 text-sm font-black text-slate-500"
+        className="relative mt-auto cursor-not-allowed rounded-full bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-400"
       >
         {safeLocale === "ja" ? "現在は選択できません" : "Not available yet"}
       </button>
@@ -182,164 +190,86 @@ export default function BillingClient() {
     () =>
       safeLocale === "ja"
         ? {
-            title: "料金",
+            title: "月額プラン",
             body:
-              "月額のサービス利用料はかかりません。案件が成立した場合のみ、案件ごとの手数料が発生します。",
+              "現在、月額プランは準備中です。月額のサービス利用料はかかりません。案件が成立した場合のみ、案件ごとの手数料が発生します。",
             search: "インフルエンサーを探す",
             dashboard: "ダッシュボードへ戻る",
-            currentTitle: "現在の料金",
-            currentLead: "まずは公開メニューから、月額なしで依頼できます。",
-            line1: "月額サービス利用料",
-            line1Value: "¥0",
-            line2: "請求タイミング",
-            line2Value: "案件成立時のみ",
-            line3: "案件手数料",
-            line3Value: "10%",
-            flowTitle: "利用の流れ",
-            futureTitle: "月額プラン",
-            futureBody:
-              "下記プランは準備中です。現在は選択できないため、契約や月額請求は発生しません。",
+            note:
+              "下記プランは現在選択できません。契約や月額請求は発生しません。",
             terms: "利用規約",
             legal: "事業者情報",
           }
         : {
-            title: "Billing",
+            title: "Monthly plans",
             body:
-              "There is no monthly service fee. A per-order fee applies only when an order is successfully placed.",
+              "Monthly plans are being prepared. There is no monthly service fee today. A per-order fee applies only when an order is successfully placed.",
             search: "Find influencers",
             dashboard: "Back to dashboard",
-            currentTitle: "Current pricing",
-            currentLead: "You can start with public menu requests without a monthly plan.",
-            line1: "Monthly service fee",
-            line1Value: "¥0",
-            line2: "When you pay",
-            line2Value: "Only when an order is placed",
-            line3: "Order fee",
-            line3Value: "10%",
-            flowTitle: "How it works",
-            futureTitle: "Monthly plans",
-            futureBody:
-              "The plans below are being prepared. They cannot be selected now, so no monthly subscription will be charged.",
+            note:
+              "The plans below cannot be selected yet. No subscription or monthly charge will be created.",
             terms: "Terms",
             legal: "Business information",
           },
     [safeLocale]
   );
 
-  const flow =
-    safeLocale === "ja"
-      ? [
-          { label: "探す", body: "公開メニューから候補を確認" },
-          { label: "依頼", body: "内容を確認して注文" },
-          { label: "支払い", body: "Stripeで安全に決済" },
-          { label: "納品確認", body: "内容を確認して完了" },
-        ]
-      : [
-          { label: "Search", body: "Review public menus" },
-          { label: "Request", body: "Confirm and order" },
-          { label: "Pay", body: "Secure Stripe payment" },
-          { label: "Review", body: "Review delivery" },
-        ];
-
   return (
-    <div className="relative min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
-      <div className="mx-auto max-w-6xl px-4 py-6 pb-12 md:px-6 md:py-8">
-        <section className="rounded-[34px] border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.055)] md:p-8">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1fr)] lg:items-center">
-            <div>
-              <p className="text-[12px] font-black tracking-[0.2em] text-[#ff5f67]">
-                BILLING
-              </p>
-              <h1 className="mt-4 text-[42px] font-black leading-[1.05] tracking-[-0.075em] text-slate-950 md:text-[58px]">
-                {copy.title}
-              </h1>
-              <p className="mt-5 max-w-xl text-sm font-semibold leading-8 text-slate-500 md:text-base">
-                {copy.body}
-              </p>
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[360px] bg-gradient-to-b from-white to-transparent" />
+      <div className="pointer-events-none absolute left-[-240px] top-[180px] h-[480px] w-[480px] rounded-full bg-rose-100/30 blur-[160px]" />
+      <div className="pointer-events-none absolute right-[-260px] top-[160px] h-[520px] w-[520px] rounded-full bg-emerald-100/25 blur-[170px]" />
 
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/b/creators"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_18px_36px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-                >
-                  {copy.search}
-                  <ArrowIcon />
-                </Link>
-                <Link
-                  href="/b/dashboard"
-                  className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
-                >
-                  {copy.dashboard}
-                </Link>
-              </div>
-            </div>
-
-            <div className="rounded-[30px] bg-slate-50 p-5 ring-1 ring-slate-100 md:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[12px] font-black tracking-[0.18em] text-slate-400">
-                    CURRENT
-                  </p>
-                  <h2 className="mt-2 text-[28px] font-black tracking-[-0.06em] text-slate-950">
-                    {copy.currentTitle}
-                  </h2>
-                  <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                    {copy.currentLead}
-                  </p>
-                </div>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
-                  利用可能
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-2">
-                <CurrentLine label={copy.line1} value={copy.line1Value} />
-                <CurrentLine label={copy.line2} value={copy.line2Value} />
-                <CurrentLine label={copy.line3} value={copy.line3Value} />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-4 rounded-[30px] border border-slate-100 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.04)] md:p-6">
-          <h2 className="text-[24px] font-black tracking-[-0.055em] text-slate-950">
-            {copy.flowTitle}
-          </h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
-            {flow.map((item, index) => (
-              <div key={item.label} className="rounded-[22px] bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-black tracking-[0.16em] text-[#ff5f67]">
-                  0{index + 1}
-                </p>
-                <p className="mt-2 text-sm font-black text-slate-950">{item.label}</p>
-                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
-                  {item.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-9">
-          <div className="max-w-3xl">
-            <p className="text-[12px] font-black tracking-[0.18em] text-slate-400">
+      <div className="relative mx-auto max-w-7xl px-4 py-6 pb-14 md:px-6 md:py-8">
+        <section className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[12px] font-black tracking-[0.2em] text-[#ff5f67]">
               COMING SOON
             </p>
-            <h2 className="mt-2 text-[32px] font-black tracking-[-0.07em] text-slate-950 md:text-[46px]">
-              {copy.futureTitle}
-            </h2>
-            <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
-              {copy.futureBody}
+            <h1 className="mt-3 text-[40px] font-black leading-[1.05] tracking-[-0.075em] text-slate-950 md:text-[64px]">
+              {copy.title}
+            </h1>
+            <p className="mt-5 max-w-2xl text-sm font-semibold leading-8 text-slate-500 md:text-base">
+              {copy.body}
             </p>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {FUTURE_PLANS.map((plan) => (
-              <PlanCard key={plan.name} plan={plan} safeLocale={safeLocale} />
+          <div className="flex flex-col gap-3 sm:flex-row md:shrink-0">
+            <Link
+              href="/b/creators"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_18px_36px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+            >
+              {copy.search}
+              <ArrowIcon />
+            </Link>
+            <Link
+              href="/b/dashboard"
+              className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-black text-slate-800 ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:bg-slate-50"
+            >
+              {copy.dashboard}
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <div className="flex gap-5 overflow-x-auto snap-x snap-mandatory pb-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {FUTURE_PLANS.map((plan, index) => (
+              <PlanCard
+                key={plan.name}
+                plan={plan}
+                index={index}
+                safeLocale={safeLocale}
+              />
             ))}
           </div>
+        </section>
 
-          <p className="mt-5 text-xs font-semibold leading-6 text-slate-400">
+        <section className="mt-2 flex flex-col gap-3 rounded-[28px] bg-white/80 p-5 ring-1 ring-slate-100 backdrop-blur md:flex-row md:items-center md:justify-between">
+          <p className="max-w-3xl text-sm font-semibold leading-7 text-slate-500">
+            {copy.note}
+          </p>
+
+          <p className="shrink-0 text-xs font-semibold leading-6 text-slate-400">
             <Link href="/terms" target="_blank" className="underline underline-offset-4">
               {copy.terms}
             </Link>
