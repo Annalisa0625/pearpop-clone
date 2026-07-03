@@ -194,6 +194,42 @@ function PlanLine({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function getDashboardNextAction(counts: DashboardCounts) {
+  if (counts.delivered > 0) {
+    return {
+      title: "納品を確認しましょう",
+      body: "確認が必要な納品があります。内容を確認して、完了または修正依頼に進めます。",
+      href: "/b/orders",
+      primaryLabel: "納品を確認",
+    };
+  }
+
+  if (counts.pending > 0) {
+    return {
+      title: "返答を待っています",
+      body: "インフルエンサーが依頼内容を確認中です。返答があると注文が開始されます。",
+      href: "/b/orders",
+      primaryLabel: "注文状況を見る",
+    };
+  }
+
+  if (counts.accepted > 0) {
+    return {
+      title: "進行中の注文があります",
+      body: "チャットや納品状況を確認しながら、進行中の注文を管理できます。",
+      href: "/b/orders",
+      primaryLabel: "進行中の注文管理を見る",
+    };
+  }
+
+  return {
+    title: "インフルエンサーを探しましょう",
+    body: "目的に合うインフルエンサーを見つけて、公開メニューからすぐに依頼できます。",
+    href: "/b/creators",
+    primaryLabel: "インフルエンサーを探す",
+  };
+}
+
 export default function CompanyDashboardClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -566,6 +602,7 @@ export default function CompanyDashboardClient() {
 
   const planLabel = getPlanLabel(dashboard.companyPlanCodeDisplay);
   const buyerFee = getBuyerFeeLabel(dashboard.companyPlanCodeDisplay);
+  const nextAction = getDashboardNextAction(dashboard.counts);
 
   const remaining =
     dashboard.monthlyRequestLimit === null
@@ -594,20 +631,20 @@ export default function CompanyDashboardClient() {
               </p>
 
               <h1 className="mt-3 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
-                インフルエンサーを探す
+                {nextAction.title}
               </h1>
 
               <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                気になるインフルエンサーを保存して、メニューから注文できます。
+                {nextAction.body}
               </p>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link
-                href="/b/creators"
+                href={nextAction.href}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
               >
-                インフルエンサーを探す
+                {nextAction.primaryLabel}
                 <ArrowIcon />
               </Link>
 
@@ -656,20 +693,20 @@ export default function CompanyDashboardClient() {
             <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
-                  注文の状況
+                  注文の進行状況
                 </h2>
                 <p className="mt-1 text-sm font-semibold text-slate-400">
                   {activeOrderCount > 0
                     ? `${activeOrderCount}件の注文が進行中です。`
-                    : "現在進行中の注文はありません。"}
+                    : "確認が必要な注文はありません。"}
                 </p>
               </div>
 
               <Link
-                href="/b/jobs"
+                href="/b/orders"
                 className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-950 hover:text-white"
               >
-                注文を見る
+                注文管理を見る
                 <ArrowIcon />
               </Link>
             </div>
@@ -679,28 +716,28 @@ export default function CompanyDashboardClient() {
                 label="返答待ち"
                 body="インフルエンサーの返答待ち"
                 value={dashboard.counts.pending}
-                href="/b/requests"
+                href="/b/orders"
                 active={dashboard.counts.pending > 0}
               />
               <OrderStatusRow
                 label="進行中"
                 body="やり取り・納品待ち"
                 value={dashboard.counts.accepted}
-                href="/b/jobs"
+                href="/b/orders"
                 active={dashboard.counts.accepted > 0}
               />
               <OrderStatusRow
                 label="確認する"
                 body="納品確認が必要"
                 value={dashboard.counts.delivered}
-                href="/b/jobs"
+                href="/b/orders"
                 active={dashboard.counts.delivered > 0}
               />
               <OrderStatusRow
                 label="完了"
                 body="完了した注文"
                 value={dashboard.counts.completed}
-                href="/b/jobs"
+                href="/b/orders"
                 active={false}
               />
             </div>
@@ -710,10 +747,10 @@ export default function CompanyDashboardClient() {
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
                 <h2 className="text-2xl font-black tracking-[-0.05em] text-slate-950">
-                  プラン
+                  利用状況
                 </h2>
                 <p className="mt-1 text-sm font-semibold text-slate-400">
-                  現在の利用内容
+                  現在の提供内容
                 </p>
               </div>
 
@@ -725,16 +762,16 @@ export default function CompanyDashboardClient() {
             </div>
 
             <div className="mt-3 divide-y divide-slate-100">
-              <PlanLine label="現在" value={planLabel} />
-              <PlanLine label="今月残り" value={remaining === null ? "無制限" : `${remaining}件`} />
-              <PlanLine label="手数料" value={buyerFee} />
+              <PlanLine label="月額" value="無料" />
+              <PlanLine label="注文型" value="利用可能" />
+              <PlanLine label="案件手数料" value={buyerFee} />
             </div>
 
             <Link
               href="/b/billing"
               className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-950 hover:text-white"
             >
-              料金プランを確認
+              今後のプランを見る
             </Link>
           </aside>
         </section>
