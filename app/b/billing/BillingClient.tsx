@@ -97,11 +97,11 @@ function CheckIcon() {
   );
 }
 
-function CurrentItem({ label, value }: { label: string; value: string }) {
+function CurrentLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] bg-white/10 px-4 py-4 ring-1 ring-white/10">
-      <p className="text-xs font-bold text-white/45">{label}</p>
-      <p className="mt-2 text-lg font-black tracking-[-0.04em] text-white">{value}</p>
+    <div className="flex items-center justify-between gap-4 rounded-[22px] bg-slate-50 px-4 py-4">
+      <span className="text-sm font-bold text-slate-500">{label}</span>
+      <span className="text-sm font-black text-slate-950">{value}</span>
     </div>
   );
 }
@@ -114,9 +114,7 @@ function PlanCard({
   safeLocale: "ja" | "en";
 }) {
   return (
-    <article className="relative overflow-hidden rounded-[28px] bg-slate-50/85 p-5 opacity-70 grayscale-[0.25] ring-1 ring-slate-200/80">
-      <div className="absolute inset-x-0 top-0 h-1 bg-slate-200" />
-
+    <article className="relative overflow-hidden rounded-[28px] bg-slate-50/85 p-5 opacity-60 grayscale ring-1 ring-slate-200/90">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-black tracking-[0.18em] text-slate-400">
@@ -186,67 +184,73 @@ export default function BillingClient() {
         ? {
             title: "料金",
             body:
-              "現在は月額プラン契約なしで利用できます。インフルエンサーへの依頼、支払い、納品確認までそのまま進められます。",
-            currentTitle: "現在の利用条件",
-            currentBody:
-              "月額料金は発生しません。公開メニューからインフルエンサーへ依頼できます。",
+              "月額のサービス利用料はかかりません。案件が成立した場合のみ、案件ごとの手数料が発生します。",
             search: "インフルエンサーを探す",
             dashboard: "ダッシュボードへ戻る",
-            now1: "月額",
-            now1Value: "なし",
-            now2: "注文型依頼",
-            now2Value: "利用可能",
-            now3: "案件手数料",
-            now3Value: "10%",
+            currentTitle: "現在の料金",
+            currentLead: "まずは公開メニューから、月額なしで依頼できます。",
+            line1: "月額サービス利用料",
+            line1Value: "¥0",
+            line2: "請求タイミング",
+            line2Value: "案件成立時のみ",
+            line3: "案件手数料",
+            line3Value: "10%",
+            flowTitle: "利用の流れ",
             futureTitle: "月額プラン",
             futureBody:
-              "下記プランは準備中です。現在は選択できないため、契約や請求は発生しません。",
-            noteTitle: "現在できること",
-            noteBody:
-              "企業登録後、公開メニューの確認、依頼、Stripe決済、チャット、納品確認まで利用できます。公募型案件は今後追加予定です。",
+              "下記プランは準備中です。現在は選択できないため、契約や月額請求は発生しません。",
             terms: "利用規約",
             legal: "事業者情報",
           }
         : {
             title: "Billing",
             body:
-              "You can currently use Trendre without a monthly subscription. Send influencer requests, pay, and review delivery as usual.",
-            currentTitle: "Current access",
-            currentBody:
-              "No monthly fee is charged. You can request influencers from public menus.",
+              "There is no monthly service fee. A per-order fee applies only when an order is successfully placed.",
             search: "Find influencers",
             dashboard: "Back to dashboard",
-            now1: "Monthly fee",
-            now1Value: "None",
-            now2: "Direct requests",
-            now2Value: "Available",
-            now3: "Order fee",
-            now3Value: "10%",
+            currentTitle: "Current pricing",
+            currentLead: "You can start with public menu requests without a monthly plan.",
+            line1: "Monthly service fee",
+            line1Value: "¥0",
+            line2: "When you pay",
+            line2Value: "Only when an order is placed",
+            line3: "Order fee",
+            line3Value: "10%",
+            flowTitle: "How it works",
             futureTitle: "Monthly plans",
             futureBody:
-              "The plans below are being prepared. They cannot be selected now, so no subscription will be charged.",
-            noteTitle: "Available now",
-            noteBody:
-              "After creating a brand account, you can view public menus, send requests, pay with Stripe, chat, and review deliveries. Open campaigns will be added later.",
+              "The plans below are being prepared. They cannot be selected now, so no monthly subscription will be charged.",
             terms: "Terms",
             legal: "Business information",
           },
     [safeLocale]
   );
 
-  return (
-    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/25 to-transparent" />
-      <div className="pointer-events-none absolute right-[-280px] top-[120px] h-[560px] w-[560px] rounded-full bg-emerald-100/18 blur-[150px]" />
+  const flow =
+    safeLocale === "ja"
+      ? [
+          { label: "探す", body: "公開メニューから候補を確認" },
+          { label: "依頼", body: "内容を確認して注文" },
+          { label: "支払い", body: "Stripeで安全に決済" },
+          { label: "納品確認", body: "内容を確認して完了" },
+        ]
+      : [
+          { label: "Search", body: "Review public menus" },
+          { label: "Request", body: "Confirm and order" },
+          { label: "Pay", body: "Secure Stripe payment" },
+          { label: "Review", body: "Review delivery" },
+        ];
 
-      <div className="relative mx-auto max-w-6xl px-4 py-6 pb-12 md:px-6 md:py-8">
-        <section className="overflow-hidden rounded-[34px] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
-          <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="p-6 md:p-8 lg:p-10">
+  return (
+    <div className="relative min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
+      <div className="mx-auto max-w-6xl px-4 py-6 pb-12 md:px-6 md:py-8">
+        <section className="rounded-[34px] border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.055)] md:p-8">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1fr)] lg:items-center">
+            <div>
               <p className="text-[12px] font-black tracking-[0.2em] text-[#ff5f67]">
                 BILLING
               </p>
-              <h1 className="mt-4 text-[38px] font-black leading-[1.05] tracking-[-0.075em] text-slate-950 md:text-[58px]">
+              <h1 className="mt-4 text-[42px] font-black leading-[1.05] tracking-[-0.075em] text-slate-950 md:text-[58px]">
                 {copy.title}
               </h1>
               <p className="mt-5 max-w-xl text-sm font-semibold leading-8 text-slate-500 md:text-base">
@@ -256,7 +260,7 @@ export default function BillingClient() {
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/b/creators"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_18px_36px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_18px_36px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
                 >
                   {copy.search}
                   <ArrowIcon />
@@ -270,54 +274,49 @@ export default function BillingClient() {
               </div>
             </div>
 
-            <div className="bg-slate-950 p-6 text-white md:p-8 lg:p-10">
-              <p className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70 ring-1 ring-white/10">
-                {copy.currentTitle}
-              </p>
+            <div className="rounded-[30px] bg-slate-50 p-5 ring-1 ring-slate-100 md:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[12px] font-black tracking-[0.18em] text-slate-400">
+                    CURRENT
+                  </p>
+                  <h2 className="mt-2 text-[28px] font-black tracking-[-0.06em] text-slate-950">
+                    {copy.currentTitle}
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                    {copy.currentLead}
+                  </p>
+                </div>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
+                  利用可能
+                </span>
+              </div>
 
-              <h2 className="mt-5 text-[32px] font-black leading-tight tracking-[-0.07em] md:text-[44px]">
-                月額なしで利用できます
-              </h2>
-
-              <p className="mt-4 max-w-xl text-sm font-semibold leading-8 text-white/65">
-                {copy.currentBody}
-              </p>
-
-              <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                <CurrentItem label={copy.now1} value={copy.now1Value} />
-                <CurrentItem label={copy.now2} value={copy.now2Value} />
-                <CurrentItem label={copy.now3} value={copy.now3Value} />
+              <div className="mt-5 grid gap-2">
+                <CurrentLine label={copy.line1} value={copy.line1Value} />
+                <CurrentLine label={copy.line2} value={copy.line2Value} />
+                <CurrentLine label={copy.line3} value={copy.line3Value} />
               </div>
             </div>
           </div>
         </section>
 
-        <section className="mt-5 rounded-[30px] bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-7">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-[28px] font-black tracking-[-0.06em] text-slate-950">
-                {copy.noteTitle}
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
-                {copy.noteBody}
-              </p>
-            </div>
-
-            <div className="grid shrink-0 grid-cols-3 gap-2">
-              {[
-                safeLocale === "ja" ? "検索" : "Search",
-                safeLocale === "ja" ? "依頼" : "Request",
-                safeLocale === "ja" ? "納品確認" : "Review",
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="flex min-w-[72px] flex-col items-center rounded-2xl bg-emerald-50 px-3 py-3 text-emerald-700 ring-1 ring-emerald-100"
-                >
-                  <CheckIcon />
-                  <span className="mt-1 text-xs font-black">{item}</span>
-                </div>
-              ))}
-            </div>
+        <section className="mt-4 rounded-[30px] border border-slate-100 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.04)] md:p-6">
+          <h2 className="text-[24px] font-black tracking-[-0.055em] text-slate-950">
+            {copy.flowTitle}
+          </h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            {flow.map((item, index) => (
+              <div key={item.label} className="rounded-[22px] bg-slate-50 px-4 py-4">
+                <p className="text-[11px] font-black tracking-[0.16em] text-[#ff5f67]">
+                  0{index + 1}
+                </p>
+                <p className="mt-2 text-sm font-black text-slate-950">{item.label}</p>
+                <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                  {item.body}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 

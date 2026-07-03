@@ -61,25 +61,25 @@ function ArrowIcon() {
   );
 }
 
-function CheckIcon() {
+function CountPill({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "notice";
+}) {
   return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m4.75 10.3 3.05 3.05 7.45-7.7"
-        stroke="currentColor"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function UsageLine({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3">
-      <span className="text-sm font-bold text-slate-500">{label}</span>
-      <span className="text-right text-sm font-black text-slate-950">{value}</span>
+    <div className="rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-100">
+      <p className="text-xs font-bold text-slate-400">{label}</p>
+      <p
+        className={`mt-1 text-2xl font-black tracking-[-0.06em] ${
+          tone === "notice" && value > 0 ? "text-[#ff5f67]" : "text-slate-950"
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -93,11 +93,10 @@ function StatusCard({
   title: string;
   description: string;
   count: number;
-  tone: "review" | "waiting" | "active" | "done";
+  tone: "waiting" | "active" | "review" | "done";
 }) {
   const active = count > 0;
-
-  const toneClass =
+  const activeClass =
     tone === "review"
       ? "bg-rose-50 text-[#ff5f67] ring-rose-100"
       : tone === "waiting"
@@ -109,9 +108,7 @@ function StatusCard({
   return (
     <Link
       href="/b/orders"
-      className={`group flex min-h-[132px] flex-col justify-between rounded-[26px] p-5 ring-1 transition hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)] ${
-        active ? "bg-white ring-slate-100" : "bg-slate-50/80 ring-slate-100"
-      }`}
+      className="group rounded-[26px] bg-white p-5 ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -125,7 +122,7 @@ function StatusCard({
 
         <span
           className={`flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-black ring-1 ${
-            active ? toneClass : "bg-white text-slate-400 ring-slate-100"
+            active ? activeClass : "bg-slate-50 text-slate-400 ring-slate-100"
           }`}
         >
           {count}
@@ -134,7 +131,7 @@ function StatusCard({
 
       <div className="mt-5 flex items-center justify-between text-xs font-black text-slate-400">
         <span>{active ? "確認できます" : "現在なし"}</span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-100 transition group-hover:bg-slate-950 group-hover:text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-100 transition group-hover:bg-slate-950 group-hover:text-white">
           →
         </span>
       </div>
@@ -156,10 +153,10 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className={`group flex items-center justify-between gap-4 rounded-[24px] px-5 py-4 ring-1 transition hover:-translate-y-0.5 ${
+      className={`group flex items-center justify-between gap-4 rounded-[22px] px-4 py-4 ring-1 transition hover:-translate-y-0.5 ${
         primary
-          ? "bg-slate-950 text-white ring-slate-950 shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
-          : "bg-white text-slate-950 ring-slate-100 hover:shadow-[0_18px_45px_rgba(15,23,42,0.07)]"
+          ? "bg-[#ff5f67] text-white ring-[#ff5f67] shadow-[0_16px_32px_rgba(255,95,103,0.18)]"
+          : "bg-white text-slate-950 ring-slate-100 hover:shadow-[0_18px_45px_rgba(15,23,42,0.055)]"
       }`}
     >
       <div>
@@ -168,7 +165,7 @@ function QuickAction({
         </p>
         <p
           className={`mt-1 text-xs font-bold leading-5 ${
-            primary ? "text-white/55" : "text-slate-400"
+            primary ? "text-white/70" : "text-slate-400"
           }`}
         >
           {body}
@@ -177,7 +174,7 @@ function QuickAction({
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black transition ${
           primary
-            ? "bg-white/10 text-white group-hover:bg-white group-hover:text-slate-950"
+            ? "bg-white/18 text-white group-hover:bg-white group-hover:text-[#ff5f67]"
             : "bg-slate-50 text-slate-400 group-hover:bg-slate-950 group-hover:text-white"
         }`}
       >
@@ -187,29 +184,32 @@ function QuickAction({
   );
 }
 
-function EmptyGuide() {
+function UsageLine({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="rounded-[30px] bg-white p-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-7">
-      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-[12px] font-black tracking-[0.18em] text-[#ff5f67]">
-            START
-          </p>
-          <h2 className="mt-2 text-[26px] font-black tracking-[-0.055em] text-slate-950 md:text-[32px]">
-            まずはインフルエンサーを探しましょう
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-            公開メニューから、価格・SNS・投稿内容を確認して依頼できます。
-          </p>
-        </div>
+    <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3">
+      <span className="text-sm font-bold text-slate-500">{label}</span>
+      <span className="text-right text-sm font-black text-slate-950">{value}</span>
+    </div>
+  );
+}
 
-        <Link
-          href="/b/creators"
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-        >
-          インフルエンサーを探す
-          <ArrowIcon />
-        </Link>
+function NextStep({
+  number,
+  title,
+  body,
+}: {
+  number: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex gap-4 rounded-[22px] bg-slate-50 px-4 py-4">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-500 ring-1 ring-slate-100">
+        {number}
+      </span>
+      <div>
+        <p className="text-sm font-black text-slate-950">{title}</p>
+        <p className="mt-1 text-xs font-bold leading-5 text-slate-400">{body}</p>
       </div>
     </div>
   );
@@ -400,9 +400,7 @@ export default function CompanyDashboardClient() {
   useEffect(() => {
     const onFocus = () => void refreshDashboard(false);
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        void refreshDashboard(false);
-      }
+      if (document.visibilityState === "visible") void refreshDashboard(false);
     };
 
     window.addEventListener("focus", onFocus);
@@ -419,10 +417,8 @@ export default function CompanyDashboardClient() {
       return {
         activeOrderCount: 0,
         needsActionCount: 0,
-        heroTitle: "ダッシュボード",
-        heroBody: "",
-        primaryHref: "/b/creators",
-        primaryLabel: "インフルエンサーを探す",
+        title: "ダッシュボード",
+        body: "",
       };
     }
 
@@ -430,26 +426,29 @@ export default function CompanyDashboardClient() {
       dashboard.counts.pending + dashboard.counts.accepted + dashboard.counts.delivered;
     const needsActionCount = dashboard.counts.delivered;
 
+    if (needsActionCount > 0) {
+      return {
+        activeOrderCount,
+        needsActionCount,
+        title: "確認が必要な納品があります",
+        body: "納品内容を確認して、完了または修正依頼に進めます。",
+      };
+    }
+
     if (activeOrderCount > 0) {
       return {
         activeOrderCount,
         needsActionCount,
-        heroTitle: "注文の進行状況を確認しましょう",
-        heroBody:
-          "返答待ち、進行中、納品確認が必要な注文をまとめて確認できます。",
-        primaryHref: "/b/orders",
-        primaryLabel: "注文管理を見る",
+        title: "注文の進行状況を確認しましょう",
+        body: "返答待ち、進行中、納品待ちの注文をまとめて確認できます。",
       };
     }
 
     return {
       activeOrderCount,
       needsActionCount,
-      heroTitle: "インフルエンサーを探して依頼を始めましょう",
-      heroBody:
-        "SNS種別、価格、投稿内容を見ながら、目的に合うインフルエンサーを探せます。",
-      primaryHref: "/b/creators",
-      primaryLabel: "インフルエンサーを探す",
+      title: "インフルエンサーを探して依頼を始めましょう",
+      body: "SNS種別、価格、投稿内容を見ながら、目的に合うインフルエンサーを探せます。",
     };
   }, [dashboard]);
 
@@ -467,9 +466,7 @@ export default function CompanyDashboardClient() {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-4xl rounded-[26px] bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.05)]">
-          <h1 className="text-2xl font-black text-slate-950">
-            エラーが発生しました
-          </h1>
+          <h1 className="text-2xl font-black text-slate-950">エラーが発生しました</h1>
           <p className="mt-3 text-sm font-semibold leading-7 text-slate-600">
             {error || "ダッシュボード情報の取得に失敗しました。"}
           </p>
@@ -487,74 +484,47 @@ export default function CompanyDashboardClient() {
     0;
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/30 to-transparent" />
-      <div className="pointer-events-none absolute right-[-260px] top-[110px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
-
-      <div className="relative mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-        <section className="overflow-hidden rounded-[32px] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-          <div className="grid gap-0 lg:grid-cols-[1fr_360px]">
-            <div className="p-6 md:p-8">
+    <div className="relative min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+        <section className="rounded-[34px] border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.055)] md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center">
+            <div>
               <p className="text-sm font-black text-slate-400">
                 {dashboard.companyName}
               </p>
-
-              <h1 className="mt-3 max-w-2xl text-[30px] font-black tracking-[-0.06em] text-slate-950 md:text-[42px]">
-                {summary.heroTitle}
+              <h1 className="mt-3 max-w-2xl text-[30px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[42px]">
+                {summary.title}
               </h1>
-
               <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                {summary.heroBody}
+                {summary.body}
               </p>
 
               <div className="mt-6 flex flex-col gap-2 sm:flex-row">
                 <Link
-                  href={summary.primaryHref}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+                  href={hasOrders ? "/b/orders" : "/b/creators"}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
                 >
-                  {summary.primaryLabel}
+                  {hasOrders ? "注文管理を見る" : "インフルエンサーを探す"}
                   <ArrowIcon />
                 </Link>
-
                 <Link
-                  href="/b/creators"
+                  href="/b/saved-creators"
                   className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
                 >
-                  新しく探す
+                  保存済みを見る
                 </Link>
               </div>
             </div>
 
-            <div className="border-t border-slate-100 bg-slate-950 p-6 text-white md:p-8 lg:border-l lg:border-t-0">
-              <p className="text-[12px] font-black tracking-[0.18em] text-white/35">
-                SUMMARY
+            <div className="rounded-[30px] bg-slate-50 p-4 ring-1 ring-slate-100">
+              <p className="px-1 text-[12px] font-black tracking-[0.18em] text-slate-400">
+                OVERVIEW
               </p>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-[22px] bg-white/10 p-4 ring-1 ring-white/10">
-                  <p className="text-xs font-bold text-white/45">進行中</p>
-                  <p className="mt-2 text-3xl font-black tracking-[-0.07em]">
-                    {summary.activeOrderCount}
-                  </p>
-                </div>
-                <div className="rounded-[22px] bg-white/10 p-4 ring-1 ring-white/10">
-                  <p className="text-xs font-bold text-white/45">要確認</p>
-                  <p className="mt-2 text-3xl font-black tracking-[-0.07em]">
-                    {summary.needsActionCount}
-                  </p>
-                </div>
-                <div className="rounded-[22px] bg-white/10 p-4 ring-1 ring-white/10">
-                  <p className="text-xs font-bold text-white/45">保存済み</p>
-                  <p className="mt-2 text-3xl font-black tracking-[-0.07em]">
-                    {dashboard.savedCount}
-                  </p>
-                </div>
-                <div className="rounded-[22px] bg-white/10 p-4 ring-1 ring-white/10">
-                  <p className="text-xs font-bold text-white/45">完了</p>
-                  <p className="mt-2 text-3xl font-black tracking-[-0.07em]">
-                    {dashboard.counts.completed}
-                  </p>
-                </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <CountPill label="進行中" value={summary.activeOrderCount} />
+                <CountPill label="要確認" value={summary.needsActionCount} tone="notice" />
+                <CountPill label="保存済み" value={dashboard.savedCount} />
+                <CountPill label="完了" value={dashboard.counts.completed} />
               </div>
             </div>
           </div>
@@ -567,7 +537,7 @@ export default function CompanyDashboardClient() {
         ) : null}
 
         <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <main className="rounded-[32px] bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-6">
+          <main className="rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
             <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-[12px] font-black tracking-[0.18em] text-[#ff5f67]">
@@ -619,9 +589,9 @@ export default function CompanyDashboardClient() {
           </main>
 
           <aside className="grid gap-4 lg:self-start">
-            <section className="rounded-[32px] bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-6">
+            <section className="rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
               <p className="text-[12px] font-black tracking-[0.18em] text-[#ff5f67]">
-                QUICK ACTION
+                NEXT
               </p>
 
               <div className="mt-4 grid gap-3">
@@ -645,7 +615,7 @@ export default function CompanyDashboardClient() {
               </div>
             </section>
 
-            <section className="rounded-[32px] bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 md:p-6">
+            <section className="rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-[12px] font-black tracking-[0.18em] text-slate-400">
@@ -677,7 +647,21 @@ export default function CompanyDashboardClient() {
           </aside>
         </section>
 
-        {!hasOrders ? <div className="mt-4"><EmptyGuide /></div> : null}
+        {!hasOrders ? (
+          <section className="mt-4 rounded-[34px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
+            <p className="text-[12px] font-black tracking-[0.18em] text-[#ff5f67]">
+              START
+            </p>
+            <h2 className="mt-2 text-[26px] font-black tracking-[-0.055em] text-slate-950">
+              最初の依頼までの流れ
+            </h2>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <NextStep number="1" title="探す" body="SNS種別や価格で絞り込みます。" />
+              <NextStep number="2" title="確認する" body="メニュー内容と実施条件を確認します。" />
+              <NextStep number="3" title="依頼する" body="支払い後、注文チャットで進めます。" />
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );
