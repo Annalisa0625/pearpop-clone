@@ -177,6 +177,7 @@ export default function OrderSuccessClient() {
               "投稿URLや納品URLが届いたら、内容を確認して完了できます。",
 
             orderList: "注文を見る",
+            orderDetail: "注文詳細を見る",
             searchInfluencer: "インフルエンサーを探す",
             dashboard: "ホームへ戻る",
             retry: "注文一覧を見る",
@@ -221,6 +222,7 @@ export default function OrderSuccessClient() {
               "When the delivery URL is submitted, review it and complete the order.",
 
             orderList: "View orders",
+            orderDetail: "View order details",
             searchInfluencer: "Find influencers",
             dashboard: "Back home",
             retry: "View orders",
@@ -351,6 +353,9 @@ export default function OrderSuccessClient() {
     safeLocale
   );
 
+  const orderDetailHref = result?.order_id ? `/b/orders/${result.order_id}` : "/b/orders";
+  const primaryOrderLabel = result?.order_id ? copy.orderDetail : copy.orderList;
+
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 md:px-6">
@@ -434,8 +439,8 @@ export default function OrderSuccessClient() {
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            <ActionLink href="/b/orders" primary>
-              {copy.orderList}
+            <ActionLink href={orderDetailHref} primary>
+              {primaryOrderLabel}
             </ActionLink>
             <ActionLink href="/b/creators">{copy.searchInfluencer}</ActionLink>
             <ActionLink href="/b/dashboard">{copy.dashboard}</ActionLink>

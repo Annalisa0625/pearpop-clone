@@ -458,13 +458,13 @@ export default function CompanyOrdersPage() {
       safeLocale === "ja"
         ? {
             loading: "読み込み中...",
-            title: "注文",
+            title: "注文管理",
             subtitle:
-              "返答待ち、進行中、納品確認、完了した注文をここで確認できます。",
+              "依頼後の返答待ち、進行中、納品確認、完了までをここで確認できます。",
             searchInfluencers: "インフルエンサーを探す",
             empty: "表示する注文はありません",
             emptyBody:
-              "インフルエンサーに注文すると、ここに一覧表示されます。",
+              "インフルエンサーに依頼すると、ここに一覧表示されます。",
             all: "すべて",
             waiting: "返答待ち",
             active: "進行中",
@@ -472,11 +472,11 @@ export default function CompanyOrdersPage() {
             completed: "完了",
             unnamedInfluencer: "unknown",
             unnamedOrder: "未入力",
-            menu: "メニュー",
+            menu: "依頼メニュー",
             amount: "金額",
             updated: "更新",
-            sent: "送信",
-            detail: "詳細を見る",
+            sent: "依頼日",
+            detail: "注文詳細を見る",
             newMessage: "新着メッセージ",
             deliveredUrl: "納品URLあり",
             replyDeadline: "返答期限",
@@ -487,13 +487,13 @@ export default function CompanyOrdersPage() {
           }
         : {
             loading: "Loading...",
-            title: "Orders",
+            title: "Order Management",
             subtitle:
-              "Track waiting, active, delivered, and completed orders in one place.",
+              "Track requests from reply waiting to in-progress, delivery review, and completion.",
             searchInfluencers: "Find influencers",
             empty: "No orders to show",
             emptyBody:
-              "Orders will appear here after you place them with influencers.",
+              "Your requests will appear here after you send them to influencers.",
             all: "All",
             waiting: "Waiting",
             active: "In progress",
@@ -501,11 +501,11 @@ export default function CompanyOrdersPage() {
             completed: "Completed",
             unnamedInfluencer: "unknown",
             unnamedOrder: "Not entered",
-            menu: "Menu",
+            menu: "Selected menu",
             amount: "Amount",
             updated: "Updated",
-            sent: "Sent",
-            detail: "View details",
+            sent: "Requested",
+            detail: "View order details",
             newMessage: "New message",
             deliveredUrl: "Delivery URL",
             replyDeadline: "Reply deadline",
