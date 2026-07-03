@@ -388,8 +388,6 @@ export default function CompanyDashboardClient() {
   const summary = useMemo(() => {
     if (!dashboard) {
       return {
-        activeOrderCount: 0,
-        needsActionCount: 0,
         title: "ダッシュボード",
         body: "",
       };
@@ -401,8 +399,6 @@ export default function CompanyDashboardClient() {
 
     if (needsActionCount > 0) {
       return {
-        activeOrderCount,
-        needsActionCount,
         title: "納品を確認しましょう",
         body: "確認が必要な納品があります。内容を確認して、完了または修正依頼に進めます。",
       };
@@ -410,16 +406,12 @@ export default function CompanyDashboardClient() {
 
     if (activeOrderCount > 0) {
       return {
-        activeOrderCount,
-        needsActionCount,
         title: "注文の進行状況を確認しましょう",
         body: "返答待ち、進行中、納品待ちの注文をまとめて確認できます。",
       };
     }
 
     return {
-      activeOrderCount,
-      needsActionCount,
       title: "インフルエンサーを探して依頼を始めましょう",
       body: "SNS種別、価格、投稿内容を見ながら、目的に合うインフルエンサーを探せます。",
     };
@@ -459,34 +451,16 @@ export default function CompanyDashboardClient() {
     <div className="relative min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
         <section className="rounded-[34px] border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.055)] md:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-sm font-black text-slate-400">
-                {dashboard.companyName}
-              </p>
-              <h1 className="mt-3 max-w-2xl text-[30px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[42px]">
-                {summary.title}
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                {summary.body}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
-              <Link
-                href={hasOrders ? "/b/orders" : "/b/creators"}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.18)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-              >
-                {hasOrders ? "注文管理を見る" : "インフルエンサーを探す"}
-                <ArrowIcon />
-              </Link>
-              <Link
-                href="/b/saved-creators"
-                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-6 py-3.5 text-sm font-black text-slate-800 transition hover:-translate-y-0.5 hover:bg-slate-200"
-              >
-                保存済みを見る
-              </Link>
-            </div>
+          <div>
+            <p className="text-sm font-black text-slate-400">
+              {dashboard.companyName}
+            </p>
+            <h1 className="mt-3 max-w-2xl text-[30px] font-black leading-tight tracking-[-0.06em] text-slate-950 md:text-[42px]">
+              {summary.title}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+              {summary.body}
+            </p>
           </div>
         </section>
 
@@ -552,6 +526,14 @@ export default function CompanyDashboardClient() {
               </h2>
 
               <div className="mt-4 grid gap-3">
+                {hasOrders ? (
+                  <QuickAction
+                    href="/b/orders"
+                    title="注文管理を見る"
+                    body="進行中の注文を確認"
+                    primary
+                  />
+                ) : null}
                 <QuickAction
                   href="/b/creators"
                   title="インフルエンサーを探す"
@@ -562,12 +544,6 @@ export default function CompanyDashboardClient() {
                   href="/b/saved-creators"
                   title="保存済みを見る"
                   body={`${dashboard.savedCount}件を保存中`}
-                />
-                <QuickAction
-                  href="/b/orders"
-                  title="注文管理を見る"
-                  body="進行中の注文を確認"
-                  primary={hasOrders}
                 />
               </div>
             </section>
