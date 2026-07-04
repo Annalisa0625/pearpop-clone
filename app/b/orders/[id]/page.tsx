@@ -281,20 +281,20 @@ function getBuyerPaymentStatusMeta(order: OrderDetail, locale: "ja" | "en") {
       title: locale === "ja" ? "支払いは確定しています" : "Payment is captured",
       body:
         locale === "ja"
-          ? "お支払いはTrendreが管理しています。案件完了後、クリエイター報酬はTrendreから支払われます。"
+          ? "お支払いはTrendreが管理しています。案件完了後、インフルエンサー報酬はTrendreから支払われます。"
           : "Your payment is managed by Trendre. After completion, the creator payout is handled by Trendre.",
     };
   }
 
   if (order.payment_status === "authorized" || order.authorized_at) {
     return {
-      label: locale === "ja" ? "承認待ち" : "Authorized",
+      label: locale === "ja" ? "支払い方法確認済み" : "Payment authorized",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: locale === "ja" ? "クリエイターの返答待ちです" : "Waiting for creator approval",
+      title: locale === "ja" ? "インフルエンサーの返答待ちです" : "Waiting for creator approval",
       body:
         locale === "ja"
-          ? "カード決済は確認済みです。クリエイターが承認すると案件が正式に進行します。"
-          : "The card payment has been authorized. The order proceeds when the creator accepts it.",
+          ? "支払い方法は確認済みです。インフルエンサーが承認した場合のみ、案件の支払いが確定します。"
+          : "The payment method has been authorized. The order proceeds only when the influencer accepts it.",
     };
   }
 
@@ -305,7 +305,7 @@ function getBuyerPaymentStatusMeta(order: OrderDetail, locale: "ja" | "en") {
       title: locale === "ja" ? "支払い確認中です" : "Payment is being confirmed",
       body:
         locale === "ja"
-          ? "Stripeでの支払い確認後、クリエイターの返答待ちに進みます。"
+          ? "Stripeでの支払い確認後、インフルエンサーの返答待ちに進みます。"
           : "After Stripe confirms the payment, the order will wait for creator approval.",
     };
   }
@@ -899,49 +899,54 @@ function PaymentSummaryCard({
   const cancellationDate = getCancellationDate(order);
 
   return (
-    <Panel className="overflow-hidden">
-      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-[#251020] p-5 text-white">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#ff9ab0]">
-              Payment
-            </p>
-            <h2 className="mt-1 text-xl font-black tracking-[-0.04em]">
-              {locale === "ja" ? "支払い情報" : "Payment details"}
-            </h2>
-            <p className="mt-2 text-sm font-semibold leading-6 text-white/65">
-              {meta.body}
-            </p>
-          </div>
+    <Panel className="p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <SectionTitle
+          title={locale === "ja" ? "支払い" : "Payment"}
+          body={meta.body}
+        />
+        <Pill className={meta.className}>{meta.label}</Pill>
+      </div>
 
-          <Pill className={meta.className}>{meta.label}</Pill>
-        </div>
-
-        <div className="mt-5 rounded-[24px] bg-white/10 p-4 ring-1 ring-white/10">
-          <p className="text-xs font-black text-white/55">
-            {locale === "ja" ? "支払い合計" : "Total paid"}
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+          <p className="text-[11px] font-black text-slate-400">
+            {locale === "ja" ? "支払い合計" : "Total"}
           </p>
-          <p className="mt-1 text-[34px] font-black tracking-[-0.07em]">
+          <p className="mt-2 text-2xl font-black tracking-[-0.06em] text-slate-950">
             {formatPrice(totalAmount, currency, locale)}
           </p>
-          <p className="mt-2 text-xs font-bold leading-5 text-white/60">
-            {locale === "ja"
-              ? "メニュー価格とTrendre手数料を含む合計です。"
-              : "Includes the menu price and Trendre service fee."}
+        </div>
+
+        <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+          <p className="text-[11px] font-black text-slate-400">
+            {locale === "ja" ? "メニュー価格" : "Menu price"}
+          </p>
+          <p className="mt-2 text-lg font-black tracking-[-0.04em] text-slate-950">
+            {formatPrice(order.menu_price_amount, currency, locale)}
+          </p>
+        </div>
+
+        <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
+          <p className="text-[11px] font-black text-slate-400">
+            {locale === "ja" ? "手数料" : "Service fee"}
+          </p>
+          <p className="mt-2 text-lg font-black tracking-[-0.04em] text-slate-950">
+            {formatPrice(serviceFeeAmount, currency, locale)}
           </p>
         </div>
       </div>
 
-      <details className="group">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left [&::-webkit-details-marker]:hidden">
+      <details className="group mt-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-[22px] bg-white px-4 py-3 text-left ring-1 ring-slate-100 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
           <div>
-            <h3 className="text-base font-black text-slate-950">
-              {locale === "ja" ? "内訳・日付を確認" : "View breakdown and dates"}
+            <h3 className="text-sm font-black text-slate-950">
+              {locale === "ja" ? "内訳と日付を確認" : "Breakdown and dates"}
             </h3>
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
               {locale === "ja"
-                ? "必要な時だけ詳細を開けます。"
-                : "Open this only when you need the full details."}
+                ? "必要な時だけ開いて確認できます。"
+                : "Open only when you need the full details."}
             </p>
           </div>
 
@@ -950,7 +955,7 @@ function PaymentSummaryCard({
           </span>
         </summary>
 
-        <div className="border-t border-slate-100 px-5 pb-5 pt-2">
+        <div className="mt-3 rounded-[22px] bg-slate-50 px-4 py-2 ring-1 ring-slate-100">
           <DetailRow
             label={locale === "ja" ? "支払い状態" : "Payment status"}
             value={meta.label}
@@ -1008,17 +1013,6 @@ function PaymentSummaryCard({
               value={formatDateTime(cancellationDate, locale)}
             />
           ) : null}
-
-          <div className="mt-4 rounded-[20px] bg-slate-50 p-4 ring-1 ring-slate-100">
-            <p className="text-sm font-black text-slate-950">
-              {meta.title}
-            </p>
-            <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
-              {locale === "ja"
-                ? "クリエイターへの報酬支払いは、案件完了後にTrendreが管理します。企業側で追加の振込作業は不要です。"
-                : "Creator payouts are handled by Trendre after order completion. No additional bank transfer is required from the company."}
-            </p>
-          </div>
         </div>
       </details>
     </Panel>
@@ -1132,6 +1126,22 @@ function ProgressCard({
   const address = getShippingAddress(order);
   const delivered = Boolean(order.delivered_at || order.delivered_post_url);
   const completed = isCompletedStatus(order.status);
+
+  if (isWaitingStatus(order.status)) {
+    return (
+      <Panel className="p-5">
+        <SectionTitle
+          title={copy.waitingProgressTitle}
+          body={copy.waitingProgressBody}
+        />
+        <div className="mt-4 grid gap-2">
+          <StepItem done active={false} label={copy.waitingProgressStepPayment} />
+          <StepItem done={false} active label={copy.waitingProgressStepReply} />
+          <StepItem done={false} active={false} label={copy.waitingProgressStepStart} />
+        </div>
+      </Panel>
+    );
+  }
 
   if (fulfillmentType === "product_shipping") {
     const addressDone = Boolean(address && order.shipping_address_shared_at);
@@ -1628,6 +1638,12 @@ export default function CompanyOrderDetailPage() {
             stepReviewTitle: "確認・完了",
             stepScheduleTitle: "日程調整",
             stepMaterialTitle: "素材確認",
+            waitingProgressTitle: "返答待ち",
+            waitingProgressBody:
+              "インフルエンサーが依頼内容を確認しています。返答があると注文が開始されます。",
+            waitingProgressStepPayment: "支払い方法を確認",
+            waitingProgressStepReply: "インフルエンサーの返答待ち",
+            waitingProgressStepStart: "注文開始",
 
             orderContent: "注文内容",
             orderContentSub: "必要な時だけ確認できます",
@@ -1749,6 +1765,12 @@ export default function CompanyOrderDetailPage() {
             stepReviewTitle: "Review",
             stepScheduleTitle: "Schedule",
             stepMaterialTitle: "Material check",
+            waitingProgressTitle: "Waiting for reply",
+            waitingProgressBody:
+              "The influencer is reviewing your request. The order starts when they accept it.",
+            waitingProgressStepPayment: "Payment method checked",
+            waitingProgressStepReply: "Waiting for influencer reply",
+            waitingProgressStepStart: "Order starts",
 
             orderContent: "Order details",
             orderContentSub: "Available when needed",
@@ -2193,7 +2215,7 @@ export default function CompanyOrderDetailPage() {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
       <div className="mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
-        <section className="rounded-[30px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:px-6 md:py-6">
+        <section className="rounded-[30px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:px-6 md:py-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -2226,7 +2248,7 @@ export default function CompanyOrderDetailPage() {
                 ) : null}
               </div>
 
-              <h1 className="mt-4 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[36px]">
+              <h1 className="mt-3 text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[34px]">
                 {order.product_name || order.menu_title_snapshot || copy.titleFallback}
               </h1>
 
