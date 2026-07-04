@@ -1,6 +1,7 @@
 // File: app/api/company/orders/[id]/shipment/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createInAppNotification, getOrderNotificationName } from "@/lib/notifications/in-app";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -122,7 +123,9 @@ export async function POST(
         shipping_carrier,
         shipping_tracking_number,
         shipped_at,
-        received_at
+        received_at,
+        product_name,
+        menu_title_snapshot
       `
       )
       .eq("id", orderId)
@@ -171,18 +174,48 @@ export async function POST(
       throw updateError;
     }
 
+    const eventType = order.shipped_at
+      ? "company_updated_product_shipment"
+      : "company_registered_product_shipment";
+    const shippedAt = order.shipped_at ?? nowIso;
+
     await supabaseAdmin.from("order_events").insert({
       order_id: order.id,
       actor_user_id: user.id,
-      event_type: order.shipped_at
-        ? "company_updated_product_shipment"
-        : "company_registered_product_shipment",
+      event_type: eventType,
       event_data: {
         previous_preparation_status: order.preparation_status,
         preparation_status: "shipped",
         shipping_carrier: shippingCarrier,
         shipping_tracking_number: shippingTrackingNumber,
-        shipped_at: order.shipped_at ?? nowIso,
+        shipped_at: shippedAt,
+      },
+    });
+
+    const orderName = getOrderNotificationName(order);
+
+    await createInAppNotification({
+      recipientUserId: order.creator_user_id,
+      actorUserId: user.id,
+      notificationType: "product_shipped",
+      title: order.shipped_at ? "発送情報が更新されました" : "商品が発送されました",
+      body:
+        orderName === "注文"
+          ? `配送会社：${shippingCarrier} / 追跡番号：${shippingTrackingNumber}`
+          : `${orderName}の商品が発送されました。配送会社：${shippingCarrier} / 追跡番号：${shippingTrackingNumber}`,
+      linkPath: `/creator/orders/${order.id}`,
+      entityType: "order",
+      entityId: order.id,
+      orderId: order.id,
+      importance: "high",
+      metadata: {
+        product_name: order.product_name,
+        menu_title: order.menu_title_snapshot,
+        fulfillment_type: "product_shipping",
+        shipping_carrier: shippingCarrier,
+        shipping_tracking_number: shippingTrackingNumber,
+        shipped_at: shippedAt,
+        event_type: eventType,
       },
     });
 

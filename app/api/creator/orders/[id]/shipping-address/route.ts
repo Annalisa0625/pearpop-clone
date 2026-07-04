@@ -1,6 +1,7 @@
 // File: app/api/creator/orders/[id]/shipping-address/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createInAppNotification, getOrderNotificationName } from "@/lib/notifications/in-app";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -206,7 +207,9 @@ export async function POST(
         fulfillment_type,
         preparation_status,
         preparation_data,
-        shipping_address_shared_at
+        shipping_address_shared_at,
+        product_name,
+        menu_title_snapshot
       `
       )
       .eq("id", orderId)
@@ -267,12 +270,14 @@ export async function POST(
       throw updateError;
     }
 
+    const eventType = order.shipping_address_shared_at
+      ? "creator_updated_shipping_address"
+      : "creator_shared_shipping_address";
+
     await supabaseAdmin.from("order_events").insert({
       order_id: order.id,
       actor_user_id: user.id,
-      event_type: order.shipping_address_shared_at
-        ? "creator_updated_shipping_address"
-        : "creator_shared_shipping_address",
+      event_type: eventType,
       event_data: {
         preparation_status: "waiting_shipment",
         address_fields: {
@@ -283,6 +288,33 @@ export async function POST(
           has_address_line2: Boolean(address.address_line2),
           has_notes: Boolean(address.notes),
         },
+      },
+    });
+
+    const orderName = getOrderNotificationName(order);
+
+    await createInAppNotification({
+      recipientUserId: order.b_user_id,
+      actorUserId: user.id,
+      notificationType: "shipping_address_shared",
+      title: order.shipping_address_shared_at
+        ? "配送先が更新されました"
+        : "配送先が共有されました",
+      body:
+        orderName === "注文"
+          ? "商品発送に必要な配送先を確認できます。"
+          : `${orderName}の商品発送に必要な配送先を確認できます。`,
+      linkPath: `/b/orders/${order.id}`,
+      entityType: "order",
+      entityId: order.id,
+      orderId: order.id,
+      importance: "high",
+      metadata: {
+        product_name: order.product_name,
+        menu_title: order.menu_title_snapshot,
+        fulfillment_type: "product_shipping",
+        shipping_address_shared_at: nowIso,
+        event_type: eventType,
       },
     });
 
