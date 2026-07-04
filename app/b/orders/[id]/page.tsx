@@ -282,7 +282,7 @@ function getBuyerPaymentStatusMeta(order: OrderDetail, locale: "ja" | "en") {
       body:
         locale === "ja"
           ? "お支払いはTrendreが管理しています。案件完了後、インフルエンサー報酬はTrendreから支払われます。"
-          : "Your payment is managed by Trendre. After completion, the creator payout is handled by Trendre.",
+          : "Your payment is managed by Trendre. After completion, the influencer payout is handled by Trendre.",
     };
   }
 
@@ -290,7 +290,7 @@ function getBuyerPaymentStatusMeta(order: OrderDetail, locale: "ja" | "en") {
     return {
       label: locale === "ja" ? "支払い方法確認済み" : "Payment authorized",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
-      title: locale === "ja" ? "インフルエンサーの返答待ちです" : "Waiting for creator approval",
+      title: locale === "ja" ? "インフルエンサーの返答待ちです" : "Waiting for influencer approval",
       body:
         locale === "ja"
           ? "支払い方法は確認済みです。インフルエンサーが承認した場合のみ、案件の支払いが確定します。"
@@ -306,7 +306,7 @@ function getBuyerPaymentStatusMeta(order: OrderDetail, locale: "ja" | "en") {
       body:
         locale === "ja"
           ? "Stripeでの支払い確認後、インフルエンサーの返答待ちに進みます。"
-          : "After Stripe confirms the payment, the order will wait for creator approval.",
+          : "After Stripe confirms the payment, the order will wait for influencer approval.",
     };
   }
 
@@ -443,6 +443,54 @@ function getBackHref(status: string) {
   return "/b/orders";
 }
 
+function getHeroSubtitle(status: string, locale: "ja" | "en") {
+  if (status === "checkout_pending") {
+    return locale === "ja"
+      ? "支払い方法を確認しています。確認が終わると返答待ちに進みます。"
+      : "Payment is being confirmed. The order will move to waiting once confirmed.";
+  }
+
+  if (isWaitingStatus(status)) {
+    return locale === "ja"
+      ? "インフルエンサーの返答を待っています。承認されると注文が開始されます。"
+      : "Waiting for the influencer to reply. The order starts when they accept.";
+  }
+
+  if (status === "accepted_captured" || status === "in_progress") {
+    return locale === "ja"
+      ? "注文は進行中です。チャットや納品状況を確認できます。"
+      : "This order is in progress. You can check chat and delivery updates here.";
+  }
+
+  if (isDeliveredStatus(status)) {
+    return locale === "ja"
+      ? "納品内容を確認し、問題なければ完了してください。"
+      : "Review the delivery and complete the order if everything looks good.";
+  }
+
+  if (status === "revision_requested") {
+    return locale === "ja"
+      ? "修正依頼を送信済みです。再納品をお待ちください。"
+      : "A revision request has been sent. Please wait for the updated delivery.";
+  }
+
+  if (isCompletedStatus(status)) {
+    return locale === "ja"
+      ? "この注文は完了しています。必要な情報を確認できます。"
+      : "This order is complete. Details remain available here.";
+  }
+
+  if (isCanceledStatus(status)) {
+    return locale === "ja"
+      ? "この注文は終了しています。内容だけ確認できます。"
+      : "This order has ended. Details remain available here.";
+  }
+
+  return locale === "ja"
+    ? "現在の状況と、次に必要な対応を確認できます。"
+    : "Check the current status and next required action here.";
+}
+
 function normalizeFulfillmentType(
   value: string | null | undefined
 ): FulfillmentType {
@@ -533,19 +581,19 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       label: "返答待ち",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
       title: "返答待ち",
-      body: "インフルエンサーの承認を待っています。",
+      body: "インフルエンサーが依頼内容を確認しています。返答があると注文が開始されます。",
     },
     accepted_captured: {
-      label: "対応中",
-      className: "bg-slate-950 text-white ring-slate-950",
-      title: "対応中",
-      body: "必要な対応があればこの画面に表示されます。",
+      label: "進行中",
+      className: "bg-blue-50 text-blue-700 ring-blue-100",
+      title: "進行中",
+      body: "チャット、商品の発送、納品確認など、必要な対応はこの画面に表示されます。",
     },
     in_progress: {
-      label: "対応中",
-      className: "bg-slate-950 text-white ring-slate-950",
-      title: "対応中",
-      body: "必要な対応があればこの画面に表示されます。",
+      label: "進行中",
+      className: "bg-blue-50 text-blue-700 ring-blue-100",
+      title: "進行中",
+      body: "チャット、商品の発送、納品確認など、必要な対応はこの画面に表示されます。",
     },
     delivered: {
       label: "納品確認",
@@ -590,7 +638,7 @@ function getStatusMeta(status: string, locale: "ja" | "en") {
       label: "Waiting",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
       title: "Waiting",
-      body: "Waiting for the influencer to accept.",
+      body: "The influencer is reviewing your request. The order starts when they accept it.",
     },
     accepted_captured: {
       label: "Active",
@@ -929,7 +977,7 @@ function PaymentSummaryCard({
 
         <div className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
           <p className="text-[11px] font-black text-slate-400">
-            {locale === "ja" ? "手数料" : "Service fee"}
+            {locale === "ja" ? "サービス手数料" : "Service fee"}
           </p>
           <p className="mt-2 text-lg font-black tracking-[-0.04em] text-slate-950">
             {formatPrice(serviceFeeAmount, currency, locale)}
@@ -970,7 +1018,7 @@ function PaymentSummaryCard({
             value={formatPrice(order.menu_price_amount, currency, locale)}
           />
           <DetailRow
-            label={locale === "ja" ? "Trendre手数料" : "Trendre fee"}
+            label={locale === "ja" ? "サービス手数料" : "Service fee"}
             value={
               <span>
                 {formatPrice(serviceFeeAmount, currency, locale)}
@@ -1563,7 +1611,7 @@ export default function CompanyOrderDetailPage() {
             authFailed: "ログイン情報を取得できませんでした。",
             backOrders: "注文へ戻る",
             titleFallback: "注文詳細",
-            pageSubtitle: "企業側で必要な対応だけを確認できます。",
+            pageSubtitle: "現在の状況と、次に必要な対応を確認できます。",
             influencer: "インフルエンサー",
             influencerProfile: "インフルエンサー詳細を見る",
             payment: "支払い金額",
@@ -1646,9 +1694,9 @@ export default function CompanyOrderDetailPage() {
             waitingProgressStepStart: "注文開始",
 
             orderContent: "注文内容",
-            orderContentSub: "必要な時だけ確認できます",
+            orderContentSub: "依頼時に入力した内容",
             menuContent: "メニュー詳細",
-            menuContentSub: "注文時点の内容",
+            menuContentSub: "注文時のメニュー内容",
             paymentContent: "支払い詳細",
             paymentContentSub: "金額の内訳",
             productName: "商品名・案件名",
@@ -1690,7 +1738,7 @@ export default function CompanyOrderDetailPage() {
             authFailed: "Could not retrieve your login session.",
             backOrders: "Back to orders",
             titleFallback: "Order details",
-            pageSubtitle: "Only the required actions are shown here.",
+            pageSubtitle: "Check the current status and next required action here.",
             influencer: "Influencer",
             influencerProfile: "View influencer profile",
             payment: "Payment",
@@ -1773,9 +1821,9 @@ export default function CompanyOrderDetailPage() {
             waitingProgressStepStart: "Order starts",
 
             orderContent: "Order details",
-            orderContentSub: "Available when needed",
+            orderContentSub: "Details entered at request time",
             menuContent: "Menu details",
-            menuContentSub: "Snapshot at purchase",
+            menuContentSub: "Menu details at purchase",
             paymentContent: "Payment details",
             paymentContentSub: "Amount breakdown",
             productName: "Product / Campaign",
@@ -2253,7 +2301,7 @@ export default function CompanyOrderDetailPage() {
               </h1>
 
               <p className="mt-2 text-sm font-semibold text-slate-500">
-                {copy.pageSubtitle}
+                {getHeroSubtitle(order.status, safeLocale)}
               </p>
             </div>
 
@@ -2277,7 +2325,7 @@ export default function CompanyOrderDetailPage() {
           <main className="space-y-4">
             <Panel className="p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <SectionTitle title={meta.title} body={meta.body} />
+                <SectionTitle title={safeLocale === "ja" ? "現在の状況" : "Current status"} body={meta.body} />
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:min-w-[420px]">
                   <div className="rounded-[20px] bg-slate-50 p-3 ring-1 ring-slate-100">
@@ -2329,15 +2377,6 @@ export default function CompanyOrderDetailPage() {
                 onSubmit={() => void runRegisterShipment()}
                 locale={safeLocale}
                 copy={copy}
-              />
-            ) : null}
-
-            {canChat && !isDeliveredStatus(order.status) ? (
-              <ChatCtaCard
-                title={copy.chatCtaTitle}
-                body={copy.chatCtaBody}
-                buttonLabel={copy.chatCtaButton}
-                href={`/b/orders/${order.id}/chat`}
               />
             ) : null}
 
