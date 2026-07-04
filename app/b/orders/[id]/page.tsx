@@ -2576,9 +2576,9 @@ export default function CompanyOrderDetailPage() {
             </div>
           </main>
 
-          <aside className={canChat ? "space-y-4 xl:order-1" : "space-y-4"}>
+          <aside className={canChat ? "space-y-4 xl:sticky xl:top-24 xl:order-1 xl:self-start" : "space-y-4"}>
             {canChat ? (
-              <div className="xl:sticky xl:top-24">
+              <div>
                 <Panel className="overflow-hidden p-0">
                   <div className="border-b border-slate-100 bg-white px-5 py-4">
                     <div className="flex items-start justify-between gap-3">
@@ -2592,7 +2592,7 @@ export default function CompanyOrderDetailPage() {
                     </div>
                   </div>
 
-                  <div className="h-[560px] min-h-0 xl:h-[calc(100vh-250px)] xl:min-h-[560px]">
+                  <div className="h-[620px] min-h-0 xl:h-[calc(100dvh-170px)] xl:min-h-[520px] xl:max-h-[calc(100dvh-170px)]">
                     <ChatEmbed
                       orderId={order.id}
                       title={copy.chatCtaTitle}
