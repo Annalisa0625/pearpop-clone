@@ -2264,9 +2264,11 @@ export default function CompanyOrderDetailPage() {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
       <div
-          className={`mx-auto px-4 py-6 pb-10 md:px-6 md:py-8 ${
-            canChat ? "max-w-5xl lg:ml-[520px] lg:mr-6 xl:ml-[540px] xl:mr-auto" : "max-w-6xl"
-          }`}
+          className={
+            canChat
+              ? "w-full px-4 py-6 pb-10 md:px-8 md:py-8 lg:pl-[520px] lg:pr-8"
+              : "mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8"
+          }
         >
         <section className="rounded-[30px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:px-6 md:py-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -2327,18 +2329,20 @@ export default function CompanyOrderDetailPage() {
         ) : null}
 
         {canChat ? (
-          <div className="fixed bottom-6 left-6 top-[132px] z-30 hidden w-[420px] lg:block">
+          <div className="fixed bottom-6 left-8 top-[150px] z-30 hidden w-[440px] lg:block">
             <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0">
               <div className="shrink-0 border-b border-slate-100 bg-white px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <InfluencerAvatar influencer={influencer} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[16px] font-black tracking-[-0.035em] text-slate-950">
-                      {influencer?.display_name || copy.influencer}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs font-bold text-slate-400">
-                      {safeLocale === "ja" ? "Trendre内チャット" : "Trendre chat"}
-                    </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <InfluencerAvatar influencer={influencer} />
+                    <div className="min-w-0">
+                      <p className="truncate text-[16px] font-black tracking-[-0.03em] text-slate-950">
+                        {influencer?.display_name || copy.influencer}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs font-bold text-slate-400">
+                        {safeLocale === "ja" ? "Trendre内チャット" : "Trendre chat"}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-100">
                     <MessageIcon />
