@@ -2329,11 +2329,11 @@ export default function CompanyOrderDetailPage() {
         <section
           className={`mt-4 grid gap-4 ${
             canChat
-              ? "xl:grid-cols-[500px_minmax(0,1fr)]"
+              ? "lg:grid-cols-[minmax(360px,500px)_minmax(0,1fr)]"
               : "lg:grid-cols-[minmax(0,1fr)_320px]"
           }`}
         >
-          <main className={canChat ? "space-y-4 xl:order-2" : "space-y-4"}>
+          <main className={canChat ? "space-y-4 lg:order-2" : "space-y-4"}>
             <Panel className="p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <SectionTitle title={safeLocale === "ja" ? "現在の状況" : "Current status"} body={meta.body} />
@@ -2576,11 +2576,11 @@ export default function CompanyOrderDetailPage() {
             </div>
           </main>
 
-          <aside className={canChat ? "space-y-4 xl:sticky xl:top-24 xl:order-1 xl:self-start" : "space-y-4"}>
+          <aside className={canChat ? "space-y-4 lg:order-1 lg:self-start" : "space-y-4"}>
             {canChat ? (
-              <div>
-                <Panel className="overflow-hidden p-0">
-                  <div className="border-b border-slate-100 bg-white px-5 py-4">
+              <div className="lg:sticky lg:top-24">
+                <Panel className="flex h-[620px] flex-col overflow-hidden p-0 lg:h-[calc(100dvh-150px)] lg:min-h-[520px] lg:max-h-[calc(100dvh-150px)]">
+                  <div className="shrink-0 border-b border-slate-100 bg-white px-5 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <SectionTitle
                         title={copy.chatCtaTitle}
@@ -2592,7 +2592,7 @@ export default function CompanyOrderDetailPage() {
                     </div>
                   </div>
 
-                  <div className="h-[620px] min-h-0 xl:h-[calc(100dvh-170px)] xl:min-h-[520px] xl:max-h-[calc(100dvh-170px)]">
+                  <div className="min-h-0 flex-1">
                     <ChatEmbed
                       orderId={order.id}
                       title={copy.chatCtaTitle}
