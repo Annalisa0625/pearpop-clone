@@ -2326,22 +2326,19 @@ export default function CompanyOrderDetailPage() {
           </div>
         ) : null}
 
-
         {canChat ? (
-          <div className="fixed bottom-6 left-6 top-[96px] z-30 hidden w-[440px] lg:block">
+          <div className="fixed bottom-6 left-6 top-[132px] z-30 hidden w-[420px] lg:block">
             <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0">
               <div className="shrink-0 border-b border-slate-100 bg-white px-5 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <InfluencerAvatar influencer={influencer} />
-                    <div className="min-w-0">
-                      <p className="truncate text-[16px] font-black tracking-[-0.03em] text-slate-950">
-                        {influencer?.display_name || copy.notSet}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">
-                        Trendre内チャット
-                      </p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <InfluencerAvatar influencer={influencer} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[16px] font-black tracking-[-0.035em] text-slate-950">
+                      {influencer?.display_name || copy.influencer}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs font-bold text-slate-400">
+                      {safeLocale === "ja" ? "Trendre内チャット" : "Trendre chat"}
+                    </p>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-100">
                     <MessageIcon />
@@ -2352,12 +2349,8 @@ export default function CompanyOrderDetailPage() {
               <div className="min-h-0 flex-1 overflow-hidden">
                 <ChatEmbed
                   orderId={order.id}
-                  title={copy.chatCtaTitle}
-                  subtitle={
-                    order.product_name ||
-                    order.menu_title_snapshot ||
-                    copy.titleFallback
-                  }
+                  title={influencer?.display_name || copy.influencer}
+                  subtitle={safeLocale === "ja" ? "Trendre内チャット" : "Trendre chat"}
                   variant="page"
                   showHeader={false}
                 />
