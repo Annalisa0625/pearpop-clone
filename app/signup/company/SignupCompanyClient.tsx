@@ -131,11 +131,15 @@ export default function SignupCompanyClient() {
     () =>
       safeLocale === "ja"
         ? {
-            title: "アカウント作成",
+            title: "企業アカウントを作成",
             subtitle:
-              "依頼を続けるために、必要な情報を入力してください。",
+              "月額料金なしで、公開メニューからすぐにインフルエンサーへ依頼できます。",
             returnNote:
               "登録後、元のインフルエンサー詳細ページに戻って依頼を続けられます。",
+            noMonthlyFee: "月額料金は発生しません。案件成立時のみ手数料が発生します。",
+            trustPoint1: "公開メニューから依頼",
+            trustPoint2: "Stripe決済",
+            trustPoint3: "納品確認まで管理",
             companyName: "会社名",
             companyNamePlaceholder: "例：株式会社〇〇 / 〇〇合同会社",
             websiteUrl: "会社HP URL または ECサイト URL",
@@ -145,7 +149,7 @@ export default function SignupCompanyClient() {
             phoneNumber: "電話番号",
             phoneNumberPlaceholder: "例：03-1234-5678",
             usagePurpose: "利用目的",
-            usagePurposeHelp: "今後の案内や利用状況の確認に使用します。",
+            usagePurposeHelp: "おすすめの案内や利用状況の確認に使用します。",
             email: "メールアドレス",
             emailPlaceholder: "company@example.com",
             password: "パスワード",
@@ -161,7 +165,7 @@ export default function SignupCompanyClient() {
             oauthConnected: "Googleアカウント連携済み",
             submit: "登録して続ける",
             submitting: "登録中...",
-            selectPlease: "選択してください",
+            selectPlease: "目的を選択",
             login: "すでにアカウントをお持ちの方はログイン",
             companyNameRequired: "会社名を入力してください",
             websiteRequired:
@@ -181,10 +185,14 @@ export default function SignupCompanyClient() {
             googleFailed: "Google登録を開始できませんでした",
           }
         : {
-            title: "Create account",
-            subtitle: "Enter your details to continue your request.",
+            title: "Create company account",
+            subtitle: "Request influencers from public menus with no monthly fee.",
             returnNote:
               "After registration, you can return to the influencer page and continue your request.",
+            noMonthlyFee: "No monthly fee. Service fees apply only when a project is confirmed.",
+            trustPoint1: "Request from menus",
+            trustPoint2: "Stripe payment",
+            trustPoint3: "Manage delivery",
             companyName: "Company name",
             companyNamePlaceholder: "Example Inc. / Example LLC",
             websiteUrl: "Company website or store URL",
@@ -195,7 +203,7 @@ export default function SignupCompanyClient() {
             phoneNumberPlaceholder: "Example: +81-3-1234-5678",
             usagePurpose: "Usage purpose",
             usagePurposeHelp:
-              "This will be used for usage guidance and account review if needed.",
+              "Used for guidance and account review if needed.",
             email: "Email",
             emailPlaceholder: "company@example.com",
             password: "Password",
@@ -211,7 +219,7 @@ export default function SignupCompanyClient() {
             oauthConnected: "Google account connected",
             submit: "Sign up and continue",
             submitting: "Creating...",
-            selectPlease: "Please select",
+            selectPlease: "Select purpose",
             login: "Already have an account? Log in",
             companyNameRequired: "Please enter your company name",
             websiteRequired:
@@ -418,27 +426,27 @@ export default function SignupCompanyClient() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f8fafc]">
+    <main className="relative min-h-screen overflow-hidden bg-[#f8f9fb]">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute left-[-180px] top-[-160px] h-[420px] w-[420px] rounded-full bg-rose-100/70 blur-3xl" />
         <div className="absolute right-[-180px] top-[14%] h-[520px] w-[520px] rounded-full bg-emerald-100/65 blur-3xl" />
         <div className="absolute bottom-[-220px] left-[22%] h-[460px] w-[460px] rounded-full bg-slate-200/60 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-8 md:px-6 md:py-10">
-        <div className="mb-7 flex items-center justify-center">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-6 md:px-6 md:py-8">
+        <div className="mb-5 flex items-center justify-center">
           <Link href="/home" className="inline-flex items-center">
             <img
               src="/brand/trendre-logo-full.png"
               alt="Trendre"
-              className="h-10 w-auto object-contain"
+              className="h-9 w-auto object-contain"
             />
           </Link>
         </div>
 
-        <section className="mx-auto w-full max-w-3xl">
+        <section className="mx-auto w-full max-w-4xl">
           <div className="mb-6 text-center">
-            <h1 className="text-[30px] font-black leading-tight tracking-[-0.04em] text-slate-950 md:text-[38px]">
+            <h1 className="text-[30px] font-black leading-tight tracking-[-0.055em] text-slate-950 md:text-[42px]">
               {copy.title}
             </h1>
 
@@ -451,9 +459,24 @@ export default function SignupCompanyClient() {
                 {copy.returnNote}
               </p>
             ) : null}
+
+            <div className="mx-auto mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 ring-1 ring-slate-100">
+                {copy.noMonthlyFee}
+              </span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
+                {copy.trustPoint1}
+              </span>
+              <span className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600 ring-1 ring-slate-100">
+                {copy.trustPoint2}
+              </span>
+              <span className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600 ring-1 ring-slate-100">
+                {copy.trustPoint3}
+              </span>
+            </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[34px] border border-white/80 bg-white/95 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.13)] md:p-8">
+          <div className="relative overflow-hidden rounded-[32px] border border-white/80 bg-white/95 p-5 shadow-[0_28px_80px_rgba(15,23,42,0.10)] md:p-7">
             <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-rose-50 blur-3xl" />
             <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-50 blur-3xl" />
 
@@ -470,7 +493,7 @@ export default function SignupCompanyClient() {
 
               <div className="my-6 flex items-center gap-4">
                 <div className="h-px flex-1 bg-slate-100" />
-                <span className="text-xs font-bold text-slate-300">or</span>
+                <span className="text-xs font-bold text-slate-300">{safeLocale === "ja" ? "または" : "or"}</span>
                 <div className="h-px flex-1 bg-slate-100" />
               </div>
 
@@ -612,7 +635,7 @@ export default function SignupCompanyClient() {
                 <button
                   type="submit"
                   disabled={loading || oauthLoading}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5f67] px-7 py-4 text-sm font-black text-white shadow-[0_18px_35px_rgba(255,95,103,0.24)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55] disabled:opacity-60"
                 >
                   {loading ? copy.submitting : copy.submit}
                   {!loading ? <ArrowIcon /> : null}
