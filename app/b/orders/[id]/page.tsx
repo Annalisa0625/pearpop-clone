@@ -2329,11 +2329,11 @@ export default function CompanyOrderDetailPage() {
         <section
           className={`mt-4 grid gap-4 ${
             canChat
-              ? "xl:grid-cols-[minmax(0,1fr)_500px]"
+              ? "xl:grid-cols-[500px_minmax(0,1fr)]"
               : "lg:grid-cols-[minmax(0,1fr)_320px]"
           }`}
         >
-          <main className="space-y-4">
+          <main className={canChat ? "space-y-4 xl:order-2" : "space-y-4"}>
             <Panel className="p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <SectionTitle title={safeLocale === "ja" ? "現在の状況" : "Current status"} body={meta.body} />
@@ -2576,7 +2576,7 @@ export default function CompanyOrderDetailPage() {
             </div>
           </main>
 
-          <aside className="space-y-4">
+          <aside className={canChat ? "space-y-4 xl:order-1" : "space-y-4"}>
             {canChat ? (
               <div className="xl:sticky xl:top-24">
                 <Panel className="overflow-hidden p-0">
