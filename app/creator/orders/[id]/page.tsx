@@ -666,6 +666,35 @@ function buildPrCopyText(order: OrderDetail) {
   return lines.join("\n").trim();
 }
 
+function getFreeOfferDetail(order: OrderDetail) {
+  const fromPreparationData =
+    typeof order.preparation_data?.free_offer_detail === "string"
+      ? order.preparation_data.free_offer_detail.trim()
+      : "";
+
+  return (
+    fromPreparationData ||
+    extractRequirementSection(order.requirements, "無償提供内容")
+  ).trim();
+}
+
+function getFreeOfferDetailTitle(
+  order: OrderDetail,
+  locale: "ja" | "en"
+) {
+  const type = normalizeFulfillmentType(order.fulfillment_type);
+
+  if (locale === "ja") {
+    if (type === "product_shipping") return "提供される商品";
+    if (type === "visit") return "提供される体験・サービス";
+    return "提供内容";
+  }
+
+  if (type === "product_shipping") return "Provided product";
+  if (type === "visit") return "Provided experience / service";
+  return "Provided details";
+}
+
 function extractRequirementSection(
   requirements: string | null | undefined,
   sectionTitle: string
@@ -1339,6 +1368,13 @@ function InstructionFocusCard({
       ? "この案件の成果物は、注文内容の確認・投稿URLの確認目的で使用されます。広告素材としての利用は含まれていません。"
       : "Deliverables are used to review the order and submitted URL. Ad usage is not included in this order.";
 
+  const freeOfferDetail = getFreeOfferDetail(order);
+  const freeOfferTitle = getFreeOfferDetailTitle(order, locale);
+  const freeOfferHelp =
+    locale === "ja"
+      ? "注文を受ける前に、提供内容・数量・利用条件を確認してください。"
+      : "Review the provided item, quantity, and usage conditions before accepting.";
+
   return (
     <Surface className="overflow-hidden">
       <div className="px-4 py-3.5 sm:px-5">
@@ -1382,6 +1418,20 @@ function InstructionFocusCard({
             {usageNoteBody}
           </p>
         </div>
+
+        {freeOfferDetail ? (
+          <div className="mt-3 rounded-[14px] bg-emerald-50/70 px-3 py-2.5 ring-1 ring-emerald-100">
+            <p className="text-[12px] font-semibold text-emerald-900">
+              {freeOfferTitle}
+            </p>
+            <p className="mt-1 text-[11px] font-medium leading-5 text-emerald-700">
+              {freeOfferHelp}
+            </p>
+            <div className="mt-2">
+              <PlainTextBox value={freeOfferDetail} emptyLabel={copy.notSet} />
+            </div>
+          </div>
+        ) : null}
 
         {mainInstruction ? (
           <div className="mt-4 border-t border-slate-100 pt-4">
@@ -2627,6 +2677,12 @@ function CreatorDetailSheet({
                 label={copy.freeOffer}
                 value={order.has_free_offer ? copy.yes : copy.no}
               />
+              {getFreeOfferDetail(order) ? (
+                <DetailRow
+                  label={getFreeOfferDetailTitle(order, locale)}
+                  value={getFreeOfferDetail(order)}
+                />
+              ) : null}
               <DetailRow
                 label={copy.secondaryUse}
                 value={order.wants_secondary_use ? copy.yes : copy.no}
