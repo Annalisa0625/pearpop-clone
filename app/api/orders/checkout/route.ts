@@ -54,6 +54,7 @@ type CheckoutBody = {
   creator_menu_id?: string;
   project_type?: string;
   product_name?: string;
+  free_offer_detail?: string;
   product_url?: string;
   deadline?: string;
   requirements?: string;
@@ -901,6 +902,7 @@ export async function POST(req: NextRequest) {
     const creatorMenuId = getString(body.creator_menu_id);
     const projectType = normalizeProjectType(body.project_type);
     const productName = getString(body.product_name);
+    const freeOfferDetail = getNullableString(body.free_offer_detail);
     const productUrl = getNullableString(body.product_url);
     const deadline = getNullableString(body.deadline);
     const postNotes = getNullableString(body.post_notes);
@@ -964,6 +966,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (
+      (projectType === "visit_experience" || projectType === "product_delivery") &&
+      !freeOfferDetail
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "無償で提供する内容を、内容・個数・回数・利用条件が分かるように入力してください",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (projectType === "provided_assets") {
+      if (referenceAssets.length === 0) {
+        return NextResponse.json(
+          { error: "素材提供型では、投稿に使用する画像素材を1枚以上添付してください" },
+          { status: 400 }
+        );
+      }
+
+      if (referenceAssets.some((asset) => asset.file_type !== "image")) {
+        return NextResponse.json(
+          { error: "素材提供型では画像素材のみ添付できます。動画・PDFは取り扱えません" },
+          { status: 400 }
+        );
+      }
+    }
+
     if (!isDateStringOrNull(deadline)) {
       return NextResponse.json(
         { error: "納期の日付形式が正しくありません" },
@@ -975,6 +1006,12 @@ export async function POST(req: NextRequest) {
     const initialPreparationStatus =
       getInitialPreparationStatus(fulfillmentType);
     const preparationStartedAt = new Date().toISOString();
+
+    const preparationData = {
+      free_offer_detail: freeOfferDetail,
+      provided_assets_image_only: projectType === "provided_assets",
+      reference_assets_count: referenceAssets.length,
+    };
 
     const creatorResult: any = await withTimeout(
       supabaseAdmin
@@ -1190,6 +1227,7 @@ export async function POST(req: NextRequest) {
       fulfillment_type: fulfillmentType,
       preparation_status: initialPreparationStatus,
       preparation_started_at: preparationStartedAt,
+      preparation_data: preparationData,
 
       product_name: productName,
       product_url: productUrl,

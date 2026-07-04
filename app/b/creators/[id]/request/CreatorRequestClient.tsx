@@ -59,6 +59,7 @@ type SocialAccount = {
 type FormState = {
   project_type: ProjectType | "";
   product_name: string;
+  free_offer_detail: string;
   product_url: string;
   deadline: ImplementationTiming | "";
   note: string;
@@ -666,7 +667,7 @@ export default function CreatorRequestClient() {
             productDelivery: "商品提供",
             productDeliveryBody: "商品を受け取って使用・撮影・投稿",
             providedAssets: "素材提供",
-            providedAssetsBody: "写真・動画など提供素材を使って投稿",
+            providedAssetsBody: "提供された画像素材を使って投稿",
             projectTypeRequired: "案件タイプを選択してください。",
             productDeliveryNotice:
               "商品配送が必要な場合は、注文後のチャットで配送先や発送方法を確認してください。",
@@ -674,15 +675,40 @@ export default function CreatorRequestClient() {
               "このメニューの納品物は投稿URLです。広告素材としての再利用は含まれません。",
             ugcUsageNote:
               "このメニューはUGC素材制作です。納品された画像・動画素材は広告やLPなどで利用できます。",
-            productName: "商品名・案件名",
-            productNameStepTitle: "商品名・案件名を入力",
+            productName: "PR依頼したい商品・サービス",
+            productNameStepTitle: "PR依頼したい商品・サービスは何ですか？",
             productNameStepBody:
-              "あとでチャットでも相談できます。未入力の場合はメニュー名で進みます。",
+              "投稿で紹介してほしい対象を具体的に入力してください。必要に応じて、提供内容もここで整理します。",
             productNamePlaceholder: "例：新作美容液PR / 新店舗オープン告知",
+            visitProductNamePlaceholder:
+              "例：夜カフェ〇〇〇渋谷店の新作抹茶パフェ / ○○美容整形外科 ダーマペンの施術",
+            productDeliveryProductNamePlaceholder:
+              "例：楽天市場 ○○ファーム 北海道徳用ジャガイモ2kg / ○○ビューティ 新作オーガニック美容液",
+            providedAssetsProductNamePlaceholder:
+              "例：健康管理アプリ○○ / 月額定額制 家事代行サービス○○",
+            freeOfferDetail: "無償で提供する内容",
+            freeOfferDetailStepBody:
+              "内容、個数、回数、人数、利用範囲などを具体的に入力してください。",
+            visitFreeOfferDetailPlaceholder:
+              "例：新作抹茶パフェ1名分を店内で1回提供。ドリンク1杯付き。利用店舗は渋谷店のみ。",
+            productFreeOfferDetailPlaceholder:
+              "例：新作オーガニック美容液30mlを1本提供。カラーや香りの指定がある場合はここに記載。",
+            freeOfferDetailRequired:
+              "提供内容を具体的に入力してください。内容・個数・回数・利用条件が分かるようにしてください。",
             referenceAssets: "参考資料",
             referenceAssetsStepBody:
               "商品画像、店舗写真、サービス資料、投稿イメージ資料などを添付できます。任意です。",
+            providedAssetsReferenceAssetsStepBody:
+              "投稿に使用してほしい画像素材を添付してください。素材提供型では画像素材の添付が必須です。",
             referenceAssetsHelp: "JPG / PNG / WebP / PDF、最大3ファイル",
+            providedAssetsReferenceAssetsHelp:
+              "画像素材のみ（JPG / PNG / WebP）、最大3ファイル。動画素材は取り扱えません。",
+            providedAssetsRequired:
+              "素材提供型では、投稿に使用する画像素材を1枚以上添付してください。",
+            providedAssetsImageOnly:
+              "素材提供型では画像素材のみ添付できます。動画・PDFは取り扱えません。",
+            providedAssetsOnlyNote:
+              "素材提供型では画像素材のみ取り扱います。動画素材の提供・利用は対象外です。",
             referenceAssetsButton: "ファイルを追加",
             referenceAssetsLimit: "参考資料は最大3ファイルまでです。",
             referenceAssetsTypeError:
@@ -722,15 +748,23 @@ export default function CreatorRequestClient() {
             postSettingsDescription:
               "投稿の最後に貼るアカウント表記と、投稿で触れてほしいことを整理します。",
             tagAccount: "タグ付けするアカウント名",
+            tagAccountHelp:
+              "※インフルエンサーが投稿予定のSNSでの御社のユーザー名にしてください。",
             tagAccountPlaceholder: "trendre_official",
             hashtags: "付けたいハッシュタグ",
             hashtagsHelp: "最大8個まで。#は自動で整えます。",
             hashtagPlaceholder: "例：旅行",
             hashtagExamples: ["旅行", "オーシャンビュー", "客室露天風呂"],
             addHashtag: "ハッシュタグを追加",
-            postNotes: "触れてほしいポイント・注意事項など",
+            postNotes: "投稿について",
             postNotesPlaceholder:
-              "例：部屋から海が見えること、朝食、アクセスの良さに触れてください。老朽化や水道の出の悪さなどには触れないでください。",
+              "例：何についてのPR依頼か、アピールポイント、避けてほしい表現、撮影時の注意事項などを具体的に入力してください。",
+            visitPostNotesPlaceholder:
+              "例：夜カフェ〇〇〇渋谷店の新作抹茶パフェ\n18時〜23時まで営業している夜間専門カフェです。\n新作抹茶パフェは9月末までの期間限定商品です。\nアピールポイント：宇治抹茶を使用しており、期間限定であること。\n注意事項：抹茶パフェ全体のフォルムを投稿に映してほしいです。限定期間について正確に伝えてください。",
+            productDeliveryPostNotesPlaceholder:
+              "例：○○ビューティ 新作オーガニック美容液\n日本国内生産のオーガニックコスメブランドです。在庫限りの限定商品です。\nアピールポイント：自然由来で、しっかり保湿されるのにべたつかない質感。\n注意事項：1日で肌が綺麗になる等の過剰表現、誰にでも肌に合う等の断定は避けてください。",
+            providedAssetsPostNotesPlaceholder:
+              "例：健康管理アプリ○○\n運動習慣とカロリー計算を一元管理できるアプリです。\nアピールポイント：リマインド機能とカロリー計算の簡易化で習慣づけを補助できる点。\n注意事項：完全無料で全機能が使用できる、写真撮影によるカロリー計算に誤差がない、などの断定は避けてください。",
             prCopyPreview: "投稿の最後に貼り付ける内容",
             latestTemplateButton: "前回の内容をコピー",
             latestTemplateEmpty: "前回の注文内容はまだありません。",
@@ -806,7 +840,7 @@ export default function CreatorRequestClient() {
             productDelivery: "Product delivery",
             productDeliveryBody: "Receive, use, shoot, and post a product",
             providedAssets: "Provided assets",
-            providedAssetsBody: "Post using photos, videos, or brand assets",
+            providedAssetsBody: "Post using provided image assets",
             projectTypeRequired: "Please select a project type.",
             productDeliveryNotice:
               "If product delivery is required, confirm the shipping address and method in chat after the order is created.",
@@ -814,15 +848,40 @@ export default function CreatorRequestClient() {
               "This menu delivers a post URL. Reuse as advertising material is not included.",
             ugcUsageNote:
               "This is a UGC content creation menu. Delivered assets can be used for ads, landing pages, and other brand materials.",
-            productName: "Product or campaign name",
-            productNameStepTitle: "Enter a product or campaign name",
+            productName: "Product or service to promote",
+            productNameStepTitle: "What product or service should be promoted?",
             productNameStepBody:
-              "You can also discuss details later in chat. If skipped, the menu title will be used.",
+              "Describe the exact product or service the influencer should introduce.",
             productNamePlaceholder: "Example: New skincare serum PR",
+            visitProductNamePlaceholder:
+              "Example: New matcha parfait at Night Cafe Shibuya / Dermapen treatment at ABC Clinic",
+            productDeliveryProductNamePlaceholder:
+              "Example: ABC Farm Hokkaido potatoes 2kg / New organic beauty serum",
+            providedAssetsProductNamePlaceholder:
+              "Example: Health tracking app ABC / Monthly housework support service ABC",
+            freeOfferDetail: "What will be provided for free",
+            freeOfferDetailStepBody:
+              "Be specific about the item, quantity, number of uses, people covered, and conditions.",
+            visitFreeOfferDetailPlaceholder:
+              "Example: One matcha parfait for one person at Shibuya store, including one drink.",
+            productFreeOfferDetailPlaceholder:
+              "Example: One 30ml organic serum. Include color, scent, or variant details if needed.",
+            freeOfferDetailRequired:
+              "Please describe what will be provided, including quantity, count, and conditions.",
             referenceAssets: "Reference materials",
             referenceAssetsStepBody:
               "Attach product images, store photos, service documents, or post examples. Optional.",
+            providedAssetsReferenceAssetsStepBody:
+              "Attach the image assets the influencer should use. At least one image is required for provided-asset orders.",
             referenceAssetsHelp: "JPG / PNG / WebP / PDF, up to 3 files",
+            providedAssetsReferenceAssetsHelp:
+              "Images only: JPG / PNG / WebP, up to 3 files. Video assets are not supported.",
+            providedAssetsRequired:
+              "Please attach at least one image asset for provided-asset orders.",
+            providedAssetsImageOnly:
+              "Provided-asset orders support image assets only. Videos and PDFs are not supported.",
+            providedAssetsOnlyNote:
+              "Provided-asset orders support image assets only. Video assets are outside the scope.",
             referenceAssetsButton: "Add files",
             referenceAssetsLimit: "You can attach up to 3 files.",
             referenceAssetsTypeError:
@@ -861,6 +920,8 @@ export default function CreatorRequestClient() {
             postSettingsDescription:
               "Prepare the account mention and notes the influencer can use when posting.",
             tagAccount: "Account to tag",
+            tagAccountHelp:
+              "Use your company username on the SNS where the influencer will post.",
             tagAccountPlaceholder: "trendre_official",
             hashtags: "Hashtags",
             hashtagsHelp: "Up to 8. # will be formatted automatically.",
@@ -979,6 +1040,7 @@ export default function CreatorRequestClient() {
   const [form, setForm] = useState<FormState>({
     project_type: "",
     product_name: "",
+    free_offer_detail: "",
     product_url: "",
     deadline: "",
     note: "",
@@ -1288,6 +1350,37 @@ export default function CreatorRequestClient() {
   const selectedProjectTypeLabel =
     projectTypes.find((item) => item.value === form.project_type)?.title ?? "";
 
+  const needsFreeOfferDetail =
+    form.project_type === "visit_experience" ||
+    form.project_type === "product_delivery";
+  const isProvidedAssetsOrder = form.project_type === "provided_assets";
+  const providedAssetImageCount = referenceAssets.filter(
+    (asset) => asset.file_type === "image"
+  ).length;
+
+  const currentProductNamePlaceholder =
+    form.project_type === "visit_experience"
+      ? copy.visitProductNamePlaceholder
+      : form.project_type === "product_delivery"
+        ? copy.productDeliveryProductNamePlaceholder
+        : form.project_type === "provided_assets"
+          ? copy.providedAssetsProductNamePlaceholder
+          : copy.productNamePlaceholder;
+
+  const currentFreeOfferPlaceholder =
+    form.project_type === "visit_experience"
+      ? copy.visitFreeOfferDetailPlaceholder
+      : copy.productFreeOfferDetailPlaceholder;
+
+  const currentPostNotesPlaceholder =
+    form.project_type === "visit_experience"
+      ? copy.visitPostNotesPlaceholder
+      : form.project_type === "product_delivery"
+        ? copy.productDeliveryPostNotesPlaceholder
+        : form.project_type === "provided_assets"
+          ? copy.providedAssetsPostNotesPlaceholder
+          : copy.postNotesPlaceholder;
+
   const timingSubject =
     form.project_type === "visit_experience"
       ? copy.visitTimingSubject
@@ -1335,6 +1428,8 @@ export default function CreatorRequestClient() {
   const displayProductName =
     form.product_name.trim() || selectedMenu?.title || copy.skipped;
 
+  const displayFreeOfferDetail = form.free_offer_detail.trim() || copy.skipped;
+
   const displayProductUrl = form.product_url.trim() || copy.skipped;
   const displayTiming =
     timingOptions.find((option) => option.value === form.deadline)?.title ||
@@ -1357,15 +1452,25 @@ export default function CreatorRequestClient() {
         ? `\n\n【商品配送について】\n${copy.productDeliveryNotice}`
         : "";
 
+    const freeOfferBlock =
+      needsFreeOfferDetail && form.free_offer_detail.trim()
+        ? `\n\n【無償提供内容】\n${form.free_offer_detail.trim()}`
+        : "";
+
+    const providedAssetsNote =
+      form.project_type === "provided_assets"
+        ? `\n\n【素材提供について】\n${copy.providedAssetsOnlyNote}`
+        : "";
+
     const postNotesBlock = form.note.trim()
-      ? `\n\n【投稿で触れてほしいこと・注意事項】\n${form.note.trim()}`
+      ? `\n\n【投稿について】\n${form.note.trim()}`
       : "";
 
     return `【案件タイプ】
 ${selectedProjectTypeLabel}${timingBlock}
 
 【利用範囲】
-${usageNote}${deliveryNote}${postNotesBlock}`;
+${usageNote}${deliveryNote}${freeOfferBlock}${providedAssetsNote}${postNotesBlock}`;
   };
 
   const updateHashtag = (index: number, value: string) => {
@@ -1430,6 +1535,11 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
 
         if (!fileType || !ALLOWED_REFERENCE_MIME_TYPES.has(file.type)) {
           setReferenceAssetError(copy.referenceAssetsTypeError);
+          return;
+        }
+
+        if (form.project_type === "provided_assets" && fileType !== "image") {
+          setReferenceAssetError(copy.providedAssetsImageOnly);
           return;
         }
 
@@ -1624,6 +1734,8 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
       ...prev,
       project_type: value,
       deadline: prev.project_type === value ? prev.deadline : "",
+      free_offer_detail:
+        prev.project_type === value ? prev.free_offer_detail : "",
     }));
     setErrorMsg(null);
     setStepIndex(1);
@@ -1643,6 +1755,24 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
 
     if (currentStep === "project_type" && !form.project_type) {
       setErrorMsg(copy.projectTypeRequired);
+      return;
+    }
+
+    if (
+      currentStep === "product_name" &&
+      needsFreeOfferDetail &&
+      form.free_offer_detail.trim().length < 5
+    ) {
+      setErrorMsg(copy.freeOfferDetailRequired);
+      return;
+    }
+
+    if (
+      currentStep === "product_name" &&
+      isProvidedAssetsOrder &&
+      providedAssetImageCount === 0
+    ) {
+      setErrorMsg(copy.providedAssetsRequired);
       return;
     }
 
@@ -1682,6 +1812,18 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
     if (!form.project_type) {
       setErrorMsg(copy.projectTypeRequired);
       setStepIndex(0);
+      return;
+    }
+
+    if (needsFreeOfferDetail && form.free_offer_detail.trim().length < 5) {
+      setErrorMsg(copy.freeOfferDetailRequired);
+      setStepIndex(1);
+      return;
+    }
+
+    if (isProvidedAssetsOrder && providedAssetImageCount === 0) {
+      setErrorMsg(copy.providedAssetsRequired);
+      setStepIndex(1);
       return;
     }
 
@@ -1726,6 +1868,9 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
             creator_menu_id: selectedMenu.id,
             project_type: form.project_type,
             product_name: form.product_name.trim() || selectedMenu.title,
+            free_offer_detail: needsFreeOfferDetail
+              ? form.free_offer_detail.trim()
+              : null,
             product_url: form.product_url.trim() || null,
             deadline: null,
             requirements: buildFinalRequirements(),
@@ -2015,9 +2160,32 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
               onChange={(value) =>
                 setForm((prev) => ({ ...prev, product_name: value }))
               }
-              placeholder={copy.productNamePlaceholder}
+              placeholder={currentProductNamePlaceholder}
             />
           </div>
+
+          {needsFreeOfferDetail ? (
+            <label className="mt-6 block">
+              <span className="text-sm font-black text-slate-800">
+                {copy.freeOfferDetail}
+              </span>
+              <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
+                {copy.freeOfferDetailStepBody}
+              </p>
+              <textarea
+                value={form.free_offer_detail}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    free_offer_detail: event.target.value,
+                  }))
+                }
+                placeholder={currentFreeOfferPlaceholder}
+                rows={4}
+                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
+              />
+            </label>
+          ) : null}
 
           <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -2026,10 +2194,14 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
                   {copy.referenceAssets}
                 </p>
                 <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
-                  {copy.referenceAssetsStepBody}
+                  {isProvidedAssetsOrder
+                    ? copy.providedAssetsReferenceAssetsStepBody
+                    : copy.referenceAssetsStepBody}
                 </p>
                 <p className="mt-1 text-xs font-bold text-slate-400">
-                  {copy.referenceAssetsHelp}
+                  {isProvidedAssetsOrder
+                    ? copy.providedAssetsReferenceAssetsHelp
+                    : copy.referenceAssetsHelp}
                 </p>
               </div>
 
@@ -2047,7 +2219,11 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
                 <input
                   type="file"
                   multiple
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  accept={
+                    isProvidedAssetsOrder
+                      ? "image/jpeg,image/png,image/webp"
+                      : "image/jpeg,image/png,image/webp,application/pdf"
+                  }
                   disabled={
                     referenceAssetUploading ||
                     referenceAssets.length >= MAX_REFERENCE_ASSETS
@@ -2185,6 +2361,9 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
               }}
               placeholder={copy.tagAccountPlaceholder}
             />
+            <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
+              {copy.tagAccountHelp}
+            </p>
           </div>
 
           <div className="mt-6">
@@ -2250,7 +2429,7 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
                   note: event.target.value,
                 }));
               }}
-              placeholder={copy.postNotesPlaceholder}
+              placeholder={currentPostNotesPlaceholder}
               rows={6}
               className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100"
             />
@@ -2313,6 +2492,26 @@ ${usageNote}${deliveryNote}${postNotesBlock}`;
               {displayProductName}
             </p>
           </div>
+
+          {needsFreeOfferDetail ? (
+            <div className="rounded-[24px] bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                  {copy.freeOfferDetail}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => goToStep("product_name")}
+                  className="text-xs font-black text-[#ff5f67]"
+                >
+                  {copy.edit}
+                </button>
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-bold leading-7 text-slate-700">
+                {displayFreeOfferDetail}
+              </p>
+            </div>
+          ) : null}
 
           <div className="rounded-[24px] bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-4">
