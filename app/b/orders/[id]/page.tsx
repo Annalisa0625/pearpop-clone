@@ -2265,7 +2265,7 @@ export default function CompanyOrderDetailPage() {
     <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
       <div
           className={`mx-auto px-4 py-6 pb-10 md:px-6 md:py-8 ${
-            canChat ? "max-w-7xl" : "max-w-6xl"
+            canChat ? "max-w-[1500px] lg:pl-[500px]" : "max-w-6xl"
           }`}
         >
         <section className="rounded-[30px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:px-6 md:py-5">
@@ -2326,14 +2326,41 @@ export default function CompanyOrderDetailPage() {
           </div>
         ) : null}
 
-        <section
-          className={`mt-4 grid gap-4 ${
-            canChat
-              ? "lg:grid-cols-[minmax(360px,500px)_minmax(0,1fr)]"
-              : "lg:grid-cols-[minmax(0,1fr)_320px]"
-          }`}
-        >
-          <main className={canChat ? "space-y-4 lg:order-2" : "space-y-4"}>
+
+        {canChat ? (
+          <div className="fixed bottom-6 left-6 top-[96px] z-30 hidden w-[460px] lg:block">
+            <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0">
+              <div className="shrink-0 border-b border-slate-100 bg-white px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <SectionTitle
+                    title={copy.chatCtaTitle}
+                    body={copy.chatCtaBody}
+                  />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-100">
+                    <MessageIcon />
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <ChatEmbed
+                  orderId={order.id}
+                  title={copy.chatCtaTitle}
+                  subtitle={
+                    order.product_name ||
+                    order.menu_title_snapshot ||
+                    copy.titleFallback
+                  }
+                  variant="page"
+                  showHeader={false}
+                />
+              </div>
+            </Panel>
+          </div>
+        ) : null}
+
+        <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <main className="space-y-4">
             <Panel className="p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <SectionTitle title={safeLocale === "ja" ? "現在の状況" : "Current status"} body={meta.body} />
@@ -2576,7 +2603,7 @@ export default function CompanyOrderDetailPage() {
             </div>
           </main>
 
-          <aside className={canChat ? "space-y-4 lg:order-1 lg:self-start" : "space-y-4"}>
+          <aside className="space-y-4">
             {canChat ? (
               <div className="lg:sticky lg:top-24">
                 <Panel className="flex h-[620px] flex-col overflow-hidden p-0 lg:h-[calc(100dvh-150px)] lg:min-h-[520px] lg:max-h-[calc(100dvh-150px)]">
