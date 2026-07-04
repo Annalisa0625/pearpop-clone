@@ -13,6 +13,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import DeadlineBadge from "@/app/components/DeadlineBadge";
+import ChatEmbed from "@/app/components/ChatEmbed";
 
 type FulfillmentType = "material_provided" | "product_shipping" | "visit";
 
@@ -2262,7 +2263,11 @@ export default function CompanyOrderDetailPage() {
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
-      <div className="mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
+      <div
+          className={`mx-auto px-4 py-6 pb-10 md:px-6 md:py-8 ${
+            canChat ? "max-w-7xl" : "max-w-6xl"
+          }`}
+        >
         <section className="rounded-[30px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:px-6 md:py-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -2321,7 +2326,13 @@ export default function CompanyOrderDetailPage() {
           </div>
         ) : null}
 
-        <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section
+          className={`mt-4 grid gap-4 ${
+            canChat
+              ? "xl:grid-cols-[minmax(0,1fr)_500px]"
+              : "lg:grid-cols-[minmax(0,1fr)_320px]"
+          }`}
+        >
           <main className="space-y-4">
             <Panel className="p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -2566,6 +2577,38 @@ export default function CompanyOrderDetailPage() {
           </main>
 
           <aside className="space-y-4">
+            {canChat ? (
+              <div className="xl:sticky xl:top-24">
+                <Panel className="overflow-hidden p-0">
+                  <div className="border-b border-slate-100 bg-white px-5 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <SectionTitle
+                        title={copy.chatCtaTitle}
+                        body={copy.chatCtaBody}
+                      />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-100">
+                        <MessageIcon />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="h-[560px] min-h-0 xl:h-[calc(100vh-250px)] xl:min-h-[560px]">
+                    <ChatEmbed
+                      orderId={order.id}
+                      title={copy.chatCtaTitle}
+                      subtitle={
+                        order.product_name ||
+                        order.menu_title_snapshot ||
+                        copy.titleFallback
+                      }
+                      variant="page"
+                      showHeader={false}
+                    />
+                  </div>
+                </Panel>
+              </div>
+            ) : null}
+
             <Panel className="p-5">
               <SectionTitle title={copy.influencer} />
 
@@ -2590,20 +2633,6 @@ export default function CompanyOrderDetailPage() {
                 </Link>
               ) : null}
             </Panel>
-
-            {canChat ? (
-              <Panel className="p-5">
-                <SectionTitle title={copy.chatCtaTitle} body={copy.chatCtaBody} />
-                <Link
-                  href={`/b/orders/${order.id}/chat`}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
-                >
-                  <MessageIcon />
-                  {copy.chatCtaButton}
-                </Link>
-              </Panel>
-            ) : null}
-
           </aside>
         </section>
       </div>
