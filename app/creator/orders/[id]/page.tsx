@@ -639,31 +639,37 @@ function getCleanHashtags(values: string[] | null | undefined) {
 }
 
 function buildPrCopyText(order: OrderDetail) {
-  const mainCopy = order.pr_copy_text
-    ?.split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && line !== "PR@" && line !== "@")
-    .join("\n")
-    .trim();
+  const savedLines =
+    order.pr_copy_text
+      ?.split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && line !== "PR@" && line !== "@") ?? [];
 
-  if (mainCopy) {
-    return mainCopy;
+  if (savedLines.length > 0) {
+    const firstLine = savedLines[0] ?? "";
+    const hasPrPrefix = /^PR(?:\s|@|#|$)/i.test(firstLine);
+
+    if (hasPrPrefix) {
+      return savedLines.join("\n").trim();
+    }
+
+    if (firstLine.startsWith("#")) {
+      return ["PR", savedLines.join(" ")].filter(Boolean).join(" ").trim();
+    }
+
+    return ["PR", savedLines.join("\n")].filter(Boolean).join("\n").trim();
   }
 
   const account = normalizePrAccountInput(order.pr_account);
   const hashtags = getCleanHashtags(order.pr_hashtags);
-
-  const lines: string[] = [];
+  const hashtagText =
+    hashtags.length > 0 ? hashtags.map((tag) => `#${tag}`).join(" ") : "";
 
   if (account) {
-    lines.push(`PR@${account}`);
+    return [`PR@${account}`, hashtagText].filter(Boolean).join("\n").trim();
   }
 
-  if (hashtags.length > 0) {
-    lines.push(hashtags.map((tag) => `#${tag}`).join(" "));
-  }
-
-  return lines.join("\n").trim();
+  return ["PR", hashtagText].filter(Boolean).join(" ").trim();
 }
 
 function getFreeOfferDetail(order: OrderDetail) {

@@ -542,17 +542,16 @@ function buildPrCopyText(args: {
   prAccount: string | null;
   prHashtags: string[];
 }) {
-  const lines: string[] = [];
+  const hashtagText =
+    args.prHashtags.length > 0
+      ? args.prHashtags.map((tag) => `#${tag}`).join(" ")
+      : "";
 
   if (args.prAccount) {
-    lines.push(`PR@${args.prAccount}`);
+    return [`PR@${args.prAccount}`, hashtagText].filter(Boolean).join("\n");
   }
 
-  if (args.prHashtags.length > 0) {
-    lines.push(args.prHashtags.map((tag) => `#${tag}`).join(" "));
-  }
-
-  return lines.join("\n");
+  return ["PR", hashtagText].filter(Boolean).join(" ");
 }
 
 function normalizeReferenceAssets(value: unknown, userId: string) {

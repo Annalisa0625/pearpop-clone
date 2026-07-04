@@ -334,18 +334,16 @@ function normalizeHashtagsForForm(values: string[]) {
 function buildPrCopyText(prAccount: string, hashtags: string[]) {
   const account = normalizePrAccountInput(prAccount);
   const cleanHashtags = getCleanHashtags(hashtags);
-
-  const lines: string[] = [];
+  const hashtagText =
+    cleanHashtags.length > 0
+      ? cleanHashtags.map((tag) => `#${tag}`).join(" ")
+      : "";
 
   if (account) {
-    lines.push(`PR@${account}`);
+    return [`PR@${account}`, hashtagText].filter(Boolean).join("\n");
   }
 
-  if (cleanHashtags.length > 0) {
-    lines.push(cleanHashtags.map((tag) => `#${tag}`).join(" "));
-  }
-
-  return lines.join("\n");
+  return ["PR", hashtagText].filter(Boolean).join(" ");
 }
 
 function getReferenceFileType(file: File): ReferenceFileType | null {
