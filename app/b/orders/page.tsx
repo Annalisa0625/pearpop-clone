@@ -174,54 +174,80 @@ function isUnreadChat(chat: ChatRow | null, userId: string | null) {
 }
 
 function getStatusMeta(status: string, tab: TabKey, locale: "ja" | "en") {
-  const ja: Record<TabKey, { label: string; className: string }> = {
+  const ja: Record<TabKey, { label: string; message: string; action: string; className: string }> = {
     all: {
       label: "注文",
+      message: "注文内容を確認できます",
+      action: "詳細を見る",
       className: "bg-slate-100 text-slate-700 ring-slate-200",
     },
     waiting: {
       label: "返答待ち",
+      message: "インフルエンサーが依頼内容を確認中です",
+      action: "内容を見る",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
     },
     active: {
       label: status === "revision_requested" ? "修正依頼中" : "進行中",
+      message:
+        status === "revision_requested"
+          ? "修正内容を送信済みです"
+          : "チャット・撮影・納品待ちです",
+      action: "進行を確認",
       className:
         status === "revision_requested"
           ? "bg-amber-50 text-amber-800 ring-amber-100"
-          : "bg-slate-950 text-white ring-slate-950",
+          : "bg-blue-50 text-blue-700 ring-blue-100",
     },
     review: {
-      label: "確認する",
+      label: "納品確認",
+      message: "納品内容を確認してください",
+      action: "納品を確認",
       className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
     },
     completed: {
       label: "完了",
+      message: "完了した注文です",
+      action: "詳細を見る",
       className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     },
   };
 
-  const en: Record<TabKey, { label: string; className: string }> = {
+  const en: Record<TabKey, { label: string; message: string; action: string; className: string }> = {
     all: {
       label: "Order",
+      message: "View order details",
+      action: "View details",
       className: "bg-slate-100 text-slate-700 ring-slate-200",
     },
     waiting: {
       label: "Waiting",
+      message: "The influencer is reviewing your request",
+      action: "View request",
       className: "bg-amber-50 text-amber-800 ring-amber-100",
     },
     active: {
       label: status === "revision_requested" ? "Revision" : "In progress",
+      message:
+        status === "revision_requested"
+          ? "Revision request has been sent"
+          : "Chat, production, or delivery is in progress",
+      action: "Check progress",
       className:
         status === "revision_requested"
           ? "bg-amber-50 text-amber-800 ring-amber-100"
-          : "bg-slate-950 text-white ring-slate-950",
+          : "bg-blue-50 text-blue-700 ring-blue-100",
     },
     review: {
-      label: "Review",
+      label: "Delivery review",
+      message: "Please review the delivered content",
+      action: "Review delivery",
       className: "bg-rose-50 text-[#ff5f67] ring-rose-100",
     },
     completed: {
       label: "Completed",
+      message: "This order is completed",
+      action: "View details",
       className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     },
   };
@@ -256,7 +282,7 @@ function Avatar({
       <img
         src={avatarUrl}
         alt={name}
-        className="h-12 w-12 rounded-2xl object-cover"
+        className="h-12 w-12 rounded-2xl object-cover ring-1 ring-slate-100"
       />
     );
   }
@@ -264,7 +290,7 @@ function Avatar({
   const initial = (name.trim()[0] ?? "I").toUpperCase();
 
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-100 text-lg font-black text-slate-900">
+    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-700 ring-1 ring-slate-100">
       {initial}
     </div>
   );
@@ -301,9 +327,9 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black transition ${
+      className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black transition ${
         active
-          ? "bg-slate-950 text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]"
+          ? "bg-slate-950 text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)]"
           : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
       }`}
     >
@@ -319,7 +345,7 @@ function TabButton({
   );
 }
 
-function OrderCard({
+function OrderListRow({
   item,
   userId,
   locale,
@@ -335,7 +361,6 @@ function OrderCard({
     amount: string;
     updated: string;
     sent: string;
-    detail: string;
     newMessage: string;
     deliveredUrl: string;
     replyDeadline: string;
@@ -353,97 +378,93 @@ function OrderCard({
   return (
     <Link
       href={detailHref}
-      className="group block rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] transition active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-[0_24px_70px_rgba(15,23,42,0.07)]"
+      className="group block border-b border-slate-100 bg-white px-4 py-4 transition hover:bg-slate-50/80 md:px-5"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <Pill className={meta.className}>{meta.label}</Pill>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_190px_150px_132px] lg:items-center">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill className={meta.className}>{meta.label}</Pill>
 
-        {unread ? (
-          <Pill className="bg-blue-50 text-blue-700 ring-blue-100">
-            {copy.newMessage}
-          </Pill>
-        ) : null}
+            {unread ? (
+              <Pill className="bg-blue-50 text-blue-700 ring-blue-100">
+                {copy.newMessage}
+              </Pill>
+            ) : null}
 
-        {item.delivered_post_url ? (
-          <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
-            {copy.deliveredUrl}
-          </Pill>
-        ) : null}
+            {item.delivered_post_url ? (
+              <Pill className="bg-rose-50 text-[#ff5f67] ring-rose-100">
+                {copy.deliveredUrl}
+              </Pill>
+            ) : null}
 
-        {item.tab === "waiting" && item.creator_accept_deadline ? (
-          <DeadlineBadge
-            deadline={item.creator_accept_deadline}
-            label={copy.replyDeadline}
-            expiredLabel={copy.replyExpired}
-            locale={locale}
-            urgentHours={12}
-            warningHours={24}
-          />
-        ) : null}
+            {item.tab === "waiting" && item.creator_accept_deadline ? (
+              <DeadlineBadge
+                deadline={item.creator_accept_deadline}
+                label={copy.replyDeadline}
+                expiredLabel={copy.replyExpired}
+                locale={locale}
+                urgentHours={12}
+                warningHours={24}
+              />
+            ) : null}
 
-        {item.tab === "review" && item.auto_complete_at ? (
-          <DeadlineBadge
-            deadline={item.auto_complete_at}
-            label={copy.autoComplete}
-            expiredLabel={copy.autoCompleteExpired}
-            locale={locale}
-            urgentHours={12}
-            warningHours={24}
-          />
-        ) : null}
-      </div>
+            {item.tab === "review" && item.auto_complete_at ? (
+              <DeadlineBadge
+                deadline={item.auto_complete_at}
+                label={copy.autoComplete}
+                expiredLabel={copy.autoCompleteExpired}
+                locale={locale}
+                urgentHours={12}
+                warningHours={24}
+              />
+            ) : null}
+          </div>
 
-      <div className="mt-4 flex items-start gap-4">
-        <Avatar
-          name={item.influencer_name ?? copy.unnamedInfluencer}
-          avatarUrl={item.influencer_avatar_url}
-        />
+          <div className="mt-4 flex min-w-0 items-center gap-3">
+            <Avatar
+              name={item.influencer_name ?? copy.unnamedInfluencer}
+              avatarUrl={item.influencer_avatar_url}
+            />
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-slate-500">
-            {item.influencer_name ?? copy.unnamedInfluencer}
-          </p>
-
-          <h2 className="mt-1 truncate text-xl font-black tracking-[-0.04em] text-slate-950">
-            {item.product_name || copy.unnamedOrder}
-          </h2>
-
-          {item.menu_title ? (
-            <p className="mt-2 truncate text-sm font-semibold text-slate-500">
-              {copy.menu}: {item.menu_title}
-            </p>
-          ) : null}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-slate-500">
+                {item.influencer_name ?? copy.unnamedInfluencer}
+              </p>
+              <h2 className="mt-1 truncate text-lg font-black tracking-[-0.035em] text-slate-950">
+                {item.product_name || copy.unnamedOrder}
+              </h2>
+              {item.menu_title ? (
+                <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                  {copy.menu}: {item.menu_title}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-5 rounded-[22px] bg-slate-50 px-4 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-xs font-black text-slate-400">
-            {copy.amount}
-          </span>
-          <span className="text-sm font-black text-slate-950">
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 lg:bg-transparent lg:px-0 lg:py-0">
+          <p className="text-[11px] font-black text-slate-400">{copy.amount}</p>
+          <p className="mt-1 text-base font-black tracking-[-0.03em] text-slate-950">
             {formatPrice(item.amount, item.currency, locale)}
-          </span>
+          </p>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <span className="text-xs font-black text-slate-400">
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 lg:bg-transparent lg:px-0 lg:py-0">
+          <p className="text-[11px] font-black text-slate-400">
             {item.tab === "waiting" ? copy.sent : copy.updated}
-          </span>
-          <span className="text-sm font-bold text-slate-600">
+          </p>
+          <p className="mt-1 text-sm font-bold text-slate-600">
             {formatDateTime(item.updated_at ?? item.created_at, locale)}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 lg:justify-end">
+          <p className="text-sm font-bold text-slate-400 lg:hidden">{meta.message}</p>
+          <span className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition group-hover:bg-[#ff5f67]">
+            {meta.action}
+            <span>→</span>
           </span>
         </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-sm font-black text-slate-400">
-          {copy.detail}
-        </span>
-
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:bg-slate-950 group-hover:text-white">
-          →
-        </span>
       </div>
     </Link>
   );
@@ -460,23 +481,22 @@ export default function CompanyOrdersPage() {
             loading: "読み込み中...",
             title: "注文管理",
             subtitle:
-              "依頼後の返答待ち、進行中、納品確認、完了までをここで確認できます。",
+              "返答待ち、進行中、納品確認、完了までをまとめて確認できます。",
             searchInfluencers: "インフルエンサーを探す",
             empty: "表示する注文はありません",
             emptyBody:
-              "インフルエンサーに依頼すると、ここに一覧表示されます。",
+              "インフルエンサーに依頼すると、ここに注文が表示されます。",
             all: "すべて",
             waiting: "返答待ち",
             active: "進行中",
-            review: "確認する",
+            review: "納品確認",
             completed: "完了",
-            unnamedInfluencer: "unknown",
+            unnamedInfluencer: "インフルエンサー",
             unnamedOrder: "未入力",
             menu: "依頼メニュー",
             amount: "金額",
             updated: "更新",
             sent: "依頼日",
-            detail: "注文詳細を見る",
             newMessage: "新着メッセージ",
             deliveredUrl: "納品URLあり",
             replyDeadline: "返答期限",
@@ -487,25 +507,24 @@ export default function CompanyOrdersPage() {
           }
         : {
             loading: "Loading...",
-            title: "Order Management",
+            title: "Orders",
             subtitle:
-              "Track requests from reply waiting to in-progress, delivery review, and completion.",
+              "Track replies, progress, delivery review, and completed orders in one place.",
             searchInfluencers: "Find influencers",
             empty: "No orders to show",
             emptyBody:
-              "Your requests will appear here after you send them to influencers.",
+              "Your orders will appear here after you send a request to an influencer.",
             all: "All",
             waiting: "Waiting",
             active: "In progress",
-            review: "Review",
+            review: "Delivery review",
             completed: "Completed",
-            unnamedInfluencer: "unknown",
+            unnamedInfluencer: "Influencer",
             unnamedOrder: "Not entered",
             menu: "Selected menu",
             amount: "Amount",
             updated: "Updated",
             sent: "Requested",
-            detail: "View order details",
             newMessage: "New message",
             deliveredUrl: "Delivery URL",
             replyDeadline: "Reply deadline",
@@ -839,26 +858,20 @@ export default function CompanyOrdersPage() {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-6xl space-y-5">
-          <div className="h-32 animate-pulse rounded-[28px] bg-white shadow-sm" />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="h-64 animate-pulse rounded-[28px] bg-white shadow-sm" />
-            <div className="h-64 animate-pulse rounded-[28px] bg-white shadow-sm" />
-          </div>
+          <div className="h-28 animate-pulse rounded-[28px] bg-white shadow-sm" />
+          <div className="h-80 animate-pulse rounded-[28px] bg-white shadow-sm" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-[#f8f9fb]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px] bg-gradient-to-b from-white via-rose-50/35 to-transparent" />
-      <div className="pointer-events-none absolute right-[-260px] top-[100px] h-[520px] w-[520px] rounded-full bg-emerald-100/20 blur-[150px]" />
-
-      <div className="relative mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
-        <section className="rounded-[28px] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:px-7 md:py-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="relative min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
+      <div className="mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8">
+        <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <h1 className="text-[28px] font-black tracking-[-0.055em] text-slate-950 md:text-[38px]">
+              <h1 className="text-[30px] font-black tracking-[-0.065em] text-slate-950 md:text-[42px]">
                 {copy.title}
               </h1>
               <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
@@ -866,12 +879,14 @@ export default function CompanyOrdersPage() {
               </p>
             </div>
 
-            <Link
-              href="/b/creators"
-              className="inline-flex w-fit items-center justify-center rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
-            >
-              {copy.searchInfluencers}
-            </Link>
+            {items.length === 0 ? (
+              <Link
+                href="/b/creators"
+                className="inline-flex w-fit items-center justify-center rounded-full bg-[#ff5f67] px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(255,95,103,0.2)] transition hover:-translate-y-0.5 hover:bg-[#ff4b55]"
+              >
+                {copy.searchInfluencers}
+              </Link>
+            ) : null}
           </div>
 
           <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
@@ -894,7 +909,7 @@ export default function CompanyOrdersPage() {
         ) : null}
 
         {visibleItems.length === 0 ? (
-          <div className="mt-5 rounded-[28px] bg-white p-8 text-center shadow-[0_22px_70px_rgba(15,23,42,0.055)] md:p-12">
+          <div className="mt-5 rounded-[30px] bg-white p-8 text-center shadow-[0_22px_70px_rgba(15,23,42,0.045)] md:p-12">
             <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
               {copy.empty}
             </h2>
@@ -909,9 +924,9 @@ export default function CompanyOrdersPage() {
             </Link>
           </div>
         ) : (
-          <section className="mt-5 grid gap-4 lg:grid-cols-2">
+          <section className="mt-5 overflow-hidden rounded-[30px] border border-slate-100 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.045)]">
             {visibleItems.map((item) => (
-              <OrderCard
+              <OrderListRow
                 key={`${item.kind}-${item.id}`}
                 item={item}
                 userId={currentUserId}
@@ -923,7 +938,6 @@ export default function CompanyOrdersPage() {
                   amount: copy.amount,
                   updated: copy.updated,
                   sent: copy.sent,
-                  detail: copy.detail,
                   newMessage: copy.newMessage,
                   deliveredUrl: copy.deliveredUrl,
                   replyDeadline: copy.replyDeadline,
