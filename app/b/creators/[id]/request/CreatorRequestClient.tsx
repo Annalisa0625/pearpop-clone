@@ -683,7 +683,7 @@ export default function CreatorRequestClient() {
             visitProductNamePlaceholder:
               "例：夜カフェ〇〇〇渋谷店の新作抹茶パフェ / ○○美容整形外科 ダーマペンの施術",
             productDeliveryProductNamePlaceholder:
-              "例：楽天市場 ○○ファーム 北海道徳用ジャガイモ2kg / ○○ビューティ 新作オーガニック美容液",
+              "例：植物性プロテイン 新作バニラ味 / ○○ビューティ 新作オーガニック美容液",
             providedAssetsProductNamePlaceholder:
               "例：健康管理アプリ○○ / 月額定額制 家事代行サービス○○",
             freeOfferDetail: "無償で提供する内容",
@@ -692,7 +692,7 @@ export default function CreatorRequestClient() {
             visitFreeOfferDetailPlaceholder:
               "例：新作抹茶パフェ1名分を店内で1回提供。ドリンク1杯付き。利用店舗は渋谷店のみ。",
             productFreeOfferDetailPlaceholder:
-              "例：新作オーガニック美容液30mlを1本提供。カラーや香りの指定がある場合はここに記載。",
+              "例：植物性プロテイン 新作バニラ味 1袋（500g）を提供。味・容量・数量などが決まっている場合はここに記載。",
             freeOfferDetailRequired:
               "提供内容を具体的に入力してください。内容・個数・回数・利用条件が分かるようにしてください。",
             referenceAssets: "参考資料",
@@ -749,7 +749,7 @@ export default function CreatorRequestClient() {
               "投稿の最後に貼るアカウント表記と、投稿で触れてほしいことを整理します。",
             tagAccount: "タグ付けするアカウント名",
             tagAccountHelp:
-              "※インフルエンサーが投稿予定のSNSでの御社のユーザー名にしてください。",
+              "＠（ユーザーネーム）は、選択しているメニューのSNSアカウントにしてください。不要であれば未入力にしてください。",
             tagAccountPlaceholder: "trendre_official",
             hashtags: "付けたいハッシュタグ",
             hashtagsHelp: "最大8個まで。#は自動で整えます。",
@@ -921,7 +921,7 @@ export default function CreatorRequestClient() {
               "Prepare the account mention and notes the influencer can use when posting.",
             tagAccount: "Account to tag",
             tagAccountHelp:
-              "Use your company username on the SNS where the influencer will post.",
+              "Use the username for the SNS account selected by this menu. Leave blank if not needed.",
             tagAccountPlaceholder: "trendre_official",
             hashtags: "Hashtags",
             hashtagsHelp: "Up to 8. # will be formatted automatically.",

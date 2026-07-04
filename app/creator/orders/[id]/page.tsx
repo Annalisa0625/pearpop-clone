@@ -639,7 +639,12 @@ function getCleanHashtags(values: string[] | null | undefined) {
 }
 
 function buildPrCopyText(order: OrderDetail) {
-  const mainCopy = order.pr_copy_text?.trim();
+  const mainCopy = order.pr_copy_text
+    ?.split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && line !== "PR@" && line !== "@")
+    .join("\n")
+    .trim();
 
   if (mainCopy) {
     return mainCopy;
