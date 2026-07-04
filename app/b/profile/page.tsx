@@ -9,7 +9,6 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
-  type TextareaHTMLAttributes,
 } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -34,7 +33,6 @@ type Company = {
   id: string;
   user_id: string;
   company_name: string | null;
-  description: string | null;
   contact_email: string | null;
   website_url: string | null;
   phone_number: string | null;
@@ -45,7 +43,6 @@ type Company = {
 
 type FormState = {
   company_name: string;
-  description: string;
   contact_email: string;
   website_url: string;
   phone_number: string;
@@ -78,17 +75,6 @@ function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
-function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={`mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#ff5f67] focus:ring-4 focus:ring-rose-100 ${
-        props.className ?? ""
-      }`}
-    />
-  );
-}
-
 export default function BProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -99,13 +85,12 @@ export default function BProfilePage() {
     () =>
       safeLocale === "ja"
         ? {
-            loading: "読み込み中...",
             title: "企業情報",
             eyebrow: "COMPANY PROFILE",
             subtitle:
-              "依頼時の確認、支払い、納品連絡に使う情報です。最新の内容にしておくと、インフルエンサーとのやり取りがスムーズになります。",
+              "依頼時の確認、支払い、納品連絡に使う情報です。必要な情報だけを管理します。",
             cardTitle: "基本情報",
-            cardBody: "公開メニューへの依頼時に使用します。会社説明以外は必須です。",
+            cardBody: "公開メニューへの依頼時に使用します。",
             companyName: "会社名",
             companyNamePlaceholder: "例：株式会社〇〇 / 〇〇合同会社",
             contactEmail: "連絡先メール",
@@ -119,9 +104,6 @@ export default function BProfilePage() {
             usagePurpose: "利用目的",
             usagePurposeHelp: "おすすめの案内や利用状況の確認に使用します。",
             selectPlease: "選択してください",
-            description: "会社説明",
-            descriptionPlaceholder:
-              "例：自社サービス、取扱い商材、依頼したい内容など",
             save: "保存する",
             saving: "保存中...",
             saved: "保存しました。",
@@ -138,13 +120,12 @@ export default function BProfilePage() {
             ready: "入力済み",
           }
         : {
-            loading: "Loading...",
             title: "Company information",
             eyebrow: "COMPANY PROFILE",
             subtitle:
-              "Keep the information used for requests, payment, and delivery communication up to date.",
+              "Manage only the information used for requests, payment, and delivery communication.",
             cardTitle: "Basic information",
-            cardBody: "Used when requesting from public menus. Company description is optional.",
+            cardBody: "Used when requesting from public menus.",
             companyName: "Company name",
             companyNamePlaceholder: "Example Inc. / Example LLC",
             contactEmail: "Contact email",
@@ -158,9 +139,6 @@ export default function BProfilePage() {
             usagePurpose: "Usage purpose",
             usagePurposeHelp: "Used for guidance and account review if needed.",
             selectPlease: "Please select",
-            description: "Company description",
-            descriptionPlaceholder:
-              "Describe your services, products, and request details.",
             save: "Save",
             saving: "Saving...",
             saved: "Saved.",
@@ -182,7 +160,6 @@ export default function BProfilePage() {
   const [company, setCompany] = useState<Company | null>(null);
   const [form, setForm] = useState<FormState>({
     company_name: "",
-    description: "",
     contact_email: "",
     website_url: "",
     phone_number: "",
@@ -215,7 +192,7 @@ export default function BProfilePage() {
       const { data, error: companyError } = await supabase
         .from("companies")
         .select(
-          "id, user_id, company_name, description, contact_email, website_url, phone_number, usage_purpose, approval_status, created_at"
+          "id, user_id, company_name, contact_email, website_url, phone_number, usage_purpose, approval_status, created_at"
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -233,7 +210,6 @@ export default function BProfilePage() {
         setCompany(row);
         setForm({
           company_name: row.company_name || "",
-          description: row.description || "",
           contact_email: row.contact_email || user.email || "",
           website_url: row.website_url || "",
           phone_number: row.phone_number || "",
@@ -243,7 +219,6 @@ export default function BProfilePage() {
         setCompany(null);
         setForm({
           company_name: "",
-          description: "",
           contact_email: user.email || "",
           website_url: "",
           phone_number: "",
@@ -356,7 +331,7 @@ export default function BProfilePage() {
   };
 
   const handleChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     setForm((prev) => ({
       ...prev,
@@ -391,7 +366,6 @@ export default function BProfilePage() {
 
     const payload = {
       company_name: form.company_name.trim(),
-      description: form.description.trim() || null,
       contact_email: form.contact_email.trim(),
       website_url: form.website_url.trim(),
       phone_number: form.phone_number.trim(),
@@ -427,7 +401,7 @@ export default function BProfilePage() {
             ...payload,
           })
           .select(
-            "id, user_id, company_name, description, contact_email, website_url, phone_number, usage_purpose, approval_status, created_at"
+            "id, user_id, company_name, contact_email, website_url, phone_number, usage_purpose, approval_status, created_at"
           )
           .maybeSingle();
 
@@ -458,7 +432,7 @@ export default function BProfilePage() {
       <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-5xl space-y-5">
           <div className="h-36 animate-pulse rounded-[30px] bg-white shadow-sm" />
-          <div className="h-[520px] animate-pulse rounded-[30px] bg-white shadow-sm" />
+          <div className="h-[420px] animate-pulse rounded-[30px] bg-white shadow-sm" />
         </div>
       </div>
     );
@@ -583,17 +557,6 @@ export default function BProfilePage() {
               <p className="mt-2 px-1 text-xs font-semibold leading-5 text-slate-400">
                 {copy.usagePurposeHelp}
               </p>
-            </div>
-
-            <div>
-              <FieldLabel>{copy.description}</FieldLabel>
-              <TextArea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                rows={6}
-                placeholder={copy.descriptionPlaceholder}
-              />
             </div>
           </div>
 
