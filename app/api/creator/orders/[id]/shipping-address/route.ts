@@ -309,6 +309,7 @@ export async function POST(
       entityId: order.id,
       orderId: order.id,
       importance: "high",
+      dedupeKey: `shipping_address_shared:${order.id}`,
       metadata: {
         product_name: order.product_name,
         menu_title: order.menu_title_snapshot,

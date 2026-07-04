@@ -1,4 +1,5 @@
 // File: lib/notifications/in-app.ts
+import { createHash } from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type NotificationImportance = "low" | "normal" | "high";
@@ -17,7 +18,31 @@ type CreateInAppNotificationInput = {
   messageId?: string | null;
   importance?: NotificationImportance;
   metadata?: Record<string, unknown> | null;
+
+  /**
+   * 同じ処理が二重送信されても通知を1件に保つためのキー。
+   * 例: shipping_address_shared:{orderId}, product_shipped:{orderId}
+   */
+  dedupeKey?: string | null;
 };
+
+function createDeterministicUuid(key: string) {
+  const hash = createHash("sha256")
+    .update(`trendre:notification:${key}`)
+    .digest("hex")
+    .slice(0, 32);
+
+  const version = `5${hash.slice(13, 16)}`;
+  const variant = `${((parseInt(hash[16] ?? "0", 16) & 0x3) | 0x8).toString(16)}${hash.slice(17, 20)}`;
+
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    version,
+    variant,
+    hash.slice(20, 32),
+  ].join("-");
+}
 
 export function getOrderNotificationName(order: {
   product_name?: string | null;
@@ -38,8 +63,10 @@ export async function createInAppNotification(input: CreateInAppNotificationInpu
 
   try {
     const admin = supabaseAdmin as any;
+    const nowIso = new Date().toISOString();
+    const dedupeKey = input.dedupeKey?.trim();
 
-    const { error } = await admin.from("notifications").insert({
+    const row: Record<string, unknown> = {
       recipient_user_id: recipientUserId,
       actor_user_id: input.actorUserId ?? null,
       notification_type: input.notificationType,
@@ -53,7 +80,27 @@ export async function createInAppNotification(input: CreateInAppNotificationInpu
       message_id: input.messageId ?? null,
       importance: input.importance ?? "normal",
       metadata: input.metadata ?? {},
-    });
+    };
+
+    if (dedupeKey) {
+      row.id = createDeterministicUuid(dedupeKey);
+      row.created_at = nowIso;
+      row.read_at = null;
+      row.archived_at = null;
+
+      const { error } = await admin
+        .from("notifications")
+        .upsert(row, { onConflict: "id" });
+
+      if (error) {
+        console.error("in-app notification upsert error:", error);
+        return { ok: false, skipped: false, error: error.message };
+      }
+
+      return { ok: true, skipped: false, error: null };
+    }
+
+    const { error } = await admin.from("notifications").insert(row);
 
     if (error) {
       console.error("in-app notification insert error:", error);
