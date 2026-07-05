@@ -448,8 +448,8 @@ function getStatusMeta(status: string, locale: Locale) {
     },
     delivered: {
       label: "納品確認",
-      title: "納品確認",
-      body: "納品内容を確認し、問題なければ完了してください。",
+      title: "納品が届いています",
+      body: "納品URLを確認し、問題がなければ注文を完了してください。",
       tone: "rose",
     },
     revision_requested: {
@@ -505,8 +505,8 @@ function getStatusMeta(status: string, locale: Locale) {
     },
     delivered: {
       label: "Review",
-      title: "Review delivery",
-      body: "Review the delivery and complete the order if everything looks good.",
+      title: "Delivery submitted",
+      body: "Review the delivery URL and complete the order if everything looks good.",
       tone: "rose",
     },
     revision_requested: {
@@ -569,8 +569,8 @@ function getHeroSubtitle(status: string, locale: Locale) {
 
   if (isDeliveredStatus(status)) {
     return locale === "ja"
-      ? "納品内容を確認し、問題なければ完了してください。"
-      : "Review the delivery and complete the order if everything looks good.";
+      ? "納品が届いています。まず納品URLを確認してください。"
+      : "The delivery has been submitted. Review the delivery URL first.";
   }
 
   if (status === "revision_requested") {
@@ -671,7 +671,7 @@ function SectionHeader({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         {eyebrow ? (
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-500">
+          <p className="text-xs font-bold tracking-[0.16em] text-rose-500">
             {eyebrow}
           </p>
         ) : null}
@@ -759,7 +759,7 @@ function AccordionItem({
       >
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-500">
+            <p className="text-xs font-bold tracking-[0.16em] text-rose-500">
               {eyebrow}
             </p>
           ) : null}
@@ -943,11 +943,9 @@ function ProgressItem({
 function ProgressCard({
   order,
   copy,
-  locale,
 }: {
   order: OrderDetail;
   copy: Record<string, string>;
-  locale: Locale;
 }) {
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
   const delivered = Boolean(order.delivered_at || order.delivered_post_url);
@@ -1072,7 +1070,7 @@ function ProgressCard({
   return (
     <Card className="p-6 md:p-8">
       <SectionHeader
-        eyebrow="Progress"
+        eyebrow={copy.progressEyebrow}
         title={copy.progressTitle}
         body={copy.progressBody}
       />
@@ -1090,6 +1088,53 @@ function ProgressCard({
         ))}
       </div>
     </Card>
+  );
+}
+
+function DeliveryHighlightCard({
+  order,
+  copy,
+  locale,
+}: {
+  order: OrderDetail;
+  copy: Record<string, string>;
+  locale: Locale;
+}) {
+  if (!order.delivered_post_url) return null;
+
+  return (
+    <section className="relative overflow-hidden rounded-3xl border border-rose-100 bg-white p-6 shadow-[0_16px_45px_rgba(244,63,94,0.10)] md:p-8">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-rose-100 blur-3xl" />
+
+      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold tracking-[0.16em] text-rose-500">
+            {copy.deliveryHighlightEyebrow}
+          </p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+            {copy.deliveryHighlightTitle}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {order.delivered_at
+              ? `${copy.deliveryHighlightBody}（${formatDateTime(
+                  order.delivered_at,
+                  locale
+                )}）`
+              : copy.deliveryHighlightBody}
+          </p>
+        </div>
+
+        <a
+          href={order.delivered_post_url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(244,63,94,0.22)] transition hover:-translate-y-0.5 hover:bg-rose-600"
+        >
+          <ExternalIcon />
+          {copy.openDelivery}
+        </a>
+      </div>
+    </section>
   );
 }
 
@@ -1117,7 +1162,7 @@ function PaymentCard({
   return (
     <Card className="p-6 md:p-8">
       <SectionHeader
-        eyebrow="Payment"
+        eyebrow={copy.paymentEyebrow}
         title={copy.paymentTitle}
         body={copy.paymentBody}
         action={
@@ -1156,7 +1201,7 @@ function PaymentCard({
 
       <div className="mt-6">
         <AccordionItem
-          eyebrow="Details"
+          eyebrow={copy.detailEyebrow}
           title={copy.paymentDetailTitle}
           body={copy.paymentDetailBody}
         >
@@ -1241,7 +1286,7 @@ function ShippingAccordion({
 
   return (
     <AccordionItem
-      eyebrow="Shipping"
+      eyebrow={copy.shippingEyebrow}
       title={copy.productShippingTitle}
       body={copy.productShippingBody}
     >
@@ -1419,7 +1464,7 @@ function DeliveryReviewCard({
   return (
     <Card className="p-6 md:p-8">
       <SectionHeader
-        eyebrow="Review"
+        eyebrow={copy.reviewEyebrow}
         title={copy.completeTitle}
         body={copy.completeBody}
       />
@@ -1597,7 +1642,7 @@ function OrderDetailsAccordion({
 
   return (
     <AccordionItem
-      eyebrow="Brief"
+      eyebrow={copy.briefEyebrow}
       title={copy.orderContent}
       body={copy.orderContentSub}
     >
@@ -1685,7 +1730,7 @@ function MenuDetailsAccordion({
 }) {
   return (
     <AccordionItem
-      eyebrow="Menu"
+      eyebrow={copy.menuEyebrow}
       title={copy.menuContent}
       body={copy.menuContentSub}
     >
@@ -1772,6 +1817,16 @@ export default function CompanyOrderDetailPage() {
             influencerProfile: "プロフィールを見る",
             notSet: "未設定",
 
+            overviewEyebrow: "要点",
+            progressEyebrow: "進行状況",
+            paymentEyebrow: "支払い",
+            detailEyebrow: "詳細",
+            shippingEyebrow: "発送",
+            briefEyebrow: "注文情報",
+            menuEyebrow: "メニュー",
+            reviewEyebrow: "確認",
+            deliveryHighlightEyebrow: "納品が届いています",
+
             statusLabel: "ステータス",
             flowLabel: "進め方",
             total: "合計",
@@ -1783,6 +1838,10 @@ export default function CompanyOrderDetailPage() {
             chatLockedTitle: "チャットはまだ利用できません",
             chatLockedBody:
               "返答待ち・支払い確認中の注文では、承認されるまでチャットは表示されません。",
+
+            deliveryHighlightTitle: "納品URLを確認してください",
+            deliveryHighlightBody:
+              "インフルエンサーから納品が届きました。内容を確認し、問題がなければ注文を完了してください。",
 
             progressTitle: "進捗",
             progressBody:
@@ -1933,6 +1992,16 @@ export default function CompanyOrderDetailPage() {
             influencerProfile: "View profile",
             notSet: "Not set",
 
+            overviewEyebrow: "Summary",
+            progressEyebrow: "Status",
+            paymentEyebrow: "Payment",
+            detailEyebrow: "Details",
+            shippingEyebrow: "Shipping",
+            briefEyebrow: "Order",
+            menuEyebrow: "Menu",
+            reviewEyebrow: "Review",
+            deliveryHighlightEyebrow: "Delivery submitted",
+
             statusLabel: "Status",
             flowLabel: "Flow",
             total: "Total",
@@ -1944,6 +2013,10 @@ export default function CompanyOrderDetailPage() {
             chatLockedTitle: "Chat is not available yet",
             chatLockedBody:
               "Chat appears after the influencer accepts the order.",
+
+            deliveryHighlightTitle: "Review the delivery URL",
+            deliveryHighlightBody:
+              "The influencer has submitted the delivery. Please review it and complete the order if everything looks good.",
 
             progressTitle: "Progress",
             progressBody:
@@ -2427,7 +2500,7 @@ export default function CompanyOrderDetailPage() {
     return (
       <div className="min-h-[calc(100vh-80px)] bg-slate-50 px-4 py-8 md:px-8">
         <div className="mx-auto max-w-7xl space-y-8">
-          <div className="h-44 animate-pulse rounded-3xl border border-slate-100 bg-white shadow-[0_10px_35px_rgb(0,0,0,0.03)]" />
+          <div className="h-40 animate-pulse rounded-3xl border border-slate-100 bg-white shadow-[0_10px_35px_rgb(0,0,0,0.03)]" />
           <div className="grid gap-8 lg:grid-cols-12">
             <div className="h-[620px] animate-pulse rounded-3xl border border-slate-100 bg-white lg:col-span-5" />
             <div className="h-[760px] animate-pulse rounded-3xl border border-slate-100 bg-white lg:col-span-7" />
@@ -2530,7 +2603,7 @@ export default function CompanyOrderDetailPage() {
                   ) : null}
                 </div>
 
-                <h1 className="mt-5 max-w-4xl text-3xl font-bold tracking-tight text-slate-900 md:text-5xl">
+                <h1 className="mt-5 max-w-4xl text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
                   {order.product_name ||
                     order.menu_title_snapshot ||
                     copy.titleFallback}
@@ -2577,9 +2650,17 @@ export default function CompanyOrderDetailPage() {
             </aside>
 
             <main className="space-y-8 lg:col-span-7">
+              <DeliveryHighlightCard
+                order={order}
+                copy={copy}
+                locale={safeLocale}
+              />
+
+              <ProgressCard order={order} copy={copy} />
+
               <Card className="p-6 md:p-8">
                 <SectionHeader
-                  eyebrow="Overview"
+                  eyebrow={copy.overviewEyebrow}
                   title={meta.title}
                   body={meta.body}
                 />
@@ -2596,8 +2677,6 @@ export default function CompanyOrderDetailPage() {
                   />
                 </div>
               </Card>
-
-              <ProgressCard order={order} copy={copy} locale={safeLocale} />
 
               <PaymentCard
                 order={order}
@@ -2652,7 +2731,7 @@ export default function CompanyOrderDetailPage() {
               {order.revision_note ? (
                 <Card className="p-6 md:p-8">
                   <SectionHeader
-                    eyebrow="Revision"
+                    eyebrow="修正"
                     title={copy.currentRevisionNote}
                   />
                   <div className="mt-6">
