@@ -16,6 +16,7 @@ import DeadlineBadge from "@/app/components/DeadlineBadge";
 import ChatEmbed from "@/app/components/ChatEmbed";
 
 type FulfillmentType = "material_provided" | "product_shipping" | "visit";
+type Locale = "ja" | "en";
 
 type ShippingAddress = {
   recipient_name?: string;
@@ -126,14 +127,13 @@ type CreatorLite = {
 };
 
 type ActionLoading = "complete" | "revision" | "shipment" | null;
-type Locale = "ja" | "en";
 
 const AUTH_TIMEOUT_MS = 8000;
 const DB_TIMEOUT_MS = 12000;
 const ACTION_TIMEOUT_MS = 30000;
 
 const cardClass =
-  "bg-white border border-slate-100 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)]";
+  "bg-white border border-slate-100 rounded-3xl shadow-[0_10px_35px_rgb(0,0,0,0.03)]";
 
 function withTimeout<T>(
   promiseLike: PromiseLike<T> | T,
@@ -371,6 +371,17 @@ function getPlatformIcon(value: string | null | undefined) {
     );
   }
 
+  if (normalized.includes("youtube")) {
+    return (
+      <img
+        src="/brand/social/youtube.png"
+        alt=""
+        className="h-4 w-4 object-contain"
+        aria-hidden="true"
+      />
+    );
+  }
+
   return null;
 }
 
@@ -426,13 +437,13 @@ function getStatusMeta(status: string, locale: Locale) {
     accepted_captured: {
       label: "進行中",
       title: "進行中",
-      body: "チャット、発送、納品確認など、必要な対応をこの画面で確認できます。",
+      body: "チャット、進捗、配送、支払い情報をまとめて確認できます。",
       tone: "blue",
     },
     in_progress: {
       label: "進行中",
       title: "進行中",
-      body: "チャット、発送、納品確認など、必要な対応をこの画面で確認できます。",
+      body: "チャット、進捗、配送、支払い情報をまとめて確認できます。",
       tone: "blue",
     },
     delivered: {
@@ -483,13 +494,13 @@ function getStatusMeta(status: string, locale: Locale) {
     accepted_captured: {
       label: "In progress",
       title: "In progress",
-      body: "Chat, shipment, and delivery review actions are available here.",
+      body: "Chat, progress, shipment, and payment details are available here.",
       tone: "blue",
     },
     in_progress: {
       label: "In progress",
       title: "In progress",
-      body: "Chat, shipment, and delivery review actions are available here.",
+      body: "Chat, progress, shipment, and payment details are available here.",
       tone: "blue",
     },
     delivered: {
@@ -664,9 +675,11 @@ function SectionHeader({
             {eyebrow}
           </p>
         ) : null}
-        <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">
+
+        <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
           {title}
         </h2>
+
         {body ? (
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
             {body}
@@ -712,11 +725,70 @@ function TextBlock({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
       <p className="text-xs font-bold text-slate-500">{label}</p>
       <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">
         {value?.trim() || emptyLabel}
       </p>
+    </div>
+  );
+}
+
+function AccordionItem({
+  eyebrow,
+  title,
+  body,
+  children,
+  defaultOpen = false,
+}: {
+  eyebrow?: string;
+  title: string;
+  body?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-3xl border border-slate-100 bg-white shadow-[0_10px_35px_rgb(0,0,0,0.03)]">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-6 p-6 text-left md:p-8"
+      >
+        <div className="min-w-0">
+          {eyebrow ? (
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-500">
+              {eyebrow}
+            </p>
+          ) : null}
+
+          <h3 className="mt-1 text-xl font-bold tracking-tight text-slate-900">
+            {title}
+          </h3>
+
+          {body ? (
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              {body}
+            </p>
+          ) : null}
+        </div>
+
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-slate-50 text-lg font-bold text-slate-500 transition ${
+            open ? "rotate-45 bg-rose-50 text-rose-500" : ""
+          }`}
+        >
+          +
+        </span>
+      </button>
+
+      {open ? (
+        <div className="border-t border-slate-100 px-6 pb-6 pt-0 md:px-8 md:pb-8">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -828,11 +900,13 @@ function ProgressItem({
   active,
   label,
   body,
+  last,
 }: {
   done: boolean;
   active: boolean;
   label: string;
   body?: string;
+  last?: boolean;
 }) {
   return (
     <div className="relative flex gap-4">
@@ -848,10 +922,11 @@ function ProgressItem({
         >
           {done ? <CheckIcon /> : active ? "!" : ""}
         </div>
-        <div className="mt-2 h-full w-px bg-slate-100 last:hidden" />
+
+        {!last ? <div className="mt-2 h-full w-px bg-slate-100" /> : null}
       </div>
 
-      <div className="min-w-0 pb-6">
+      <div className="min-w-0 pb-7">
         <p
           className={`text-sm font-bold ${
             done || active ? "text-slate-900" : "text-slate-500"
@@ -997,7 +1072,7 @@ function ProgressCard({
   return (
     <Card className="p-6 md:p-8">
       <SectionHeader
-        eyebrow={locale === "ja" ? "Progress" : "Progress"}
+        eyebrow="Progress"
         title={copy.progressTitle}
         body={copy.progressBody}
       />
@@ -1010,6 +1085,7 @@ function ProgressCard({
             body={step.body}
             done={step.done}
             active={step.active}
+            last={index === steps.length - 1}
           />
         ))}
       </div>
@@ -1078,30 +1154,38 @@ function PaymentCard({
         />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50/70 px-5 py-3">
-        <DetailRow label={copy.plan} value={planName || "-"} />
-        <DetailRow
-          label={copy.orderDate}
-          value={formatDateTime(order.created_at, locale)}
-        />
-        <DetailRow
-          label={copy.paymentAuthorizedAt}
-          value={formatDateTime(order.authorized_at, locale)}
-        />
-        <DetailRow
-          label={copy.paymentCapturedAt}
-          value={formatDateTime(order.captured_at, locale)}
-        />
-        <DetailRow
-          label={copy.completedAt}
-          value={formatDateTime(order.completed_at, locale)}
-        />
-        {cancellationDate ? (
-          <DetailRow
-            label={copy.endedAt}
-            value={formatDateTime(cancellationDate, locale)}
-          />
-        ) : null}
+      <div className="mt-6">
+        <AccordionItem
+          eyebrow="Details"
+          title={copy.paymentDetailTitle}
+          body={copy.paymentDetailBody}
+        >
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3">
+            <DetailRow label={copy.plan} value={planName || "-"} />
+            <DetailRow
+              label={copy.orderDate}
+              value={formatDateTime(order.created_at, locale)}
+            />
+            <DetailRow
+              label={copy.paymentAuthorizedAt}
+              value={formatDateTime(order.authorized_at, locale)}
+            />
+            <DetailRow
+              label={copy.paymentCapturedAt}
+              value={formatDateTime(order.captured_at, locale)}
+            />
+            <DetailRow
+              label={copy.completedAt}
+              value={formatDateTime(order.completed_at, locale)}
+            />
+            {cancellationDate ? (
+              <DetailRow
+                label={copy.endedAt}
+                value={formatDateTime(cancellationDate, locale)}
+              />
+            ) : null}
+          </div>
+        </AccordionItem>
       </div>
     </Card>
   );
@@ -1131,7 +1215,7 @@ function ShipmentInput({
   );
 }
 
-function ShippingCard({
+function ShippingAccordion({
   order,
   shipmentForm,
   setShipmentForm,
@@ -1156,20 +1240,18 @@ function ShippingCard({
   }
 
   return (
-    <Card className="p-6 md:p-8">
-      <SectionHeader
-        eyebrow="Shipping"
-        title={copy.productShippingTitle}
-        body={copy.productShippingBody}
-      />
-
+    <AccordionItem
+      eyebrow="Shipping"
+      title={copy.productShippingTitle}
+      body={copy.productShippingBody}
+    >
       {!address ? (
-        <div className="mt-8 rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm leading-7 text-amber-800">
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm leading-7 text-amber-800">
           {copy.shippingAddressWaiting}
         </div>
       ) : (
-        <div className="mt-8 space-y-6">
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-slate-500">
@@ -1256,7 +1338,7 @@ function ShippingCard({
               {copy.shipmentLockedReceived}
             </div>
           ) : canSubmit ? (
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
               <h3 className="text-base font-bold tracking-tight text-slate-900">
                 {copy.shipmentFormTitle}
               </h3>
@@ -1290,7 +1372,7 @@ function ShippingCard({
                   type="button"
                   onClick={onSubmit}
                   disabled={actionLoading !== null}
-                  className="inline-flex items-center justify-center rounded-full bg-rose-500 px-6 py-3 text-sm font-bold text-white shadow-[0_12px_26px_rgba(244,63,94,0.22)] transition hover:-translate-y-0.5 hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-full bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(244,63,94,0.22)] transition hover:-translate-y-0.5 hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {actionLoading === "shipment"
                     ? copy.registeringShipment
@@ -1307,7 +1389,7 @@ function ShippingCard({
           )}
         </div>
       )}
-    </Card>
+    </AccordionItem>
   );
 }
 
@@ -1348,7 +1430,7 @@ function DeliveryReviewCard({
             href={order.delivered_post_url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
           >
             <ExternalIcon />
             {copy.openDelivery}
@@ -1365,13 +1447,13 @@ function DeliveryReviewCard({
               type="button"
               onClick={onComplete}
               disabled={actionLoading !== null}
-              className="inline-flex w-full items-center justify-center rounded-full bg-rose-500 px-6 py-3 text-sm font-bold text-white shadow-[0_12px_26px_rgba(244,63,94,0.22)] transition hover:-translate-y-0.5 hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-full bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(244,63,94,0.22)] transition hover:-translate-y-0.5 hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {actionLoading === "complete" ? copy.completing : copy.complete}
             </button>
 
             {canRequestRevision ? (
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
                 <h3 className="text-base font-bold tracking-tight text-slate-900">
                   {copy.revisionTitle}
                 </h3>
@@ -1391,7 +1473,7 @@ function DeliveryReviewCard({
                   type="button"
                   onClick={onRequestRevision}
                   disabled={actionLoading !== null}
-                  className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {actionLoading === "revision"
                     ? copy.requestingRevision
@@ -1493,7 +1575,7 @@ function ChatLockedCard({
       {creator?.id ? (
         <Link
           href={`/b/creators/${creator.id}`}
-          className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
+          className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
         >
           {copy.influencerProfile}
         </Link>
@@ -1502,7 +1584,7 @@ function ChatLockedCard({
   );
 }
 
-function OrderDetailsCard({
+function OrderDetailsAccordion({
   order,
   copy,
   locale,
@@ -1514,14 +1596,12 @@ function OrderDetailsCard({
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
 
   return (
-    <Card className="p-6 md:p-8">
-      <SectionHeader
-        eyebrow="Brief"
-        title={copy.orderContent}
-        body={copy.orderContentSub}
-      />
-
-      <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/70 px-5 py-3">
+    <AccordionItem
+      eyebrow="Brief"
+      title={copy.orderContent}
+      body={copy.orderContentSub}
+    >
+      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3">
         <DetailRow
           label={copy.productName}
           value={order.product_name || copy.notSet}
@@ -1590,11 +1670,11 @@ function OrderDetailsCard({
           emptyLabel={copy.notSet}
         />
       </div>
-    </Card>
+    </AccordionItem>
   );
 }
 
-function MenuDetailsCard({
+function MenuDetailsAccordion({
   order,
   copy,
   locale,
@@ -1604,14 +1684,12 @@ function MenuDetailsCard({
   locale: Locale;
 }) {
   return (
-    <Card className="p-6 md:p-8">
-      <SectionHeader
-        eyebrow="Menu"
-        title={copy.menuContent}
-        body={copy.menuContentSub}
-      />
-
-      <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/70 px-5 py-3">
+    <AccordionItem
+      eyebrow="Menu"
+      title={copy.menuContent}
+      body={copy.menuContentSub}
+    >
+      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3">
         <DetailRow
           label={copy.menuTitle}
           value={order.menu_title_snapshot || copy.notSet}
@@ -1668,7 +1746,7 @@ function MenuDetailsCard({
           emptyLabel={copy.notSet}
         />
       </div>
-    </Card>
+    </AccordionItem>
   );
 }
 
@@ -1746,6 +1824,9 @@ export default function CompanyOrderDetailPage() {
               "お支払いはTrendreが管理します。案件完了後、報酬がインフルエンサーへ支払われます。",
             paymentPaid: "支払い済み",
             paymentAuthorized: "支払い方法確認済み",
+            paymentDetailTitle: "支払い日付・明細",
+            paymentDetailBody:
+              "注文日、支払い確認日、支払い確定日などの詳細情報です。",
             plan: "プラン",
             menuPrice: "メニュー価格",
             serviceFee: "サービス手数料",
@@ -1757,7 +1838,7 @@ export default function CompanyOrderDetailPage() {
 
             productShippingTitle: "発送情報",
             productShippingBody:
-              "商品提供型の案件では、配送先を確認して発送情報を登録します。",
+              "配送先・追跡番号・発送日時などの業務情報です。必要な時だけ開いて確認できます。",
             shippingAddressWaiting:
               "インフルエンサーの配送先共有を待っています。",
             shippingAddressTitle: "配送先",
@@ -1814,7 +1895,8 @@ export default function CompanyOrderDetailPage() {
             revisionNoteLabel: "修正依頼内容",
 
             orderContent: "注文内容",
-            orderContentSub: "依頼時に入力した内容です。",
+            orderContentSub:
+              "依頼時に入力した詳細情報です。普段は閉じたまま必要な時だけ確認できます。",
             productName: "商品名・案件名",
             projectType: "進め方",
             productUrl: "商品URL",
@@ -1828,7 +1910,8 @@ export default function CompanyOrderDetailPage() {
             visitSchedule: "来店予定",
 
             menuContent: "メニュー詳細",
-            menuContentSub: "注文時点のメニュー情報です。",
+            menuContentSub:
+              "注文時点のメニュー情報です。納品物や利用条件を確認できます。",
             menuTitle: "メニュー名",
             platform: "SNS",
             menuType: "形式",
@@ -1902,6 +1985,9 @@ export default function CompanyOrderDetailPage() {
               "Trendre manages the payment and releases payout after completion.",
             paymentPaid: "Paid",
             paymentAuthorized: "Authorized",
+            paymentDetailTitle: "Payment dates and details",
+            paymentDetailBody:
+              "Order date, authorization date, capture date, and completion details.",
             plan: "Plan",
             menuPrice: "Menu price",
             serviceFee: "Service fee",
@@ -1913,7 +1999,7 @@ export default function CompanyOrderDetailPage() {
 
             productShippingTitle: "Shipment",
             productShippingBody:
-              "For product-shipping orders, confirm the address and register shipment details.",
+              "Business details such as address, tracking number, and shipment date.",
             shippingAddressWaiting:
               "Waiting for the influencer to share a delivery address.",
             shippingAddressTitle: "Delivery address",
@@ -1970,7 +2056,8 @@ export default function CompanyOrderDetailPage() {
             revisionNoteLabel: "Revision request",
 
             orderContent: "Order details",
-            orderContentSub: "Details entered at request time.",
+            orderContentSub:
+              "Detailed information entered at request time.",
             productName: "Product / Campaign",
             projectType: "Flow",
             productUrl: "Product URL",
@@ -1984,7 +2071,8 @@ export default function CompanyOrderDetailPage() {
             visitSchedule: "Visit schedule",
 
             menuContent: "Menu details",
-            menuContentSub: "Menu information at purchase.",
+            menuContentSub:
+              "Menu information at purchase, including deliverables and usage terms.",
             menuTitle: "Menu title",
             platform: "Platform",
             menuType: "Format",
@@ -2337,12 +2425,12 @@ export default function CompanyOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-80px)] bg-white px-4 py-8 md:px-8">
+      <div className="min-h-[calc(100vh-80px)] bg-slate-50 px-4 py-8 md:px-8">
         <div className="mx-auto max-w-7xl space-y-8">
-          <div className="h-44 animate-pulse rounded-3xl border border-slate-100 bg-slate-50 shadow-[0_8px_30px_rgb(0,0,0,0.03)]" />
+          <div className="h-44 animate-pulse rounded-3xl border border-slate-100 bg-white shadow-[0_10px_35px_rgb(0,0,0,0.03)]" />
           <div className="grid gap-8 lg:grid-cols-12">
-            <div className="h-[620px] animate-pulse rounded-3xl border border-slate-100 bg-slate-50 lg:col-span-5" />
-            <div className="h-[760px] animate-pulse rounded-3xl border border-slate-100 bg-slate-50 lg:col-span-7" />
+            <div className="h-[620px] animate-pulse rounded-3xl border border-slate-100 bg-white lg:col-span-5" />
+            <div className="h-[760px] animate-pulse rounded-3xl border border-slate-100 bg-white lg:col-span-7" />
           </div>
         </div>
       </div>
@@ -2351,15 +2439,15 @@ export default function CompanyOrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="min-h-[calc(100vh-80px)] bg-white px-4 py-8 md:px-8">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-100 bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+      <div className="min-h-[calc(100vh-80px)] bg-slate-50 px-4 py-8 md:px-8">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-100 bg-white p-8 shadow-[0_10px_35px_rgb(0,0,0,0.03)]">
           <p className="text-sm leading-7 text-slate-700">
             {error ?? copy.notFound}
           </p>
 
           <Link
             href="/b/orders"
-            className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+            className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
             {copy.backOrders}
           </Link>
@@ -2393,18 +2481,18 @@ export default function CompanyOrderDetailPage() {
   const canRequestRevision = canReviewDelivery && !revisionLimitReached;
   const canChat = canOpenChat(order);
 
-  const showShipmentCard =
+  const showShipmentAccordion =
     fulfillmentType === "product_shipping" &&
     !isWaitingStatus(order.status) &&
     !isCanceledStatus(order.status);
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-white">
+    <div className="min-h-[calc(100vh-80px)] bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 lg:py-10">
         <div className="space-y-8">
-          <section className="relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:p-8">
-            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-rose-100/60 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-28 left-20 h-64 w-64 rounded-full bg-slate-100/80 blur-3xl" />
+          <section className="relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-6 shadow-[0_10px_35px_rgb(0,0,0,0.03)] md:p-8">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-rose-100/70 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-28 left-20 h-64 w-64 rounded-full bg-slate-100 blur-3xl" />
 
             <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="min-w-0">
@@ -2455,7 +2543,7 @@ export default function CompanyOrderDetailPage() {
 
               <Link
                 href={backHref}
-                className="inline-flex w-fit items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-900 shadow-[0_8px_20px_rgb(0,0,0,0.03)] transition hover:-translate-y-0.5 hover:border-slate-300"
+                className="inline-flex w-fit items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-[0_8px_20px_rgb(0,0,0,0.03)] transition hover:-translate-y-0.5 hover:border-slate-300"
               >
                 <BackIcon />
                 {copy.backOrders}
@@ -2520,17 +2608,31 @@ export default function CompanyOrderDetailPage() {
                 copy={copy}
               />
 
-              {showShipmentCard ? (
-                <ShippingCard
+              <div className="space-y-5">
+                {showShipmentAccordion ? (
+                  <ShippingAccordion
+                    order={order}
+                    shipmentForm={shipmentForm}
+                    setShipmentForm={setShipmentForm}
+                    actionLoading={actionLoading}
+                    onSubmit={() => void runRegisterShipment()}
+                    locale={safeLocale}
+                    copy={copy}
+                  />
+                ) : null}
+
+                <OrderDetailsAccordion
                   order={order}
-                  shipmentForm={shipmentForm}
-                  setShipmentForm={setShipmentForm}
-                  actionLoading={actionLoading}
-                  onSubmit={() => void runRegisterShipment()}
-                  locale={safeLocale}
                   copy={copy}
+                  locale={safeLocale}
                 />
-              ) : null}
+
+                <MenuDetailsAccordion
+                  order={order}
+                  copy={copy}
+                  locale={safeLocale}
+                />
+              </div>
 
               {isDeliveredStatus(order.status) ? (
                 <DeliveryReviewCard
@@ -2571,7 +2673,7 @@ export default function CompanyOrderDetailPage() {
                       href={order.delivered_post_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-900 hover:text-white"
+                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-900 hover:text-white"
                     >
                       <ExternalIcon />
                       {copy.openDelivery}
@@ -2579,10 +2681,6 @@ export default function CompanyOrderDetailPage() {
                   ) : null}
                 </Card>
               ) : null}
-
-              <OrderDetailsCard order={order} copy={copy} locale={safeLocale} />
-
-              <MenuDetailsCard order={order} copy={copy} locale={safeLocale} />
             </main>
           </div>
         </div>
