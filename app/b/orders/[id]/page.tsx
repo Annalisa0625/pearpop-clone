@@ -2264,12 +2264,12 @@ export default function CompanyOrderDetailPage() {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[#f8f9fb]">
       <div
-          className={
-            canChat
-              ? "w-full px-4 py-6 pb-10 md:px-8 md:py-8 lg:pl-[520px] lg:pr-8"
-              : "mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8"
-          }
-        >
+        className={
+          canChat
+            ? "px-4 py-6 pb-10 md:px-8 md:py-8 lg:ml-[500px] lg:mr-8 lg:max-w-[900px] xl:ml-[520px] xl:max-w-[960px]"
+            : "mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6 md:py-8"
+        }
+      >
         <section className="rounded-[30px] bg-white px-5 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100 md:px-6 md:py-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -2363,13 +2363,19 @@ export default function CompanyOrderDetailPage() {
           </div>
         ) : null}
 
-        <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section
+          className={
+            canChat
+              ? "mt-4 grid gap-4"
+              : "mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]"
+          }
+        >
           <main className="space-y-4">
             <Panel className="p-5">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <SectionTitle title={safeLocale === "ja" ? "現在の状況" : "Current status"} body={meta.body} />
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:min-w-[420px]">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:min-w-[420px]">
                   <div className="rounded-[20px] bg-slate-50 p-3 ring-1 ring-slate-100">
                     <p className="text-[11px] font-black text-slate-400">
                       {copy.statusLabel}
@@ -2607,7 +2613,7 @@ export default function CompanyOrderDetailPage() {
             </div>
           </main>
 
-          <aside className="space-y-4">
+          <aside className={canChat ? "hidden" : "space-y-4"}>
 
             <Panel className="p-5">
               <SectionTitle title={copy.influencer} />
