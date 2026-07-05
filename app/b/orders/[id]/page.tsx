@@ -448,7 +448,7 @@ function getStatusMeta(status: string, locale: Locale) {
     },
     delivered: {
       label: "納品確認",
-      title: "納品が届いています",
+      title: "納品確認",
       body: "納品URLを確認し、問題がなければ注文を完了してください。",
       tone: "rose",
     },
@@ -505,7 +505,7 @@ function getStatusMeta(status: string, locale: Locale) {
     },
     delivered: {
       label: "Review",
-      title: "Delivery submitted",
+      title: "Review delivery",
       body: "Review the delivery URL and complete the order if everything looks good.",
       tone: "rose",
     },
@@ -569,8 +569,8 @@ function getHeroSubtitle(status: string, locale: Locale) {
 
   if (isDeliveredStatus(status)) {
     return locale === "ja"
-      ? "納品が届いています。まず納品URLを確認してください。"
-      : "The delivery has been submitted. Review the delivery URL first.";
+      ? "納品が届いています。納品URLを確認し、問題がなければ完了してください。"
+      : "The delivery has been submitted. Review the delivery URL and complete the order if everything looks good.";
   }
 
   if (status === "revision_requested") {
@@ -657,7 +657,6 @@ function Card({
 }
 
 function SectionHeader({
-  eyebrow,
   title,
   body,
   action,
@@ -670,13 +669,7 @@ function SectionHeader({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        {eyebrow ? (
-          <p className="text-xs font-bold tracking-[0.16em] text-rose-500">
-            {eyebrow}
-          </p>
-        ) : null}
-
-        <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
           {title}
         </h2>
 
@@ -735,7 +728,6 @@ function TextBlock({
 }
 
 function AccordionItem({
-  eyebrow,
   title,
   body,
   children,
@@ -758,13 +750,7 @@ function AccordionItem({
         className="flex w-full items-center justify-between gap-6 p-6 text-left md:p-8"
       >
         <div className="min-w-0">
-          {eyebrow ? (
-            <p className="text-xs font-bold tracking-[0.16em] text-rose-500">
-              {eyebrow}
-            </p>
-          ) : null}
-
-          <h3 className="mt-1 text-xl font-bold tracking-tight text-slate-900">
+          <h3 className="text-xl font-bold tracking-tight text-slate-900">
             {title}
           </h3>
 
@@ -934,7 +920,9 @@ function ProgressItem({
         >
           {label}
         </p>
-        {body ? <p className="mt-1 text-sm leading-6 text-slate-500">{body}</p> : null}
+        {body ? (
+          <p className="mt-1 text-sm leading-6 text-slate-500">{body}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -1069,11 +1057,7 @@ function ProgressCard({
 
   return (
     <Card className="p-6 md:p-8">
-      <SectionHeader
-        eyebrow={copy.progressEyebrow}
-        title={copy.progressTitle}
-        body={copy.progressBody}
-      />
+      <SectionHeader title={copy.progressTitle} body={copy.progressBody} />
 
       <div className="mt-8">
         {steps.map((step, index) => (
@@ -1088,53 +1072,6 @@ function ProgressCard({
         ))}
       </div>
     </Card>
-  );
-}
-
-function DeliveryHighlightCard({
-  order,
-  copy,
-  locale,
-}: {
-  order: OrderDetail;
-  copy: Record<string, string>;
-  locale: Locale;
-}) {
-  if (!order.delivered_post_url) return null;
-
-  return (
-    <section className="relative overflow-hidden rounded-3xl border border-rose-100 bg-white p-6 shadow-[0_16px_45px_rgba(244,63,94,0.10)] md:p-8">
-      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-rose-100 blur-3xl" />
-
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-bold tracking-[0.16em] text-rose-500">
-            {copy.deliveryHighlightEyebrow}
-          </p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-            {copy.deliveryHighlightTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            {order.delivered_at
-              ? `${copy.deliveryHighlightBody}（${formatDateTime(
-                  order.delivered_at,
-                  locale
-                )}）`
-              : copy.deliveryHighlightBody}
-          </p>
-        </div>
-
-        <a
-          href={order.delivered_post_url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(244,63,94,0.22)] transition hover:-translate-y-0.5 hover:bg-rose-600"
-        >
-          <ExternalIcon />
-          {copy.openDelivery}
-        </a>
-      </div>
-    </section>
   );
 }
 
@@ -1162,7 +1099,6 @@ function PaymentCard({
   return (
     <Card className="p-6 md:p-8">
       <SectionHeader
-        eyebrow={copy.paymentEyebrow}
         title={copy.paymentTitle}
         body={copy.paymentBody}
         action={
@@ -1201,7 +1137,6 @@ function PaymentCard({
 
       <div className="mt-6">
         <AccordionItem
-          eyebrow={copy.detailEyebrow}
           title={copy.paymentDetailTitle}
           body={copy.paymentDetailBody}
         >
@@ -1285,11 +1220,7 @@ function ShippingAccordion({
   }
 
   return (
-    <AccordionItem
-      eyebrow={copy.shippingEyebrow}
-      title={copy.productShippingTitle}
-      body={copy.productShippingBody}
-    >
+    <AccordionItem title={copy.productShippingTitle} body={copy.productShippingBody}>
       {!address ? (
         <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm leading-7 text-amber-800">
           {copy.shippingAddressWaiting}
@@ -1463,11 +1394,7 @@ function DeliveryReviewCard({
 }) {
   return (
     <Card className="p-6 md:p-8">
-      <SectionHeader
-        eyebrow={copy.reviewEyebrow}
-        title={copy.completeTitle}
-        body={copy.completeBody}
-      />
+      <SectionHeader title={copy.completeTitle} body={copy.completeBody} />
 
       <div className="mt-8 grid gap-4">
         {order.delivered_post_url ? (
@@ -1641,11 +1568,7 @@ function OrderDetailsAccordion({
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
 
   return (
-    <AccordionItem
-      eyebrow={copy.briefEyebrow}
-      title={copy.orderContent}
-      body={copy.orderContentSub}
-    >
+    <AccordionItem title={copy.orderContent} body={copy.orderContentSub}>
       <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3">
         <DetailRow
           label={copy.productName}
@@ -1729,11 +1652,7 @@ function MenuDetailsAccordion({
   locale: Locale;
 }) {
   return (
-    <AccordionItem
-      eyebrow={copy.menuEyebrow}
-      title={copy.menuContent}
-      body={copy.menuContentSub}
-    >
+    <AccordionItem title={copy.menuContent} body={copy.menuContentSub}>
       <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3">
         <DetailRow
           label={copy.menuTitle}
@@ -1817,16 +1736,6 @@ export default function CompanyOrderDetailPage() {
             influencerProfile: "プロフィールを見る",
             notSet: "未設定",
 
-            overviewEyebrow: "要点",
-            progressEyebrow: "進行状況",
-            paymentEyebrow: "支払い",
-            detailEyebrow: "詳細",
-            shippingEyebrow: "発送",
-            briefEyebrow: "注文情報",
-            menuEyebrow: "メニュー",
-            reviewEyebrow: "確認",
-            deliveryHighlightEyebrow: "納品が届いています",
-
             statusLabel: "ステータス",
             flowLabel: "進め方",
             total: "合計",
@@ -1838,10 +1747,6 @@ export default function CompanyOrderDetailPage() {
             chatLockedTitle: "チャットはまだ利用できません",
             chatLockedBody:
               "返答待ち・支払い確認中の注文では、承認されるまでチャットは表示されません。",
-
-            deliveryHighlightTitle: "納品URLを確認してください",
-            deliveryHighlightBody:
-              "インフルエンサーから納品が届きました。内容を確認し、問題がなければ注文を完了してください。",
 
             progressTitle: "進捗",
             progressBody:
@@ -1955,7 +1860,7 @@ export default function CompanyOrderDetailPage() {
 
             orderContent: "注文内容",
             orderContentSub:
-              "依頼時に入力した詳細情報です。普段は閉じたまま必要な時だけ確認できます。",
+              "依頼時に入力した詳細情報です。必要な時だけ確認できます。",
             productName: "商品名・案件名",
             projectType: "進め方",
             productUrl: "商品URL",
@@ -1992,16 +1897,6 @@ export default function CompanyOrderDetailPage() {
             influencerProfile: "View profile",
             notSet: "Not set",
 
-            overviewEyebrow: "Summary",
-            progressEyebrow: "Status",
-            paymentEyebrow: "Payment",
-            detailEyebrow: "Details",
-            shippingEyebrow: "Shipping",
-            briefEyebrow: "Order",
-            menuEyebrow: "Menu",
-            reviewEyebrow: "Review",
-            deliveryHighlightEyebrow: "Delivery submitted",
-
             statusLabel: "Status",
             flowLabel: "Flow",
             total: "Total",
@@ -2013,10 +1908,6 @@ export default function CompanyOrderDetailPage() {
             chatLockedTitle: "Chat is not available yet",
             chatLockedBody:
               "Chat appears after the influencer accepts the order.",
-
-            deliveryHighlightTitle: "Review the delivery URL",
-            deliveryHighlightBody:
-              "The influencer has submitted the delivery. Please review it and complete the order if everything looks good.",
 
             progressTitle: "Progress",
             progressBody:
@@ -2650,33 +2541,22 @@ export default function CompanyOrderDetailPage() {
             </aside>
 
             <main className="space-y-8 lg:col-span-7">
-              <DeliveryHighlightCard
-                order={order}
-                copy={copy}
-                locale={safeLocale}
-              />
+              {isDeliveredStatus(order.status) ? (
+                <DeliveryReviewCard
+                  order={order}
+                  canReviewDelivery={canReviewDelivery}
+                  canRequestRevision={canRequestRevision}
+                  revisionLimitReached={revisionLimitReached}
+                  actionLoading={actionLoading}
+                  revisionNote={revisionNote}
+                  setRevisionNote={setRevisionNote}
+                  onComplete={() => void runComplete()}
+                  onRequestRevision={() => void runRequestRevision()}
+                  copy={copy}
+                />
+              ) : null}
 
               <ProgressCard order={order} copy={copy} />
-
-              <Card className="p-6 md:p-8">
-                <SectionHeader
-                  eyebrow={copy.overviewEyebrow}
-                  title={meta.title}
-                  body={meta.body}
-                />
-
-                <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                  <MetricCard label={copy.statusLabel} value={meta.label} />
-                  <MetricCard
-                    label={copy.flowLabel}
-                    value={fulfillmentLabel(order.fulfillment_type, safeLocale)}
-                  />
-                  <MetricCard
-                    label={copy.total}
-                    value={formatPrice(buyerTotal, order.currency, safeLocale)}
-                  />
-                </div>
-              </Card>
 
               <PaymentCard
                 order={order}
@@ -2713,27 +2593,9 @@ export default function CompanyOrderDetailPage() {
                 />
               </div>
 
-              {isDeliveredStatus(order.status) ? (
-                <DeliveryReviewCard
-                  order={order}
-                  canReviewDelivery={canReviewDelivery}
-                  canRequestRevision={canRequestRevision}
-                  revisionLimitReached={revisionLimitReached}
-                  actionLoading={actionLoading}
-                  revisionNote={revisionNote}
-                  setRevisionNote={setRevisionNote}
-                  onComplete={() => void runComplete()}
-                  onRequestRevision={() => void runRequestRevision()}
-                  copy={copy}
-                />
-              ) : null}
-
-              {order.revision_note ? (
+              {order.revision_note && !isDeliveredStatus(order.status) ? (
                 <Card className="p-6 md:p-8">
-                  <SectionHeader
-                    eyebrow="修正"
-                    title={copy.currentRevisionNote}
-                  />
+                  <SectionHeader title={copy.currentRevisionNote} />
                   <div className="mt-6">
                     <TextBlock
                       label={copy.revisionNoteLabel}
@@ -2744,20 +2606,19 @@ export default function CompanyOrderDetailPage() {
                 </Card>
               ) : null}
 
-              {isCompletedStatus(order.status) || isCanceledStatus(order.status) ? (
+              {(isCompletedStatus(order.status) || isCanceledStatus(order.status)) &&
+              order.delivered_post_url ? (
                 <Card className="p-6 md:p-8">
                   <SectionHeader title={meta.title} body={meta.body} />
-                  {order.delivered_post_url ? (
-                    <a
-                      href={order.delivered_post_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-900 hover:text-white"
-                    >
-                      <ExternalIcon />
-                      {copy.openDelivery}
-                    </a>
-                  ) : null}
+                  <a
+                    href={order.delivered_post_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-900 hover:text-white"
+                  >
+                    <ExternalIcon />
+                    {copy.openDelivery}
+                  </a>
                 </Card>
               ) : null}
             </main>
