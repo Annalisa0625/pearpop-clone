@@ -106,9 +106,9 @@ const DETAIL_CATEGORY_LABELS = [
 ];
 
 const TREND_MARQUEE_ITEMS = [
-  "トレンドをハックする",
-  "Trendre",
-  "トレンドに再び火をつける",
+  "HACK THE TREND",
+  "TRENDRE",
+  "IGNITE THE TREND AGAIN",
 ];
 
 function normalizePlatform(value: string | null | undefined) {
@@ -370,7 +370,7 @@ function CreatorHeroCard({
 }) {
   return (
     <Link href={CREATOR_LIST_PATH} className="group block">
-      <article className="relative h-[286px] overflow-hidden rounded-[24px] bg-slate-800 shadow-[0_20px_55px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 hover:-translate-y-1 md:h-[310px]">
+      <article className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-slate-800 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 hover:-translate-y-1">
         <CreatorImage creator={creator} index={index} />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/18 to-black/8" />
@@ -496,7 +496,7 @@ function HeroSearch({
       >
         <div className="hidden min-w-[165px] items-center gap-3 border-r border-slate-200 px-5 text-sm font-black text-slate-800 sm:flex">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100">
-            <SearchIcon className="h-4.5 w-4.5" />
+            <SearchIcon className="h-4 w-4" />
           </span>
           Search
         </div>
@@ -597,16 +597,16 @@ function HeroSection({
 }
 
 function TrendMarqueeSection() {
-  const repeated = Array.from({ length: 8 }).flatMap(() => TREND_MARQUEE_ITEMS);
+  const repeated = Array.from({ length: 10 }).flatMap(() => TREND_MARQUEE_ITEMS);
 
   return (
-    <section className="overflow-hidden bg-white py-10 md:py-14">
+    <section className="overflow-hidden bg-white py-8 md:py-12">
       <div className="pointer-events-none overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <div className="trendre-trend-marquee flex w-max items-center gap-12 whitespace-nowrap">
+        <div className="trendre-trend-marquee flex w-max items-center gap-10 whitespace-nowrap">
           {repeated.map((item, index) => (
             <span
               key={`${item}-${index}`}
-              className="text-[34px] font-black tracking-[-0.045em] text-slate-200 md:text-[54px] lg:text-[68px]"
+              className="text-[24px] font-black tracking-[-0.035em] text-slate-200 md:text-[38px] lg:text-[46px]"
             >
               {item}
             </span>
@@ -625,7 +625,7 @@ function TrendMarqueeSection() {
         }
 
         .trendre-trend-marquee {
-          animation: trendre-trend-marquee-left 36s linear infinite;
+          animation: trendre-trend-marquee-left 38s linear infinite;
         }
       `}</style>
     </section>
@@ -1029,9 +1029,9 @@ export default function HomePage() {
       safeLocale === "ja"
         ? {
             heroLine1: "インフルエンサーPRを",
-            heroAccent: "探す",
+            heroAccent: "\"探す\"",
             heroLine2: "から",
-            heroItalic: "納品確認まで。",
+            heroItalic: "\"納品確認\"まで。",
             heroBody:
               "Trendreは、企業がクリエイターを検索し、表示価格で依頼し、チャット・納品・支払いまで一元管理できる日本向けインフルエンサーマーケティングSaaSです。",
             searchButton: "検索",
@@ -1107,9 +1107,9 @@ export default function HomePage() {
           }
         : {
             heroLine1: "Run influencer PR",
-            heroAccent: "from search",
+            heroAccent: "\"from search\"",
             heroLine2: " to",
-            heroItalic: "final delivery.",
+            heroItalic: "\"final delivery.\"",
             heroBody:
               "Trendre helps brands search creators, order with visible pricing, and manage chat, delivery, and payment in one Japan-focused influencer marketing platform.",
             searchButton: "Search",
