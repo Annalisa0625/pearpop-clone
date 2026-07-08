@@ -2,13 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
 import PublicFooter from "@/components/PublicFooter";
@@ -70,16 +64,16 @@ type CreatorPreview = {
   gradient: string;
 };
 
+type WorkflowStep = {
+  number: string;
+  title: string;
+};
+
 type UseCaseCardProps = {
   title: string;
   body: string;
   cta: string;
   tone: "rose" | "blue" | "violet" | "orange";
-};
-
-type WorkflowStep = {
-  number: string;
-  title: string;
 };
 
 const CREATOR_LIST_PATH = "/b/creators";
@@ -93,19 +87,28 @@ const CARD_GRADIENTS = [
   "from-slate-300 via-zinc-200 to-stone-100",
 ];
 
-const MARQUEE_WORDS = [
-  "Creator Discovery",
-  "Influencer Search",
-  "Campaign Briefs",
-  "UGC Creation",
-  "Product Seeding",
-  "Store Visit",
-  "Order Management",
-  "Content Review",
-  "Delivery Tracking",
-  "Secure Payment",
-  "Creator CRM",
-  "Performance Report",
+const MAIN_CATEGORY_LABELS = ["美容", "健康", "グルメ", "旅行", "暮らし", "制作"];
+
+const DETAIL_CATEGORY_LABELS = [
+  "すべて",
+  "美容サロン",
+  "美容室",
+  "美容整形",
+  "美容医療",
+  "スキンケア",
+  "コスメ",
+  "韓国コスメ",
+  "ヘアケア",
+  "ネイル",
+  "まつ毛・眉毛",
+  "香水",
+  "メンズ美容",
+];
+
+const TREND_MARQUEE_ITEMS = [
+  "トレンドをハックする",
+  "Trendre",
+  "トレンドに再び火をつける",
 ];
 
 function normalizePlatform(value: string | null | undefined) {
@@ -227,12 +230,12 @@ function useTypingPlaceholder(words: string[]) {
     if (blankPause) {
       const timer = window.setTimeout(() => {
         setBlankPause(false);
-      }, 420);
+      }, 520);
 
       return () => window.clearTimeout(timer);
     }
 
-    let delay = deleting ? 40 : 86;
+    let delay = deleting ? 42 : 88;
 
     if (!deleting && letterCount >= currentWord.length) {
       delay = 1180;
@@ -266,9 +269,9 @@ function useTypingPlaceholder(words: string[]) {
   return words[wordIndex]?.slice(0, letterCount) ?? "";
 }
 
-function SearchIcon() {
+function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 20 20" className={className} fill="none" aria-hidden="true">
       <path
         d="m14.5 14.5 3 3M16 8.5A7.5 7.5 0 1 1 1 8.5a7.5 7.5 0 0 1 15 0Z"
         stroke="currentColor"
@@ -367,17 +370,17 @@ function CreatorHeroCard({
 }) {
   return (
     <Link href={CREATOR_LIST_PATH} className="group block">
-      <article className="relative h-[218px] overflow-hidden rounded-[24px] bg-slate-800 shadow-[0_20px_55px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 hover:-translate-y-1">
+      <article className="relative h-[286px] overflow-hidden rounded-[24px] bg-slate-800 shadow-[0_20px_55px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 hover:-translate-y-1 md:h-[310px]">
         <CreatorImage creator={creator} index={index} />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/20 to-black/8" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/18 to-black/8" />
 
         <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="truncate text-sm font-black leading-tight text-white">
               {creator.displayName}
             </p>
-            <p className="mt-1 max-w-[160px] truncate text-xs font-semibold text-white/75">
+            <p className="mt-1 max-w-[165px] truncate text-xs font-semibold text-white/76">
               {creator.category}
             </p>
           </div>
@@ -400,7 +403,7 @@ function CreatorHeroCard({
                 <span className="truncate">{creator.tag}</span>
               </p>
 
-              <p className="mt-2 truncate text-[11px] font-semibold text-white/70">
+              <p className="mt-2 truncate text-[11px] font-semibold text-white/72">
                 {creator.prefecture}
                 {creator.menuCount > 0 ? ` ・ メニュー ${creator.menuCount}件` : ""}
               </p>
@@ -416,32 +419,54 @@ function CreatorHeroCard({
   );
 }
 
-function SearchSuggestions({
-  suggestions,
-  show,
-}: {
-  suggestions: string[];
-  show: boolean;
-}) {
+function SearchCategoryPanel({ show }: { show: boolean }) {
   if (!show) return null;
 
   return (
-    <div className="absolute left-0 right-0 top-[calc(100%+12px)] z-30 overflow-hidden rounded-[26px] border border-slate-100 bg-white p-3 text-left shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
-      <p className="px-3 pb-2 text-[11px] font-black tracking-[0.16em] text-slate-400">
-        SEARCH IDEAS
-      </p>
+    <div className="absolute left-0 right-0 top-[calc(100%+12px)] z-30 overflow-hidden rounded-[26px] border border-slate-100 bg-white p-4 text-left shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+      <div className="rounded-[24px] bg-slate-50 p-4">
+        <p className="mb-3 px-1 text-xs font-black text-slate-400">大カテゴリ</p>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        {suggestions.map((suggestion) => (
-          <Link
-            key={suggestion}
-            href={CREATOR_LIST_PATH}
-            className="flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-50"
-          >
-            <span>{suggestion}</span>
-            <span className="text-slate-300">↗</span>
-          </Link>
-        ))}
+        <div className="flex flex-wrap gap-2">
+          {MAIN_CATEGORY_LABELS.map((label, index) => (
+            <Link
+              key={label}
+              href={CREATOR_LIST_PATH}
+              className={`rounded-full px-5 py-2.5 text-sm font-black transition ${
+                index === 0
+                  ? "bg-slate-950 text-white"
+                  : "bg-white text-slate-700 shadow-sm ring-1 ring-slate-100 hover:bg-slate-950 hover:text-white"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[24px] bg-white p-4 ring-1 ring-slate-100">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <p className="px-1 text-xs font-black text-slate-400">詳細カテゴリ</p>
+          <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-500">
+            美容
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {DETAIL_CATEGORY_LABELS.map((label, index) => (
+            <Link
+              key={label}
+              href={CREATOR_LIST_PATH}
+              className={`rounded-full px-4 py-2.5 text-sm font-black transition ${
+                index === 0
+                  ? "bg-rose-500 text-white shadow-[0_10px_25px_rgba(244,63,94,0.22)]"
+                  : "bg-slate-50 text-slate-700 ring-1 ring-slate-100 hover:bg-slate-950 hover:text-white"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -464,14 +489,14 @@ function HeroSearch({
   };
 
   return (
-    <div className="relative mx-auto mt-8 w-full max-w-[900px]">
+    <div className="relative mx-auto mt-7 w-full max-w-[900px]">
       <form
         onSubmit={handleSubmit}
         className="flex w-full overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.24)] ring-1 ring-white/10"
       >
         <div className="hidden min-w-[165px] items-center gap-3 border-r border-slate-200 px-5 text-sm font-black text-slate-800 sm:flex">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100">
-            <SearchIcon />
+            <SearchIcon className="h-4.5 w-4.5" />
           </span>
           Search
         </div>
@@ -481,10 +506,10 @@ function HeroSearch({
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => setSuggestionsOpen(true)}
           onBlur={() => {
-            window.setTimeout(() => setSuggestionsOpen(false), 140);
+            window.setTimeout(() => setSuggestionsOpen(false), 150);
           }}
           placeholder={typingText ? `${typingText}|` : ""}
-          className="min-h-[62px] flex-1 bg-white px-5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+          className="min-h-[60px] flex-1 bg-white px-5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
         />
 
         <button
@@ -496,41 +521,7 @@ function HeroSearch({
         </button>
       </form>
 
-      <SearchSuggestions suggestions={suggestions} show={suggestionsOpen} />
-    </div>
-  );
-}
-
-function HeroMarquee() {
-  const words = [...MARQUEE_WORDS, ...MARQUEE_WORDS];
-
-  return (
-    <div className="pointer-events-none mx-auto mt-7 max-w-[1100px] overflow-hidden py-3 [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
-      <div className="trendre-marquee-track flex w-max items-center gap-9 whitespace-nowrap">
-        {words.map((word, index) => (
-          <span
-            key={`${word}-${index}`}
-            className="text-[13px] font-black uppercase tracking-[0.24em] text-white/20"
-          >
-            {word}
-          </span>
-        ))}
-      </div>
-
-      <style jsx global>{`
-        @keyframes trendre-marquee-left {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-
-        .trendre-marquee-track {
-          animation: trendre-marquee-left 34s linear infinite;
-        }
-      `}</style>
+      <SearchCategoryPanel show={suggestionsOpen} />
     </div>
   );
 }
@@ -555,9 +546,9 @@ function HeroSection({
 
   return (
     <section className="bg-white pb-8 pt-5">
-      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-8 pt-12 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 md:pt-14 lg:px-12">
+      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-8 pt-10 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
         <div className="mx-auto max-w-5xl text-center">
-          <h1 className="text-[36px] font-black leading-[1.06] tracking-[-0.055em] text-white md:text-[54px] lg:text-[62px]">
+          <h1 className="text-[34px] font-black leading-[1.06] tracking-[-0.055em] text-white md:text-[50px] lg:text-[58px]">
             {copy.heroLine1}
             <br />
             <span className="text-[#f85b8f]">{copy.heroAccent}</span>
@@ -566,11 +557,9 @@ function HeroSection({
             <span className="italic">{copy.heroItalic}</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-3xl text-base font-semibold leading-8 text-white/70 md:text-lg">
+          <p className="mx-auto mt-5 max-w-3xl text-sm font-semibold leading-7 text-white/70 md:text-base">
             {copy.heroBody}
           </p>
-
-          <HeroMarquee />
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {PLATFORM_OPTIONS.map((platform) => (
@@ -593,7 +582,7 @@ function HeroSection({
           </div>
         </div>
 
-        <div className="mx-auto mt-8 grid max-w-[920px] gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mx-auto mt-7 grid max-w-[1120px] gap-4 md:grid-cols-2 xl:grid-cols-4">
           {creators.map((creator, index) => (
             <CreatorHeroCard
               key={`${creator.displayName}-${index}`}
@@ -607,27 +596,38 @@ function HeroSection({
   );
 }
 
-function CapabilityStrip({ copy }: { copy: Record<string, string> }) {
-  const items = [
-    copy.capability1,
-    copy.capability2,
-    copy.capability3,
-    copy.capability4,
-    copy.capability5,
-    copy.capability6,
-  ];
+function TrendMarqueeSection() {
+  const repeated = Array.from({ length: 8 }).flatMap(() => TREND_MARQUEE_ITEMS);
 
   return (
-    <section className="bg-white px-4 py-10 md:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-5 md:flex-row md:justify-center">
-        <p className="text-sm font-black text-slate-950">{copy.builtFor}</p>
-
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-black text-slate-300">
-          {items.map((item) => (
-            <span key={item}>{item}</span>
+    <section className="overflow-hidden bg-white py-10 md:py-14">
+      <div className="pointer-events-none overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+        <div className="trendre-trend-marquee flex w-max items-center gap-12 whitespace-nowrap">
+          {repeated.map((item, index) => (
+            <span
+              key={`${item}-${index}`}
+              className="text-[34px] font-black tracking-[-0.045em] text-slate-200 md:text-[54px] lg:text-[68px]"
+            >
+              {item}
+            </span>
           ))}
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes trendre-trend-marquee-left {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+
+        .trendre-trend-marquee {
+          animation: trendre-trend-marquee-left 36s linear infinite;
+        }
+      `}</style>
     </section>
   );
 }
@@ -734,7 +734,7 @@ function WorkflowSection({
   steps: WorkflowStep[];
 }) {
   return (
-    <section className="bg-white px-4 py-14 md:px-6 lg:py-20">
+    <section className="bg-white px-4 py-12 md:px-6 lg:py-16">
       <div className="mx-auto max-w-7xl">
         <h2 className="mx-auto max-w-4xl text-center text-[36px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[54px]">
           {copy.workflowTitle}
@@ -1042,14 +1042,6 @@ export default function HomePage() {
             chip5: "グルメ・店舗PR",
             chip6: "¥30,000以下",
 
-            builtFor: "一元管理できること:",
-            capability1: "検索",
-            capability2: "依頼",
-            capability3: "チャット",
-            capability4: "納品確認",
-            capability5: "支払い",
-            capability6: "報酬管理",
-
             workflowTitle: "PR案件の流れを、ひとつの画面で。",
             workflowCardTitle: "依頼文作成から納品確認まで、運用をシンプルに。",
             workflowCardBody:
@@ -1128,14 +1120,6 @@ export default function HomePage() {
             chip5: "Food and store PR",
             chip6: "Under ¥30,000",
 
-            builtFor: "Manage in one place:",
-            capability1: "Search",
-            capability2: "Request",
-            capability3: "Chat",
-            capability4: "Delivery",
-            capability5: "Payment",
-            capability6: "Payouts",
-
             workflowTitle: "Everything in one workflow.",
             workflowCardTitle:
               "From campaign brief to delivery review, without scattered tools.",
@@ -1207,7 +1191,7 @@ export default function HomePage() {
     () =>
       safeLocale === "ja"
         ? ["スキンケア", "グルメ", "メンズファッション", "フィットネス", "転職", "インテリア"]
-        : ["skincare", "food review", "men's fashion", "fitness", "career change", "interior"],
+        : ["skincare", "food", "men's fashion", "fitness", "career change", "interior"],
     [safeLocale]
   );
 
@@ -1444,7 +1428,7 @@ export default function HomePage() {
           creators={creators}
           suggestions={searchSuggestions}
         />
-        <CapabilityStrip copy={copy} />
+        <TrendMarqueeSection />
         <WorkflowSection copy={copy} steps={workflowSteps} />
         <IllustrationSection copy={copy} />
         <ToolsSection copy={copy} />
