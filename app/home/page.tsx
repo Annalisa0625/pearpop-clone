@@ -115,17 +115,6 @@ function normalizePlatform(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
-function getPlatformLabel(value: string | null | undefined) {
-  const normalized = normalizePlatform(value);
-
-  if (normalized.includes("instagram")) return "Instagram";
-  if (normalized.includes("tiktok")) return "TikTok";
-  if (normalized.includes("youtube")) return "YouTube";
-  if (normalized === "x" || normalized.includes("twitter")) return "X";
-
-  return value?.trim() || "SNS";
-}
-
 function getPlatformIcon(value: string | null | undefined, className = "h-4 w-4") {
   const normalized = normalizePlatform(value);
 
@@ -363,31 +352,30 @@ function CreatorHeroCard({
 
   return (
     <Link href={CREATOR_LIST_PATH} className="group/card block">
-      <article>
-        <div className="relative aspect-[1.08/1] overflow-hidden rounded-[22px] bg-slate-200 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 group-hover/card:-translate-y-1">
-          <CreatorImage creator={creator} index={index} />
+      <article className="relative aspect-[1.12/1] overflow-hidden rounded-[22px] bg-slate-200 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 group-hover/card:-translate-y-1">
+        <CreatorImage creator={creator} index={index} />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/52 via-black/6 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/58 via-black/14 to-black/8" />
 
-          <div className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/30 transition group-hover/card:bg-white group-hover/card:text-slate-900">
-            ♡
-          </div>
-
-          <div className="absolute bottom-4 left-4 flex items-center gap-2">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5">
-              {getPlatformIcon(primaryPlatform, "h-5 w-5")}
-            </span>
-
-            <span className="inline-flex items-center rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-sm ring-1 ring-black/5">
-              {formatStartingPrice(creator.startingPrice, creator.startingCurrency)}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-3 px-0.5">
+        <div className="absolute left-4 top-4 max-w-[62%]">
           <p className="truncate text-base font-black leading-tight text-white">
             {creator.displayName}
           </p>
+        </div>
+
+        <div className="absolute right-3 top-3 rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-sm ring-1 ring-black/5">
+          {formatStartingPrice(creator.startingPrice, creator.startingCurrency)}
+        </div>
+
+        <div className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/20 transition group-hover/card:bg-white group-hover/card:text-slate-900">
+          ♡
+        </div>
+
+        <div className="absolute bottom-4 left-4">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-sm font-black text-slate-950 shadow-sm ring-1 ring-black/5">
+            {getPlatformIcon(primaryPlatform, "h-5 w-5")}
+            {primaryPlatform}
+          </span>
         </div>
       </article>
     </Link>
@@ -464,7 +452,7 @@ function HeroSearch({
   };
 
   return (
-    <div className="relative mx-auto mt-5 w-full max-w-[900px]">
+    <div className="relative mx-auto mt-4 w-full max-w-[900px]">
       <form
         onSubmit={handleSubmit}
         className="flex w-full overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.24)] ring-1 ring-white/10"
@@ -484,7 +472,7 @@ function HeroSearch({
             window.setTimeout(() => setSuggestionsOpen(false), 150);
           }}
           placeholder={typingText ? `${typingText}|` : ""}
-          className="min-h-[58px] flex-1 bg-white px-5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+          className="min-h-[56px] flex-1 bg-white px-5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
         />
 
         <button
@@ -520,10 +508,10 @@ function HeroSection({
   ];
 
   return (
-    <section className="bg-white pb-8 pt-5">
-      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-8 pt-8 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
+    <section className="bg-white pb-6 pt-1">
+      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-8 pt-6 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
         <div className="mx-auto max-w-6xl text-center">
-          <h1 className="text-[31px] font-black leading-[1.03] tracking-[-0.055em] text-white md:text-[47px] lg:text-[58px] xl:text-[64px]">
+          <h1 className="text-[29px] font-black leading-[1.04] tracking-[-0.055em] text-white md:text-[42px] lg:text-[50px] xl:text-[56px]">
             {copy.heroLine1}
             <br className="hidden md:block" />
             <span className="text-[#f85b8f]">{copy.heroAccent}</span>
@@ -531,11 +519,11 @@ function HeroSection({
             <span className="italic">{copy.heroItalic}</span>
           </h1>
 
-          <p className="mx-auto mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/70 md:text-base">
+          <p className="mx-auto mt-3 max-w-6xl text-sm font-semibold leading-7 text-white/72 md:whitespace-nowrap md:text-base">
             {copy.heroBody}
           </p>
 
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
             {PLATFORM_OPTIONS.map((platform) => (
               <PlatformLink key={platform} platform={platform} />
             ))}
@@ -543,7 +531,7 @@ function HeroSection({
 
           <HeroSearch copy={copy} suggestions={suggestions} />
 
-          <div className="mx-auto mt-4 flex max-w-[920px] flex-wrap justify-center gap-3">
+          <div className="mx-auto mt-3 flex max-w-[920px] flex-wrap justify-center gap-3">
             {chips.map((chip) => (
               <Link
                 key={chip}
@@ -556,7 +544,7 @@ function HeroSection({
           </div>
         </div>
 
-        <div className="mx-auto mt-6 grid max-w-[1260px] gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mx-auto mt-5 grid max-w-[1260px] gap-5 md:grid-cols-2 xl:grid-cols-4">
           {creators.map((creator, index) => (
             <CreatorHeroCard
               key={`${creator.displayName}-${index}`}
@@ -1007,7 +995,7 @@ export default function HomePage() {
             heroLine2: "から",
             heroItalic: "\"納品確認\"まで。",
             heroBody:
-              "Trendreは、企業がクリエイターを検索し、表示価格で依頼し、チャット・納品・支払いまで一元管理できる日本向けインフルエンサーマーケティングSaaSです。",
+              "Trendreは、インフルエンサーを検索し、依頼し、チャット・納品・支払いまで一元管理できるインフルエンサーマーケティングSaaSです。",
             searchButton: "検索",
             chip1: "注目Instagramクリエイター",
             chip2: "TikTokレビュー",
@@ -1070,10 +1058,10 @@ export default function HomePage() {
             finalMini3: "納品・支払いまで管理",
 
             creatorFallback: "Influencer",
-            fallbackCreator1Name: "なつみ｜旅するグルメ日記",
-            fallbackCreator2Name: "yuto｜ライフスタイル",
-            fallbackCreator3Name: "emi｜カメラ日常",
-            fallbackCreator4Name: "コウ｜ガジェットレビュー",
+            fallbackCreator1Name: "なつみ",
+            fallbackCreator2Name: "yuto",
+            fallbackCreator3Name: "emi",
+            fallbackCreator4Name: "コウ",
             fallbackCreator1Tag: "店舗PRに強い",
             fallbackCreator2Tag: "自然なレビュー",
             fallbackCreator3Tag: "UGC・商品撮影",
@@ -1085,7 +1073,7 @@ export default function HomePage() {
             heroLine2: " to",
             heroItalic: "\"final delivery.\"",
             heroBody:
-              "Trendre helps brands search creators, order with visible pricing, and manage chat, delivery, and payment in one Japan-focused influencer marketing platform.",
+              "Trendre helps brands search creators, order with visible pricing, and manage chat, delivery, and payment in one influencer marketing platform.",
             searchButton: "Search",
             chip1: "Rising Instagram creators",
             chip2: "TikTok reviews",
@@ -1149,10 +1137,10 @@ export default function HomePage() {
             finalMini3: "Delivery and payment tracking",
 
             creatorFallback: "Influencer",
-            fallbackCreator1Name: "Natsumi｜Food & travel",
-            fallbackCreator2Name: "Yuto｜Lifestyle",
-            fallbackCreator3Name: "Emi｜UGC creator",
-            fallbackCreator4Name: "Kou｜Gadget review",
+            fallbackCreator1Name: "Natsumi",
+            fallbackCreator2Name: "Yuto",
+            fallbackCreator3Name: "Emi",
+            fallbackCreator4Name: "Kou",
             fallbackCreator1Tag: "Store PR",
             fallbackCreator2Tag: "Natural review",
             fallbackCreator3Tag: "UGC / product photo",
