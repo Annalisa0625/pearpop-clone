@@ -106,9 +106,9 @@ const DETAIL_CATEGORY_LABELS = [
 ];
 
 const TREND_MARQUEE_ITEMS = [
-  "HACK THE TREND",
-  "TRENDRE",
-  "IGNITE THE TREND AGAIN",
+  "Hack the trend",
+  "Trendre",
+  "Ignite the trend again",
 ];
 
 function normalizePlatform(value: string | null | undefined) {
@@ -324,7 +324,7 @@ function PlatformLink({ platform }: { platform: string }) {
 
 function MiniPlatformPill({ platform }: { platform: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/92 px-2.5 py-1 text-[11px] font-black text-slate-900 shadow-sm ring-1 ring-black/5">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-900 shadow-sm ring-1 ring-black/5">
       {getPlatformIcon(platform, "h-3.5 w-3.5")}
       {getPlatformLabel(platform)}
     </span>
@@ -342,13 +342,15 @@ function CreatorImage({
 
   if (src) {
     return (
-      <img
-        src={src}
-        alt={creator.displayName}
-        className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-105"
-        loading={index < 4 ? "eager" : "lazy"}
-        decoding="async"
-      />
+      <div className="flex h-full w-full items-center justify-center bg-slate-100">
+        <img
+          src={src}
+          alt={creator.displayName}
+          className="h-full w-full object-contain transition duration-500 ease-out group-hover:scale-[1.02]"
+          loading={index < 4 ? "eager" : "lazy"}
+          decoding="async"
+        />
+      </div>
     );
   }
 
@@ -370,49 +372,51 @@ function CreatorHeroCard({
 }) {
   return (
     <Link href={CREATOR_LIST_PATH} className="group block">
-      <article className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-slate-800 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 hover:-translate-y-1">
-        <CreatorImage creator={creator} index={index} />
+      <article>
+        <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-slate-100 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 group-hover:-translate-y-1">
+          <CreatorImage creator={creator} index={index} />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/18 to-black/8" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/42 via-black/0 to-black/0" />
 
-        <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-black leading-tight text-white">
-              {creator.displayName}
-            </p>
-            <p className="mt-1 max-w-[165px] truncate text-xs font-semibold text-white/76">
-              {creator.category}
-            </p>
-          </div>
-
-          <p className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-black text-slate-950">
+          <div className="absolute right-3 top-3 rounded-full bg-white px-4 py-1.5 text-sm font-black text-slate-950 shadow-sm">
             {formatStartingPrice(creator.startingPrice, creator.startingCurrency)}
-          </p>
-        </div>
-
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {creator.platforms.slice(0, 3).map((platform) => (
-              <MiniPlatformPill key={platform} platform={platform} />
-            ))}
           </div>
 
-          <div className="flex items-end justify-between gap-3">
+          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <p className="inline-flex max-w-full rounded-full bg-black/45 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
-                <span className="truncate">{creator.tag}</span>
-              </p>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {creator.platforms.slice(0, 2).map((platform) => (
+                  <MiniPlatformPill key={platform} platform={platform} />
+                ))}
+              </div>
 
-              <p className="mt-2 truncate text-[11px] font-semibold text-white/72">
-                {creator.prefecture}
-                {creator.menuCount > 0 ? ` ・ メニュー ${creator.menuCount}件` : ""}
+              <p className="inline-flex max-w-full rounded-full bg-black/48 px-3 py-1.5 text-xs font-black text-white backdrop-blur">
+                <span className="truncate">{creator.tag}</span>
               </p>
             </div>
 
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur ring-1 ring-white/20">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-lg text-white backdrop-blur ring-1 ring-white/25">
               ♡
             </div>
           </div>
+        </div>
+
+        <div className="mt-3 flex items-start justify-between gap-4 px-1">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black text-white">
+              {creator.displayName}
+            </p>
+            <p className="mt-1 truncate text-xs font-semibold text-white/60">
+              {creator.category}
+            </p>
+            <p className="mt-2 truncate text-xs font-semibold text-white/68">
+              {creator.prefecture}
+            </p>
+          </div>
+
+          <p className="shrink-0 pt-0.5 text-xs font-semibold text-white/58">
+            {creator.menuCount > 0 ? `${creator.menuCount} menu` : ""}
+          </p>
         </div>
       </article>
     </Link>
@@ -546,7 +550,7 @@ function HeroSection({
 
   return (
     <section className="bg-white pb-8 pt-5">
-      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-8 pt-10 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
+      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-10 pt-10 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
         <div className="mx-auto max-w-5xl text-center">
           <h1 className="text-[34px] font-black leading-[1.06] tracking-[-0.055em] text-white md:text-[50px] lg:text-[58px]">
             {copy.heroLine1}
@@ -582,7 +586,7 @@ function HeroSection({
           </div>
         </div>
 
-        <div className="mx-auto mt-7 grid max-w-[1120px] gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mx-auto mt-8 grid max-w-[1220px] gap-5 md:grid-cols-2 xl:grid-cols-4">
           {creators.map((creator, index) => (
             <CreatorHeroCard
               key={`${creator.displayName}-${index}`}
