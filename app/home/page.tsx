@@ -67,6 +67,16 @@ type CreatorPreview = {
 type WorkflowStep = {
   number: string;
   title: string;
+  eyebrow: string;
+  headline: string;
+  body: string;
+  bullets: string[];
+  metricLabel: string;
+  metricValue: string;
+  previewTitle: string;
+  previewBadge: string;
+  previewRows: string[];
+  previewCta: string;
 };
 
 type UseCaseCardProps = {
@@ -367,7 +377,7 @@ function CreatorHeroCard({
           {formatStartingPrice(creator.startingPrice, creator.startingCurrency)}
         </div>
 
-        <div className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/20 transition group-hover/card:bg-white group-hover/card:text-slate-900">
+        <div className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/20 transition group-hover/card:bg-white group-hover/card:text-slate-900">
           ♡
         </div>
 
@@ -594,94 +604,83 @@ function TrendMarqueeSection() {
   );
 }
 
-function WorkflowStepPill({ step }: { step: WorkflowStep }) {
+function WorkflowPreview({ step }: { step: WorkflowStep }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black text-white/78">
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/12 text-[11px] text-white">
-        {step.number}
-      </span>
-      {step.title}
-    </div>
-  );
-}
+    <div className="relative min-h-[390px] overflow-hidden rounded-[34px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.12)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_10%,rgba(248,91,143,0.12),transparent_34%),radial-gradient(circle_at_20%_90%,rgba(99,102,241,0.10),transparent_35%)]" />
 
-function ProductPreviewCard({ copy }: { copy: Record<string, string> }) {
-  return (
-    <div className="relative overflow-hidden rounded-[34px] bg-[#eeecff] p-7 md:p-10">
-      <div className="grid min-h-[390px] gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-        <div>
-          <h3 className="text-[34px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[46px]">
-            {copy.workflowCardTitle}
-          </h3>
+      <div className="relative rounded-[28px] bg-slate-50 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-lg text-rose-500">
+              ✦
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                Step {step.number}
+              </p>
+              <p className="mt-1 text-lg font-black tracking-tight text-slate-950">
+                {step.previewTitle}
+              </p>
+            </div>
+          </div>
 
-          <p className="mt-6 max-w-md text-base font-semibold leading-8 text-slate-600">
-            {copy.workflowCardBody}
-          </p>
+          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-rose-500 shadow-sm ring-1 ring-slate-100">
+            {step.previewBadge}
+          </span>
+        </div>
 
-          <div className="mt-7 flex flex-wrap gap-3">
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-600">
-              AI Brief
+        <div className="mt-5 rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-500">
+              Instagram
             </span>
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-600">
-              Direct Order
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500">
+              UGC
             </span>
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-600">
-              Payment Control
+            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-600">
+              ¥30,000
             </span>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {step.previewRows.map((row, index) => (
+              <div key={row} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                    index === 0
+                      ? "bg-rose-500 text-white"
+                      : "bg-white text-slate-400 ring-1 ring-slate-100"
+                  }`}
+                >
+                  {index === 0 ? <CheckIcon /> : <span className="text-xs">●</span>}
+                </div>
+                <p className="text-sm font-bold text-slate-700">{row}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="rounded-[30px] bg-white p-5 shadow-[0_25px_80px_rgba(15,23,42,0.12)]">
-          <div className="rounded-[24px] bg-slate-50 p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f85b8f]/15 text-[#f85b8f]">
-                ✦
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {step.bullets.map((bullet) => (
+            <div key={bullet} className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                <CheckIcon />
               </div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Campaign
-                </p>
-                <p className="mt-1 text-lg font-black text-slate-900">
-                  {copy.workflowCampaignName}
-                </p>
-              </div>
+              <p className="mt-3 text-sm font-black text-slate-900">{bullet}</p>
             </div>
+          ))}
+        </div>
 
-            <div className="mt-5 rounded-2xl bg-white p-4">
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-500">
-                  Beauty
-                </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
-                  UGC
-                </span>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-600">
-                  ¥30,000
-                </span>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                <div className="h-3 w-full rounded-full bg-slate-100" />
-                <div className="h-3 w-[82%] rounded-full bg-slate-100" />
-                <div className="h-3 w-[62%] rounded-full bg-slate-100" />
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {[copy.workflowMini1, copy.workflowMini2, copy.workflowMini3].map(
-                (item) => (
-                  <div key={item} className="rounded-2xl bg-white p-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                      <CheckIcon />
-                    </div>
-                    <p className="mt-3 text-sm font-black text-slate-900">
-                      {item}
-                    </p>
-                  </div>
-                )
-              )}
-            </div>
+        <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-950 px-5 py-4 text-white">
+          <div>
+            <p className="text-xs font-bold text-white/45">{step.metricLabel}</p>
+            <p className="mt-1 text-xl font-black tracking-tight">{step.metricValue}</p>
           </div>
+
+          <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950">
+            {step.previewCta}
+          </span>
         </div>
       </div>
     </div>
@@ -695,21 +694,81 @@ function WorkflowSection({
   copy: Record<string, string>;
   steps: WorkflowStep[];
 }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeStep = steps[activeIndex] ?? steps[0];
+
   return (
     <section className="bg-white px-4 py-12 md:px-6 lg:py-16">
       <div className="mx-auto max-w-7xl">
-        <h2 className="mx-auto max-w-4xl text-center text-[36px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[54px]">
-          {copy.workflowTitle}
-        </h2>
-
-        <div className="mx-auto mt-8 flex max-w-5xl flex-wrap justify-center rounded-full bg-[#2b2b2b] p-2">
-          {steps.map((step) => (
-            <WorkflowStepPill key={step.number} step={step} />
-          ))}
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="text-[34px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[48px]">
+            {copy.workflowTitle}
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-500">
+            {copy.workflowLead}
+          </p>
         </div>
 
-        <div className="mx-auto mt-9 max-w-5xl">
-          <ProductPreviewCard copy={copy} />
+        <div className="mx-auto mt-8 flex max-w-6xl flex-wrap justify-center gap-1 rounded-full bg-[#2b2b2b] p-2 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+          {steps.map((step, index) => {
+            const isActive = index === activeIndex;
+
+            return (
+              <button
+                key={step.number}
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black transition ${
+                  isActive
+                    ? "bg-white text-slate-950 shadow-sm"
+                    : "text-white/62 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${
+                    isActive
+                      ? "bg-rose-500 text-white"
+                      : "bg-white/10 text-white/70"
+                  }`}
+                >
+                  {step.number}
+                </span>
+                {step.title}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mx-auto mt-8 grid max-w-6xl gap-8 rounded-[38px] bg-[#eeecff] p-6 md:p-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
+          <div className="px-1 md:px-3">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-rose-500">
+              {activeStep.eyebrow}
+            </p>
+
+            <h3 className="mt-4 text-[30px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[42px]">
+              {activeStep.headline}
+            </h3>
+
+            <p className="mt-5 text-base font-semibold leading-8 text-slate-600">
+              {activeStep.body}
+            </p>
+
+            <div className="mt-7 grid gap-3">
+              {activeStep.bullets.map((bullet) => (
+                <div
+                  key={bullet}
+                  className="flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-white/70"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <CheckIcon />
+                  </span>
+                  {bullet}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <WorkflowPreview step={activeStep} />
         </div>
       </div>
     </section>
@@ -991,13 +1050,13 @@ export default function HomePage() {
       safeLocale === "ja"
         ? {
             heroLine1: "インフルエンサーPRを",
-            heroAccent: "\"探す\"",
+            heroAccent: '"探す"',
             heroLine2: "から",
-            heroItalic: "\"納品確認\"まで。",
+            heroItalic: '"納品確認"まで。',
             heroBody:
               "Trendreは、インフルエンサーを検索し、依頼し、チャット・納品・支払いまで一元管理できるインフルエンサーマーケティングSaaSです。",
             searchButton: "検索",
-            chip1: "注目Instagramクリエイター",
+            chip1: "注目Instagramインフルエンサー",
             chip2: "TikTokレビュー",
             chip3: "UGC制作",
             chip4: "美容・コスメ",
@@ -1005,21 +1064,10 @@ export default function HomePage() {
             chip6: "¥30,000以下",
 
             workflowTitle: "PR案件の流れを、ひとつの画面で。",
-            workflowCardTitle: "依頼文作成から納品確認まで、運用をシンプルに。",
-            workflowCardBody:
-              "候補探し、依頼、承認待ち、チャット、納品URL確認、支払い管理までをTrendre内で完結できます。",
-            workflowCampaignName: "新作スキンケアPR",
-            workflowMini1: "依頼作成",
-            workflowMini2: "承認管理",
-            workflowMini3: "納品確認",
-            step1Title: "探す",
-            step2Title: "依頼",
-            step3Title: "承認",
-            step4Title: "チャット",
-            step5Title: "納品",
-            step6Title: "支払い",
+            workflowLead:
+              "検索、依頼、承認、チャット、納品確認、支払いまで。案件進行に必要な操作をTrendre上で迷わず進められます。",
 
-            illustrationTitle: "クリエイター選定を、もっと直感的に。",
+            illustrationTitle: "インフルエンサー選定を、もっと直感的に。",
             illustrationBody:
               "プロフィール、SNS、価格、メニュー内容を見ながら、ブランドに合う依頼先を比較できます。",
             illustrationMini1: "無料で検索",
@@ -1044,13 +1092,13 @@ export default function HomePage() {
               "商品レビュー、UGC素材、LPや広告で使える投稿素材の獲得に活用できます。",
             useCase4Title: "採用・求人PR",
             useCase4Body:
-              "職場の雰囲気や働き方を、クリエイターの自然な発信で届けられます。",
+              "職場の雰囲気や働き方を、インフルエンサーの自然な発信で届けられます。",
 
             finalLine1: "次のPR案件は、",
             finalAccent: "数分後",
             finalLine2: "に始められます。",
             finalBody:
-              "まずは検索から。商品や店舗に合うクリエイターを見つけて、Trendre上で依頼・納品確認まで進めましょう。",
+              "まずは検索から。商品や店舗に合うインフルエンサーを見つけて、Trendre上で依頼・納品確認まで進めましょう。",
             finalPrimary: "インフルエンサーを探す",
             finalSecondary: "無料で企業登録",
             finalMini1: "無料で検索",
@@ -1069,13 +1117,13 @@ export default function HomePage() {
           }
         : {
             heroLine1: "Run influencer PR",
-            heroAccent: "\"from search\"",
+            heroAccent: '"from search"',
             heroLine2: " to",
-            heroItalic: "\"final delivery.\"",
+            heroItalic: '"final delivery."',
             heroBody:
-              "Trendre helps brands search creators, order with visible pricing, and manage chat, delivery, and payment in one influencer marketing platform.",
+              "Trendre helps brands search influencers, order with visible pricing, and manage chat, delivery, and payment in one influencer marketing platform.",
             searchButton: "Search",
-            chip1: "Rising Instagram creators",
+            chip1: "Rising Instagram influencers",
             chip2: "TikTok reviews",
             chip3: "UGC creation",
             chip4: "Beauty",
@@ -1083,32 +1131,20 @@ export default function HomePage() {
             chip6: "Under ¥30,000",
 
             workflowTitle: "Everything in one workflow.",
-            workflowCardTitle:
-              "From campaign brief to delivery review, without scattered tools.",
-            workflowCardBody:
-              "Search, request, approval, chat, delivery URL review, and payment management all happen inside Trendre.",
-            workflowCampaignName: "Skincare Launch",
-            workflowMini1: "Brief",
-            workflowMini2: "Approval",
-            workflowMini3: "Delivery",
-            step1Title: "Search",
-            step2Title: "Brief",
-            step3Title: "Order",
-            step4Title: "Chat",
-            step5Title: "Delivery",
-            step6Title: "Payment",
+            workflowLead:
+              "Search, request, approval, chat, delivery review, and payment management all happen inside Trendre.",
 
-            illustrationTitle: "Creator selection, made visual.",
+            illustrationTitle: "Influencer selection, made visual.",
             illustrationBody:
-              "Compare creator profiles, social accounts, pricing, and menu details before you order.",
+              "Compare influencer profiles, social accounts, pricing, and menu details before you order.",
             illustrationMini1: "Free search",
             illustrationMini2: "Visible pricing",
             illustrationMini3: "Delivery tracking",
 
             toolsTitle: "Replace DMs, spreadsheets, and payment tracking.",
             toolsBody:
-              "Trendre keeps creator discovery, ordering, messaging, delivery review, and payout management in one place.",
-            toolsCta: "Search creators",
+              "Trendre keeps influencer discovery, ordering, messaging, delivery review, and payout management in one place.",
+            toolsCta: "Search influencers",
 
             useCaseTitle: "Built for teams of every size",
             useCaseCta: "Start",
@@ -1123,14 +1159,14 @@ export default function HomePage() {
               "Collect reviews, UGC assets, and content for ads and landing pages.",
             useCase4Title: "Recruiting PR",
             useCase4Body:
-              "Show workplace culture and hiring stories through natural creator content.",
+              "Show workplace culture and hiring stories through natural influencer content.",
 
-            finalLine1: "Your next creator campaign is ",
+            finalLine1: "Your next influencer campaign is ",
             finalAccent: "minutes",
             finalLine2: " away.",
             finalBody:
-              "Start with search. Find creators that fit your product and manage the request through delivery inside Trendre.",
-            finalPrimary: "Search creators",
+              "Start with search. Find influencers that fit your product and manage the request through delivery inside Trendre.",
+            finalPrimary: "Search influencers",
             finalSecondary: "Join as a brand",
             finalMini1: "Free to search",
             finalMini2: "Visible pricing",
@@ -1154,6 +1190,196 @@ export default function HomePage() {
       safeLocale === "ja"
         ? ["スキンケア", "グルメ", "メンズファッション", "フィットネス", "転職", "インテリア"]
         : ["skincare", "food", "men's fashion", "fitness", "career change", "interior"],
+    [safeLocale]
+  );
+
+  const workflowSteps = useMemo<WorkflowStep[]>(
+    () =>
+      safeLocale === "ja"
+        ? [
+            {
+              number: "01",
+              title: "探す",
+              eyebrow: "Influencer Discovery",
+              headline: "条件に合うインフルエンサーを探す。",
+              body:
+                "SNS、カテゴリ、価格、投稿形式を見ながら、ブランドや商品に合うインフルエンサーを比較できます。",
+              bullets: ["SNS別に検索", "価格を確認", "実績を比較"],
+              metricLabel: "最初のアクション",
+              metricValue: "検索から開始",
+              previewTitle: "インフルエンサー検索",
+              previewBadge: "Search",
+              previewRows: ["美容・コスメで検索", "Instagram投稿を比較", "表示価格を確認"],
+              previewCta: "候補を見る",
+            },
+            {
+              number: "02",
+              title: "依頼",
+              eyebrow: "Direct Order",
+              headline: "表示価格のまま、迷わず依頼。",
+              body:
+                "メニュー内容、商品情報、投稿条件、PR表記、参考素材を入力して、注文内容を整理した状態で依頼できます。",
+              bullets: ["依頼内容を入力", "素材を添付", "注文内容を確認"],
+              metricLabel: "依頼形式",
+              metricValue: "フォームで完結",
+              previewTitle: "依頼内容作成",
+              previewBadge: "Brief",
+              previewRows: ["商品名・URLを入力", "投稿条件を指定", "参考画像を追加"],
+              previewCta: "依頼する",
+            },
+            {
+              number: "03",
+              title: "承認",
+              eyebrow: "Approval Control",
+              headline: "承認待ちも、自動で管理。",
+              body:
+                "インフルエンサーの承認期限や支払い状態を画面で確認できます。期限を過ぎた案件も自動で整理されます。",
+              bullets: ["承認期限を表示", "支払い状態を管理", "自動キャンセル対応"],
+              metricLabel: "承認期限",
+              metricValue: "72時間",
+              previewTitle: "承認ステータス",
+              previewBadge: "Pending",
+              previewRows: ["承認待ち", "支払い承認済み", "期限まで残り時間を表示"],
+              previewCta: "状況確認",
+            },
+            {
+              number: "04",
+              title: "チャット",
+              eyebrow: "Project Chat",
+              headline: "やり取りを案件内に集約。",
+              body:
+                "配送先確認、投稿条件の補足、修正相談など、案件に関する会話をTrendre内で一元管理できます。",
+              bullets: ["案件ごとに会話", "条件確認", "履歴を残す"],
+              metricLabel: "連絡手段",
+              metricValue: "案件内チャット",
+              previewTitle: "Trendre内チャット",
+              previewBadge: "Chat",
+              previewRows: ["配送先を共有", "投稿条件を確認", "不明点を相談"],
+              previewCta: "返信する",
+            },
+            {
+              number: "05",
+              title: "納品",
+              eyebrow: "Delivery Review",
+              headline: "納品URLを確認し、必要なら修正依頼。",
+              body:
+                "インフルエンサーから届いた投稿URLや納品URLを確認し、問題がなければ完了、必要があれば修正依頼できます。",
+              bullets: ["納品URLを確認", "修正依頼", "完了承認"],
+              metricLabel: "確認導線",
+              metricValue: "URLを即確認",
+              previewTitle: "納品確認",
+              previewBadge: "Delivered",
+              previewRows: ["納品URLが届く", "内容を確認", "承認または修正依頼"],
+              previewCta: "URLを開く",
+            },
+            {
+              number: "06",
+              title: "支払い",
+              eyebrow: "Payment Management",
+              headline: "支払いと報酬管理まで自動化。",
+              body:
+                "企業の支払い、サービス手数料、インフルエンサー報酬まで、案件完了後の流れをTrendreが管理します。",
+              bullets: ["決済管理", "手数料計算", "報酬送金"],
+              metricLabel: "支払い管理",
+              metricValue: "Trendreが管理",
+              previewTitle: "支払い情報",
+              previewBadge: "Paid",
+              previewRows: ["支払い合計を表示", "手数料を確認", "報酬送金を管理"],
+              previewCta: "明細を見る",
+            },
+          ]
+        : [
+            {
+              number: "01",
+              title: "Search",
+              eyebrow: "Influencer Discovery",
+              headline: "Find influencers that fit your brand.",
+              body:
+                "Compare social platforms, categories, pricing, and content types before sending a request.",
+              bullets: ["Search by SNS", "Check pricing", "Compare profiles"],
+              metricLabel: "First action",
+              metricValue: "Start with search",
+              previewTitle: "Influencer Search",
+              previewBadge: "Search",
+              previewRows: ["Search beauty influencers", "Compare Instagram posts", "Check visible pricing"],
+              previewCta: "View matches",
+            },
+            {
+              number: "02",
+              title: "Brief",
+              eyebrow: "Direct Order",
+              headline: "Order with visible pricing.",
+              body:
+                "Enter product details, campaign notes, PR requirements, and reference assets in one clear request.",
+              bullets: ["Write brief", "Attach assets", "Review order"],
+              metricLabel: "Request type",
+              metricValue: "Form based",
+              previewTitle: "Campaign Brief",
+              previewBadge: "Brief",
+              previewRows: ["Add product URL", "Set posting notes", "Attach references"],
+              previewCta: "Request",
+            },
+            {
+              number: "03",
+              title: "Approval",
+              eyebrow: "Approval Control",
+              headline: "Keep approval status clear.",
+              body:
+                "Track influencer approval, payment authorization, and deadline status from one screen.",
+              bullets: ["Track deadline", "Manage payment", "Auto cancel"],
+              metricLabel: "Approval window",
+              metricValue: "72 hours",
+              previewTitle: "Approval Status",
+              previewBadge: "Pending",
+              previewRows: ["Waiting for approval", "Payment authorized", "Deadline visible"],
+              previewCta: "Check",
+            },
+            {
+              number: "04",
+              title: "Chat",
+              eyebrow: "Project Chat",
+              headline: "Keep every conversation in context.",
+              body:
+                "Discuss shipping, posting requirements, and revisions inside the order thread.",
+              bullets: ["Order chat", "Confirm terms", "Keep history"],
+              metricLabel: "Communication",
+              metricValue: "In-order chat",
+              previewTitle: "Trendre Chat",
+              previewBadge: "Chat",
+              previewRows: ["Share shipping details", "Confirm post notes", "Ask questions"],
+              previewCta: "Reply",
+            },
+            {
+              number: "05",
+              title: "Delivery",
+              eyebrow: "Delivery Review",
+              headline: "Review delivered URLs quickly.",
+              body:
+                "Open the delivered URL, approve the order, or request revisions when needed.",
+              bullets: ["Open URL", "Request revision", "Approve"],
+              metricLabel: "Review path",
+              metricValue: "Open URL",
+              previewTitle: "Delivery Review",
+              previewBadge: "Delivered",
+              previewRows: ["Delivery URL received", "Review content", "Approve or revise"],
+              previewCta: "Open URL",
+            },
+            {
+              number: "06",
+              title: "Payment",
+              eyebrow: "Payment Management",
+              headline: "Manage payment and payouts.",
+              body:
+                "Trendre manages brand payment, service fees, and influencer payouts after completion.",
+              bullets: ["Payment", "Fees", "Payouts"],
+              metricLabel: "Payment",
+              metricValue: "Managed by Trendre",
+              previewTitle: "Payment Details",
+              previewBadge: "Paid",
+              previewRows: ["View total", "Check fees", "Manage payout"],
+              previewCta: "Details",
+            },
+          ],
     [safeLocale]
   );
 
@@ -1250,14 +1476,6 @@ export default function HomePage() {
           ? []
           : ((portfolioResult.data ?? []) as PortfolioAssetRow[]);
 
-        if (menusResult.error) {
-          console.error("home menus load error", menusResult.error);
-        }
-
-        if (portfolioResult.error) {
-          console.error("home portfolio load error", portfolioResult.error);
-        }
-
         const menuMap = new Map<string, MenuRow[]>();
         for (const menu of menuRows) {
           if (!menu.creator_id) continue;
@@ -1310,7 +1528,7 @@ export default function HomePage() {
                 row.display_name?.trim() ||
                 primaryName ||
                 copy.creatorFallback,
-              category: row.category?.trim() || "Creator",
+              category: row.category?.trim() || "Influencer",
               prefecture: row.prefecture?.trim() || "地域未設定",
               imageUrl: firstPortfolioImage,
               avatarUrl: row.avatar_url?.trim() || null,
@@ -1343,15 +1561,6 @@ export default function HomePage() {
       isMounted = false;
     };
   }, [copy.creatorFallback]);
-
-  const workflowSteps: WorkflowStep[] = [
-    { number: "01", title: copy.step1Title },
-    { number: "02", title: copy.step2Title },
-    { number: "03", title: copy.step3Title },
-    { number: "04", title: copy.step4Title },
-    { number: "05", title: copy.step5Title },
-    { number: "06", title: copy.step6Title },
-  ];
 
   const useCases: UseCaseCardProps[] = [
     {
