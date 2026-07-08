@@ -367,13 +367,13 @@ function CreatorHeroCard({
         <div className="relative aspect-[1.08/1] overflow-hidden rounded-[22px] bg-slate-200 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 group-hover/card:-translate-y-1">
           <CreatorImage creator={creator} index={index} />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/8 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/52 via-black/6 to-transparent" />
 
           <div className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/70 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/30 transition group-hover/card:bg-white group-hover/card:text-slate-900">
             ♡
           </div>
 
-          <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2">
+          <div className="absolute bottom-4 left-4 flex items-center gap-2">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5">
               {getPlatformIcon(primaryPlatform, "h-5 w-5")}
             </span>
@@ -384,38 +384,18 @@ function CreatorHeroCard({
           </div>
         </div>
 
-        <div className="mt-4 flex items-start justify-between gap-4 px-0.5">
-          <div className="min-w-0">
-            <p className="truncate text-base font-black leading-tight text-white">
-              {creator.displayName}
-            </p>
+        <div className="mt-4 px-0.5">
+          <p className="truncate text-base font-black leading-tight text-white">
+            {creator.displayName}
+          </p>
 
-            <p className="mt-1 truncate text-sm font-semibold text-white/62">
-              @{getSocialHandleFallback(creator.displayName)}
-            </p>
-
-            <p className="mt-2 truncate text-sm font-semibold text-white/70">
-              {creator.prefecture}
-            </p>
-          </div>
-
-          <p className="shrink-0 pt-1 text-sm font-semibold text-white/58">
-            {creator.menuCount > 0 ? `${creator.menuCount} menu` : ""}
+          <p className="mt-1 truncate text-sm font-semibold text-white/62">
+            {creator.category}
           </p>
         </div>
       </article>
     </Link>
   );
-}
-
-function getSocialHandleFallback(name: string) {
-  const cleaned = name
-    .replace(/[｜|].*$/g, "")
-    .replace(/\s+/g, "")
-    .replace(/[^\wぁ-んァ-ヶー一-龠]/g, "")
-    .toLowerCase();
-
-  return cleaned || "creator";
 }
 
 function SearchCategoryPanel({ show }: { show: boolean }) {
