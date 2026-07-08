@@ -314,7 +314,7 @@ function PlatformLink({ platform }: { platform: string }) {
   return (
     <Link
       href={CREATOR_LIST_PATH}
-      className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 text-sm font-black text-white/82 transition hover:border-white/25 hover:bg-white hover:text-slate-950"
+      className="inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 text-sm font-black text-white/82 transition hover:border-white/25 hover:bg-white hover:text-slate-950"
     >
       {getPlatformIcon(platform)}
       {platform}
@@ -369,7 +369,7 @@ function CreatorHeroCard({
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/52 via-black/6 to-transparent" />
 
-          <div className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/70 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/30 transition group-hover/card:bg-white group-hover/card:text-slate-900">
+          <div className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/30 transition group-hover/card:bg-white group-hover/card:text-slate-900">
             ♡
           </div>
 
@@ -384,13 +384,9 @@ function CreatorHeroCard({
           </div>
         </div>
 
-        <div className="mt-4 px-0.5">
+        <div className="mt-3 px-0.5">
           <p className="truncate text-base font-black leading-tight text-white">
             {creator.displayName}
-          </p>
-
-          <p className="mt-1 truncate text-sm font-semibold text-white/62">
-            {creator.category}
           </p>
         </div>
       </article>
@@ -468,7 +464,7 @@ function HeroSearch({
   };
 
   return (
-    <div className="relative mx-auto mt-7 w-full max-w-[900px]">
+    <div className="relative mx-auto mt-5 w-full max-w-[900px]">
       <form
         onSubmit={handleSubmit}
         className="flex w-full overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.24)] ring-1 ring-white/10"
@@ -488,7 +484,7 @@ function HeroSearch({
             window.setTimeout(() => setSuggestionsOpen(false), 150);
           }}
           placeholder={typingText ? `${typingText}|` : ""}
-          className="min-h-[60px] flex-1 bg-white px-5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+          className="min-h-[58px] flex-1 bg-white px-5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
         />
 
         <button
@@ -525,22 +521,21 @@ function HeroSection({
 
   return (
     <section className="bg-white pb-8 pt-5">
-      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-12 pt-10 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-5xl text-center">
-          <h1 className="text-[34px] font-black leading-[1.06] tracking-[-0.055em] text-white md:text-[50px] lg:text-[58px]">
+      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-8 pt-8 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-6xl text-center">
+          <h1 className="text-[31px] font-black leading-[1.03] tracking-[-0.055em] text-white md:text-[47px] lg:text-[58px] xl:text-[64px]">
             {copy.heroLine1}
-            <br />
+            <br className="hidden md:block" />
             <span className="text-[#f85b8f]">{copy.heroAccent}</span>
             {copy.heroLine2}
-            <br />
             <span className="italic">{copy.heroItalic}</span>
           </h1>
 
-          <p className="mx-auto mt-5 max-w-3xl text-sm font-semibold leading-7 text-white/70 md:text-base">
+          <p className="mx-auto mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/70 md:text-base">
             {copy.heroBody}
           </p>
 
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
             {PLATFORM_OPTIONS.map((platform) => (
               <PlatformLink key={platform} platform={platform} />
             ))}
@@ -548,7 +543,7 @@ function HeroSection({
 
           <HeroSearch copy={copy} suggestions={suggestions} />
 
-          <div className="mx-auto mt-5 flex max-w-[920px] flex-wrap justify-center gap-3">
+          <div className="mx-auto mt-4 flex max-w-[920px] flex-wrap justify-center gap-3">
             {chips.map((chip) => (
               <Link
                 key={chip}
@@ -561,7 +556,7 @@ function HeroSection({
           </div>
         </div>
 
-        <div className="mx-auto mt-8 grid max-w-[1280px] gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mx-auto mt-6 grid max-w-[1260px] gap-5 md:grid-cols-2 xl:grid-cols-4">
           {creators.map((creator, index) => (
             <CreatorHeroCard
               key={`${creator.displayName}-${index}`}
