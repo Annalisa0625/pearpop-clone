@@ -921,19 +921,19 @@ function WorkflowSection({
                 >
                   <span className="absolute left-1/2 top-0 h-4 w-px -translate-x-1/2 bg-white/14" />
                   <span
-                    className={`absolute left-1/2 top-4 h-5 w-px -translate-x-1/2 bg-white/22 ${
+                    className={`absolute left-1/2 top-2 h-4 w-px -translate-x-1/2 bg-white/22 ${
                       isPulling ? "trendre-step-string-pull" : ""
                     }`}
                   />
                   <span
-                    className={`absolute left-1/2 top-[34px] h-2.5 w-2.5 -translate-x-1/2 rounded-full ${
+                    className={`absolute left-1/2 top-[28px] h-2 w-2 -translate-x-1/2 rounded-full ${
                       isActive
                         ? "bg-[#ffe3b2] shadow-[0_0_0_3px_rgba(255,184,77,0.18),0_0_18px_rgba(255,173,59,0.9),0_0_32px_rgba(255,173,59,0.45)]"
                         : "bg-white/24"
                     } ${isPulling ? "trendre-step-knob-pull" : ""}`}
                   />
                   <span
-                    className={`absolute left-1/2 top-[22px] h-4 w-4 -translate-x-1/2 rounded-full border ${
+                    className={`absolute left-1/2 top-[18px] h-3.5 w-3.5 -translate-x-1/2 rounded-full border ${
                       isActive
                         ? "border-[#ffd58f] bg-[#ffb556] shadow-[0_0_0_4px_rgba(255,170,55,0.16),0_0_28px_rgba(255,172,56,0.85),0_0_54px_rgba(255,172,56,0.38)]"
                         : "border-white/18 bg-white/10"
