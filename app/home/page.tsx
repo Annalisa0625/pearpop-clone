@@ -879,7 +879,16 @@ function WorkflowSection({
   steps: WorkflowStep[];
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [pullingIndex, setPullingIndex] = useState(0);
   const activeStep = steps[activeIndex] ?? steps[0];
+
+  const handleStepClick = (index: number) => {
+    setActiveIndex(index);
+    setPullingIndex(index);
+    window.setTimeout(() => {
+      setPullingIndex((current) => (current === index ? -1 : current));
+    }, 700);
+  };
 
   return (
     <section className="bg-white px-4 py-12 md:px-6 lg:py-16">
@@ -893,26 +902,45 @@ function WorkflowSection({
           </p>
         </div>
 
-        <div className="mx-auto mt-8 max-w-6xl rounded-full bg-[#23242a] p-2 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+        <div className="mx-auto mt-8 max-w-6xl overflow-hidden rounded-[999px] bg-[#23242a] p-2 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
           <div className="grid grid-cols-2 gap-1 md:grid-cols-6">
             {steps.map((step, index) => {
               const isActive = index === activeIndex;
+              const isPulling = index === pullingIndex;
 
               return (
                 <button
                   key={step.number}
                   type="button"
-                  onClick={() => setActiveIndex(index)}
-                  className={`flex min-h-[58px] w-full flex-col items-start justify-center rounded-full px-5 text-left transition md:items-center md:px-3 md:text-center ${
+                  onClick={() => handleStepClick(index)}
+                  className={`relative min-h-[74px] w-full overflow-hidden rounded-full px-4 text-center transition duration-300 ${
                     isActive
-                      ? "bg-white text-slate-950 shadow-sm"
-                      : "text-white/76 hover:bg-white/10 hover:text-white"
+                      ? "bg-[radial-gradient(circle_at_top,rgba(255,189,96,0.2),rgba(255,255,255,0.04)_52%,rgba(255,255,255,0.02)_100%)] text-white shadow-[inset_0_0_0_1px_rgba(255,194,110,0.16)]"
+                      : "text-white/76 hover:bg-white/6 hover:text-white"
                   }`}
                 >
-                  <span className="text-[11px] font-black tracking-[0.14em]">
-                    {step.number}
-                  </span>
-                  <span className="mt-1 text-sm font-black leading-none md:text-[15px]">
+                  <span className="absolute left-1/2 top-0 h-4 w-px -translate-x-1/2 bg-white/14" />
+                  <span
+                    className={`absolute left-1/2 top-4 h-5 w-px -translate-x-1/2 bg-white/22 ${
+                      isPulling ? "trendre-step-string-pull" : ""
+                    }`}
+                  />
+                  <span
+                    className={`absolute left-1/2 top-[34px] h-2.5 w-2.5 -translate-x-1/2 rounded-full ${
+                      isActive
+                        ? "bg-[#ffe3b2] shadow-[0_0_0_3px_rgba(255,184,77,0.18),0_0_18px_rgba(255,173,59,0.9),0_0_32px_rgba(255,173,59,0.45)]"
+                        : "bg-white/24"
+                    } ${isPulling ? "trendre-step-knob-pull" : ""}`}
+                  />
+                  <span
+                    className={`absolute left-1/2 top-[22px] h-4 w-4 -translate-x-1/2 rounded-full border ${
+                      isActive
+                        ? "border-[#ffd58f] bg-[#ffb556] shadow-[0_0_0_4px_rgba(255,170,55,0.16),0_0_28px_rgba(255,172,56,0.85),0_0_54px_rgba(255,172,56,0.38)]"
+                        : "border-white/18 bg-white/10"
+                    } ${isActive ? "trendre-step-bulb-glow" : ""}`}
+                  />
+
+                  <span className="relative z-10 flex h-full min-h-[58px] items-center justify-center pt-5 text-sm font-black leading-none md:text-[15px]">
                     {step.title}
                   </span>
                 </button>
@@ -953,6 +981,60 @@ function WorkflowSection({
           <WorkflowPreview step={activeStep} />
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes trendre-step-bulb-glow {
+          0%,
+          100% {
+            transform: translateX(-50%) scale(1);
+          }
+          50% {
+            transform: translateX(-50%) scale(1.07);
+          }
+        }
+
+        @keyframes trendre-step-string-pull {
+          0% {
+            transform: translateX(-50%) translateY(0);
+          }
+          35% {
+            transform: translateX(-50%) translateY(8px);
+          }
+          60% {
+            transform: translateX(-50%) translateY(2px);
+          }
+          100% {
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+
+        @keyframes trendre-step-knob-pull {
+          0% {
+            transform: translateX(-50%) translateY(0);
+          }
+          35% {
+            transform: translateX(-50%) translateY(8px) scale(1.04);
+          }
+          60% {
+            transform: translateX(-50%) translateY(2px);
+          }
+          100% {
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+
+        .trendre-step-bulb-glow {
+          animation: trendre-step-bulb-glow 2.2s ease-in-out infinite;
+        }
+
+        .trendre-step-string-pull {
+          animation: trendre-step-string-pull 0.65s ease-out 1;
+        }
+
+        .trendre-step-knob-pull {
+          animation: trendre-step-knob-pull 0.65s ease-out 1;
+        }
+      `}</style>
     </section>
   );
 }
