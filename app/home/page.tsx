@@ -1041,37 +1041,94 @@ function WorkflowSection({
 
 function IllustrationSection({ copy }: { copy: Record<string, string> }) {
   return (
-    <section className="bg-white px-4 py-14 md:px-6 lg:py-20">
-      <div className="mx-auto grid max-w-7xl gap-10 rounded-[42px] bg-slate-50 p-8 md:p-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
-        <div>
-          <h2 className="max-w-xl text-[34px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[48px]">
-            {copy.illustrationTitle}
-          </h2>
-          <p className="mt-7 max-w-lg text-base font-semibold leading-8 text-slate-600">
-            {copy.illustrationBody}
-          </p>
+    <section className="bg-white px-4 py-12 md:px-6 lg:py-16">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-[42px] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
+        <div className="relative grid min-h-[430px] items-center gap-10 overflow-hidden bg-[radial-gradient(circle_at_12%_18%,rgba(255,102,115,0.08),transparent_28%),radial-gradient(circle_at_86%_20%,rgba(255,102,115,0.14),transparent_30%)] px-8 py-12 md:px-12 lg:grid-cols-[0.92fr_1.08fr] lg:px-14 lg:py-16">
+          <div className="pointer-events-none absolute inset-0 opacity-[0.28] [background-image:radial-gradient(#ff6673_1px,transparent_1px)] [background-size:18px_18px]" />
+          <div className="relative z-10">
+            <p className="text-sm font-black tracking-[0.08em] text-[#ff6673]">
+              {copy.illustrationEyebrow}
+            </p>
+            <h2 className="mt-4 max-w-2xl text-[34px] font-black leading-[1.12] tracking-[-0.055em] text-slate-950 md:text-[48px]">
+              {copy.illustrationTitle}
+            </h2>
+            <p className="mt-6 max-w-xl text-base font-semibold leading-8 text-slate-600">
+              {copy.illustrationBody}
+            </p>
+            <Link
+              href={CREATOR_LIST_PATH}
+              className="mt-8 inline-flex items-center justify-center gap-3 rounded-full bg-[#ff6673] px-7 py-4 text-sm font-black text-white shadow-[0_18px_40px_rgba(255,102,115,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff5363]"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#ff6673]">
+                <ArrowIcon />
+              </span>
+              {copy.illustrationCta}
+            </Link>
+          </div>
 
-          <div className="mt-8 grid max-w-lg gap-3 sm:grid-cols-3">
-            {[copy.illustrationMini1, copy.illustrationMini2, copy.illustrationMini3].map(
-              (item) => (
-                <div
-                  key={item}
-                  className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100"
-                >
-                  <span className="mr-2 text-emerald-500">●</span>
-                  {item}
-                </div>
-              )
-            )}
+          <div className="relative z-10 flex min-h-[350px] items-center justify-center lg:justify-end">
+            <div className="absolute right-0 top-4 hidden h-[320px] w-[190px] rounded-[40px] bg-[#ffd7d9] lg:block" />
+            <div className="absolute right-8 top-8 hidden h-[330px] w-[330px] rounded-full bg-[#ffe0e3] lg:block" />
+            <div className="relative flex w-full max-w-[560px] items-center justify-center">
+              <div className="absolute left-0 top-24 hidden w-[180px] rounded-[18px] bg-white p-3 shadow-[0_18px_45px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 md:block">
+                <div className="h-24 rounded-xl bg-gradient-to-br from-rose-100 to-slate-100" />
+                <div className="mt-3 h-2.5 w-24 rounded-full bg-slate-200" />
+                <div className="mt-2 h-2.5 w-full rounded-full bg-slate-200" />
+                <div className="mt-2 h-2.5 w-4/5 rounded-full bg-slate-200" />
+              </div>
+
+              <img
+                src="/brand/trendre-home-hero.png"
+                alt="SNS投稿を確認するインフルエンサー"
+                className="relative z-10 max-h-[410px] w-full object-contain drop-shadow-[0_24px_45px_rgba(15,23,42,0.10)]"
+              />
+
+              <div className="absolute bottom-12 right-0 hidden rounded-2xl bg-white px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.14)] ring-1 ring-slate-100 md:block">
+                <p className="text-xs font-black text-slate-500">Followers</p>
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
+                  5,395,402
+                </p>
+              </div>
+
+              <div className="absolute right-2 top-8 hidden flex-col gap-3 rounded-2xl bg-white px-3 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 lg:flex">
+                {['f', '◎', '♪', '▶', '𝕏'].map((icon) => (
+                  <span
+                    key={icon}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-sm font-black text-[#ff6673]"
+                  >
+                    {icon}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex min-h-[360px] items-center justify-center rounded-[34px] bg-white p-8">
-          <img
-            src="/brand/trendre-home-hero.png"
-            alt=""
-            className="max-h-[430px] w-full object-contain"
-          />
+        <div className="bg-[#f4f7fb] px-5 pb-7 md:px-8 md:pb-10">
+          <div className="-mt-8 grid gap-8 rounded-[32px] bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-slate-100 md:p-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-center">
+            <div>
+              <div className="inline-flex rounded-full border border-[#ff6673] px-4 py-2 text-sm font-black text-slate-950">
+                {copy.illustrationFeatureBadge}
+              </div>
+              <h3 className="mt-6 max-w-lg text-[28px] font-black leading-[1.16] tracking-[-0.05em] text-slate-950 md:text-[38px]">
+                {copy.illustrationFeatureTitle}
+              </h3>
+              <p className="mt-5 max-w-xl text-sm font-semibold leading-7 text-slate-600 md:text-base md:leading-8">
+                {copy.illustrationFeatureBody}
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -inset-5 rounded-full border border-dashed border-[#ffb2b8] opacity-70" />
+              <div className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.12)] ring-1 ring-slate-100">
+                <img
+                  src="/brand/trendre-search-preview.jpg"
+                  alt="Trendreのインフルエンサー検索画面"
+                  className="w-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1331,9 +1388,15 @@ export default function HomePage() {
             workflowLead:
               "検索、依頼、承認、チャット、納品確認、支払いまで。案件進行に必要な操作をTrendre上で迷わず進められます。",
 
-            illustrationTitle: "インフルエンサー選定を、もっと直感的に。",
+            illustrationEyebrow: "インフルエンサー検索",
+            illustrationTitle: "ターゲット層とニーズに合わせたインフルエンサーを検索",
             illustrationBody:
-              "プロフィール、SNS、価格、メニュー内容を見ながら、ブランドに合う依頼先を比較できます。",
+              "SNS、価格、カテゴリ、対応エリアを見ながら、商品・サービスに合うインフルエンサーをスムーズに探せます。",
+            illustrationCta: "お問い合わせ",
+            illustrationFeatureBadge: "SNSごとのインフルエンサー検索",
+            illustrationFeatureTitle: "最適なインフルエンサーをSNS別に検索",
+            illustrationFeatureBody:
+              "Instagram、YouTube、X（旧Twitter）、TikTokなど、SNSごとにインフルエンサーを比較。価格帯、カテゴリ、地域、メニュー内容を確認しながら、ブランドのターゲットに合う依頼先を見つけられます。",
             illustrationMini1: "無料で検索",
             illustrationMini2: "表示価格で依頼",
             illustrationMini3: "納品まで管理",
@@ -1398,9 +1461,15 @@ export default function HomePage() {
             workflowLead:
               "Search, request, approval, chat, delivery review, and payment management all happen inside Trendre.",
 
-            illustrationTitle: "Influencer selection, made visual.",
+            illustrationEyebrow: "Influencer Search",
+            illustrationTitle: "Search influencers by audience and campaign needs.",
             illustrationBody:
-              "Compare influencer profiles, social accounts, pricing, and menu details before you order.",
+              "Compare social channels, pricing, categories, and available regions to find the right influencer for your product or service.",
+            illustrationCta: "Contact us",
+            illustrationFeatureBadge: "Search by social channel",
+            illustrationFeatureTitle: "Find the right influencer by SNS.",
+            illustrationFeatureBody:
+              "Search across Instagram, YouTube, X, TikTok, and other social channels. Compare pricing, categories, regions, and menu details to find influencers that match your campaign target.",
             illustrationMini1: "Free search",
             illustrationMini2: "Visible pricing",
             illustrationMini3: "Delivery tracking",
