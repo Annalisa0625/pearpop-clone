@@ -1067,39 +1067,15 @@ function IllustrationSection({ copy }: { copy: Record<string, string> }) {
           </div>
 
           <div className="relative z-10 flex min-h-[350px] items-center justify-center lg:justify-end">
-            <div className="absolute right-0 top-4 hidden h-[320px] w-[190px] rounded-[40px] bg-[#ffd7d9] lg:block" />
-            <div className="absolute right-8 top-8 hidden h-[330px] w-[330px] rounded-full bg-[#ffe0e3] lg:block" />
-            <div className="relative flex w-full max-w-[560px] items-center justify-center">
-              <div className="absolute left-0 top-24 hidden w-[180px] rounded-[18px] bg-white p-3 shadow-[0_18px_45px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 md:block">
-                <div className="h-24 rounded-xl bg-gradient-to-br from-rose-100 to-slate-100" />
-                <div className="mt-3 h-2.5 w-24 rounded-full bg-slate-200" />
-                <div className="mt-2 h-2.5 w-full rounded-full bg-slate-200" />
-                <div className="mt-2 h-2.5 w-4/5 rounded-full bg-slate-200" />
-              </div>
+            <div className="absolute right-2 top-8 hidden h-[330px] w-[420px] rounded-[46px] bg-gradient-to-br from-[#ffe1e4] via-white to-white lg:block" />
+            <div className="absolute right-24 top-6 hidden h-[260px] w-[260px] rounded-full bg-[#ffdadd]/70 blur-2xl lg:block" />
 
+            <div className="relative w-full max-w-[520px] overflow-hidden rounded-[34px] bg-white/82 p-3 shadow-[0_24px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80">
               <img
                 src="/brand/trendre-home-hero.png"
                 alt="SNS投稿を確認するインフルエンサー"
-                className="relative z-10 max-h-[410px] w-full object-contain drop-shadow-[0_24px_45px_rgba(15,23,42,0.10)]"
+                className="h-[390px] w-full object-contain"
               />
-
-              <div className="absolute bottom-12 right-0 hidden rounded-2xl bg-white px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.14)] ring-1 ring-slate-100 md:block">
-                <p className="text-xs font-black text-slate-500">Followers</p>
-                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
-                  5,395,402
-                </p>
-              </div>
-
-              <div className="absolute right-2 top-8 hidden flex-col gap-3 rounded-2xl bg-white px-3 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 lg:flex">
-                {['f', '◎', '♪', '▶', '𝕏'].map((icon) => (
-                  <span
-                    key={icon}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-sm font-black text-[#ff6673]"
-                  >
-                    {icon}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -1392,7 +1368,7 @@ export default function HomePage() {
             illustrationTitle: "ターゲット層とニーズに合わせたインフルエンサーを検索",
             illustrationBody:
               "SNS、価格、カテゴリ、対応エリアを見ながら、商品・サービスに合うインフルエンサーをスムーズに探せます。",
-            illustrationCta: "お問い合わせ",
+            illustrationCta: "インフルエンサー検索",
             illustrationFeatureBadge: "SNSごとのインフルエンサー検索",
             illustrationFeatureTitle: "最適なインフルエンサーをSNS別に検索",
             illustrationFeatureBody:
@@ -1465,7 +1441,7 @@ export default function HomePage() {
             illustrationTitle: "Search influencers by audience and campaign needs.",
             illustrationBody:
               "Compare social channels, pricing, categories, and available regions to find the right influencer for your product or service.",
-            illustrationCta: "Contact us",
+            illustrationCta: "Search influencers",
             illustrationFeatureBadge: "Search by social channel",
             illustrationFeatureTitle: "Find the right influencer by SNS.",
             illustrationFeatureBody:
