@@ -1129,6 +1129,69 @@ function IllustrationSection({ copy }: { copy: Record<string, string> }) {
   );
 }
 
+function ChatGptIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
+      <circle cx="24" cy="24" r="21" fill="#10A37F" />
+      <g fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.98">
+        <path d="M24 10.5c5.2 0 8.1 3 8.1 7.2v4.8" />
+        <path d="M32.1 17.7c4.5 2.6 5.5 6.6 3.4 10.2l-2.4 4.2" />
+        <path d="M35.5 27.9c0 5.2-3 8.1-7.2 8.1h-4.8" />
+        <path d="M28.3 36c-4.5 2.6-8.5 1.6-10.6-2l-2.4-4.2" />
+        <path d="M15.3 29.8c-4.5-2.6-5.5-6.6-3.4-10.2l2.4-4.2" />
+        <path d="M11.9 19.6c0-5.2 3-8.1 7.2-8.1h4.8" />
+        <path d="M18 18.4 24 15l6 3.4v6.9l-6 3.4-6-3.4z" opacity="0.9" />
+      </g>
+    </svg>
+  );
+}
+
+function SheetsIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
+      <rect x="10" y="6" width="28" height="36" rx="7" fill="#16A765" />
+      <path d="M30 6v10h8" fill="#8FE3B6" />
+      <rect x="15" y="20" width="18" height="15" rx="2.5" fill="white" opacity="0.96" />
+      <path d="M21 20v15M27 20v15M15 25h18M15 30h18" stroke="#16A765" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function GmailIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
+      <rect x="7" y="11" width="34" height="26" rx="6" fill="white" />
+      <path d="M10 16.5 24 27.5 38 16.5" fill="none" stroke="#EA4335" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 18v16M38 18v16" stroke="#FBBC04" strokeWidth="5" strokeLinecap="round" />
+      <path d="M10 34h28" stroke="#34A853" strokeWidth="5" strokeLinecap="round" />
+      <rect x="7" y="11" width="34" height="26" rx="6" fill="none" stroke="#E5E7EB" strokeWidth="1" />
+    </svg>
+  );
+}
+
+function DriveIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
+      <path d="M19.5 7h9l14 24h-9z" fill="#0F9D58" />
+      <path d="M19.5 7 5.5 31h9l14-24z" fill="#F4B400" />
+      <path d="M14.5 31h28L38 39H10z" fill="#4285F4" />
+      <path d="M19.5 7h9l14 24H33.5z" fill="white" opacity="0.12" />
+    </svg>
+  );
+}
+
+function StripeIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
+      <rect x="5" y="5" width="38" height="38" rx="12" fill="#635BFF" />
+      <path
+        d="M25.4 21.1c-3.6-.9-4.6-1.5-4.6-2.7 0-1.1.9-1.8 2.8-1.8 2.3 0 4.6.7 6.7 1.9v-5.1c-1.8-.9-4-1.4-6.6-1.4-5.4 0-8.9 2.8-8.9 7 0 4.5 3.4 6.1 8.3 7.2 3.4.8 4.3 1.4 4.3 2.6s-1 1.9-3.1 1.9c-2.7 0-5.5-.9-7.9-2.3v5.2c2.2 1.2 4.9 1.8 7.9 1.8 5.7 0 9.2-2.7 9.2-7.1 0-4.1-2.9-5.9-8.1-7.2z"
+        fill="white"
+      />
+    </svg>
+  );
+}
+
 function ToolOrbitIcon({
   tool,
   index,
@@ -1142,77 +1205,56 @@ function ToolOrbitIcon({
     "--mx": tool.mx,
     "--my": tool.my,
     "--rot": tool.rot,
-    animationDelay: `${index * 0.13}s`,
+    animationDelay: `${index * 0.12}s`,
   };
+
+  const brandFrame = (() => {
+    if (tool.key === "instagram") return "from-[#fff7fb] via-white to-[#fff0f7]";
+    if (tool.key === "tiktok") return "from-[#f9fbff] via-white to-[#f2f6ff]";
+    if (tool.key === "youtube") return "from-[#fff5f5] via-white to-[#fff0f0]";
+    if (tool.key === "x") return "from-[#f8fafc] via-white to-[#f1f5f9]";
+    if (tool.key === "chatgpt") return "from-[#ecfdf5] via-white to-[#eafff5]";
+    if (tool.key === "sheets") return "from-[#effdf6] via-white to-[#e8fff1]";
+    if (tool.key === "gmail") return "from-[#fff7ed] via-white to-[#fff1f2]";
+    if (tool.key === "drive") return "from-[#f0f9ff] via-white to-[#fff7ed]";
+    return "from-[#f5f3ff] via-white to-[#eef2ff]";
+  })();
 
   const icon = (() => {
     if (tool.key === "instagram") {
-      return <img src="/brand/social/instagram.png" alt="" className="h-8 w-8 object-contain" />;
+      return <img src="/brand/social/instagram.png" alt="" className="h-9 w-9 object-contain drop-shadow-sm" />;
     }
 
     if (tool.key === "tiktok") {
-      return <img src="/brand/social/tiktok.png" alt="" className="h-8 w-8 object-contain" />;
+      return <img src="/brand/social/tiktok.png" alt="" className="h-9 w-9 object-contain drop-shadow-sm" />;
     }
 
     if (tool.key === "youtube") {
-      return <img src="/brand/social/youtube.png" alt="" className="h-8 w-8 object-contain" />;
+      return <img src="/brand/social/youtube.png" alt="" className="h-9 w-9 object-contain drop-shadow-sm" />;
     }
 
     if (tool.key === "x") {
-      return <img src="/brand/social/x.png" alt="" className="h-7 w-7 object-contain" />;
+      return <img src="/brand/social/x.png" alt="" className="h-8 w-8 object-contain drop-shadow-sm" />;
     }
 
-    if (tool.key === "chatgpt") {
-      return (
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#10a37f] text-[20px] font-black text-white">
-          ✳
-        </div>
-      );
-    }
-
-    if (tool.key === "sheets") {
-      return (
-        <div className="grid h-9 w-9 grid-cols-3 gap-px rounded-lg bg-[#0f9d58] p-2 shadow-inner">
-          {Array.from({ length: 9 }).map((_, cellIndex) => (
-            <span key={cellIndex} className="rounded-[2px] bg-white/80" />
-          ))}
-        </div>
-      );
-    }
-
-    if (tool.key === "gmail") {
-      return (
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[22px] font-black text-[#ea4335] shadow-inner ring-1 ring-slate-100">
-          M
-        </div>
-      );
-    }
-
-    if (tool.key === "drive") {
-      return (
-        <div className="relative h-9 w-9">
-          <span className="absolute left-3.5 top-0 h-8 w-3 rotate-[30deg] rounded-sm bg-[#0f9d58]" />
-          <span className="absolute left-1 top-4 h-3 w-8 rounded-sm bg-[#f4b400]" />
-          <span className="absolute right-1 top-4 h-3 w-8 -rotate-[60deg] rounded-sm bg-[#4285f4]" />
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#635bff] text-[22px] font-black text-white">
-        S
-      </div>
-    );
+    if (tool.key === "chatgpt") return <ChatGptIcon />;
+    if (tool.key === "sheets") return <SheetsIcon />;
+    if (tool.key === "gmail") return <GmailIcon />;
+    if (tool.key === "drive") return <DriveIcon />;
+    return <StripeIcon />;
   })();
 
   return (
     <div
-      className="trendre-tool-orbit-icon absolute left-1/2 top-1/2 flex h-[74px] w-[74px] items-center justify-center rounded-[22px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.14)] ring-1 ring-slate-100"
+      className={`trendre-tool-orbit-icon absolute left-1/2 top-1/2 flex h-[78px] w-[78px] items-center justify-center rounded-[24px] bg-gradient-to-br ${brandFrame} shadow-[0_18px_55px_rgba(15,23,42,0.13)] ring-1 ring-white/90`}
       style={style}
       title={tool.name}
       aria-label={tool.name}
     >
-      {icon}
+      <span className="absolute inset-0 rounded-[24px] bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.9),transparent_46%)]" />
+      <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/72 shadow-inner ring-1 ring-slate-100/80">
+        {icon}
+      </span>
     </div>
   );
 }
@@ -1255,17 +1297,17 @@ function ToolsSection({ copy }: { copy: Record<string, string> }) {
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.035)_1px,transparent_1px)] bg-[size:54px_54px] opacity-50" />
 
           <div className="absolute left-1/2 top-1/2 h-[320px] w-[560px] -translate-x-1/2 -translate-y-1/2">
-            <div className="trendre-tool-core absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-[30px] border border-slate-100 bg-white/80 shadow-[0_24px_70px_rgba(15,23,42,0.10)]" />
+            <div className="trendre-tool-core absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(248,91,143,0.24),rgba(248,91,143,0.10)_42%,transparent_70%)] blur-2xl" />
 
             {tools.map((tool, index) => (
               <ToolOrbitIcon key={tool.key} tool={tool} index={index} />
             ))}
 
-            <div className="trendre-tool-center-logo absolute left-1/2 top-1/2 flex h-[148px] w-[220px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[32px] bg-white px-8 shadow-[0_28px_90px_rgba(15,23,42,0.18)] ring-1 ring-slate-100">
+            <div className="trendre-tool-center-logo absolute left-1/2 top-1/2 flex h-[132px] w-[260px] -translate-x-1/2 -translate-y-1/2 items-center justify-center">
               <img
                 src="/brand/trendre-logo-full.png"
                 alt="Trendre"
-                className="max-h-16 w-full object-contain"
+                className="max-h-20 w-full object-contain drop-shadow-[0_18px_38px_rgba(15,23,42,0.18)]"
               />
             </div>
           </div>
@@ -1299,13 +1341,13 @@ function ToolsSection({ copy }: { copy: Record<string, string> }) {
 
         @keyframes trendre-logo-reveal {
           0%,
-          52% {
+          54% {
             opacity: 0;
             transform: translate(-50%, -50%) scale(0.72);
             filter: blur(8px);
           }
-          66%,
-          88% {
+          68%,
+          90% {
             opacity: 1;
             transform: translate(-50%, -50%) scale(1);
             filter: blur(0);
@@ -1319,18 +1361,18 @@ function ToolsSection({ copy }: { copy: Record<string, string> }) {
 
         @keyframes trendre-core-pulse {
           0%,
-          44% {
-            opacity: 0.38;
-            transform: translate(-50%, -50%) scale(1);
+          40% {
+            opacity: 0.5;
+            transform: translate(-50%, -50%) scale(1.05);
           }
-          58%,
-          86% {
-            opacity: 0;
+          56%,
+          88% {
+            opacity: 0.16;
             transform: translate(-50%, -50%) scale(0.72);
           }
           100% {
-            opacity: 0.38;
-            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.5;
+            transform: translate(-50%, -50%) scale(1.05);
           }
         }
 
