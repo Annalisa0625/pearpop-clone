@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
 import PublicFooter from "@/components/PublicFooter";
@@ -84,6 +84,24 @@ type UseCaseCardProps = {
   body: string;
   cta: string;
   tone: "rose" | "blue" | "violet" | "orange";
+};
+
+type ToolOrbitService = {
+  key: "instagram" | "tiktok" | "youtube" | "x" | "chatgpt" | "sheets" | "gmail" | "drive" | "stripe";
+  name: string;
+  x: string;
+  y: string;
+  mx: string;
+  my: string;
+  rot: string;
+};
+
+type OrbitIconStyle = CSSProperties & {
+  "--x": string;
+  "--y": string;
+  "--mx": string;
+  "--my": string;
+  "--rot": string;
 };
 
 const CREATOR_LIST_PATH = "/b/creators";
@@ -1111,16 +1129,105 @@ function IllustrationSection({ copy }: { copy: Record<string, string> }) {
   );
 }
 
+function ToolOrbitIcon({
+  tool,
+  index,
+}: {
+  tool: ToolOrbitService;
+  index: number;
+}) {
+  const style: OrbitIconStyle = {
+    "--x": tool.x,
+    "--y": tool.y,
+    "--mx": tool.mx,
+    "--my": tool.my,
+    "--rot": tool.rot,
+    animationDelay: `${index * 0.13}s`,
+  };
+
+  const icon = (() => {
+    if (tool.key === "instagram") {
+      return <img src="/brand/social/instagram.png" alt="" className="h-8 w-8 object-contain" />;
+    }
+
+    if (tool.key === "tiktok") {
+      return <img src="/brand/social/tiktok.png" alt="" className="h-8 w-8 object-contain" />;
+    }
+
+    if (tool.key === "youtube") {
+      return <img src="/brand/social/youtube.png" alt="" className="h-8 w-8 object-contain" />;
+    }
+
+    if (tool.key === "x") {
+      return <img src="/brand/social/x.png" alt="" className="h-7 w-7 object-contain" />;
+    }
+
+    if (tool.key === "chatgpt") {
+      return (
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#10a37f] text-[20px] font-black text-white">
+          ✳
+        </div>
+      );
+    }
+
+    if (tool.key === "sheets") {
+      return (
+        <div className="grid h-9 w-9 grid-cols-3 gap-px rounded-lg bg-[#0f9d58] p-2 shadow-inner">
+          {Array.from({ length: 9 }).map((_, cellIndex) => (
+            <span key={cellIndex} className="rounded-[2px] bg-white/80" />
+          ))}
+        </div>
+      );
+    }
+
+    if (tool.key === "gmail") {
+      return (
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[22px] font-black text-[#ea4335] shadow-inner ring-1 ring-slate-100">
+          M
+        </div>
+      );
+    }
+
+    if (tool.key === "drive") {
+      return (
+        <div className="relative h-9 w-9">
+          <span className="absolute left-3.5 top-0 h-8 w-3 rotate-[30deg] rounded-sm bg-[#0f9d58]" />
+          <span className="absolute left-1 top-4 h-3 w-8 rounded-sm bg-[#f4b400]" />
+          <span className="absolute right-1 top-4 h-3 w-8 -rotate-[60deg] rounded-sm bg-[#4285f4]" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#635bff] text-[22px] font-black text-white">
+        S
+      </div>
+    );
+  })();
+
+  return (
+    <div
+      className="trendre-tool-orbit-icon absolute left-1/2 top-1/2 flex h-[74px] w-[74px] items-center justify-center rounded-[22px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.14)] ring-1 ring-slate-100"
+      style={style}
+      title={tool.name}
+      aria-label={tool.name}
+    >
+      {icon}
+    </div>
+  );
+}
+
 function ToolsSection({ copy }: { copy: Record<string, string> }) {
-  const tools = [
-    { label: "In", text: "Instagram" },
-    { label: "Ti", text: "TikTok" },
-    { label: "Gm", text: "Gmail" },
-    { label: "Sh", text: "Sheet" },
-    { label: "Ch", text: "Chat" },
-    { label: "St", text: "Stripe" },
-    { label: "Dr", text: "Drive" },
-    { label: "Pa", text: "Payment" },
+  const tools: ToolOrbitService[] = [
+    { key: "instagram", name: "Instagram", x: "-250px", y: "-70px", mx: "-115px", my: "-35px", rot: "-10deg" },
+    { key: "tiktok", name: "TikTok", x: "236px", y: "-76px", mx: "114px", my: "-38px", rot: "12deg" },
+    { key: "chatgpt", name: "ChatGPT", x: "-38px", y: "-148px", mx: "-18px", my: "-76px", rot: "8deg" },
+    { key: "sheets", name: "Google Sheets", x: "156px", y: "-18px", mx: "72px", my: "-12px", rot: "-8deg" },
+    { key: "gmail", name: "Gmail", x: "-190px", y: "86px", mx: "-92px", my: "44px", rot: "10deg" },
+    { key: "drive", name: "Google Drive", x: "72px", y: "134px", mx: "36px", my: "66px", rot: "-14deg" },
+    { key: "stripe", name: "Stripe", x: "238px", y: "84px", mx: "116px", my: "42px", rot: "14deg" },
+    { key: "youtube", name: "YouTube", x: "-266px", y: "22px", mx: "-132px", my: "10px", rot: "-12deg" },
+    { key: "x", name: "X", x: "-24px", y: "160px", mx: "-12px", my: "78px", rot: "16deg" },
   ];
 
   return (
@@ -1143,33 +1250,105 @@ function ToolsSection({ copy }: { copy: Record<string, string> }) {
           </Link>
         </div>
 
-        <div className="relative min-h-[420px] overflow-hidden rounded-[34px] bg-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(248,91,143,0.12),transparent_56%)]" />
+        <div className="relative min-h-[420px] overflow-hidden rounded-[34px] bg-white shadow-[0_20px_70px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(248,91,143,0.14),transparent_54%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.035)_1px,transparent_1px)] bg-[size:54px_54px] opacity-50" />
 
-          {tools.map((tool, index) => {
-            const positions = [
-              "left-[12%] top-[38%]",
-              "left-[30%] top-[56%]",
-              "left-[42%] top-[32%]",
-              "left-[62%] top-[22%]",
-              "left-[78%] top-[36%]",
-              "left-[68%] top-[56%]",
-              "left-[54%] top-[70%]",
-              "left-[28%] top-[20%]",
-            ];
+          <div className="absolute left-1/2 top-1/2 h-[320px] w-[560px] -translate-x-1/2 -translate-y-1/2">
+            <div className="trendre-tool-core absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-[30px] border border-slate-100 bg-white/80 shadow-[0_24px_70px_rgba(15,23,42,0.10)]" />
 
-            return (
-              <div
-                key={tool.text}
-                className={`absolute ${positions[index]} flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-xs font-black text-slate-700 shadow-[0_18px_55px_rgba(15,23,42,0.12)] ring-1 ring-slate-100`}
-                title={tool.text}
-              >
-                {tool.label}
-              </div>
-            );
-          })}
+            {tools.map((tool, index) => (
+              <ToolOrbitIcon key={tool.key} tool={tool} index={index} />
+            ))}
+
+            <div className="trendre-tool-center-logo absolute left-1/2 top-1/2 flex h-[148px] w-[220px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[32px] bg-white px-8 shadow-[0_28px_90px_rgba(15,23,42,0.18)] ring-1 ring-slate-100">
+              <img
+                src="/brand/trendre-logo-full.png"
+                alt="Trendre"
+                className="max-h-16 w-full object-contain"
+              />
+            </div>
+          </div>
+
+          <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/80 px-4 py-2 text-xs font-black text-slate-500 shadow-sm ring-1 ring-slate-100">
+            9 tools collapse into one workflow
+          </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes trendre-tool-swirl {
+          0%,
+          20% {
+            opacity: 1;
+            transform: translate(var(--x), var(--y)) rotate(var(--rot)) scale(1);
+          }
+          38% {
+            opacity: 1;
+            transform: translate(var(--mx), var(--my)) rotate(120deg) scale(0.94);
+          }
+          58% {
+            opacity: 0;
+            transform: translate(0, 0) rotate(320deg) scale(0.28);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(0, 0) rotate(360deg) scale(0.2);
+          }
+        }
+
+        @keyframes trendre-logo-reveal {
+          0%,
+          52% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.72);
+            filter: blur(8px);
+          }
+          66%,
+          88% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            filter: blur(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.94);
+            filter: blur(4px);
+          }
+        }
+
+        @keyframes trendre-core-pulse {
+          0%,
+          44% {
+            opacity: 0.38;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          58%,
+          86% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.72);
+          }
+          100% {
+            opacity: 0.38;
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+
+        .trendre-tool-orbit-icon {
+          animation: trendre-tool-swirl 7.8s cubic-bezier(0.68, 0, 0.2, 1) infinite;
+          will-change: transform, opacity;
+        }
+
+        .trendre-tool-center-logo {
+          animation: trendre-logo-reveal 7.8s cubic-bezier(0.68, 0, 0.2, 1) infinite;
+          will-change: transform, opacity, filter;
+        }
+
+        .trendre-tool-core {
+          animation: trendre-core-pulse 7.8s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
+      `}</style>
     </section>
   );
 }
@@ -1377,9 +1556,9 @@ export default function HomePage() {
             illustrationMini2: "表示価格で依頼",
             illustrationMini3: "納品まで管理",
 
-            toolsTitle: "DM、スプレッドシート、請求管理を1つに。",
+            toolsTitle: "バラバラの9ツールを、Trendreひとつに。",
             toolsBody:
-              "インフルエンサー探し、条件確認、発注、やり取り、納品URL確認、報酬管理を分断せず、Trendreでまとめて進められます。",
+              "Instagram、TikTok、ChatGPT、スプレッドシート、メール、Drive、Stripeなどに分かれがちなPR業務を、検索から納品確認・支払いまで一画面で進められます。",
             toolsCta: "インフルエンサーを探す",
 
             useCaseTitle: "チームの目的に合わせて使える",
