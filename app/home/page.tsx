@@ -1708,9 +1708,9 @@ export default function HomePage() {
             useCase4Body:
               "職場の雰囲気や働き方を、インフルエンサーの自然な発信で届けられます。",
 
-            finalLine1: "次のPR案件は、",
-            finalAccent: "数分後",
-            finalLine2: "に始められます。",
+            finalLine1: "たった数分で",
+            finalAccent: "PR案件の依頼",
+            finalLine2: "ができます。",
             finalBody:
               "まずは検索から。商品や店舗に合うインフルエンサーを見つけて、Trendre上で依頼・納品確認まで進めましょう。",
             finalPrimary: "インフルエンサーを探す",
