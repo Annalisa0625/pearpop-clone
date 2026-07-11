@@ -1396,178 +1396,95 @@ function ToolsSection({ copy }: { copy: Record<string, string> }) {
 }
 
 function UseCaseIllustration({ tone }: { tone: UseCaseCardProps["tone"] }) {
+  const commonClass = "h-[138px] w-full text-slate-950";
+
   if (tone === "rose") {
     return (
-      <div className="relative h-[156px] overflow-hidden rounded-[26px] bg-white/72 p-4 shadow-[0_16px_35px_rgba(0,0,0,0.08)] ring-1 ring-white/50">
-        <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/28" />
-        <div className="absolute bottom-4 right-4 h-16 w-24 rounded-3xl bg-white/24" />
-
-        <div className="relative z-10 flex items-start justify-between gap-4">
-          <div className="w-[58%] rounded-[20px] bg-white/78 p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="h-8 w-8 rounded-full bg-[#f774aa]/18" />
-              <div className="space-y-1">
-                <div className="h-2.5 w-20 rounded-full bg-slate-900/22" />
-                <div className="h-2 w-14 rounded-full bg-slate-900/12" />
-              </div>
-            </div>
-            <div className="mt-4 h-2.5 w-full rounded-full bg-slate-900/12" />
-            <div className="mt-2 h-2.5 w-4/5 rounded-full bg-slate-900/10" />
-            <div className="mt-4 flex gap-2">
-              <span className="rounded-full bg-[#f774aa]/15 px-3 py-1 text-[10px] font-black text-slate-900/70">
-                PR
-              </span>
-              <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black text-slate-900/70">
-                SNS
-              </span>
-            </div>
-          </div>
-
-          <div className="grid flex-1 gap-2">
-            <div className="rounded-2xl bg-white/82 p-3 shadow-sm">
-              <div className="mb-2 text-[10px] font-black text-slate-900/56">Reach</div>
-              <div className="flex h-12 items-end gap-1.5">
-                <span className="h-4 flex-1 rounded-t-md bg-slate-900/18" />
-                <span className="h-7 flex-1 rounded-t-md bg-slate-900/20" />
-                <span className="h-9 flex-1 rounded-t-md bg-slate-900/24" />
-                <span className="h-12 flex-1 rounded-t-md bg-white" />
-              </div>
-            </div>
-            <div className="rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white shadow-sm">
-              Campaign ready
-            </div>
-          </div>
-        </div>
+      <div className="flex h-[148px] items-center justify-center">
+        <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
+          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M62 91h29l55-29v62L91 96H62a18 18 0 0 1 0-36h29" strokeWidth="8" />
+            <path d="M91 96l13 30" strokeWidth="8" />
+            <path d="M161 78c16 5 27 19 27 36" strokeWidth="7" opacity="0.65" />
+            <path d="M175 58c27 10 45 31 45 59" strokeWidth="7" opacity="0.35" />
+            <path d="M45 33l8 10 13-22" strokeWidth="7" opacity="0.8" />
+            <path d="M204 35h30" strokeWidth="7" opacity="0.55" />
+            <path d="M219 20v30" strokeWidth="7" opacity="0.55" />
+          </g>
+          <g fill="currentColor" opacity="0.18">
+            <circle cx="73" cy="78" r="18" />
+            <circle cx="220" cy="104" r="12" />
+          </g>
+        </svg>
       </div>
     );
   }
 
   if (tone === "blue") {
     return (
-      <div className="relative h-[156px] overflow-hidden rounded-[26px] bg-white/72 p-4 shadow-[0_16px_35px_rgba(0,0,0,0.08)] ring-1 ring-white/50">
-        <div className="absolute -left-8 -top-12 h-32 w-32 rounded-full bg-white/24" />
-        <div className="absolute bottom-0 right-0 h-20 w-28 rounded-tl-[36px] bg-white/20" />
-
-        <div className="relative z-10 grid h-full grid-cols-[1fr_0.82fr] gap-3">
-          <div className="rounded-[22px] bg-white/80 p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#9bb6ff]/28">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-900/70" aria-hidden="true">
-                  <path d="M5 10.5V20h14v-9.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M4 10.5h16L18.5 5h-13L4 10.5Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                  <path d="M9 20v-5h6v5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </span>
-              <div>
-                <div className="h-2.5 w-20 rounded-full bg-slate-900/22" />
-                <div className="mt-1.5 h-2 w-12 rounded-full bg-slate-900/12" />
-              </div>
-            </div>
-            <div className="mt-4 rounded-2xl bg-[#9bb6ff]/18 p-3">
-              <div className="h-2.5 w-full rounded-full bg-white/90" />
-              <div className="mt-2 h-2.5 w-3/4 rounded-full bg-white/70" />
-            </div>
-            <div className="mt-3 flex items-center gap-2 text-[11px] font-black text-slate-900/64">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-              Store visit / booking
-            </div>
-          </div>
-
-          <div className="rounded-[22px] bg-white/72 p-3 shadow-sm">
-            <div className="grid grid-cols-3 gap-1.5">
-              {Array.from({ length: 9 }).map((_, index) => (
-                <span
-                  key={index}
-                  className={`h-7 rounded-xl ${
-                    index === 4 ? "bg-slate-950 text-white" : "bg-white/84"
-                  } flex items-center justify-center text-[10px] font-black text-slate-900/54`}
-                >
-                  {index === 4 ? "PR" : ""}
-                </span>
-              ))}
-            </div>
-            <div className="mt-3 rounded-2xl bg-white/78 p-2.5">
-              <div className="h-2 w-16 rounded-full bg-slate-900/18" />
-              <div className="mt-2 h-2 w-20 rounded-full bg-slate-900/12" />
-            </div>
-          </div>
-        </div>
+      <div className="flex h-[148px] items-center justify-center">
+        <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
+          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M57 63h112l-10-34H67L57 63Z" strokeWidth="8" />
+            <path d="M70 63v63h86V63" strokeWidth="8" />
+            <path d="M99 126V92h29v34" strokeWidth="8" />
+            <path d="M78 80h18" strokeWidth="7" opacity="0.55" />
+            <path d="M136 80h12" strokeWidth="7" opacity="0.55" />
+            <path d="M190 112c21-4 36-18 44-39" strokeWidth="8" />
+            <path d="M224 72l13-2-2 13" strokeWidth="8" />
+          </g>
+          <g fill="currentColor">
+            <circle cx="197" cy="52" r="13" opacity="0.18" />
+            <path d="M193 51a10 10 0 1 1 20 0 10 10 0 0 1-20 0Z" opacity="0.22" />
+            <path d="M185 91c0-15 42-15 42 0" opacity="0.22" />
+          </g>
+        </svg>
       </div>
     );
   }
 
   if (tone === "violet") {
     return (
-      <div className="relative h-[156px] overflow-hidden rounded-[26px] bg-white/72 p-4 shadow-[0_16px_35px_rgba(0,0,0,0.08)] ring-1 ring-white/50">
-        <div className="absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/26 blur-sm" />
-
-        <div className="relative z-10 grid h-full grid-cols-[0.72fr_1fr] gap-3">
-          <div className="flex flex-col justify-end rounded-[22px] bg-white/78 p-4 shadow-sm">
-            <div className="mx-auto h-20 w-16 rounded-[18px] bg-[#b9adff]/34 shadow-inner" />
-            <div className="mt-3 h-2.5 w-full rounded-full bg-slate-900/20" />
-            <div className="mt-2 h-2.5 w-2/3 rounded-full bg-slate-900/12" />
-          </div>
-
-          <div className="space-y-3">
-            <div className="rounded-[22px] bg-white/82 p-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="rounded-full bg-[#b9adff]/18 px-3 py-1 text-[10px] font-black text-slate-900/66">
-                  UGC
-                </span>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-700">
-                  Review
-                </span>
-              </div>
-              <div className="mt-3 h-12 rounded-2xl bg-gradient-to-br from-white to-[#b9adff]/18" />
-              <div className="mt-3 h-2.5 w-full rounded-full bg-slate-900/12" />
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <span className="h-9 rounded-2xl bg-white/80 shadow-sm" />
-              <span className="h-9 rounded-2xl bg-white/80 shadow-sm" />
-              <span className="h-9 rounded-2xl bg-slate-950 shadow-sm" />
-            </div>
-          </div>
-        </div>
+      <div className="flex h-[148px] items-center justify-center">
+        <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
+          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="45" y="31" width="124" height="86" rx="18" strokeWidth="8" />
+            <path d="M45 57h124" strokeWidth="7" opacity="0.55" />
+            <path d="M68 82h43" strokeWidth="7" opacity="0.45" />
+            <path d="M68 101h64" strokeWidth="7" opacity="0.45" />
+            <path d="M191 48h18l12 33h-38l8-33Z" strokeWidth="8" />
+            <path d="M185 81h39" strokeWidth="8" />
+            <circle cx="192" cy="104" r="7" strokeWidth="7" />
+            <circle cx="217" cy="104" r="7" strokeWidth="7" />
+            <path d="M193 28c18 0 33 10 43 29" strokeWidth="7" opacity="0.55" />
+            <path d="M228 57l12 1-6 11" strokeWidth="7" opacity="0.55" />
+          </g>
+          <g fill="currentColor" opacity="0.16">
+            <rect x="68" y="71" width="55" height="34" rx="12" />
+          </g>
+        </svg>
       </div>
     );
   }
 
   return (
-    <div className="relative h-[156px] overflow-hidden rounded-[26px] bg-white/72 p-4 shadow-[0_16px_35px_rgba(0,0,0,0.08)] ring-1 ring-white/50">
-      <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/24" />
-      <div className="relative z-10 grid h-full grid-cols-[1fr_0.8fr] gap-3">
-        <div className="rounded-[22px] bg-white/82 p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-[#ff995f]/24" />
-            <div>
-              <div className="h-2.5 w-24 rounded-full bg-slate-900/22" />
-              <div className="mt-2 h-2 w-16 rounded-full bg-slate-900/12" />
-            </div>
-          </div>
-          <div className="mt-4 space-y-2">
-            <div className="h-2.5 w-full rounded-full bg-slate-900/12" />
-            <div className="h-2.5 w-4/5 rounded-full bg-slate-900/12" />
-            <div className="h-2.5 w-2/3 rounded-full bg-slate-900/12" />
-          </div>
-          <div className="mt-4 rounded-full bg-[#ff995f]/16 px-3 py-1.5 text-center text-[10px] font-black text-slate-900/68">
-            Hiring story
-          </div>
-        </div>
-
-        <div className="grid content-center gap-3">
-          <div className="rounded-[20px] bg-slate-950 p-3 text-white shadow-sm">
-            <svg viewBox="0 0 36 36" className="mx-auto h-12 w-12" aria-hidden="true">
-              <path d="M7 21h7l11 5V10l-11 5H7v6Z" fill="currentColor" opacity="0.92" />
-              <path d="M14 21v6" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.72" />
-            </svg>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            <span className="h-7 rounded-full bg-white/82" />
-            <span className="h-7 rounded-full bg-white/72" />
-            <span className="h-7 rounded-full bg-white/82" />
-          </div>
-        </div>
-      </div>
+    <div className="flex h-[148px] items-center justify-center">
+      <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
+        <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="91" cy="48" r="18" strokeWidth="8" />
+          <path d="M55 112c6-31 66-31 72 0" strokeWidth="8" />
+          <circle cx="181" cy="48" r="18" strokeWidth="8" />
+          <path d="M145 112c6-31 66-31 72 0" strokeWidth="8" />
+          <path d="M73 122h127" strokeWidth="8" opacity="0.48" />
+          <path d="M107 27c12-13 47-13 59 0" strokeWidth="7" opacity="0.5" />
+          <path d="M118 29h36" strokeWidth="7" opacity="0.5" />
+          <path d="M117 77h39" strokeWidth="7" />
+          <path d="M130 90h26" strokeWidth="7" opacity="0.55" />
+        </g>
+        <g fill="currentColor" opacity="0.14">
+          <rect x="108" y="65" width="62" height="43" rx="14" />
+        </g>
+      </svg>
     </div>
   );
 }
@@ -1776,7 +1693,7 @@ export default function HomePage() {
               "Instagram、TikTok、ChatGPT、スプレッドシート、メール、Drive、Stripeなどに分かれがちなPR業務を、検索から納品確認・支払いまで一画面で進められます。",
             toolsCta: "インフルエンサーを探す",
 
-            useCaseTitle: "チームの目的に合わせて使える",
+            useCaseTitle: "このような目的に合わせて使えます",
             useCaseCta: "探してみる",
             useCase1Title: "マーケティング担当",
             useCase1Body:
@@ -1849,7 +1766,7 @@ export default function HomePage() {
               "Trendre keeps influencer discovery, ordering, messaging, delivery review, and payout management in one place.",
             toolsCta: "Search influencers",
 
-            useCaseTitle: "Built for teams of every size",
+            useCaseTitle: "Use Trendre for goals like these",
             useCaseCta: "Start",
             useCase1Title: "Marketing teams",
             useCase1Body:
