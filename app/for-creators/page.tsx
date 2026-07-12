@@ -1,65 +1,85 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "インフルエンサー登録 | Trendre",
-  description:
-    "Trendreは、PR投稿やUGC制作の依頼をスマホで受けられるインフルエンサー向けマーケットプレイスです。",
-};
-
-const jobExamples = [
+const featureCards = [
   {
-    icon: "💄",
+    icon: "🧾",
+    title: "メニューを公開",
+    description:
+      "Instagram投稿、リール、TikTok動画、UGC制作など、受けたい内容と価格を自分で登録できます。",
+  },
+  {
+    icon: "✅",
+    title: "注文を確認して受ける",
+    description:
+      "依頼内容・条件・報酬を確認してから承認できます。自分に合う案件だけ選べます。",
+  },
+  {
+    icon: "💬",
+    title: "チャットで事前確認",
+    description:
+      "来店日、投稿条件、撮影ルールなど、不明点はチャットで事前に確認できます。",
+  },
+  {
+    icon: "¥",
+    title: "納品と報酬を管理",
+    description:
+      "投稿URLや納品URLを提出し、完了した案件の報酬履歴までまとめて確認できます。",
+  },
+];
+
+const genreCards = [
+  {
+    emoji: "💄",
     title: "美容液レビュー",
     type: "Instagramリール",
     price: "¥30,000",
     bg: "bg-rose-50",
   },
   {
-    icon: "☕",
+    emoji: "☕",
     title: "新作カフェPR",
     type: "来店体験",
     price: "¥15,000",
     bg: "bg-amber-50",
   },
   {
-    icon: "✈️",
+    emoji: "✈️",
     title: "旅館・ホテル宿泊",
     type: "YouTube動画",
     price: "¥80,000",
     bg: "bg-sky-50",
   },
   {
-    icon: "👗",
+    emoji: "👗",
     title: "ファッションコーデ",
     type: "Instagram投稿",
     price: "¥22,000",
     bg: "bg-violet-50",
   },
   {
-    icon: "🏋️",
+    emoji: "🏋️",
     title: "ジム体験レポート",
     type: "TikTok動画",
     price: "¥18,000",
     bg: "bg-emerald-50",
   },
   {
-    icon: "🏪",
+    emoji: "🏪",
     title: "店舗PRレポート",
     type: "Instagram Stories",
     price: "¥12,000",
     bg: "bg-orange-50",
   },
   {
-    icon: "📦",
+    emoji: "📦",
     title: "D2C商品レビュー",
     type: "UGC制作",
     price: "¥45,000",
     bg: "bg-pink-50",
   },
   {
-    icon: "🎬",
+    emoji: "🎬",
     title: "企業UGC撮影",
     type: "動画・写真セット",
     price: "¥60,000",
@@ -67,496 +87,495 @@ const jobExamples = [
   },
 ];
 
-const featureCards = [
-  {
-    icon: "🧾",
-    title: "メニューを公開",
-    body: "Instagram投稿、リール、TikTok動画、UGC制作など、自分が受けたい内容と価格を登録できます。",
-  },
-  {
-    icon: "✅",
-    title: "注文を確認して受ける",
-    body: "企業から注文が届いたら、内容・条件・報酬を確認してから承認できます。",
-  },
-  {
-    icon: "💬",
-    title: "チャットで相談",
-    body: "来店日、投稿条件、撮影ルールなど、不明点をチャットで事前に確認できます。",
-  },
-  {
-    icon: "¥",
-    title: "納品と報酬を管理",
-    body: "投稿URLや納品URLを提出し、完了した案件の報酬履歴もまとめて確認できます。",
-  },
-];
-
 const steps = [
   {
     step: "STEP 1",
     title: "無料登録",
-    body: "メールアドレスなどを入力して、Trendreアカウントを作成します。",
-    mockTitle: "無料登録",
-    lines: ["メールアドレス", "パスワード", "登録する"],
+    description:
+      "メールアドレスなどを入力して、Trendreアカウントを作成します。",
+    screenTitle: "無料登録",
+    items: ["メールアドレス", "パスワード", "登録する"],
   },
   {
     step: "STEP 2",
     title: "プロフィールとSNSを登録",
-    body: "写真、ジャンル、対応エリア、SNSアカウント、ポートフォリオを整えます。",
-    mockTitle: "SNS連携",
-    lines: ["Instagram", "TikTok", "YouTube"],
+    description:
+      "写真、ジャンル、対応エリア、SNSアカウント、ポートフォリオを整えます。",
+    screenTitle: "SNS連携",
+    items: ["Instagram", "TikTok", "YouTube"],
   },
   {
     step: "STEP 3",
     title: "メニューと価格を設定",
-    body: "PR投稿、UGC制作、来店体験など、受けたい内容と価格を自分で公開します。",
-    mockTitle: "メニュー設定",
-    lines: ["Instagramリール　¥35,000", "UGC制作　¥50,000", "来店体験　¥18,000"],
+    description:
+      "PR投稿、UGC制作、来店体験など、受けたい内容と価格を自分で公開します。",
+    screenTitle: "メニュー設定",
+    items: ["Instagramリール　¥35,000", "UGC制作　¥50,000", "来店体験　¥18,000"],
   },
   {
     step: "STEP 4",
     title: "注文を受けて納品",
-    body: "企業から届いた注文を確認し、チャットで相談して、投稿URLや納品URLを提出します。",
-    mockTitle: "納品完了",
-    lines: ["報酬確定", "¥35,000", "次の案件へ"],
+    description:
+      "依頼主から届いた注文を確認し、チャットで相談して、投稿URLや納品URLを提出します。",
+    screenTitle: "納品完了",
+    items: ["報酬確定　¥35,000", "次の案件へ", "履歴を見る"],
   },
 ];
 
+const points = [
+  {
+    number: "POINT. 1",
+    title: "受ける案件は自分で選べる",
+    body: "届いた注文は内容・条件・報酬を見てから判断できます。無理に受ける必要はありません。",
+  },
+  {
+    number: "POINT. 2",
+    title: "価格は自分で自由に設定",
+    body: "Instagram投稿、リール、UGC制作、来店体験など、メニューごとに自分で価格を決められます。",
+  },
+  {
+    number: "POINT. 3",
+    title: "チャットで事前確認できる",
+    body: "来店日、撮影ルール、投稿条件など、気になる点は依頼主と事前にやり取りできます。",
+  },
+  {
+    number: "POINT. 4",
+    title: "納品・報酬履歴を一元管理",
+    body: "納品URLの提出、完了した案件の確認、報酬の履歴確認まで、ひとつの画面で管理できます。",
+  },
+];
+
+function PhoneMock({
+  title,
+  items,
+  highlightLast = false,
+}: {
+  title: string;
+  items: string[];
+  highlightLast?: boolean;
+}) {
+  return (
+    <div className="mx-auto w-[180px] rounded-[30px] border-[5px] border-slate-900 bg-white px-3 py-4 shadow-[0_16px_40px_rgba(15,23,42,0.12)] sm:w-[200px]">
+      <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-slate-200" />
+      <p className="mb-4 text-center text-sm font-extrabold text-rose-500">
+        {title}
+      </p>
+      <div className="space-y-2.5">
+        {items.map((item, index) => {
+          const isHighlight = highlightLast
+            ? index === items.length - 1
+            : title === "納品完了"
+              ? index === 0
+              : index === items.length - 1;
+
+          return (
+            <div
+              key={item}
+              className={`rounded-full px-4 py-2.5 text-sm font-bold ${
+                isHighlight
+                  ? "bg-rose-500 text-white"
+                  : "bg-rose-50 text-slate-700"
+              }`}
+            >
+              {item}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mx-auto mt-4 h-1.5 w-14 rounded-full bg-slate-200" />
+    </div>
+  );
+}
+
 export default function ForCreatorsPage() {
   return (
-    <main className="min-h-screen bg-white text-slate-950">
-      <Header />
+    <main className="min-h-screen bg-[#fbfbfc] text-slate-950">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/brand/trendre-logo-full.png"
+              alt="Trendre"
+              width={126}
+              height={34}
+              className="h-8 w-auto"
+            />
+          </Link>
 
-      <section className="mx-auto max-w-7xl px-5 pb-16 pt-8 sm:px-8 lg:pt-12">
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-white via-rose-50/60 to-white px-6 py-12 shadow-[0_24px_80px_rgba(15,23,42,0.08)] ring-1 ring-rose-100 sm:px-10 lg:grid lg:grid-cols-2 lg:items-center lg:gap-12 lg:px-16 lg:py-16">
-          <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(#fb7185_1px,transparent_1px)] [background-size:22px_22px]" />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+            >
+              ログイン
+            </Link>
+            <Link
+              href="/signup/creator"
+              className="rounded-full bg-rose-500 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_30px_rgba(244,63,94,0.22)] transition hover:bg-rose-600"
+            >
+              無料登録
+            </Link>
+          </div>
+        </div>
+      </header>
 
-          <div className="relative z-10">
-            <p className="mb-4 text-sm font-bold tracking-[0.18em] text-rose-500">
-              TRENDRE FOR INFLUENCERS
+      <section className="mx-auto max-w-6xl px-4 pb-10 pt-5 sm:px-6 sm:pt-8">
+        <div className="overflow-hidden rounded-[32px] border border-rose-100 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
+          <div className="bg-[radial-gradient(circle_at_top,rgba(244,63,94,0.08),transparent_42%)] px-5 py-6 sm:px-8 sm:py-10">
+            <div className="grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+              <div>
+                <div className="mb-4 inline-flex rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-[11px] font-bold tracking-[0.22em] text-rose-500">
+                  TRENDRE FOR CREATORS
+                </div>
+
+                <h1 className="max-w-xl text-[2.1rem] font-black leading-[1.12] tracking-tight sm:text-[3rem]">
+                  PR案件を、
+                  <br />
+                  スマホで受ける。
+                  <br />
+                  <span className="text-rose-500">価格を決めて、</span>
+                  <br />
+                  自分のペースで働ける。
+                </h1>
+
+                <p className="mt-5 max-w-xl text-[15px] font-semibold leading-8 text-slate-600 sm:text-[17px]">
+                  Trendreは、Instagram・TikTokなどでPR投稿やUGC制作を受けたい人向けのマーケットプレイスです。
+                  プロフィール、SNS、メニューを登録すると、依頼主から注文を受けられます。
+                </p>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href="/signup/creator"
+                    className="inline-flex items-center justify-center rounded-full bg-rose-500 px-6 py-4 text-base font-extrabold text-white shadow-[0_16px_32px_rgba(244,63,94,0.25)] transition hover:bg-rose-600"
+                  >
+                    無料でインフルエンサー登録
+                  </Link>
+                  <a
+                    href="#flow"
+                    className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-4 text-base font-extrabold text-slate-800 transition hover:bg-slate-50"
+                  >
+                    案件の流れを見る
+                  </a>
+                </div>
+
+                <div className="mt-6 grid grid-cols-3 gap-2.5 sm:max-w-xl">
+                  {[
+                    "自分で価格設定",
+                    "注文は確認して承認",
+                    "報酬まで管理",
+                  ].map((label) => (
+                    <div
+                      key={label}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-center text-[12px] font-bold leading-5 text-slate-700 sm:text-sm"
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mx-auto w-full max-w-[440px]">
+                <div className="relative rounded-[32px] border border-rose-100 bg-[linear-gradient(180deg,#fff,#fff7f9)] p-4 shadow-[0_28px_60px_rgba(15,23,42,0.08)]">
+                  <div className="overflow-hidden rounded-[28px] bg-white">
+                    <Image
+                      src="/brand/trendre-home-hero.png"
+                      alt="Trendreのクリエイター向け画面イメージ"
+                      width={1122}
+                      height={1402}
+                      className="h-auto w-full"
+                      priority
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-[2rem] font-black leading-tight tracking-tight sm:text-[2.7rem]">
+            PRの受注を、もっと分かりやすく。
+          </h2>
+          <p className="mt-4 text-[15px] font-semibold leading-8 text-slate-600 sm:text-[17px]">
+            注文内容、チャット、納品URL、報酬履歴をTrendre上で整理できます。
+            受けたい内容と価格をメニューとして公開し、依頼主からの注文を待つことができます。
+          </p>
+        </div>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {featureCards.map((card) => (
+            <div
+              key={card.title}
+              className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-6"
+            >
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-2xl">
+                {card.icon}
+              </div>
+              <h3 className="text-[1.35rem] font-black tracking-tight">
+                {card.title}
+              </h3>
+              <p className="mt-3 text-[15px] font-semibold leading-8 text-slate-600">
+                {card.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="rounded-[32px] bg-white px-5 py-8 shadow-[0_22px_60px_rgba(15,23,42,0.05)] sm:px-8 sm:py-10">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-[2rem] font-black leading-tight tracking-tight sm:text-[2.5rem]">
+              幅広いジャンルのPR案件に出会えます
+            </h2>
+            <p className="mt-4 text-[15px] font-semibold leading-8 text-slate-600 sm:text-[17px]">
+              美容、グルメ、旅行、ファッション、店舗PR、D2C商品、UGC制作など、
+              あなたの発信ジャンルに合った依頼を受けられます。
             </p>
-            <h1 className="text-4xl font-black leading-tight tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-              PR案件を、
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {genreCards.map((card) => (
+              <div
+                key={card.title}
+                className={`${card.bg} rounded-[28px] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55)]`}
+              >
+                <div className="text-[28px]">{card.emoji}</div>
+                <div className="mt-4">
+                  <h3 className="text-[1.2rem] font-black tracking-tight">
+                    {card.title}
+                  </h3>
+                  <p className="mt-2 text-[15px] font-semibold text-slate-600">
+                    {card.type}
+                  </p>
+                  <p className="mt-4 text-[1.8rem] font-black text-rose-500">
+                    {card.price}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-6 text-center text-sm font-semibold text-slate-400">
+            ※ 掲載価格は参考例です。価格はインフルエンサーが自由に設定できます。
+          </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="rounded-[32px] bg-white px-5 py-8 shadow-[0_22px_60px_rgba(15,23,42,0.05)] sm:px-8 sm:py-10">
+          <div className="grid items-center gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <h2 className="text-[2rem] font-black leading-tight tracking-tight sm:text-[2.6rem]">
+                依頼主はあなたのプロフィールを見て注文します
+              </h2>
+              <p className="mt-4 text-[15px] font-semibold leading-8 text-slate-600 sm:text-[17px]">
+                依頼主は、SNS種別、カテゴリ、価格帯、地域、メニュー内容などで条件を絞り込みながら、
+                ブランドに合う依頼先を探します。
+              </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                {[
+                  "SNS別に検索",
+                  "価格付きで比較",
+                  "地域で絞り込み",
+                  "メニューを確認",
+                ].map((pill) => (
+                  <div
+                    key={pill}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700"
+                  >
+                    {pill}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-slate-200 bg-[#fcfcfd] p-3 shadow-[0_18px_44px_rgba(15,23,42,0.06)] sm:p-5">
+              <div className="overflow-hidden rounded-[22px] bg-white">
+                <Image
+                  src="/brand/trendre-search-preview.jpg"
+                  alt="依頼主向けの検索画面プレビュー"
+                  width={1024}
+                  height={577}
+                  className="h-auto w-full"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="flow" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-[2rem] font-black leading-tight tracking-tight sm:text-[2.5rem]">
+            かんたん4ステップですぐに始められます
+          </h2>
+          <p className="mt-4 text-[15px] font-semibold leading-8 text-slate-600 sm:text-[17px]">
+            登録後は、プロフィールとメニューを整えるだけで、依頼主からの注文を受けられる状態になります。
+          </p>
+        </div>
+
+        <div className="mt-10 space-y-6">
+          {steps.map((step) => (
+            <div
+              key={step.step}
+              className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 py-6 shadow-[0_18px_44px_rgba(15,23,42,0.05)] sm:px-8 sm:py-8"
+            >
+              <div className="grid items-center gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+                <div>
+                  <div className="mb-4 inline-flex rounded-2xl bg-rose-500 px-4 py-3 text-sm font-black text-white shadow-[0_14px_28px_rgba(244,63,94,0.22)]">
+                    {step.step}
+                  </div>
+                  <h3 className="text-[1.8rem] font-black tracking-tight sm:text-[2.1rem]">
+                    {step.title}
+                  </h3>
+                  <p className="mt-4 max-w-xl text-[15px] font-semibold leading-8 text-slate-600 sm:text-[17px]">
+                    {step.description}
+                  </p>
+                </div>
+
+                <div>
+                  <PhoneMock
+                    title={step.screenTitle}
+                    items={step.items}
+                    highlightLast={step.screenTitle !== "納品完了"}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8 bg-rose-500/95 py-10 sm:py-14">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-3xl text-center text-white">
+            <h2 className="text-[2rem] font-black leading-tight tracking-tight sm:text-[2.5rem]">
+              安心して使えるポイント
+            </h2>
+            <p className="mt-4 text-[15px] font-semibold leading-8 text-rose-50 sm:text-[17px]">
+              自分で案件を選び、価格を決め、事前確認しながら進められる設計です。
+            </p>
+          </div>
+
+          <div className="mt-8 space-y-4">
+            {points.map((point) => (
+              <details
+                key={point.title}
+                className="group rounded-[28px] bg-white px-5 py-5 shadow-[0_18px_44px_rgba(15,23,42,0.08)] sm:px-7"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-bold tracking-[0.22em] text-rose-500">
+                      {point.number}
+                    </p>
+                    <h3 className="mt-2 text-[1.45rem] font-black tracking-tight text-slate-950">
+                      {point.title}
+                    </h3>
+                  </div>
+                  <span className="text-2xl font-bold text-rose-400 transition group-open:rotate-180">
+                    ˅
+                  </span>
+                </summary>
+                <p className="pt-4 text-[15px] font-semibold leading-8 text-slate-600 sm:text-[16px]">
+                  {point.body}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <div className="overflow-hidden rounded-[36px] bg-[#020b2b] px-6 py-10 text-white shadow-[0_30px_70px_rgba(2,6,23,0.25)] sm:px-10 sm:py-14">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-[2rem] font-black leading-tight tracking-tight sm:text-[2.9rem]">
+              プロフィールとメニューを整えるだけで、
               <br />
-              スマホで受ける。
-              <br />
-              <span className="text-rose-500">価格を決めて、</span>
-              <br />
-              自分のペースで働ける。
-            </h1>
-            <p className="mt-6 max-w-xl text-base font-medium leading-8 text-slate-700 sm:text-lg">
-              Trendreは、Instagram・TikTokなどでPR投稿やUGC制作を受けたい
-              インフルエンサー向けのマーケットプレイスです。プロフィール、SNS、
-              メニューを登録すると、企業から依頼を受けられます。
+              <span className="text-rose-400">PR案件を受けられる状態に。</span>
+            </h2>
+
+            <p className="mt-5 text-[15px] font-semibold leading-8 text-slate-200 sm:text-[17px]">
+              まずは無料登録して、SNS・ポートフォリオ・メニューを追加しましょう。
+              あなたの発信に合う依頼主からの注文を受けられるようになります。
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href="/signup"
-                className="inline-flex h-14 items-center justify-center rounded-full bg-rose-500 px-8 text-base font-bold text-white shadow-[0_16px_30px_rgba(244,63,94,0.28)] transition hover:bg-rose-600"
+                href="/signup/creator"
+                className="inline-flex min-w-[280px] items-center justify-center rounded-full bg-white px-7 py-4 text-base font-black text-slate-950 transition hover:bg-slate-100"
               >
                 無料でインフルエンサー登録
               </Link>
-              <a
-                href="#how-it-works"
-                className="inline-flex h-14 items-center justify-center rounded-full border border-slate-200 bg-white px-8 text-base font-bold text-slate-900 transition hover:bg-slate-50"
-              >
-                案件の流れを見る
-              </a>
             </div>
 
-            <div className="mt-8 grid grid-cols-3 gap-3 text-sm font-bold text-slate-700">
-              <div className="rounded-2xl bg-white/80 px-4 py-3 shadow-sm ring-1 ring-slate-100">
-                自分で価格設定
-              </div>
-              <div className="rounded-2xl bg-white/80 px-4 py-3 shadow-sm ring-1 ring-slate-100">
-                注文は確認制
-              </div>
-              <div className="rounded-2xl bg-white/80 px-4 py-3 shadow-sm ring-1 ring-slate-100">
-                報酬まで管理
-              </div>
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-bold text-slate-300">
+              <span>登録無料</span>
+              <span>自分で価格設定</span>
+              <span>注文は確認してから承認</span>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="relative z-10 mt-12 lg:mt-0">
-            <div className="relative mx-auto max-w-md rounded-[2rem] bg-white p-4 shadow-[0_30px_80px_rgba(15,23,42,0.14)] ring-1 ring-slate-100">
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+          <div className="grid gap-10 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
+            <div>
               <Image
-                src="/brand/trendre-home-hero.png"
-                alt="TrendreでPR案件を受けるインフルエンサー"
-                width={1122}
-                height={1402}
-                priority
-                className="mx-auto h-[430px] w-auto object-contain sm:h-[520px]"
+                src="/brand/trendre-logo-full.png"
+                alt="Trendre"
+                width={126}
+                height={34}
+                className="h-8 w-auto"
               />
-
-              <div className="absolute left-5 top-6 rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-100">
-                <p className="text-xs font-bold text-slate-400">新しい注文</p>
-                <p className="mt-1 text-sm font-black text-slate-950">
-                  美容液レビュー
-                </p>
-                <p className="mt-1 text-sm font-bold text-rose-500">¥30,000</p>
-              </div>
-
-              <div className="absolute bottom-8 right-5 rounded-3xl bg-slate-950 px-5 py-4 text-white shadow-xl">
-                <p className="text-xs font-bold text-slate-300">今月の報酬</p>
-                <p className="mt-1 text-2xl font-black">¥93,335</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
-            PRの受注を、もっと分かりやすく。
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600">
-            注文内容、チャット、納品URL、報酬履歴をTrendre上で整理できます。
-            受けたい内容と価格をメニューとして公開し、企業からの注文を待つことができます。
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {featureCards.map((feature) => (
-            <div
-              key={feature.title}
-              className="rounded-[2rem] bg-white p-6 shadow-[0_16px_45px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
-            >
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-2xl">
-                {feature.icon}
-              </div>
-              <h3 className="text-xl font-black tracking-tight text-slate-950">
-                {feature.title}
-              </h3>
-              <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
-                {feature.body}
+              <p className="mt-5 max-w-md text-[15px] font-semibold leading-8 text-slate-600">
+                Trendreは、日本企業と日本のインフルエンサーをつなぐ
+                PR・UGC制作の受注型マーケットプレイスです。
               </p>
             </div>
-          ))}
-        </div>
-      </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
-            幅広いジャンルのPR案件に出会えます
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600">
-            美容、グルメ、旅行、ファッション、店舗PR、D2C商品、UGC制作など、
-            あなたの発信ジャンルに合った依頼を受けられます。
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {jobExamples.map((job) => (
-            <div
-              key={job.title}
-              className={`${job.bg} rounded-[1.75rem] p-6 shadow-sm ring-1 ring-white/80 transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]`}
-            >
-              <div className="text-3xl">{job.icon}</div>
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                {job.title}
-              </h3>
-              <p className="mt-2 text-base font-medium text-slate-600">
-                {job.type}
-              </p>
-              <p className="mt-4 text-xl font-black text-rose-500">
-                {job.price}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <p className="mt-8 text-center text-sm font-medium text-slate-400">
-          ※ 掲載価格は参考例です。価格はインフルエンサーが自由に設定できます。
-        </p>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
-        <div className="overflow-hidden rounded-[2.5rem] bg-slate-50 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 sm:p-10 lg:grid lg:grid-cols-[0.85fr_1.15fr] lg:gap-10">
-          <div className="flex flex-col justify-center">
-            <p className="text-sm font-bold tracking-[0.18em] text-rose-500">
-              SEARCH PREVIEW
-            </p>
-            <h2 className="mt-4 text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-5xl">
-              企業はこのように
-              <br />
-              インフルエンサーを探します
-            </h2>
-            <p className="mt-5 text-base font-medium leading-8 text-slate-600">
-              企業は、SNS種別、カテゴリ、価格帯、地域、メニュー内容などで条件を絞り込みながら、
-              ブランドに合う依頼先を探します。
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {["SNS別に検索", "価格付きで比較", "地域で絞り込み", "メニューを確認"].map(
-                (item) => (
-                  <span
-                    key={item}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100"
-                  >
-                    {item}
-                  </span>
-                )
-              )}
-            </div>
-          </div>
-
-          <div className="mt-10 rounded-[2rem] bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 lg:mt-0">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
-              <span className="h-3 w-3 rounded-full bg-red-400" />
-              <span className="h-3 w-3 rounded-full bg-yellow-400" />
-              <span className="h-3 w-3 rounded-full bg-green-400" />
-              <div className="ml-3 flex-1 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400">
-                trendre.jp/search
+            <div>
+              <h3 className="text-lg font-black text-slate-950">サービス</h3>
+              <div className="mt-4 space-y-3 text-[15px] font-semibold text-slate-600">
+                <Link href="/" className="block hover:text-slate-950">
+                  企業向け
+                </Link>
+                <Link href="/search" className="block hover:text-slate-950">
+                  インフルエンサー検索
+                </Link>
+                <Link href="/login" className="block hover:text-slate-950">
+                  ログイン
+                </Link>
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              {["SNS: Instagram", "カテゴリ: 美容・コスメ", "価格帯: 〜¥50,000", "地域: 東京都"].map(
-                (filter) => (
-                  <span
-                    key={filter}
-                    className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-500"
-                  >
-                    {filter}
-                  </span>
-                )
-              )}
-            </div>
-
-            <p className="mt-5 text-sm font-bold text-slate-400">
-              246件のインフルエンサーが見つかりました
-            </p>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              {[
-                ["Yuki S.", "12.4万", "美容", "¥35,000〜"],
-                ["Haruto K.", "8.2万", "グルメ", "¥28,000〜"],
-                ["Mia T.", "24.1万", "ファッション", "¥55,000〜"],
-                ["Ren O.", "6.8万", "ライフ", "¥22,000〜"],
-              ].map(([name, followers, category, price]) => (
-                <div
-                  key={name}
-                  className="rounded-3xl border border-rose-100 bg-white p-5"
-                >
-                  <div className="mx-auto h-14 w-14 rounded-full bg-gradient-to-br from-rose-100 to-orange-100" />
-                  <p className="mt-4 text-center text-base font-black text-slate-950">
-                    {name}
-                  </p>
-                  <p className="text-center text-sm font-medium text-slate-400">
-                    {followers}
-                  </p>
-                  <div className="mt-3 flex justify-center gap-2">
-                    <span className="rounded-full bg-rose-500 px-2 py-1 text-xs font-bold text-white">
-                      IG
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-                      {category}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-center text-base font-black text-rose-500">
-                    {price}
-                  </p>
-                </div>
-              ))}
+            <div>
+              <h3 className="text-lg font-black text-slate-950">ポリシー</h3>
+              <div className="mt-4 space-y-3 text-[15px] font-semibold text-slate-600">
+                <Link href="/terms" className="block hover:text-slate-950">
+                  利用規約
+                </Link>
+                <Link href="/privacy" className="block hover:text-slate-950">
+                  プライバシーポリシー
+                </Link>
+              </div>
             </div>
           </div>
         </div>
-      </section>
+      </footer>
 
-      <section id="how-it-works" className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
-            かんたん4ステップで
-            <br />
-            すぐに始められます
-          </h2>
-        </div>
-
-        <div className="relative mt-14 space-y-16">
-          <div className="absolute left-7 top-0 h-full border-l-2 border-dashed border-rose-300 sm:left-10" />
-
-          {steps.map((step) => (
-            <div key={step.step} className="relative grid gap-8 sm:grid-cols-[100px_1fr]">
-              <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500 text-center text-sm font-black leading-tight text-white shadow-[0_14px_30px_rgba(244,63,94,0.24)] sm:h-20 sm:w-20">
-                {step.step.replace(" ", "\n")}
-              </div>
-
-              <div className="grid gap-8 rounded-[2rem] bg-white p-6 shadow-[0_16px_45px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 md:grid-cols-[1fr_260px] md:items-center">
-                <div>
-                  <h3 className="text-2xl font-black tracking-tight text-slate-950">
-                    {step.title}
-                  </h3>
-                  <p className="mt-3 text-base font-medium leading-8 text-slate-600">
-                    {step.body}
-                  </p>
-                </div>
-
-                <div className="mx-auto w-[210px] rounded-[2rem] border-[6px] border-slate-900 bg-white p-4 shadow-xl">
-                  <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
-                  <p className="text-center text-sm font-black text-rose-500">
-                    {step.mockTitle}
-                  </p>
-                  <div className="mt-5 space-y-3">
-                    {step.lines.map((line, index) => (
-                      <div
-                        key={line}
-                        className={`rounded-full px-4 py-3 text-sm font-bold ${
-                          index === step.lines.length - 1
-                            ? "bg-rose-500 text-white"
-                            : "bg-rose-50 text-slate-700"
-                        }`}
-                      >
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mx-auto mt-5 h-1 w-10 rounded-full bg-slate-200" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-rose-500 px-5 py-16 sm:px-8">
-        <div className="mx-auto max-w-5xl space-y-5">
-          {[
-            ["POINT. 1", "受ける案件は自分で選べる"],
-            ["POINT. 2", "価格は自分で自由に設定"],
-            ["POINT. 3", "チャットで事前確認できる"],
-            ["POINT. 4", "納品・報酬履歴を一元管理"],
-          ].map(([point, title]) => (
-            <div
-              key={point}
-              className="flex items-center justify-between rounded-3xl bg-white px-6 py-6 shadow-[0_18px_40px_rgba(136,19,55,0.16)]"
-            >
-              <div>
-                <p className="text-xs font-black tracking-[0.18em] text-rose-500">
-                  {point}
-                </p>
-                <h3 className="mt-1 text-xl font-black text-slate-950">
-                  {title}
-                </h3>
-              </div>
-              <span className="text-2xl font-light text-rose-400">⌄</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-5xl px-5 py-20 sm:px-8">
-        <div className="rounded-[2.5rem] bg-slate-950 px-6 py-14 text-center shadow-[0_24px_80px_rgba(15,23,42,0.18)] sm:px-10">
-          <h2 className="text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">
-            プロフィールとメニューを整えるだけで、
-            <br />
-            <span className="text-rose-400">PR案件を受けられる状態に。</span>
-          </h2>
-          <p className="mx-auto mt-6 max-w-2xl text-base font-medium leading-8 text-slate-300">
-            まずは無料登録して、SNS・ポートフォリオ・メニューを追加しましょう。
-            あなたの発信に合う企業からの依頼を受けられるようになります。
-          </p>
-          <div className="mt-8">
-            <Link
-              href="/signup"
-              className="inline-flex h-14 items-center justify-center rounded-full bg-white px-10 text-base font-black text-slate-950 transition hover:bg-slate-100"
-            >
-              無料でインフルエンサー登録
-            </Link>
-          </div>
-          <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm font-bold text-slate-400">
-            <span>登録無料</span>
-            <span>自分で価格設定</span>
-            <span>注文は確認してから承認</span>
-          </div>
-        </div>
-      </section>
-
-      <Footer />
-    </main>
-  );
-}
-
-function Header() {
-  return (
-    <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
-        <Link href="/home" className="flex items-center">
-          <Image
-            src="/brand/trendre-logo-full.png"
-            alt="Trendre"
-            width={120}
-            height={40}
-            className="h-8 w-auto"
-            priority
-          />
-        </Link>
-
-        <nav className="hidden items-center gap-8 text-sm font-bold text-slate-700 md:flex">
-          <Link href="/home" className="hover:text-rose-500">
-            企業向け
-          </Link>
-          <Link href="/b/creators" className="hover:text-rose-500">
-            インフルエンサー検索
-          </Link>
-          <Link href="/login" className="hover:text-rose-500">
-            ログイン
-          </Link>
-        </nav>
-
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:hidden">
         <Link
-          href="/signup"
-          className="rounded-full bg-rose-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_25px_rgba(244,63,94,0.22)] transition hover:bg-rose-600"
+          href="/signup/creator"
+          className="flex w-full items-center justify-center rounded-full bg-rose-500 px-5 py-3.5 text-base font-black text-white shadow-[0_14px_30px_rgba(244,63,94,0.24)]"
         >
-          無料登録
+          無料でインフルエンサー登録
         </Link>
       </div>
-    </header>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-slate-100 bg-white px-5 py-12 sm:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-start md:justify-between">
-        <div>
-          <Image
-            src="/brand/trendre-logo-full.png"
-            alt="Trendre"
-            width={120}
-            height={40}
-            className="h-8 w-auto"
-          />
-          <p className="mt-4 max-w-sm text-sm font-medium leading-7 text-slate-500">
-            Trendreは、日本企業と日本のインフルエンサーをつなぐPR・UGC制作の受注型マーケットプレイスです。
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-10 text-sm font-bold text-slate-700">
-          <div className="space-y-3">
-            <p className="text-slate-950">サービス</p>
-            <Link href="/home" className="block text-slate-500 hover:text-rose-500">
-              企業向け
-            </Link>
-            <Link href="/b/creators" className="block text-slate-500 hover:text-rose-500">
-              インフルエンサー検索
-            </Link>
-            <Link href="/login" className="block text-slate-500 hover:text-rose-500">
-              ログイン
-            </Link>
-          </div>
-          <div className="space-y-3">
-            <p className="text-slate-950">ポリシー</p>
-            <Link href="/terms" className="block text-slate-500 hover:text-rose-500">
-              利用規約
-            </Link>
-            <Link href="/privacy" className="block text-slate-500 hover:text-rose-500">
-              プライバシーポリシー
-            </Link>
-          </div>
-        </div>
-      </div>
-    </footer>
+    </main>
   );
 }
