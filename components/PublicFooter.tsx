@@ -38,7 +38,7 @@ export default function PublicFooter() {
         <div>
           <Link href="/home" className="inline-flex items-center">
             <img
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               className="h-11 w-auto object-contain"
             />

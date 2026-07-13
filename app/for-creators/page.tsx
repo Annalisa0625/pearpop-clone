@@ -24,7 +24,7 @@ const featureCards = [
     icon: "¥",
     title: "納品と報酬を管理",
     description:
-      "納品URLの提出、完了案件、報酬履歴までTrendre上でまとめて確認できます。",
+      "納品URLの提出、完了案件、報酬履歴までTrend Mart上でまとめて確認できます。",
   },
 ];
 
@@ -91,7 +91,7 @@ const steps = [
   {
     step: "STEP 1",
     title: "無料登録",
-    description: "メールアドレスなどを入力して、Trendreアカウントを作成します。",
+    description: "メールアドレスなどを入力して、Trend Martアカウントを作成します。",
     screenTitle: "無料登録",
     items: ["メールアドレス", "パスワード", "登録する"],
   },
@@ -187,7 +187,7 @@ export default function ForCreatorsPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center">
             <Image
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               width={126}
               height={34}
@@ -223,7 +223,7 @@ export default function ForCreatorsPage() {
                 </div>
 
                 <h1 className="text-[2.1rem] font-black leading-[1.13] tracking-tight sm:text-[3.4rem] lg:text-[4rem]">
-                  Trendreと共に
+                  Trend Martと共に
                   <br />
                   <span className="text-rose-500">次のトレンド</span>を
                   <br className="sm:hidden" />
@@ -286,7 +286,7 @@ export default function ForCreatorsPage() {
                   <div className="max-h-[360px] overflow-hidden rounded-[24px] bg-white sm:max-h-[430px]">
                     <Image
                       src="/brand/trendre-home-hero.png"
-                      alt="TrendreでPR案件を受けるイメージ"
+                      alt="Trend MartでPR案件を受けるイメージ"
                       width={1122}
                       height={1402}
                       className="h-auto w-full"
@@ -306,7 +306,7 @@ export default function ForCreatorsPage() {
             PRの受注を、もっと分かりやすく。
           </h2>
           <p className="mt-3 text-[14px] font-semibold leading-7 text-slate-600 sm:text-[17px] sm:leading-8">
-            注文内容、チャット、納品URL、報酬履歴をTrendre上で整理できます。
+            注文内容、チャット、納品URL、報酬履歴をTrend Mart上で整理できます。
           </p>
         </div>
 
@@ -524,14 +524,14 @@ export default function ForCreatorsPage() {
           <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
             <div>
               <Image
-                src="/brand/trendre-logo-full.png"
+                src="/brand/trend-mart-logo.png"
                 alt="Trendre"
                 width={126}
                 height={34}
                 className="h-8 w-auto"
               />
               <p className="mt-4 max-w-md text-sm font-semibold leading-7 text-slate-600">
-                Trendreは、日本企業と日本のインフルエンサーをつなぐPR・UGC制作の受注型マーケットプレイスです。
+                Trend Martは、日本企業と日本のインフルエンサーをつなぐPR・UGC制作の受注型マーケットプレイスです。
               </p>
             </div>
 

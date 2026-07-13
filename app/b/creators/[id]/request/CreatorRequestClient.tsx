@@ -787,7 +787,7 @@ export default function CreatorRequestClient() {
             submitButton: "支払いへ進む",
             orderSummary: "注文サマリー",
             menuPrice: "メニュー価格",
-            marketplaceFee: "Trendre手数料",
+            marketplaceFee: "Trend Mart手数料",
             total: "お支払い合計",
             paymentProtection:
               "支払いはStripeで保護されます。インフルエンサーが辞退した場合、請求は確定しません。",

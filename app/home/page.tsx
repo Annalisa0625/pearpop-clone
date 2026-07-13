@@ -1117,7 +1117,7 @@ function IllustrationSection({ copy }: { copy: Record<string, string> }) {
               <div className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.12)] ring-1 ring-slate-100">
                 <img
                   src="/brand/trendre-search-preview.jpg"
-                  alt="Trendreのインフルエンサー検索画面"
+                  alt="Trend Martのインフルエンサー検索画面"
                   className="w-full object-cover"
                 />
               </div>
@@ -1305,7 +1305,7 @@ function ToolsSection({ copy }: { copy: Record<string, string> }) {
 
             <div className="trendre-tool-center-logo absolute left-1/2 top-1/2 flex h-[132px] w-[260px] -translate-x-1/2 -translate-y-1/2 items-center justify-center">
               <img
-                src="/brand/trendre-logo-full.png"
+                src="/brand/trend-mart-logo.png"
                 alt="Trendre"
                 className="max-h-20 w-full object-contain drop-shadow-[0_18px_38px_rgba(15,23,42,0.18)]"
               />
@@ -1662,7 +1662,7 @@ export default function HomePage() {
             heroLine2: "から",
             heroItalic: '"納品確認"まで。',
             heroBody:
-              "Trendreは、インフルエンサーを検索し、依頼し、チャット・納品・支払いまで一元管理できるインフルエンサーマーケティングSaaSです。",
+              "Trend Martは、インフルエンサーを検索し、依頼し、チャット・納品・支払いまで一元管理できるインフルエンサーマーケティングSaaSです。",
             searchButton: "検索",
             chip1: "注目Instagramインフルエンサー",
             chip2: "TikTokレビュー",
@@ -1673,7 +1673,7 @@ export default function HomePage() {
 
             workflowTitle: "PR案件の流れを、ひとつの画面で。",
             workflowLead:
-              "検索、依頼、承認、チャット、納品確認、支払いまで。案件進行に必要な操作をTrendre上で迷わず進められます。",
+              "検索、依頼、承認、チャット、納品確認、支払いまで。案件進行に必要な操作をTrend Mart上で迷わず進められます。",
 
             illustrationEyebrow: "インフルエンサー検索",
             illustrationTitle: "ターゲット層とニーズに合わせたインフルエンサーを検索",
@@ -1688,7 +1688,7 @@ export default function HomePage() {
             illustrationMini2: "表示価格で依頼",
             illustrationMini3: "納品まで管理",
 
-            toolsTitle: "バラバラの9ツールを、Trendreひとつに。",
+            toolsTitle: "バラバラの9ツールを、Trend Martひとつに。",
             toolsBody:
               "Instagram、TikTok、ChatGPT、スプレッドシート、メール、Drive、Stripeなどに分かれがちなPR業務を、検索から納品確認・支払いまで一画面で進められます。",
             toolsCta: "インフルエンサーを探す",
@@ -1712,7 +1712,7 @@ export default function HomePage() {
             finalAccent: "PR案件の依頼",
             finalLine2: "ができます。",
             finalBody:
-              "まずは検索から。商品や店舗に合うインフルエンサーを見つけて、Trendre上で依頼・納品確認まで進めましょう。",
+              "まずは検索から。商品や店舗に合うインフルエンサーを見つけて、Trend Mart上で依頼・納品確認まで進めましょう。",
             finalPrimary: "インフルエンサーを探す",
             finalSecondary: "無料で企業登録",
             finalMini1: "無料で検索",
@@ -1872,7 +1872,7 @@ export default function HomePage() {
               bullets: ["不明点を事前確認", "条件のすり合わせが可能", "案件ごとに履歴を残せる"],
               metricLabel: "連絡手段",
               metricValue: "案件内チャット",
-              previewTitle: "Trendre内チャット",
+              previewTitle: "Trend Mart内チャット",
               previewBadge: "Chat",
               previewRows: ["配送先を共有", "投稿条件を確認", "不明点を相談"],
               previewCta: "返信する",
@@ -1901,7 +1901,7 @@ export default function HomePage() {
                 "決済にはStripeを導入。企業の決済はインフルエンサー承認後に確定し、納品確認・修正依頼・完了承認の流れを経て報酬支払いへ進みます。",
               bullets: ["Stripe導入の安全な決済", "承認後に決済確定", "完了承認後に報酬支払いへ"],
               metricLabel: "支払い管理",
-              metricValue: "Trendreが管理",
+              metricValue: "Trend Martが管理",
               previewTitle: "支払い情報",
               previewBadge: "Paid",
               previewRows: ["支払い合計を表示", "手数料を確認", "報酬送金を管理"],

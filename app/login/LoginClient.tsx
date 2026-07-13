@@ -132,7 +132,7 @@ export default function LoginClient() {
         ? {
             title: "ログイン",
             subtitle:
-              "Trendreにログインして、案件の確認・やり取りを続けましょう。",
+              "Trend Martにログインして、案件の確認・やり取りを続けましょう。",
             email: "メールアドレス",
             password: "パスワード",
             emailPlaceholder: "company@example.com",
@@ -271,7 +271,7 @@ export default function LoginClient() {
         <header className="flex items-center justify-between">
           <Link href="/home" className="inline-flex items-center">
             <img
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               className="h-6 w-auto object-contain sm:h-8"
             />
@@ -301,7 +301,7 @@ export default function LoginClient() {
 
               <p className="mt-4 max-w-[460px] text-sm font-bold leading-7 text-slate-500">
                 {safeLocale === "ja"
-                  ? "依頼、チャット、納品、承認までをTrendre上でスムーズに進められます。"
+                  ? "依頼、チャット、納品、承認までをTrend Mart上でスムーズに進められます。"
                   : "Move smoothly from orders and chats to delivery and approval on Trendre."}
               </p>
 

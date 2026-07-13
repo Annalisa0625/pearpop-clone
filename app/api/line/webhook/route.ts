@@ -56,7 +56,7 @@ async function handleTextMessage(event: LineWebhookEvent) {
   if (!code) {
     await replyLineText(
       replyToken,
-      "Trendreです。\nLINE連携をする場合は、Trendreの画面で発行した6桁の連携コードを送信してください。"
+      "Trend Martです。\nLINE連携をする場合は、Trend Martの画面で発行した6桁の連携コードを送信してください。"
     );
     return;
   }
@@ -85,7 +85,7 @@ async function handleTextMessage(event: LineWebhookEvent) {
   if (!linkCode) {
     await replyLineText(
       replyToken,
-      "連携コードが見つからないか、有効期限が切れています。\nTrendreの画面で新しいコードを発行してください。"
+      "連携コードが見つからないか、有効期限が切れています。\nTrend Martの画面で新しいコードを発行してください。"
     );
     return;
   }
@@ -140,7 +140,7 @@ async function handleFollowEvent(event: LineWebhookEvent) {
 
   await replyLineText(
     event.replyToken,
-    "Trendre公式アカウントを追加ありがとうございます。\nTrendreの画面でLINE連携コードを発行し、このトークに送信すると通知を受け取れるようになります。"
+    "Trend Mart公式アカウントを追加ありがとうございます。\nTrend Martの画面でLINE連携コードを発行し、このトークに送信すると通知を受け取れるようになります。"
   );
 }
 

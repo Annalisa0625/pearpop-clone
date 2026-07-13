@@ -360,7 +360,7 @@ export default function BLayoutShell({ children }: { children: ReactNode }) {
             aria-label="Trendre"
           >
             <img
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               className="h-8 w-auto object-contain md:h-9"
             />

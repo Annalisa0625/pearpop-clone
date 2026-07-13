@@ -761,7 +761,7 @@ export default function SignupCreatorClient() {
             lineSetupHeadline:
               "注文を見逃さないために、LINE通知を設定しましょう",
             lineSetupLead:
-              "ボタンを押すとLINEに移動します。許可後は自動でTrendreに戻り、通知連携が完了します。",
+              "ボタンを押すとLINEに移動します。許可後は自動でTrend Martに戻り、通知連携が完了します。",
             lineBenefitOrder: "新しい注文が届いたらすぐ通知",
             lineBenefitChat: "チャットや修正依頼も見逃しにくい",
             lineBenefitPrivate: "LINEの友だちや企業には表示されません",
@@ -769,7 +769,7 @@ export default function SignupCreatorClient() {
             lineStepSend: "2. コードを送信",
             lineStepDone: "3. 連携完了",
             lineCodeLabel: "連携コード",
-            lineCodeHelp: "このコードをTrendre公式LINEのトークに送信してください。",
+            lineCodeHelp: "このコードをTrend Mart公式LINEのトークに送信してください。",
             lineOpenButton: "LINEで通知を受け取る",
             lineCopyCode: "コードをコピー",
             lineCopied: "コードをコピーしました",
@@ -2053,7 +2053,7 @@ export default function SignupCreatorClient() {
         <header className="mx-auto flex w-full max-w-[920px] items-center justify-between px-4 py-3">
           <Link href="/for-creators" className="inline-flex items-center">
             <img
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               className="h-7 w-auto object-contain"
             />
@@ -2793,7 +2793,7 @@ export default function SignupCreatorClient() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
           <div className="w-full max-w-[380px] rounded-[30px] bg-white p-5 text-center shadow-[0_24px_80px_rgba(15,23,42,0.22)] ring-1 ring-slate-100">
             <img
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               className="mx-auto h-8 w-auto object-contain"
             />
@@ -2820,7 +2820,7 @@ export default function SignupCreatorClient() {
       <header className="mx-auto flex w-full max-w-[760px] items-center justify-between px-4 py-3">
         <Link href="/for-creators" className="inline-flex items-center">
           <img
-            src="/brand/trendre-logo-full.png"
+            src="/brand/trend-mart-logo.png"
             alt="Trendre"
             className="h-7 w-auto object-contain"
           />

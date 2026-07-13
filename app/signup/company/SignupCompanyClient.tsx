@@ -437,7 +437,7 @@ export default function SignupCompanyClient() {
         <div className="mb-5 flex items-center justify-center">
           <Link href="/home" className="inline-flex items-center">
             <img
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               className="h-9 w-auto object-contain"
             />

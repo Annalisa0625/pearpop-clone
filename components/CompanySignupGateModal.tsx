@@ -89,7 +89,7 @@ export default function CompanySignupGateModal({
           badge: "企業アカウントが必要です",
           title: "このインフルエンサーに依頼するには企業アカウントが必要です",
           body:
-            "無料登録すると、表示価格の確認、依頼、支払い、納品確認までTrendre上で進められます。",
+            "無料登録すると、表示価格の確認、依頼、支払い、納品確認までTrend Mart上で進められます。",
           primary: "無料で企業登録",
           secondary: "ログイン",
           close: "あとで見る",
@@ -130,7 +130,7 @@ export default function CompanySignupGateModal({
         <div className="w-full max-w-[520px]">
           <div className="mb-5 flex items-center justify-center">
             <img
-              src="/brand/trendre-logo-full.png"
+              src="/brand/trend-mart-logo.png"
               alt="Trendre"
               className="h-8 w-auto object-contain md:h-9"
             />

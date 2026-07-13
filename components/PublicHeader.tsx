@@ -101,7 +101,7 @@ export default function PublicHeader() {
           aria-label="Trendre Home"
         >
           <img
-            src="/brand/trendre-logo-full.png"
+            src="/brand/trend-mart-logo.png"
             alt="Trendre"
             className="h-8 w-auto object-contain md:h-9"
           />

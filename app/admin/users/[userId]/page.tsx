@@ -335,7 +335,7 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [noticeTitle, setNoticeTitle] = useState("Trendreからのお知らせ");
+  const [noticeTitle, setNoticeTitle] = useState("Trend Martからのお知らせ");
   const [noticeBody, setNoticeBody] = useState("");
   const [noticeLinkPath, setNoticeLinkPath] = useState("");
   const [noticeSending, setNoticeSending] = useState(false);
@@ -855,7 +855,7 @@ export default function AdminUserDetailPage() {
                     label="タイトル"
                     value={noticeTitle}
                     onChange={setNoticeTitle}
-                    placeholder="Trendreからのお知らせ"
+                    placeholder="Trend Martからのお知らせ"
                   />
 
                   <TextArea

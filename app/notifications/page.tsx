@@ -204,7 +204,7 @@ function getNotificationText(item: NotificationRow, locale: "ja" | "en") {
 
       case "admin_notice":
         return {
-          title: item.title || "Trendreからのお知らせ",
+          title: item.title || "Trend Martからのお知らせ",
           body: item.body || "重要なお知らせがあります。",
         };
 
@@ -609,7 +609,7 @@ export default function NotificationsPage() {
             directEmpty: "あなた宛の通知はありません",
             directEmptyBody: "注文・メッセージ・納品などの通知がここに表示されます。",
             newsEmpty: "お知らせはありません",
-            newsEmptyBody: "Trendreからのお知らせや重要な案内がここに表示されます。",
+            newsEmptyBody: "Trend Martからのお知らせや重要な案内がここに表示されます。",
             loadFailed: "通知の取得に失敗しました。",
             readFailed: "既読処理に失敗しました。",
             login: "ログイン",

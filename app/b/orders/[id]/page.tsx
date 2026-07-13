@@ -1476,7 +1476,7 @@ function ChatPanel({
   locale: Locale;
 }) {
   const title = creator?.display_name || copy.influencer;
-  const subtitle = locale === "ja" ? "Trendre内チャット" : "Trendre chat";
+  const subtitle = locale === "ja" ? "Trend Mart内チャット" : "Trend Mart chat";
 
   return (
     <Card className="overflow-hidden p-0 lg:sticky lg:top-24">
@@ -1785,7 +1785,7 @@ export default function CompanyOrderDetailPage() {
 
             paymentTitle: "支払い情報",
             paymentBody:
-              "お支払いはTrendreが管理します。案件完了後、報酬がインフルエンサーへ支払われます。",
+              "お支払いはTrend Martが管理します。案件完了後、報酬がインフルエンサーへ支払われます。",
             paymentPaid: "支払い済み",
             paymentAuthorized: "支払い方法確認済み",
             paymentDetailTitle: "支払い日付・明細",
