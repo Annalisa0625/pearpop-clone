@@ -96,16 +96,16 @@ export default function PublicHeader() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center px-4 py-4 md:px-6 lg:py-5">
         <Link
-          href="/home"
-          className="flex items-center"
-          aria-label="Trendre Home"
-        >
-          <img
-            src="/brand/trend-mart-logo.png"
-            alt="Trendre"
-            className="h-8 w-auto object-contain md:h-9"
-          />
-        </Link>
+  href="/home"
+  className="flex items-center"
+  aria-label="Trend Mart Home"
+>
+  <img
+    src="/brand/trend-mart-logo.png"
+    alt="Trend Mart"
+    className="h-[22px] w-auto object-contain md:h-[25px]"
+  />
+</Link>
 
         <nav className="hidden items-center justify-center gap-9 text-sm font-black text-slate-700 md:flex">
           <button
