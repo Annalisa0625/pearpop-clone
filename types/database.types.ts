@@ -195,6 +195,84 @@ export type Database = {
         }
         Relationships: []
       }
+      creator_inquiries: {
+        Row: {
+          budget_text: string | null
+          company_name: string | null
+          company_user_id: string | null
+          contact_email: string
+          contact_name: string | null
+          contact_phone: string | null
+          converted_order_id: string | null
+          converted_request_id: string | null
+          created_at: string
+          creator_id: string
+          creator_user_id: string
+          desired_timing: string | null
+          id: string
+          inquiry_type: string
+          ip_address: string | null
+          message: string | null
+          product_name: string | null
+          product_url: string | null
+          referrer_url: string | null
+          source: string
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          budget_text?: string | null
+          company_name?: string | null
+          company_user_id?: string | null
+          contact_email: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_order_id?: string | null
+          converted_request_id?: string | null
+          created_at?: string
+          creator_id: string
+          creator_user_id: string
+          desired_timing?: string | null
+          id?: string
+          inquiry_type: string
+          ip_address?: string | null
+          message?: string | null
+          product_name?: string | null
+          product_url?: string | null
+          referrer_url?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          budget_text?: string | null
+          company_name?: string | null
+          company_user_id?: string | null
+          contact_email?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_order_id?: string | null
+          converted_request_id?: string | null
+          created_at?: string
+          creator_id?: string
+          creator_user_id?: string
+          desired_timing?: string | null
+          id?: string
+          inquiry_type?: string
+          ip_address?: string | null
+          message?: string | null
+          product_name?: string | null
+          product_url?: string | null
+          referrer_url?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       creator_menus: {
         Row: {
           account_url: string | null
@@ -459,6 +537,7 @@ export type Database = {
           phone_number: string | null
           phone_verified_at: string | null
           prefecture: string | null
+          public_slug: string | null
           rating: number | null
           response_language: string | null
           stripe_account_id: string | null
@@ -491,6 +570,7 @@ export type Database = {
           phone_number?: string | null
           phone_verified_at?: string | null
           prefecture?: string | null
+          public_slug?: string | null
           rating?: number | null
           response_language?: string | null
           stripe_account_id?: string | null
@@ -523,6 +603,7 @@ export type Database = {
           phone_number?: string | null
           phone_verified_at?: string | null
           prefecture?: string | null
+          public_slug?: string | null
           rating?: number | null
           response_language?: string | null
           stripe_account_id?: string | null
