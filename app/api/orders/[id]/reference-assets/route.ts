@@ -68,14 +68,14 @@ async function getAuthenticatedUser(args: {
   const authResult: any = await withTimeout(
     args.supabaseAdmin.auth.getUser(args.token),
     AUTH_TIMEOUT_MS,
-    "髫ｱ蟠趣ｽｨ・ｼ隲繝ｻ・ｰ・ｱ邵ｺ・ｮ驕抵ｽｺ髫ｱ髦ｪ竊楢ｭ弱ｋ菫｣邵ｺ蠕個ｰ邵ｺ荵昶夢邵ｺ・ｦ邵ｺ繝ｻ竏ｪ邵ｺ繝ｻ
+    "認証情報の確認に時間がかかっています"
   );
 
   const user = authResult?.data?.user ?? null;
   const error = authResult?.error ?? null;
 
   if (error || !user) {
-    return { user: null, error: "髫ｱ蟠趣ｽｨ・ｼ邵ｺ・ｫ陞滂ｽｱ隰ｨ蜉ｱ・邵ｺ・ｾ邵ｺ蜉ｱ笳・ };
+    return { user: null, error: "認証に失敗しました" };
   }
 
   return { user, error: null };
@@ -116,7 +116,7 @@ export async function GET(
 
     if (!token) {
       return NextResponse.json(
-        { error: "髫ｱ蟠趣ｽｨ・ｼ郢晏現繝ｻ郢ｧ・ｯ郢晢ｽｳ邵ｺ蠕娯旺郢ｧ鄙ｫ竏ｪ邵ｺ蟶呻ｽ・ },
+        { error: "認証トークンがありません" },
         { status: 401 }
       );
     }
@@ -125,7 +125,7 @@ export async function GET(
 
     if (!id) {
       return NextResponse.json(
-        { error: "雎包ｽｨ隴≫束D邵ｺ蠕娯旺郢ｧ鄙ｫ竏ｪ邵ｺ蟶呻ｽ・ },
+        { error: "注文IDがありません" },
         { status: 400 }
       );
     }
@@ -168,7 +168,7 @@ export async function GET(
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }),
       DB_TIMEOUT_MS,
-      "陷ｿ繧環繝ｻ・ｳ繝ｻ萓ｭ邵ｺ・ｮ陷ｿ髢・ｾ蜉ｱ竊楢ｭ弱ｋ菫｣邵ｺ蠕個ｰ邵ｺ荵昶夢邵ｺ・ｦ邵ｺ繝ｻ竏ｪ邵ｺ繝ｻ
+      "参考資料の取得に時間がかかっています"
     );
 
     if (result?.error) {
@@ -209,7 +209,7 @@ export async function GET(
     console.error("order reference assets error", error);
 
     return NextResponse.json(
-      { error: "陷ｿ繧環繝ｻ・ｳ繝ｻ萓ｭ郢ｧ雋槫徐陟募干縲堤ｸｺ髦ｪ竏ｪ邵ｺ蟶呻ｽ鍋ｸｺ・ｧ邵ｺ蜉ｱ笳・, assets: [] },
+      { error: "参考資料を取得できませんでした", assets: [] },
       { status: 200 }
     );
   }
