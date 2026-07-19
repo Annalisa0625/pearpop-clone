@@ -211,15 +211,27 @@ export type Database = {
           desired_timing: string | null
           id: string
           inquiry_type: string
+          inquiry_type_id: string | null
+          inquiry_type_title_snapshot: string | null
           ip_address: string | null
+          link_page_id: string | null
           message: string | null
+          offer_type: string | null
           product_name: string | null
           product_url: string | null
+          public_reference: string | null
+          purpose: string | null
           referrer_url: string | null
+          requested_platform: string | null
           source: string
           status: string
+          submitter_kind: string
           updated_at: string
           user_agent: string | null
+          verification_expires_at: string | null
+          verification_status: string
+          verification_token_hash: string | null
+          verified_at: string | null
         }
         Insert: {
           budget_text?: string | null
@@ -236,15 +248,27 @@ export type Database = {
           desired_timing?: string | null
           id?: string
           inquiry_type: string
+          inquiry_type_id?: string | null
+          inquiry_type_title_snapshot?: string | null
           ip_address?: string | null
+          link_page_id?: string | null
           message?: string | null
+          offer_type?: string | null
           product_name?: string | null
           product_url?: string | null
+          public_reference?: string | null
+          purpose?: string | null
           referrer_url?: string | null
+          requested_platform?: string | null
           source?: string
           status?: string
+          submitter_kind?: string
           updated_at?: string
           user_agent?: string | null
+          verification_expires_at?: string | null
+          verification_status?: string
+          verification_token_hash?: string | null
+          verified_at?: string | null
         }
         Update: {
           budget_text?: string | null
@@ -261,17 +285,221 @@ export type Database = {
           desired_timing?: string | null
           id?: string
           inquiry_type?: string
+          inquiry_type_id?: string | null
+          inquiry_type_title_snapshot?: string | null
           ip_address?: string | null
+          link_page_id?: string | null
           message?: string | null
+          offer_type?: string | null
           product_name?: string | null
           product_url?: string | null
+          public_reference?: string | null
+          purpose?: string | null
           referrer_url?: string | null
+          requested_platform?: string | null
           source?: string
           status?: string
+          submitter_kind?: string
           updated_at?: string
           user_agent?: string | null
+          verification_expires_at?: string | null
+          verification_status?: string
+          verification_token_hash?: string | null
+          verified_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "creator_inquiries_inquiry_type_id_fkey"
+            columns: ["inquiry_type_id"]
+            isOneToOne: false
+            referencedRelation: "creator_link_inquiry_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_inquiries_link_page_id_fkey"
+            columns: ["link_page_id"]
+            isOneToOne: false
+            referencedRelation: "creator_link_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_link_inquiry_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_custom: boolean
+          is_enabled: boolean
+          page_id: string
+          sort_order: number
+          template_key: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_custom?: boolean
+          is_enabled?: boolean
+          page_id: string
+          sort_order?: number
+          template_key?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_custom?: boolean
+          is_enabled?: boolean
+          page_id?: string
+          sort_order?: number
+          template_key?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_link_inquiry_types_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "creator_link_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_link_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_visible: boolean
+          item_type: string
+          metadata: Json
+          page_id: string
+          platform: string | null
+          sort_order: number
+          title: string | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_visible?: boolean
+          item_type: string
+          metadata?: Json
+          page_id: string
+          platform?: string | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_visible?: boolean
+          item_type?: string
+          metadata?: Json
+          page_id?: string
+          platform?: string | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_link_items_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "creator_link_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_link_pages: {
+        Row: {
+          accent_color: string | null
+          avatar_url: string | null
+          bio: string | null
+          button_style: string
+          cover_url: string | null
+          created_at: string
+          creator_id: string
+          display_name: string
+          font_style: string
+          id: string
+          is_accepting_inquiries: boolean
+          owner_user_id: string
+          published_at: string | null
+          setup_completed_at: string | null
+          setup_step: number
+          slug: string
+          status: string
+          theme_key: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          button_style?: string
+          cover_url?: string | null
+          created_at?: string
+          creator_id: string
+          display_name: string
+          font_style?: string
+          id?: string
+          is_accepting_inquiries?: boolean
+          owner_user_id: string
+          published_at?: string | null
+          setup_completed_at?: string | null
+          setup_step?: number
+          slug: string
+          status?: string
+          theme_key?: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          button_style?: string
+          cover_url?: string | null
+          created_at?: string
+          creator_id?: string
+          display_name?: string
+          font_style?: string
+          id?: string
+          is_accepting_inquiries?: boolean
+          owner_user_id?: string
+          published_at?: string | null
+          setup_completed_at?: string | null
+          setup_step?: number
+          slug?: string
+          status?: string
+          theme_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_link_pages_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creator_menus: {
         Row: {
@@ -2085,6 +2313,14 @@ export type Database = {
         Returns: {
           creator_id: string
         }[]
+      }
+      is_creator_link_slug_available: {
+        Args: {
+          p_exclude_page_id?: string
+          p_owner_user_id?: string
+          p_slug: string
+        }
+        Returns: boolean
       }
       is_limit_trading: { Args: { p_user_id: string }; Returns: boolean }
       mark_chat_read: {
