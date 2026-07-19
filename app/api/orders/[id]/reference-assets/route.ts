@@ -1,4 +1,4 @@
-// File: app/api/orders/[orderId]/reference-assets/route.ts
+// File: app/api/orders/[id]/reference-assets/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -68,14 +68,14 @@ async function getAuthenticatedUser(args: {
   const authResult: any = await withTimeout(
     args.supabaseAdmin.auth.getUser(args.token),
     AUTH_TIMEOUT_MS,
-    "認証情報の確認に時間がかかっています"
+    "髫ｱ蟠趣ｽｨ・ｼ隲繝ｻ・ｰ・ｱ邵ｺ・ｮ驕抵ｽｺ髫ｱ髦ｪ竊楢ｭ弱ｋ菫｣邵ｺ蠕個ｰ邵ｺ荵昶夢邵ｺ・ｦ邵ｺ繝ｻ竏ｪ邵ｺ繝ｻ
   );
 
   const user = authResult?.data?.user ?? null;
   const error = authResult?.error ?? null;
 
   if (error || !user) {
-    return { user: null, error: "認証に失敗しました" };
+    return { user: null, error: "髫ｱ蟠趣ｽｨ・ｼ邵ｺ・ｫ陞滂ｽｱ隰ｨ蜉ｱ・邵ｺ・ｾ邵ｺ蜉ｱ笳・ };
   }
 
   return { user, error: null };
@@ -109,23 +109,23 @@ async function createSignedUrlSafe(args: {
 
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ orderId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = getBearerToken(req);
 
     if (!token) {
       return NextResponse.json(
-        { error: "認証トークンがありません" },
+        { error: "髫ｱ蟠趣ｽｨ・ｼ郢晏現繝ｻ郢ｧ・ｯ郢晢ｽｳ邵ｺ蠕娯旺郢ｧ鄙ｫ竏ｪ邵ｺ蟶呻ｽ・ },
         { status: 401 }
       );
     }
 
-    const { orderId } = await context.params;
+    const { id } = await context.params;
 
-    if (!orderId) {
+    if (!id) {
       return NextResponse.json(
-        { error: "注文IDがありません" },
+        { error: "雎包ｽｨ隴≫束D邵ｺ蠕娯旺郢ｧ鄙ｫ竏ｪ邵ｺ蟶呻ｽ・ },
         { status: 400 }
       );
     }
@@ -161,14 +161,14 @@ export async function GET(
           created_at
         `
         )
-        .eq("order_id", orderId)
+        .eq("order_id", id)
         .or(
           `b_user_id.eq.${user.id},creator_user_id.eq.${user.id},uploaded_by_user_id.eq.${user.id}`
         )
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }),
       DB_TIMEOUT_MS,
-      "参考資料の取得に時間がかかっています"
+      "陷ｿ繧環繝ｻ・ｳ繝ｻ萓ｭ邵ｺ・ｮ陷ｿ髢・ｾ蜉ｱ竊楢ｭ弱ｋ菫｣邵ｺ蠕個ｰ邵ｺ荵昶夢邵ｺ・ｦ邵ｺ繝ｻ竏ｪ邵ｺ繝ｻ
     );
 
     if (result?.error) {
@@ -209,7 +209,7 @@ export async function GET(
     console.error("order reference assets error", error);
 
     return NextResponse.json(
-      { error: "参考資料を取得できませんでした", assets: [] },
+      { error: "陷ｿ繧環繝ｻ・ｳ繝ｻ萓ｭ郢ｧ雋槫徐陟募干縲堤ｸｺ髦ｪ竏ｪ邵ｺ蟶呻ｽ鍋ｸｺ・ｧ邵ｺ蜉ｱ笳・, assets: [] },
       { status: 200 }
     );
   }
