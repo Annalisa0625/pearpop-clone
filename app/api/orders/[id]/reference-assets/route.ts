@@ -1,4 +1,4 @@
-// File: app/api/orders/[orderId]/reference-assets/route.ts
+// File: app/api/orders/[id]/reference-assets/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -109,7 +109,7 @@ async function createSignedUrlSafe(args: {
 
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ orderId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = getBearerToken(req);
@@ -121,9 +121,9 @@ export async function GET(
       );
     }
 
-    const { orderId } = await context.params;
+    const { id } = await context.params;
 
-    if (!orderId) {
+    if (!id) {
       return NextResponse.json(
         { error: "注文IDがありません" },
         { status: 400 }
@@ -161,7 +161,7 @@ export async function GET(
           created_at
         `
         )
-        .eq("order_id", orderId)
+        .eq("order_id", id)
         .or(
           `b_user_id.eq.${user.id},creator_user_id.eq.${user.id},uploaded_by_user_id.eq.${user.id}`
         )
