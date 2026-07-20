@@ -173,6 +173,24 @@ function EditIcon({ className = "" }: IconProps) {
   );
 }
 
+function LinkIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1" />
+      <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1" />
+    </svg>
+  );
+}
+
 function ShieldIcon({ className = "" }: IconProps) {
   return (
     <svg
@@ -299,7 +317,8 @@ function isGuardExcludedPath(pathname: string) {
   return (
     pathname.startsWith("/creator/profile") ||
     pathname.startsWith("/creator/payouts") ||
-    pathname.startsWith("/creator/onboarding")
+    pathname.startsWith("/creator/onboarding") ||
+    pathname.startsWith("/creator/link")
   );
 }
 
@@ -346,6 +365,7 @@ export default function CreatorLayoutShell({
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
+  const isTrendreLinkPage = pathname.startsWith("/creator/link");
 
   const copy = useMemo(
     () =>
@@ -365,6 +385,8 @@ export default function CreatorLayoutShell({
             profileBody: "表示名・写真・ポートフォリオ",
             menus: "メニュー編集",
             menusBody: "価格・投稿内容を編集",
+            trendreLink: "Trendre Link",
+            trendreLinkBody: "仕事相談リンクを編集",
             payoutSetting: "報酬設定",
             payoutBody: "受け取り・送金状況",
             help: "ヘルプ",
@@ -395,6 +417,8 @@ export default function CreatorLayoutShell({
             profileBody: "Name, photo, portfolio",
             menus: "Edit menus",
             menusBody: "Pricing and services",
+            trendreLink: "Trendre Link",
+            trendreLinkBody: "Edit your work inquiry link",
             payoutSetting: "Payout settings",
             payoutBody: "Payouts and transfers",
             help: "Help",
@@ -630,6 +654,10 @@ export default function CreatorLayoutShell({
     }
   };
 
+  if (isTrendreLinkPage) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="trendre-app-shell trendre-min-screen overflow-x-hidden bg-[#f8f9fb] text-slate-950">
       <header className="fixed inset-x-0 top-0 z-[100] border-b border-slate-100 bg-white/95 backdrop-blur-xl">
@@ -644,33 +672,50 @@ export default function CreatorLayoutShell({
           </div>
         ) : null}
 
-        <div className="mx-auto flex h-[64px] max-w-5xl items-center justify-between gap-3 px-4 md:px-6">
-          <Link
-            href="/creator/dashboard"
-            className="flex min-w-0 items-center"
-            aria-label="Trendre"
-          >
-            <img
-              src="/brand/trend-mart-logo.png"
-              alt="Trendre"
-              className="h-8 w-auto object-contain"
-            />
-          </Link>
+        <div className={`mx-auto flex h-[64px] items-center justify-between gap-3 px-4 md:px-6 ${isTrendreLinkPage ? "max-w-7xl" : "max-w-5xl"}`}>
+          {isTrendreLinkPage ? (
+            <Link href="/creator/link" className="flex min-w-0 items-center gap-2" aria-label="Trendre Link">
+              <span className="text-base font-semibold tracking-[-0.03em] text-slate-950">
+                Trendre Link
+              </span>
+              <span className="border-l border-slate-200 pl-2 text-[10px] font-medium text-slate-400">
+                by Trendre
+              </span>
+            </Link>
+          ) : (
+            <Link
+              href="/creator/dashboard"
+              className="flex min-w-0 items-center"
+              aria-label="Trendre"
+            >
+              <img
+                src="/brand/trend-mart-logo.png"
+                alt="Trendre"
+                className="h-8 w-auto object-contain"
+              />
+            </Link>
+          )}
 
           <div className="relative flex items-center gap-2">
-            <NotificationBell
-              href="/notifications"
-              label={copy.notifications}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
-            />
+            {isTrendreLinkPage ? <div id="trendre-link-header-action" /> : null}
 
-            <Link
-              href="/creator/jobs"
-              aria-label={copy.waitingWork}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
-            >
-              <CheckCircleIcon className="h-[21px] w-[21px]" />
-            </Link>
+            {!isTrendreLinkPage ? (
+              <>
+                <NotificationBell
+                  href="/notifications"
+                  label={copy.notifications}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
+                />
+
+                <Link
+                  href="/creator/jobs"
+                  aria-label={copy.waitingWork}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm ring-1 ring-slate-100 transition duration-200 hover:bg-slate-50 active:scale-95"
+                >
+                  <CheckCircleIcon className="h-[21px] w-[21px]" />
+                </Link>
+              </>
+            ) : null}
 
             <button
               type="button"
@@ -717,6 +762,14 @@ export default function CreatorLayoutShell({
                       icon={<EditIcon className="h-5 w-5" />}
                       title={copy.menus}
                       body={copy.menusBody}
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+
+                    <UserMenuLink
+                      href="/creator/link"
+                      icon={<LinkIcon className="h-5 w-5" />}
+                      title={copy.trendreLink}
+                      body={copy.trendreLinkBody}
                       onClick={() => setUserMenuOpen(false)}
                     />
 
@@ -809,14 +862,15 @@ export default function CreatorLayoutShell({
       </header>
 
       <main
-        className={`mx-auto w-full max-w-5xl overflow-x-hidden px-4 md:px-6 ${
-          limitReason ? "pt-[122px]" : "pt-[84px]"
-        }`}
+        className={`mx-auto w-full overflow-x-hidden ${
+          isTrendreLinkPage ? "max-w-none px-0" : "max-w-5xl px-4 md:px-6"
+        } ${limitReason ? "pt-[122px]" : isTrendreLinkPage ? "pt-[64px]" : "pt-[84px]"}`}
       >
         {children}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-14px_36px_rgba(15,23,42,0.07)] backdrop-blur-xl">
+      {!isTrendreLinkPage ? (
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-14px_36px_rgba(15,23,42,0.07)] backdrop-blur-xl">
         <div className="mx-auto grid max-w-[520px] grid-cols-5 gap-1">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailNavContext);
@@ -852,7 +906,8 @@ export default function CreatorLayoutShell({
             );
           })}
         </div>
-      </nav>
+        </nav>
+      ) : null}
     </div>
   );
 }

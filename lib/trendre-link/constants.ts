@@ -6,6 +6,8 @@ export const CREATOR_LINK_THEMES = [
 ] as const;
 
 export const CREATOR_LINK_STATUSES = ["draft", "published", "private"] as const;
+export const CREATOR_LINK_BUTTON_STYLES = ["rounded", "pill", "square", "glass"] as const;
+export const CREATOR_LINK_FONT_STYLES = ["modern", "soft", "serif", "bold"] as const;
 
 export const CREATOR_LINK_ITEM_TYPES = [
   "social",
@@ -59,6 +61,8 @@ export const RESERVED_CREATOR_LINK_SLUGS = [
 
 export type CreatorLinkTheme = (typeof CREATOR_LINK_THEMES)[number];
 export type CreatorLinkStatus = (typeof CREATOR_LINK_STATUSES)[number];
+export type CreatorLinkButtonStyle = (typeof CREATOR_LINK_BUTTON_STYLES)[number];
+export type CreatorLinkFontStyle = (typeof CREATOR_LINK_FONT_STYLES)[number];
 export type CreatorLinkItemType = (typeof CREATOR_LINK_ITEM_TYPES)[number];
 export type CreatorLinkInquiryTemplate =
   (typeof CREATOR_LINK_INQUIRY_TEMPLATES)[number];
@@ -73,6 +77,14 @@ export function isCreatorLinkTheme(value: string): value is CreatorLinkTheme {
 
 export function isCreatorLinkStatus(value: string): value is CreatorLinkStatus {
   return includesValue(CREATOR_LINK_STATUSES, value);
+}
+
+export function isCreatorLinkButtonStyle(value: string): value is CreatorLinkButtonStyle {
+  return includesValue(CREATOR_LINK_BUTTON_STYLES, value);
+}
+
+export function isCreatorLinkFontStyle(value: string): value is CreatorLinkFontStyle {
+  return includesValue(CREATOR_LINK_FONT_STYLES, value);
 }
 
 export function isCreatorLinkItemType(value: string): value is CreatorLinkItemType {
