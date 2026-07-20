@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { useAppLocale } from "@/lib/i18n/locale";
 
 function normalizeNextPath(value: string | null) {
@@ -203,12 +204,9 @@ export default function LoginClient() {
     setError("");
     setOauthLoading(true);
 
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: getOAuthRedirectUrl(safeNextPath),
-      },
-    });
+    const { error: oauthError } = await signInWithGoogle(
+      getOAuthRedirectUrl(safeNextPath)
+    );
 
     if (oauthError) {
       console.error(oauthError);

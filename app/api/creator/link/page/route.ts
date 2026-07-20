@@ -100,6 +100,10 @@ export async function PATCH(request: NextRequest) {
     return errorResponse("ページIDが不正です。", 400);
   }
 
+  if (status === "published" && !displayName) {
+    return errorResponse("公開する前に表示名を設定してください。", 400);
+  }
+
   if (!displayName) {
     return errorResponse("表示名を入力してください。", 400);
   }
@@ -118,7 +122,7 @@ export async function PATCH(request: NextRequest) {
 
   const slugValidation = validateCreatorLinkSlug(slugInput);
   if (!slugValidation.valid) {
-    return errorResponse("slugの形式が正しくありません。", 400);
+    return errorResponse(status === "published" ? "公開URLを確認してください。" : "slugの形式が正しくありません。", 400);
   }
 
   if (!isCreatorLinkTheme(themeKey)) {

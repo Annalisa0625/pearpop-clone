@@ -48,8 +48,7 @@ function getDisplayName(user: User): string {
     metadataText(user, "display_name") ??
     metadataText(user, "full_name") ??
     metadataText(user, "name") ??
-    user.email?.split("@")[0]?.trim() ??
-    "Creator"
+    ""
   );
 }
 
@@ -337,6 +336,7 @@ async function createPage(
         avatar_url: creator.avatar_url,
         cover_url: creator.cover_image_url,
         status: "draft",
+        is_accepting_inquiries: false,
         setup_step: 0,
       })
       .select("*")
@@ -415,6 +415,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       createdCreator,
       createdPage: pageResult.created,
+      isNewLink: pageResult.created,
       page: toPage(pageResult.page),
       items: (itemsResult.data ?? []).map(toItem),
       inquiryTypes: (inquiryTypesResult.data ?? []).map(toInquiryType),

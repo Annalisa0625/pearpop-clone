@@ -66,6 +66,7 @@ export type CreatorLinkBootstrapResponse =
       ok: true;
       createdCreator: boolean;
       createdPage: boolean;
+      isNewLink: boolean;
       page: CreatorLinkPage;
       items: CreatorLinkItem[];
       inquiryTypes: CreatorLinkInquiryType[];
