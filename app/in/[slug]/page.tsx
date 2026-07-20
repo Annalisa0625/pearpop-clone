@@ -2,8 +2,28 @@
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  isCreatorLinkInquiryTemplate,
+  isCreatorLinkItemType,
+  isCreatorLinkStatus,
+  isCreatorLinkTheme,
+  isCreatorLinkButtonStyle,
+  isCreatorLinkFontStyle,
+  type CreatorLinkInquiryTemplate,
+  type CreatorLinkItemType,
+  type CreatorLinkStatus,
+  type CreatorLinkTheme,
+  type CreatorLinkButtonStyle,
+  type CreatorLinkFontStyle,
+} from "@/lib/trendre-link/constants";
+import { normalizeCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
+import type { Database } from "@/types/database.types";
 import RequestForm from "./RequestForm";
+import TrendreLinkPublicView, {
+  type TrendreLinkPublicData,
+} from "./TrendreLinkPublicView";
 
 type PageProps = {
   params: Promise<{
@@ -48,6 +68,38 @@ type CreatorMenu = {
 type PayoutReadyCreatorRow = {
   creator_id: string;
 };
+
+type CreatorLinkPageRow = Pick<
+  Database["public"]["Tables"]["creator_link_pages"]["Row"],
+  | "id"
+  | "slug"
+  | "display_name"
+  | "bio"
+  | "avatar_url"
+  | "cover_url"
+  | "theme_key"
+  | "accent_color"
+  | "button_style"
+  | "font_style"
+  | "status"
+  | "is_accepting_inquiries"
+>;
+
+type CreatorLinkItemRow = Pick<
+  Database["public"]["Tables"]["creator_link_items"]["Row"],
+  | "item_type"
+  | "platform"
+  | "title"
+  | "description"
+  | "url"
+  | "image_url"
+  | "metadata"
+>;
+
+type CreatorLinkInquiryTypeRow = Pick<
+  Database["public"]["Tables"]["creator_link_inquiry_types"]["Row"],
+  "template_key" | "title" | "description" | "is_custom"
+>;
 
 const requestButtons = [
   {
@@ -109,7 +161,11 @@ function getMenuTypeLabel(value: string | null | undefined) {
 }
 
 function normalizeSlug(value: string) {
-  return decodeURIComponent(value).trim();
+  try {
+    return decodeURIComponent(value).trim();
+  } catch {
+    return "";
+  }
 }
 
 function isUuid(value: string) {
@@ -118,9 +174,173 @@ function isUuid(value: string) {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}
+
+function isCreatorLinkPageRow(
+  value: unknown
+): value is CreatorLinkPageRow & {
+  theme_key: CreatorLinkTheme;
+  status: CreatorLinkStatus;
+  button_style: CreatorLinkButtonStyle;
+  font_style: CreatorLinkFontStyle;
+} {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.slug === "string" &&
+    typeof value.display_name === "string" &&
+    isNullableString(value.bio) &&
+    isNullableString(value.avatar_url) &&
+    isNullableString(value.cover_url) &&
+    typeof value.theme_key === "string" &&
+    isCreatorLinkTheme(value.theme_key) &&
+    isNullableString(value.accent_color) &&
+    typeof value.button_style === "string" && isCreatorLinkButtonStyle(value.button_style) &&
+    typeof value.font_style === "string" && isCreatorLinkFontStyle(value.font_style) &&
+    typeof value.status === "string" &&
+    isCreatorLinkStatus(value.status) &&
+    typeof value.is_accepting_inquiries === "boolean"
+  );
+}
+
+function isCreatorLinkItemRow(
+  value: unknown
+): value is CreatorLinkItemRow & { item_type: CreatorLinkItemType } {
+  return (
+    isRecord(value) &&
+    typeof value.item_type === "string" &&
+    isCreatorLinkItemType(value.item_type) &&
+    isNullableString(value.platform) &&
+    isNullableString(value.title) &&
+    isNullableString(value.description) &&
+    isNullableString(value.url) &&
+    isNullableString(value.image_url)
+  );
+}
+
+function isCreatorLinkInquiryTypeRow(
+  value: unknown
+): value is CreatorLinkInquiryTypeRow & {
+  template_key: CreatorLinkInquiryTemplate | null;
+} {
+  return (
+    isRecord(value) &&
+    (value.template_key === null ||
+      (typeof value.template_key === "string" &&
+        isCreatorLinkInquiryTemplate(value.template_key))) &&
+    typeof value.title === "string" &&
+    isNullableString(value.description) &&
+    typeof value.is_custom === "boolean"
+  );
+}
+
+const loadTrendreLink = cache(
+  async (slug: string): Promise<TrendreLinkPublicData | null> => {
+    const supabase = await createSupabaseServerClient();
+    const normalizedSlug = normalizeSlug(slug);
+
+    if (!normalizedSlug) {
+      return null;
+    }
+
+    const { data: pageData, error: pageError } = await supabase
+      .from("creator_link_pages")
+      .select(
+        "id, slug, display_name, bio, avatar_url, cover_url, theme_key, accent_color, button_style, font_style, status, is_accepting_inquiries"
+      )
+      .eq("slug", normalizedSlug)
+      .eq("status", "published")
+      .maybeSingle();
+
+    if (pageError) {
+      console.error("Trendre Link public page load failed.");
+      return null;
+    }
+
+    const rawPage: unknown = pageData;
+    if (!isCreatorLinkPageRow(rawPage) || rawPage.status !== "published") {
+      return null;
+    }
+
+    const [itemsResult, inquiryTypesResult] = await Promise.all([
+      supabase
+        .from("creator_link_items")
+        .select("item_type, platform, title, description, url, image_url, metadata")
+        .eq("page_id", rawPage.id)
+        .eq("is_visible", true)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("creator_link_inquiry_types")
+        .select("template_key, title, description, is_custom")
+        .eq("page_id", rawPage.id)
+        .eq("is_enabled", true)
+        .order("sort_order", { ascending: true }),
+    ]);
+
+    if (itemsResult.error) {
+      console.error("Trendre Link public items load failed.");
+    }
+    if (inquiryTypesResult.error) {
+      console.error("Trendre Link public inquiry types load failed.");
+    }
+
+    const rawItems: unknown[] = Array.isArray(itemsResult.data)
+      ? itemsResult.data
+      : [];
+    const rawInquiryTypes: unknown[] = Array.isArray(inquiryTypesResult.data)
+      ? inquiryTypesResult.data
+      : [];
+
+    const items = rawItems.filter(isCreatorLinkItemRow).map((item) => ({
+      itemType: item.item_type,
+      platform: item.platform,
+      title: item.title,
+      description: item.description,
+      url: item.url,
+      imageUrl: item.image_url,
+      metadata: normalizeCreatorLinkItemAppearance(item.metadata),
+    }));
+    const inquiryTypes = rawInquiryTypes
+      .filter(isCreatorLinkInquiryTypeRow)
+      .map((inquiryType) => ({
+        templateKey: inquiryType.template_key,
+        title: inquiryType.title,
+        description: inquiryType.description,
+        isCustom: inquiryType.is_custom,
+      }));
+
+    return {
+      page: {
+        slug: rawPage.slug,
+        displayName: rawPage.display_name,
+        bio: rawPage.bio,
+        avatarUrl: rawPage.avatar_url,
+        coverUrl: rawPage.cover_url,
+        themeKey: rawPage.theme_key,
+        accentColor: rawPage.accent_color && /^#[0-9A-Fa-f]{6}$/.test(rawPage.accent_color) ? rawPage.accent_color.toUpperCase() : null,
+        buttonStyle: rawPage.button_style,
+        fontStyle: rawPage.font_style,
+        isAcceptingInquiries: rawPage.is_accepting_inquiries,
+      },
+      items,
+      inquiryTypes,
+    };
+  }
+);
+
 async function loadCreator(slug: string) {
   const supabase = await createSupabaseServerClient();
   const normalizedSlug = normalizeSlug(slug);
+
+  if (!normalizedSlug) {
+    return null;
+  }
 
   let creator: Creator | null = null;
 
@@ -219,6 +439,20 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const trendreLink = await loadTrendreLink(slug);
+
+  if (trendreLink) {
+    const { displayName, bio } = trendreLink.page;
+    const description = bio?.trim()
+      ? bio.trim().replace(/\s+/g, " ").slice(0, 160)
+      : `${displayName}への仕事相談ページです。`;
+
+    return {
+      title: `${displayName} | Trendre Link`,
+      description,
+    };
+  }
+
   const data = await loadCreator(slug);
 
   if (!data) {
@@ -239,6 +473,12 @@ export async function generateMetadata({
 
 export default async function InfluencerWorkRequestPage({ params }: PageProps) {
   const { slug } = await params;
+  const trendreLink = await loadTrendreLink(slug);
+
+  if (trendreLink) {
+    return <TrendreLinkPublicView data={trendreLink} />;
+  }
+
   const data = await loadCreator(slug);
 
   if (!data) {

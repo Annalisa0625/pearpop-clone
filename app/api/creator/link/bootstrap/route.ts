@@ -8,7 +8,10 @@ import {
   isCreatorLinkItemType,
   isCreatorLinkStatus,
   isCreatorLinkTheme,
+  isCreatorLinkButtonStyle,
+  isCreatorLinkFontStyle,
 } from "@/lib/trendre-link/constants";
+import { normalizeCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
 import {
   normalizeCreatorLinkSlug,
   validateCreatorLinkSlug,
@@ -114,6 +117,9 @@ function toPage(row: LinkPageRow): CreatorLinkPage {
   if (!isCreatorLinkStatus(row.status)) {
     throw new BootstrapError("Linkページの公開状態が不正です。");
   }
+  if (!isCreatorLinkButtonStyle(row.button_style) || !isCreatorLinkFontStyle(row.font_style)) {
+    throw new BootstrapError("Linkページの表示設定が不正です。");
+  }
 
   return {
     id: row.id,
@@ -125,7 +131,7 @@ function toPage(row: LinkPageRow): CreatorLinkPage {
     avatarUrl: row.avatar_url,
     coverUrl: row.cover_url,
     themeKey: row.theme_key,
-    accentColor: row.accent_color,
+    accentColor: row.accent_color && /^#[0-9A-Fa-f]{6}$/.test(row.accent_color) ? row.accent_color.toUpperCase() : null,
     buttonStyle: row.button_style,
     fontStyle: row.font_style,
     status: row.status,
@@ -152,7 +158,7 @@ function toItem(row: LinkItemRow): CreatorLinkItem {
     description: row.description,
     url: row.url,
     imageUrl: row.image_url,
-    metadata: row.metadata,
+    metadata: normalizeCreatorLinkItemAppearance(row.metadata),
     sortOrder: row.sort_order,
     isVisible: row.is_visible,
     createdAt: row.created_at,

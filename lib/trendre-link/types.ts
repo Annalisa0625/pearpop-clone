@@ -1,11 +1,14 @@
-import type { Json } from "@/types/database.types";
 import type {
   CreatorLinkInquiryTemplate,
   CreatorLinkItemType,
   CreatorLinkStatus,
   CreatorLinkTheme,
+  CreatorLinkButtonStyle,
+  CreatorLinkFontStyle,
 } from "./constants";
 import type { CreatorLinkSlugValidationReason } from "./slug";
+import type { CreatorLinkItemAppearance } from "./item-validation";
+import type { CreatorLinkInquiryFormKind } from "./inquiry-forms";
 
 export type CreatorLinkPage = {
   id: string;
@@ -18,8 +21,8 @@ export type CreatorLinkPage = {
   coverUrl: string | null;
   themeKey: CreatorLinkTheme;
   accentColor: string | null;
-  buttonStyle: string;
-  fontStyle: string;
+  buttonStyle: CreatorLinkButtonStyle;
+  fontStyle: CreatorLinkFontStyle;
   status: CreatorLinkStatus;
   isAcceptingInquiries: boolean;
   setupStep: number;
@@ -38,7 +41,7 @@ export type CreatorLinkItem = {
   description: string | null;
   url: string | null;
   imageUrl: string | null;
-  metadata: Json;
+  metadata: CreatorLinkItemAppearance;
   sortOrder: number;
   isVisible: boolean;
   createdAt: string;
@@ -84,3 +87,62 @@ export type CreatorLinkSlugAvailabilityResponse =
       ok: false;
       error: string;
     };
+
+export type CreatorLinkPageUpdateResponse =
+  | {
+      ok: true;
+      page: CreatorLinkPage;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type CreatorLinkItemMutationResponse =
+  | {
+      ok: true;
+      item: CreatorLinkItem;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type CreatorLinkItemDeleteResponse =
+  | {
+      ok: true;
+      deletedItemId: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type CreatorLinkItemsReorderResponse =
+  | {
+      ok: true;
+      items: CreatorLinkItem[];
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type CreatorLinkInquiryFormsUpdateResponse =
+  | {
+      ok: true;
+      inquiryTypes: CreatorLinkInquiryType[];
+      isAcceptingInquiries: boolean;
+    }
+  | { ok: false; error: string };
+
+export type CreatorLinkPublicInquiryResponse =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export type CreatorLinkInquiryFormConfig = {
+  kind: CreatorLinkInquiryFormKind;
+  title: string;
+  isEnabled: boolean;
+  sortOrder: number;
+};
