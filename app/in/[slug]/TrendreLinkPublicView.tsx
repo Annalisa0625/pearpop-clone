@@ -1,4 +1,7 @@
+"use client";
+
 import TrendreLinkCanvas from "@/components/trendre-link/TrendreLinkCanvas";
+import { useAppLocale } from "@/lib/i18n/locale";
 import type {
   CreatorLinkInquiryType,
   CreatorLinkItem,
@@ -36,9 +39,10 @@ export type TrendreLinkPublicData = {
 };
 
 export default function TrendreLinkPublicView({ data }: { data: TrendreLinkPublicData }) {
+  const { locale } = useAppLocale();
   return (
     <main className="min-h-screen">
-      <TrendreLinkCanvas data={data} mode="public" locale="ja" />
+      <TrendreLinkCanvas data={data} mode="public" locale={locale === "en" ? "en" : "ja"} />
     </main>
   );
 }

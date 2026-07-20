@@ -100,7 +100,7 @@ function isCreatorLinkPage(value: unknown): value is CreatorLinkPage {
 }
 
 function isBootstrapSuccess(value: unknown): value is Extract<CreatorLinkBootstrapResponse, { ok: true }> {
-  return isRecord(value) && value.ok === true && isCreatorLinkPage(value.page) && Array.isArray(value.items) && Array.isArray(value.inquiryTypes);
+  return isRecord(value) && value.ok === true && typeof value.isNewLink === "boolean" && isCreatorLinkPage(value.page) && Array.isArray(value.items) && Array.isArray(value.inquiryTypes);
 }
 
 function isUpdateSuccess(value: unknown): value is Extract<CreatorLinkPageUpdateResponse, { ok: true }> {
@@ -198,6 +198,39 @@ function CheckIcon() {
   return <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true"><path d="m5 12.5 4.2 4.2L19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
+function FirstRunGuide({ locale, onStart, onLater }: { locale: "ja" | "en"; onStart: () => void; onLater: () => void }) {
+  const text = locale === "ja" ? {
+    title: "リンクを作りましょう",
+    description: "まずはプロフィールとSNSを追加すると、すぐに公開できます。",
+    steps: ["プロフィールを設定", "SNSやリンクを追加", "公開してプロフィールに貼る"],
+    start: "はじめる",
+    later: "あとで",
+  } : {
+    title: "Create your link",
+    description: "Add your profile and social links, then you can publish right away.",
+    steps: ["Set up your profile", "Add social profiles or links", "Publish and add it to your profile"],
+    start: "Get started",
+    later: "Later",
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/30 px-0 backdrop-blur-[2px] sm:items-center sm:p-6">
+      <section role="dialog" aria-modal="true" aria-labelledby="first-run-title" aria-describedby="first-run-description" className="w-full max-w-md rounded-t-[28px] bg-[#fffdfa] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-16px_48px_rgba(15,23,42,0.16)] sm:rounded-[28px] sm:p-6">
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300 sm:hidden" />
+        <h2 id="first-run-title" className="text-xl font-semibold tracking-[-0.03em] text-slate-900">{text.title}</h2>
+        <p id="first-run-description" className="mt-2 text-sm leading-6 text-slate-500">{text.description}</p>
+        <ol className="mt-4 space-y-2.5">
+          {text.steps.map((step, index) => <li key={step} className="flex items-center gap-3 text-sm text-slate-700"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-50 text-xs font-semibold text-[#d94b57]">{index + 1}</span><span>{step}</span></li>)}
+        </ol>
+        <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
+          <button type="button" onClick={onStart} autoFocus className="min-h-12 rounded-2xl bg-[#29272a] px-5 text-sm font-semibold text-white outline-none focus-visible:ring-4 focus-visible:ring-rose-200">{text.start}</button>
+          <button type="button" onClick={onLater} className="min-h-12 rounded-2xl px-5 text-sm font-medium text-slate-600 outline-none hover:bg-slate-100 focus-visible:ring-4 focus-visible:ring-slate-200">{text.later}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ToolIcon({ name }: { name: string }) {
   const path = name === "theme" ? "M4 12a8 8 0 1 1 8 8h-1.5a2 2 0 0 1 0-4H12a4 4 0 0 0 0-8" : name === "profile" ? "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8c.8-4 3.1-6 7-6s6.2 2 7 6" : name === "sns" ? "M7 7h10v10H7zM4 12h3m10 0h3M12 4v3m0 10v3" : name === "link" ? "m9 15 6-6m-8 9H6a4 4 0 0 1 0-8h3m6 0h3a4 4 0 1 1 0 8h-3" : "M5 5h14v14H5zM8 9h8m-8 4h5";
   return <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true"><path d={path} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -233,10 +266,13 @@ export default function CreatorLinkBuilderPage() {
   const [linkEditor, setLinkEditor] = useState<LinkEditorState>(EMPTY_LINK_EDITOR);
   const [uploadingImage, setUploadingImage] = useState<"avatar" | "background" | null>(null);
   const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
+  const [showFirstRun, setShowFirstRun] = useState(false);
+  const firstRunHandledRef = useRef(false);
   const publicUrlRef = useRef<HTMLInputElement>(null);
 
   const copy = useMemo(() => locale === "ja" ? {
     edit: "編集", preview: "プレビュー", draft: "下書き", published: "公開中", private: "非公開",
+    back: "戻る", accountProfile: "アカウントプロフィール",
     copyUrl: "URLをコピー", copied: "URLをコピーしました", openPage: "公開ページを開く", profile: "名前", theme: "背景", link: "リンク", sns: "SNS", inquiry: "フォーム",
     urlSettings: "プロフィール", urlHelp: "名前・自己紹介・公開URLを編集します", checking: "確認中", available: "利用可能", unavailable: "使用されています", invalid: "形式が正しくありません", checkFailed: "確認に失敗しました",
     close: "閉じる", done: "完了", themeTitle: "背景を選ぶ", themeHelp: "選択するとページへすぐ反映されます", inquiryTitle: "フォーム設定", inquiryHelp: "仕事相談フォームの公開状態を設定します", accepting: "仕事相談フォームを公開する", paused: "仕事相談フォームを非公開にする",
@@ -247,6 +283,7 @@ export default function CreatorLinkBuilderPage() {
     },
   } : {
     edit: "Edit", preview: "Preview", draft: "Draft", published: "Published", private: "Private",
+    back: "Back", accountProfile: "Account profile",
     copyUrl: "Copy URL", copied: "URL copied", openPage: "Open public page", profile: "Name", theme: "Background", link: "Link", sns: "Social", inquiry: "Form",
     urlSettings: "Profile", urlHelp: "Edit your name, bio, and public URL", checking: "Checking", available: "Available", unavailable: "Already in use", invalid: "Invalid format", checkFailed: "Check failed",
     close: "Close", done: "Done", themeTitle: "Choose a background", themeHelp: "Your selection appears on the page immediately", inquiryTitle: "Form settings", inquiryHelp: "Control whether your work inquiry form is public", accepting: "Publish work inquiry form", paused: "Hide work inquiry form",
@@ -262,6 +299,17 @@ export default function CreatorLinkBuilderPage() {
     const timer = window.setTimeout(() => setToast(null), 2600);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (firstRunHandledRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("firstRun") !== "1") return;
+    firstRunHandledRef.current = true;
+    setShowFirstRun(true);
+    params.delete("firstRun");
+    const query = params.toString();
+    routerRef.current.replace(`/creator/link${query ? `?${query}` : ""}`, { scroll: false });
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -280,6 +328,10 @@ export default function CreatorLinkBuilderPage() {
         setItems(data.items.sort((a, b) => a.sortOrder - b.sortOrder));
         setInquiryTypes(data.inquiryTypes);
         setInquiryFormEditor(toInquiryFormEditor(data.inquiryTypes));
+        if (data.isNewLink && !firstRunHandledRef.current) {
+          firstRunHandledRef.current = true;
+          setShowFirstRun(true);
+        }
       } catch (loadError) {
         if (!controller.signal.aborted) setToast({ tone: "error", message: loadError instanceof Error ? loadError.message : INITIAL_LOAD_ERROR });
       } finally {
@@ -330,7 +382,18 @@ export default function CreatorLinkBuilderPage() {
   }, [form?.slug, page?.id, router]);
 
   const save = async (nextStatus: CreatorLinkStatus) => {
-    if (!form || !page || saving || slugCheck !== "available" || slugError) return;
+    if (!form || !page || saving) return;
+    if (nextStatus === "published" && !form.displayName.trim()) {
+      setToast({ tone: "error", message: locale === "ja" ? "公開する前に表示名を設定してください。" : "Set a display name before publishing." });
+      setSheet("profile");
+      return;
+    }
+    if (nextStatus === "published" && (slugCheck !== "available" || slugError)) {
+      setToast({ tone: "error", message: locale === "ja" ? "公開URLを確認してください。" : "Check your public URL." });
+      setSheet("profile");
+      return;
+    }
+    if (slugCheck !== "available" || slugError) return;
     setSaving(true);
     setToast(null);
     try {
@@ -644,7 +707,7 @@ export default function CreatorLinkBuilderPage() {
       <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/60 bg-[#fffdfa]/95 shadow-[0_1px_6px_rgba(15,23,42,0.025)] backdrop-blur-xl">
         <div className="mx-auto grid h-[54px] max-w-6xl grid-cols-[minmax(72px,1fr)_auto_minmax(72px,1fr)] items-center px-1.5 sm:px-4">
           <div className="flex min-w-0 items-center overflow-hidden whitespace-nowrap">
-            <Link href="/creator/dashboard" aria-label="Back" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><BackIcon /></Link>
+            <Link href="/creator/dashboard" aria-label={copy.back} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><BackIcon /></Link>
             <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.02em]">Trendre</span>
           </div>
           <div className="grid h-9 w-[138px] grid-cols-2 rounded-lg border border-slate-200/70 bg-slate-100/70 p-0.5">
@@ -653,7 +716,7 @@ export default function CreatorLinkBuilderPage() {
           <div className="flex min-w-0 items-center justify-end gap-0.5 overflow-hidden whitespace-nowrap">
             <button type="button" onClick={() => void copyPublicUrl()} aria-label={copy.copyUrl} className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><CopyIcon /></button>
             {page.status === "published" ? <Link href={`/in/${page.slug}`} target="_blank" rel="noopener noreferrer" aria-label={copy.openPage} className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 sm:flex"><OpenIcon /></Link> : null}
-            <Link href="/creator/profile" aria-label="Profile" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><UserIcon /></Link>
+            <Link href="/creator/profile" aria-label={copy.accountProfile} className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><UserIcon /></Link>
           </div>
         </div>
       </header>
@@ -698,7 +761,7 @@ export default function CreatorLinkBuilderPage() {
         <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200/60 bg-[#fffdfa]/88 px-3 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
           <div className={`mx-auto flex max-w-lg gap-2 ${isDirty ? "" : "justify-end"}`}>
             {isDirty ? <button type="button" disabled={!canSave} onClick={() => void save(form.status)} className="min-h-11 flex-1 rounded-xl border border-slate-200 bg-[#fffdfa] text-sm font-medium text-slate-700 disabled:opacity-40">{saving ? copy.saving : copy.saveChanges}</button> : form.status === "private" ? <button type="button" disabled={!canSave} onClick={() => void save("draft")} className="min-h-10 rounded-xl border border-slate-200 bg-[#fffdfa] px-4 text-sm font-medium text-slate-600 disabled:opacity-40">{copy.backToDraft}</button> : null}
-            <button type="button" disabled={!canSave} onClick={() => void save(rightAction.status)} className={`${isDirty ? "flex-1" : "px-5"} min-h-11 rounded-xl bg-[#29272a] text-sm font-medium text-white disabled:opacity-40`}>{saving ? copy.saving : rightAction.label}</button>
+            <button type="button" disabled={saving || (rightAction.status !== "published" && !canSave)} onClick={() => void save(rightAction.status)} className={`${isDirty ? "flex-1" : "px-5"} min-h-11 rounded-xl bg-[#29272a] text-sm font-medium text-white disabled:opacity-40`}>{saving ? copy.saving : rightAction.label}</button>
           </div>
         </div>
       ) : null}
@@ -807,6 +870,8 @@ export default function CreatorLinkBuilderPage() {
             ) : null}
         </EditorBottomSheet>
       ) : null}
+
+      {showFirstRun ? <FirstRunGuide locale={locale} onStart={() => { setShowFirstRun(false); setSheet("profile"); }} onLater={() => setShowFirstRun(false)} /> : null}
       {previewInquiry ? <InquiryFormModal key={`${previewInquiry.kind}-${previewInquiry.title}`} kind={previewInquiry.kind} title={previewInquiry.title} slug={form.slug} mode="preview" locale={locale} onClose={() => setPreviewInquiry(null)} /> : null}
       {avatarCropFile ? <ProfileImageCropModal file={avatarCropFile} locale={locale} onCancel={() => setAvatarCropFile(null)} onConfirm={async (croppedFile) => { const uploaded = await uploadImage(croppedFile, "avatar"); if (uploaded) setAvatarCropFile(null); return uploaded; }} /> : null}
     </div>

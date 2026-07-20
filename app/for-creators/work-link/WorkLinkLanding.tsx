@@ -22,7 +22,8 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import styles from "./work-link.module.css";
 
-const SIGNUP_HREF = "/signup/creator";
+const SIGNUP_HREF = "/signup/link";
+const LOGIN_HREF = "/login?next=%2Fcreator%2Flink";
 const URL_SLUG = "yourname";
 
 const profiles = [
@@ -255,7 +256,7 @@ function Hero() {
       <div className={styles.heroNoise} aria-hidden="true" />
       <header className={styles.header}>
         <Link href="/for-creators/work-link" aria-label="Trendre Link トップへ" className={styles.logoLink}><span>Trendre</span> <em>Link</em></Link>
-        <nav aria-label="アカウント"><Link href="/login" className={styles.loginLink}>ログイン</Link><Link href={SIGNUP_HREF} className={styles.headerCta}>無料登録</Link></nav>
+        <nav aria-label="アカウント"><Link href={LOGIN_HREF} className={styles.loginLink}>ログイン</Link><Link href={SIGNUP_HREF} className={styles.headerCta}>無料で始める</Link></nav>
       </header>
       <div className={styles.heroInner}>
         <div className={styles.heroCopy}>
@@ -268,7 +269,7 @@ function Hero() {
             <small id="url-note">登録後に好きなURLを設定できます</small>
           </div>
           <div className={styles.heroActions}>
-            <Link href={SIGNUP_HREF} className={styles.primaryCta}>自分のリンクを作る<ArrowRight size={17} /></Link>
+            <Link href={SIGNUP_HREF} className={styles.primaryCta}>無料でリンクを作る<ArrowRight size={17} /></Link>
             <small className={styles.ctaNote}>専用URLを無料で発行</small>
           </div>
         </div>
@@ -518,8 +519,8 @@ function FinalSection() {
   return (
     <section className={styles.finalSection}>
       <div className={styles.finalGlow} aria-hidden="true" />
-      <div className={styles.finalInner} data-reveal="depth"><h2>あなたの世界観を、<br />新しい仕事につなげよう。</h2><p>SNSも、サイトも、仕事の相談も。<br />ひとつのページから始められます。</p><Link href={SIGNUP_HREF} className={styles.finalCta}>自分のリンクを作る<ArrowRight size={18} /></Link><small className={styles.finalNote}>専用URLを無料で発行</small></div>
-      <footer className={styles.footer}><strong className={styles.footerLinkBrand}>Trendre Link</strong><div><Link href="/for-creators" aria-label="Trend Martについて"><Image src="/brand/trend-mart-logo.png" alt="Trend Mart" width={932} height={190} unoptimized /></Link><Link href="/login">ログイン</Link></div><p>© 2026 Trendre Link</p></footer>
+      <div className={styles.finalInner} data-reveal="depth"><h2>あなたの世界観を、<br />新しい仕事につなげよう。</h2><p>SNSも、サイトも、仕事の相談も。<br />ひとつのページから始められます。</p><Link href={SIGNUP_HREF} className={styles.finalCta}>無料でリンクを作る<ArrowRight size={18} /></Link><small className={styles.finalNote}>専用URLを無料で発行</small></div>
+      <footer className={styles.footer}><strong className={styles.footerLinkBrand}>Trendre Link</strong><div><Link href="/for-creators" aria-label="Trend Martについて"><Image src="/brand/trend-mart-logo.png" alt="Trend Mart" width={932} height={190} unoptimized /></Link><Link href={LOGIN_HREF}>ログイン</Link></div><p>© 2026 Trendre Link</p></footer>
     </section>
   );
 }
