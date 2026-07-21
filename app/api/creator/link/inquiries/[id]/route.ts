@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  getCreatorLinkInquiryLocale,
   isCreatorLinkInquiryStatus,
+  localizeCreatorLinkInquiry,
   type CreatorLinkInquiryDetailResponse,
   type CreatorLinkInquiryListItem,
 } from "@/lib/trendre-link/inquiry-inbox";
@@ -55,6 +57,16 @@ async function findOwnedInquiry(id: string, ownerUserId: string) {
   return (data ?? null) as CreatorLinkInquiryListItem | null;
 }
 
+function localizedInquiry(
+  inquiry: CreatorLinkInquiryListItem,
+  request: NextRequest
+) {
+  const locale = getCreatorLinkInquiryLocale(
+    request.headers.get("accept-language")
+  );
+  return localizeCreatorLinkInquiry(inquiry, locale);
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const auth = await getTrendreLinkAuthenticatedUser(request);
   if (!auth.user) return errorResponse("ログインが必要です。", 401);
@@ -65,32 +77,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   try {
-    let inquiry = await findOwnedInquiry(id, auth.user.id);
+    const inquiry = await findOwnedInquiry(id, auth.user.id);
     if (!inquiry) return errorResponse("仕事相談が見つかりません。", 404);
-
-    if (inquiry.status === "new") {
-      const { data, error } = await supabaseAdmin
-        .from("creator_inquiries")
-        .update({ status: "read", updated_at: new Date().toISOString() })
-        .eq("id", inquiry.id)
-        .eq("creator_user_id", auth.user.id)
-        .eq("source", "trendre_link")
-        .select(INQUIRY_SELECT)
-        .single();
-
-      if (!error && data) {
-        inquiry = data as CreatorLinkInquiryListItem;
-      }
-    }
 
     return NextResponse.json<CreatorLinkInquiryDetailResponse>({
       ok: true,
-      inquiry,
+      inquiry: localizedInquiry(inquiry, request),
     });
   } catch (error) {
-    console.error("[trendre-link/inquiries] 問い合わせ詳細を取得できませんでした。", {
-      cause: error instanceof Error ? error.message : "unknown",
-    });
+    console.error(
+      "[trendre-link/inquiries] 問い合わせ詳細を取得できませんでした。",
+      {
+        cause: error instanceof Error ? error.message : "unknown",
+      }
+    );
     return errorResponse(
       "仕事相談を読み込めませんでした。時間を置いてもう一度お試しください。",
       500
@@ -135,12 +135,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json<CreatorLinkInquiryDetailResponse>({
       ok: true,
-      inquiry: data as CreatorLinkInquiryListItem,
+      inquiry: localizedInquiry(data as CreatorLinkInquiryListItem, request),
     });
   } catch (error) {
-    console.error("[trendre-link/inquiries] 対応状況を更新できませんでした。", {
-      cause: error instanceof Error ? error.message : "unknown",
-    });
+    console.error(
+      "[trendre-link/inquiries] 対応状況を更新できませんでした。",
+      {
+        cause: error instanceof Error ? error.message : "unknown",
+      }
+    );
     return errorResponse(
       "対応状況を更新できませんでした。時間を置いてもう一度お試しください。",
       500
