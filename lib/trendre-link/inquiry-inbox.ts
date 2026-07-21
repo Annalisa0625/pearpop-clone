@@ -1,12 +1,9 @@
 export const CREATOR_LINK_INQUIRY_STATUSES = [
   "new",
-  "read",
-  "considering",
-  "replied",
+  "creator_reviewing",
   "quoted",
-  "accepted",
+  "converted",
   "declined",
-  "closed",
 ] as const;
 
 export type CreatorLinkInquiryStatus =
@@ -53,16 +50,13 @@ export type CreatorLinkInquiryDetailResponse =
   | { ok: false; error: string };
 
 export const CREATOR_LINK_ACTIVE_INQUIRY_STATUSES = [
-  "read",
-  "considering",
-  "replied",
+  "creator_reviewing",
   "quoted",
 ] as const;
 
 export const CREATOR_LINK_CLOSED_INQUIRY_STATUSES = [
-  "accepted",
+  "converted",
   "declined",
-  "closed",
 ] as const;
 
 const REQUEST_TYPE_LABELS = {
