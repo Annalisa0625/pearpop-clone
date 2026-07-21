@@ -65,6 +65,43 @@ export const CREATOR_LINK_CLOSED_INQUIRY_STATUSES = [
   "closed",
 ] as const;
 
+const REQUEST_TYPE_LABELS = {
+  ja: {
+    pr_post: "PR投稿",
+    ugc: "UGC制作",
+    product_review: "商品レビュー",
+    visit_event: "来店・体験",
+    other: "その他",
+  },
+  en: {
+    pr_post: "PR post",
+    ugc: "UGC production",
+    product_review: "Product review",
+    visit_event: "Store visit / experience",
+    other: "Other",
+  },
+} as const;
+
+export function getCreatorLinkInquiryLocale(
+  acceptLanguage: string | null
+): "ja" | "en" {
+  return acceptLanguage?.toLowerCase().startsWith("en") ? "en" : "ja";
+}
+
+export function localizeCreatorLinkInquiry(
+  inquiry: CreatorLinkInquiryListItem,
+  locale: "ja" | "en"
+): CreatorLinkInquiryListItem {
+  if (!inquiry.purpose) return inquiry;
+
+  const labels = REQUEST_TYPE_LABELS[locale] as Record<string, string>;
+  const localizedPurpose = labels[inquiry.purpose];
+
+  return localizedPurpose
+    ? { ...inquiry, purpose: localizedPurpose }
+    : inquiry;
+}
+
 export function isCreatorLinkInquiryStatus(
   value: unknown
 ): value is CreatorLinkInquiryStatus {
