@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   CREATOR_LINK_ACTIVE_INQUIRY_STATUSES,
   CREATOR_LINK_CLOSED_INQUIRY_STATUSES,
+  getCreatorLinkInquiryLocale,
+  localizeCreatorLinkInquiry,
   type CreatorLinkInquiryInboxResponse,
   type CreatorLinkInquiryListItem,
 } from "@/lib/trendre-link/inquiry-inbox";
@@ -54,9 +56,16 @@ export async function GET(request: NextRequest) {
 
     if (error) throw new Error("inquiry_list_failed");
 
-    const inquiries = (data ?? []) as CreatorLinkInquiryListItem[];
-    const activeStatuses = CREATOR_LINK_ACTIVE_INQUIRY_STATUSES as readonly string[];
-    const closedStatuses = CREATOR_LINK_CLOSED_INQUIRY_STATUSES as readonly string[];
+    const locale = getCreatorLinkInquiryLocale(
+      request.headers.get("accept-language")
+    );
+    const inquiries = ((data ?? []) as CreatorLinkInquiryListItem[]).map(
+      (inquiry) => localizeCreatorLinkInquiry(inquiry, locale)
+    );
+    const activeStatuses =
+      CREATOR_LINK_ACTIVE_INQUIRY_STATUSES as readonly string[];
+    const closedStatuses =
+      CREATOR_LINK_CLOSED_INQUIRY_STATUSES as readonly string[];
 
     return NextResponse.json<CreatorLinkInquiryInboxResponse>({
       ok: true,
@@ -64,14 +73,19 @@ export async function GET(request: NextRequest) {
       counts: {
         all: inquiries.length,
         new: inquiries.filter((item) => item.status === "new").length,
-        active: inquiries.filter((item) => activeStatuses.includes(item.status)).length,
-        closed: inquiries.filter((item) => closedStatuses.includes(item.status)).length,
+        active: inquiries.filter((item) => activeStatuses.includes(item.status))
+          .length,
+        closed: inquiries.filter((item) => closedStatuses.includes(item.status))
+          .length,
       },
     });
   } catch (error) {
-    console.error("[trendre-link/inquiries] 問い合わせ一覧を取得できませんでした。", {
-      cause: error instanceof Error ? error.message : "unknown",
-    });
+    console.error(
+      "[trendre-link/inquiries] 問い合わせ一覧を取得できませんでした。",
+      {
+        cause: error instanceof Error ? error.message : "unknown",
+      }
+    );
     return errorResponse(
       "仕事相談を読み込めませんでした。時間を置いてもう一度お試しください。",
       500
