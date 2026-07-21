@@ -67,6 +67,35 @@ function statusClass(status: string) {
   return "bg-slate-100 text-slate-600 ring-slate-200";
 }
 
+function requestTypeLabel(value: string | null, locale: "ja" | "en") {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  const labels = locale === "ja"
+    ? {
+        pr_post: "PR投稿",
+        "pr post": "PR投稿",
+        ugc: "UGC制作",
+        "ugc production": "UGC制作",
+        product_review: "商品レビュー",
+        "product review": "商品レビュー",
+        visit_event: "来店・体験",
+        "store visit / experience": "来店・体験",
+        other: "その他",
+      }
+    : {
+        pr_post: "PR post",
+        "pr post": "PR post",
+        ugc: "UGC production",
+        "ugc production": "UGC production",
+        product_review: "Product review",
+        "product review": "Product review",
+        visit_event: "Store visit / experience",
+        "store visit / experience": "Store visit / experience",
+        other: "Other",
+      };
+  return (labels as Record<string, string>)[normalized] ?? value;
+}
+
 function platformLabel(value: string | null, locale: "ja" | "en") {
   if (!value) return null;
   const labels: Record<string, string> = {
@@ -218,8 +247,8 @@ export default function CreatorLinkInquiryDetailPage() {
   const mailtoHref = useMemo(() => {
     if (!inquiry) return "#";
     const subject = locale === "ja"
-      ? `【Trendre Link】${inquiry.inquiry_type_title_snapshot || inquiry.purpose || "お問い合わせへのご返信"}`
-      : `Trendre Link: ${inquiry.inquiry_type_title_snapshot || inquiry.purpose || "Reply to your inquiry"}`;
+      ? `【Trendre Link】${inquiry.inquiry_type_title_snapshot || requestTypeLabel(inquiry.purpose || inquiry.inquiry_type, locale) || "お問い合わせへのご返信"}`
+      : `Trendre Link: ${inquiry.inquiry_type_title_snapshot || requestTypeLabel(inquiry.purpose || inquiry.inquiry_type, locale) || "Reply to your inquiry"}`;
     const greeting = locale === "ja"
       ? `${inquiry.contact_name || "ご担当者"} 様\n\nお問い合わせありがとうございます。\n`
       : `Hello ${inquiry.contact_name || "there"},\n\nThank you for your inquiry.\n`;
@@ -271,7 +300,7 @@ export default function CreatorLinkInquiryDetailPage() {
                 {inquiry.company_name || inquiry.contact_name || copy.title}
               </h1>
               <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                {inquiry.inquiry_type_title_snapshot || inquiry.purpose || copy.title}
+                {inquiry.inquiry_type_title_snapshot || requestTypeLabel(inquiry.purpose || inquiry.inquiry_type, locale) || copy.title}
               </p>
               <a href={mailtoHref} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] transition active:scale-[0.98]">
                 <MailIcon />
@@ -284,7 +313,7 @@ export default function CreatorLinkInquiryDetailPage() {
               <DetailRow label={copy.contact} value={inquiry.contact_name} />
               <DetailRow label={copy.email} value={inquiry.contact_email} />
               <DetailRow label={copy.product} value={inquiry.product_name} />
-              <DetailRow label={copy.purpose} value={inquiry.purpose} />
+              <DetailRow label={copy.purpose} value={requestTypeLabel(inquiry.purpose || inquiry.inquiry_type, locale)} />
               <DetailRow label={copy.message} value={inquiry.message} />
               <DetailRow label={copy.timing} value={inquiry.desired_timing} />
               <DetailRow label={copy.budget} value={inquiry.budget_text} />
