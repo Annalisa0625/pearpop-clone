@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
 
+import CreatorLinkWorkspaceNav from "./_components/CreatorLinkWorkspaceNav";
+
 export default function CreatorLinkLayout({ children }: { children: ReactNode }) {
-  return children;
+  return (
+    <div className="creator-link-workspace">
+      {children}
+      <CreatorLinkWorkspaceNav />
+    </div>
+  );
 }
