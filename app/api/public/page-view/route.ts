@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-type PageType = "link" | "profile";
+type StoredPageType = "link" | "profile";
+type RequestedPageType = StoredPageType | "auto";
 type RequestBody = { pageType?: unknown; slug?: unknown };
+
+type ResolvedPage = {
+  ownerUserId: string;
+  pageType: StoredPageType;
+};
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -15,20 +21,23 @@ function normalizeSlug(value: unknown) {
   return normalized;
 }
 
-async function resolveOwnerUserId(pageType: PageType, slug: string) {
+async function resolveLink(slug: string): Promise<ResolvedPage | null> {
   const admin = supabaseAdmin as any;
+  const { data } = await admin
+    .from("creator_link_pages")
+    .select("owner_user_id")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
 
-  if (pageType === "link") {
-    const { data } = await admin
-      .from("creator_link_pages")
-      .select("owner_user_id")
-      .eq("slug", slug)
-      .eq("status", "published")
-      .maybeSingle();
+  const ownerUserId =
+    (data as { owner_user_id?: string | null } | null)?.owner_user_id ?? null;
 
-    return (data as { owner_user_id?: string | null } | null)?.owner_user_id ?? null;
-  }
+  return ownerUserId ? { ownerUserId, pageType: "link" } : null;
+}
 
+async function resolveProfile(slug: string): Promise<ResolvedPage | null> {
+  const admin = supabaseAdmin as any;
   const bySlug = await admin
     .from("creators")
     .select("user_id")
@@ -37,8 +46,9 @@ async function resolveOwnerUserId(pageType: PageType, slug: string) {
     .eq("approval_status", "approved")
     .maybeSingle();
 
-  const slugOwner = (bySlug.data as { user_id?: string | null } | null)?.user_id;
-  if (slugOwner) return slugOwner;
+  const slugOwner =
+    (bySlug.data as { user_id?: string | null } | null)?.user_id ?? null;
+  if (slugOwner) return { ownerUserId: slugOwner, pageType: "profile" };
 
   if (!UUID_PATTERN.test(slug)) return null;
 
@@ -50,7 +60,16 @@ async function resolveOwnerUserId(pageType: PageType, slug: string) {
     .eq("approval_status", "approved")
     .maybeSingle();
 
-  return (byId.data as { user_id?: string | null } | null)?.user_id ?? null;
+  const idOwner =
+    (byId.data as { user_id?: string | null } | null)?.user_id ?? null;
+
+  return idOwner ? { ownerUserId: idOwner, pageType: "profile" } : null;
+}
+
+async function resolvePage(pageType: RequestedPageType, slug: string) {
+  if (pageType === "link") return resolveLink(slug);
+  if (pageType === "profile") return resolveProfile(slug);
+  return (await resolveLink(slug)) ?? resolveProfile(slug);
 }
 
 export async function POST(request: NextRequest) {
@@ -64,18 +83,21 @@ export async function POST(request: NextRequest) {
   const pageType = body.pageType;
   const slug = normalizeSlug(body.slug);
 
-  if ((pageType !== "link" && pageType !== "profile") || !slug) {
+  if (
+    (pageType !== "link" && pageType !== "profile" && pageType !== "auto") ||
+    !slug
+  ) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
   try {
-    const ownerUserId = await resolveOwnerUserId(pageType, slug);
-    if (!ownerUserId) return new NextResponse(null, { status: 204 });
+    const resolved = await resolvePage(pageType, slug);
+    if (!resolved) return new NextResponse(null, { status: 204 });
 
     const admin = supabaseAdmin as any;
     const { error } = await admin.from("creator_page_views").insert({
-      owner_user_id: ownerUserId,
-      page_type: pageType,
+      owner_user_id: resolved.ownerUserId,
+      page_type: resolved.pageType,
       viewed_at: new Date().toISOString(),
     });
 
