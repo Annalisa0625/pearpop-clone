@@ -19,7 +19,7 @@ export default function CreatorProfileVisualRefresh() {
     <style jsx global>{`
       .creator-profile-route .trendre-safe-page {
         display: grid;
-        gap: 16px;
+        gap: 0;
         padding-bottom: 8px;
       }
 
@@ -28,10 +28,11 @@ export default function CreatorProfileVisualRefresh() {
       }
 
       .creator-profile-route .trendre-safe-page > section:first-of-type {
-        margin: 0;
+        margin: 0 0 18px;
+        border: 0 !important;
         border-radius: 0 !important;
         background: transparent !important;
-        padding: 8px 2px 18px !important;
+        padding: 8px 2px 12px !important;
         box-shadow: none !important;
       }
 
@@ -54,19 +55,44 @@ export default function CreatorProfileVisualRefresh() {
       }
 
       .creator-profile-route .trendre-safe-page > section[class*="bg-white"]:not(:first-of-type) {
-        border: 1px solid rgba(226, 232, 240, 0.9);
-        border-radius: 20px !important;
-        padding: 20px !important;
+        border-left: 1px solid rgba(226, 232, 240, 0.95) !important;
+        border-right: 1px solid rgba(226, 232, 240, 0.95) !important;
+        border-top: 1px solid rgba(226, 232, 240, 0.8) !important;
+        border-bottom: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        padding: 24px 18px !important;
         box-shadow: none !important;
       }
 
+      .creator-profile-route .trendre-safe-page > section[class*="bg-white"]:nth-of-type(2) {
+        border-radius: 22px 22px 0 0 !important;
+      }
+
+      .creator-profile-route .trendre-safe-page > section[class*="bg-white"]:last-of-type {
+        border-bottom: 1px solid rgba(226, 232, 240, 0.95) !important;
+        border-radius: 0 0 22px 22px !important;
+      }
+
       .creator-profile-route .trendre-safe-page > section[class*="bg-white"]:not(:first-of-type) h2 {
-        font-size: 18px !important;
+        font-size: 19px !important;
         font-weight: 700 !important;
-        letter-spacing: -0.04em !important;
+        letter-spacing: -0.045em !important;
+      }
+
+      .creator-profile-route .trendre-safe-page > section[class*="bg-white"]:not(:first-of-type) > div:first-child {
+        margin-bottom: 18px !important;
       }
 
       .creator-profile-route .trendre-safe-page > section > div[class*="rounded-[24px]"][class*="bg-white"] {
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+      }
+
+      .creator-profile-route .trendre-safe-page > section > div[class*="rounded-2xl"][class*="bg-slate-50"] {
         border: 0 !important;
         border-radius: 0 !important;
         background: transparent !important;
@@ -81,20 +107,30 @@ export default function CreatorProfileVisualRefresh() {
         box-shadow: none !important;
       }
 
+      .creator-profile-route .trendre-safe-page img[class*="h-20"],
+      .creator-profile-route .trendre-safe-page div[class*="h-20"][class*="w-20"] {
+        border-radius: 50% !important;
+      }
+
       .creator-profile-route .trendre-safe-page input,
       .creator-profile-route .trendre-safe-page select,
       .creator-profile-route .trendre-safe-page textarea {
-        border-radius: 14px !important;
+        border-radius: 12px !important;
         box-shadow: none !important;
       }
 
       .creator-profile-route .trendre-safe-page button[class*="rounded-full"],
       .creator-profile-route .trendre-safe-page label[class*="rounded-full"] {
-        border-radius: 12px !important;
+        border-radius: 10px !important;
+      }
+
+      .creator-profile-route .trendre-safe-page button[class*="rounded-xl"] {
+        border-radius: 10px !important;
       }
 
       .creator-profile-route .trendre-safe-page > div[class*="sticky"] {
         bottom: 88px !important;
+        margin-top: 16px !important;
         border: 1px solid rgba(226, 232, 240, 0.95);
         border-radius: 18px !important;
         padding: 8px !important;
@@ -112,6 +148,7 @@ export default function CreatorProfileVisualRefresh() {
         .creator-profile-route .trendre-safe-page {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           align-items: start;
+          column-gap: 16px;
         }
 
         .creator-profile-route .trendre-safe-page > section:first-of-type,
@@ -119,6 +156,12 @@ export default function CreatorProfileVisualRefresh() {
         .creator-profile-route .trendre-safe-page > section[id="sns"],
         .creator-profile-route .trendre-safe-page > section[id="portfolio"] {
           grid-column: 1 / -1;
+        }
+
+        .creator-profile-route .trendre-safe-page > section[class*="bg-white"]:not(:first-of-type) {
+          margin-bottom: 16px !important;
+          border: 1px solid rgba(226, 232, 240, 0.95) !important;
+          border-radius: 20px !important;
         }
       }
     `}</style>
