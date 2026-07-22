@@ -3,10 +3,10 @@
 import { useEffect } from "react";
 
 export default function PublicPageViewTracker({
-  pageType,
+  pageType = "auto",
   slug,
 }: {
-  pageType: "link" | "profile";
+  pageType?: "link" | "profile" | "auto";
   slug: string;
 }) {
   useEffect(() => {
