@@ -14,7 +14,6 @@ type HomeState = {
   linkSlug: string | null;
   pendingOrders: number;
   activeJobs: number;
-  linkInquiries: number;
 };
 
 const EMPTY_STATE: HomeState = {
@@ -24,7 +23,6 @@ const EMPTY_STATE: HomeState = {
   linkSlug: null,
   pendingOrders: 0,
   activeJobs: 0,
-  linkInquiries: 0,
 };
 
 function ArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
@@ -35,27 +33,49 @@ function ArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-function MiniLineChart() {
+function AnalyticsIcon() {
   return (
-    <svg viewBox="0 0 320 94" className="mt-5 h-[94px] w-full" role="img" aria-label="No tracking data yet">
-      <path d="M8 78H312M8 48H312M8 18H312" stroke="currentColor" strokeOpacity="0.08" />
-      <path d="M8 74C48 72 65 73 94 70C127 67 143 69 171 66C204 63 228 65 252 61C278 57 292 59 312 54" fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2.5" strokeLinecap="round" />
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+      <path d="M5 19V9m7 10V5m7 14v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M3 21h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
 
-function TrackingPanel({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+function TrackingPanel({
+  eyebrow,
+  title,
+  emptyLabel,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  emptyLabel: string;
+  description: string;
+}) {
   return (
-    <section className="rounded-[24px] bg-white p-5 ring-1 ring-slate-200/70">
-      <div className="flex items-start justify-between gap-4">
+    <section className="overflow-hidden rounded-[24px] bg-white ring-1 ring-slate-200/70">
+      <div className="flex items-start justify-between gap-4 px-5 pt-5">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">{eyebrow}</p>
           <h2 className="mt-2 text-[18px] font-bold tracking-[-0.035em] text-slate-950">{title}</h2>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-500">No data</span>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-500">{emptyLabel}</span>
       </div>
-      <MiniLineChart />
-      <p className="mt-2 text-xs font-medium leading-5 text-slate-400">{description}</p>
+
+      <div className="relative mx-5 mt-5 flex h-[126px] items-center justify-center overflow-hidden rounded-[18px] bg-slate-50/80 ring-1 ring-slate-100">
+        <div className="absolute inset-x-5 top-1/4 h-px bg-slate-200/70" />
+        <div className="absolute inset-x-5 top-1/2 h-px bg-slate-200/70" />
+        <div className="absolute inset-x-5 top-3/4 h-px bg-slate-200/70" />
+        <div className="relative z-10 flex flex-col items-center text-slate-300">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-100">
+            <AnalyticsIcon />
+          </span>
+          <span className="mt-3 text-xs font-semibold text-slate-400">{emptyLabel}</span>
+        </div>
+      </div>
+
+      <p className="px-5 pb-5 pt-4 text-xs font-medium leading-5 text-slate-400">{description}</p>
     </section>
   );
 }
@@ -73,12 +93,26 @@ function SummaryLink({ href, label, value, detail }: { href: string; label: stri
   );
 }
 
-function Promotion({ href, eyebrow, title, body, cta, children }: { href: string; eyebrow: string; title: string; body: string; cta: string; children: ReactNode }) {
+function Promotion({
+  href,
+  eyebrow,
+  title,
+  body,
+  cta,
+  children,
+}: {
+  href: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  cta: string;
+  children: ReactNode;
+}) {
   return (
-    <Link href={href} className="group relative block overflow-hidden rounded-[28px] bg-[#16131e] p-6 text-white shadow-[0_20px_60px_rgba(34,21,63,0.18)] active:scale-[0.99]">
+    <Link href={href} className="group relative block overflow-hidden rounded-[28px] bg-[#17131f] p-6 text-white shadow-[0_20px_60px_rgba(34,21,63,0.18)] active:scale-[0.99]">
       <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-fuchsia-500/35 blur-3xl" />
-      <div className="absolute -bottom-24 left-10 h-48 w-48 rounded-full bg-violet-500/35 blur-3xl" />
-      <div className="relative z-10 max-w-[440px]">
+      <div className="absolute -bottom-24 left-10 h-48 w-48 rounded-full bg-violet-500/30 blur-3xl" />
+      <div className="relative z-10 max-w-[500px]">
         <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-white/50">{eyebrow}</p>
         <h2 className="mt-3 text-[25px] font-bold leading-tight tracking-[-0.05em]">{title}</h2>
         <p className="mt-3 text-sm font-medium leading-7 text-white/65">{body}</p>
@@ -87,7 +121,7 @@ function Promotion({ href, eyebrow, title, body, cta, children }: { href: string
           <ArrowIcon />
         </span>
       </div>
-      <div className="relative z-10 mt-6">{children}</div>
+      {children ? <div className="relative z-10 mt-5">{children}</div> : null}
     </Link>
   );
 }
@@ -102,10 +136,15 @@ export default function CreatorDashboardPage() {
     ? {
         greeting: "こんにちは",
         overview: "今日の状況を確認しましょう。",
-        tracking: "Tracking",
+        analytics: "アクセス分析",
+        period: "7日間",
+        sevenDays: "7日",
+        thirtyDays: "30日",
+        ninetyDays: "90日",
         linkVisitors: "Link訪問者",
         profileVisitors: "プロフィールページ訪問者",
-        noTracking: "アクセス計測基盤を接続すると、7日・30日・90日の推移がここに表示されます。",
+        notMeasured: "未計測",
+        noTracking: "アクセス計測を開始すると、訪問者数の推移がここに表示されます。",
         order: "Order",
         orderDetail: "成立前の注文・相談",
         job: "Job",
@@ -127,10 +166,15 @@ export default function CreatorDashboardPage() {
     : {
         greeting: "Hello",
         overview: "Here is what is happening today.",
-        tracking: "Tracking",
+        analytics: "Analytics",
+        period: "7 days",
+        sevenDays: "7D",
+        thirtyDays: "30D",
+        ninetyDays: "90D",
         linkVisitors: "Link visitors",
         profileVisitors: "Profile page visitors",
-        noTracking: "Once tracking is connected, 7, 30, and 90 day trends will appear here.",
+        notMeasured: "Not measured",
+        noTracking: "Visitor trends will appear here after tracking is enabled.",
         order: "Order",
         orderDetail: "Orders and inquiries before agreement",
         job: "Job",
@@ -164,7 +208,7 @@ export default function CreatorDashboardPage() {
         supabase.from("creators").select("display_name, full_name").eq("user_id", user.id).maybeSingle(),
         supabase.from("user_states").select("creator_profile_completed").eq("user_id", user.id).maybeSingle(),
         supabase.from("creator_link_pages").select("slug, status").eq("owner_user_id", user.id).maybeSingle(),
-        supabase.from("orders").select("id", { count: "exact", head: true }).eq("creator_user_id", user.id).in("status", ["pending", "authorized_pending_creator", "checkout_pending"]),
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("creator_user_id", user.id).eq("status", "authorized_pending_creator"),
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("creator_user_id", user.id).in("status", ["accepted", "accepted_captured", "in_progress", "delivered", "revision_requested"]),
         fetch("/api/creator/link/inquiries", { credentials: "same-origin", cache: "no-store" })
           .then(async (response) => ({ response, body: (await response.json().catch(() => null)) as CreatorLinkInquiryInboxResponse | null }))
@@ -175,7 +219,7 @@ export default function CreatorDashboardPage() {
 
       const creator = creatorResult.data as { display_name?: string | null; full_name?: string | null } | null;
       const martStarted = Boolean((userStateResult.data as { creator_profile_completed?: boolean } | null)?.creator_profile_completed);
-      const link = linkResult.data as { slug?: string | null; status?: string | null } | null;
+      const link = linkResult.data as { slug?: string | null } | null;
       const inquiryCount = inquiryResult?.response.ok && inquiryResult.body?.ok
         ? inquiryResult.body.counts.new + inquiryResult.body.counts.active
         : 0;
@@ -187,7 +231,6 @@ export default function CreatorDashboardPage() {
         linkSlug: link?.slug ?? null,
         pendingOrders: (pendingResult.count ?? 0) + inquiryCount,
         activeJobs: jobsResult.count ?? 0,
-        linkInquiries: inquiryCount,
       });
       setLoading(false);
     };
@@ -240,18 +283,18 @@ export default function CreatorDashboardPage() {
       <section className="mt-8">
         <div className="mb-4 flex items-end justify-between gap-4 px-1">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{copy.tracking}</p>
-            <h2 className="mt-1 text-[23px] font-bold tracking-[-0.045em] text-slate-950">7 days</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{copy.analytics}</p>
+            <h2 className="mt-1 text-[23px] font-bold tracking-[-0.045em] text-slate-950">{copy.period}</h2>
           </div>
           <div className="flex rounded-full bg-white p-1 text-[11px] font-semibold text-slate-400 ring-1 ring-slate-200/70">
-            <span className="rounded-full bg-slate-950 px-3 py-1.5 text-white">7D</span>
-            <span className="px-3 py-1.5">30D</span>
-            <span className="px-3 py-1.5">90D</span>
+            <span className="rounded-full bg-slate-950 px-3 py-1.5 text-white">{copy.sevenDays}</span>
+            <span className="px-3 py-1.5">{copy.thirtyDays}</span>
+            <span className="px-3 py-1.5">{copy.ninetyDays}</span>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <TrackingPanel eyebrow="Trendre Link" title={copy.linkVisitors} description={copy.noTracking} />
-          <TrackingPanel eyebrow="Trend Mart" title={copy.profileVisitors} description={copy.noTracking} />
+          <TrackingPanel eyebrow="Trendre Link" title={copy.linkVisitors} emptyLabel={copy.notMeasured} description={copy.noTracking} />
+          <TrackingPanel eyebrow="Trend Mart" title={copy.profileVisitors} emptyLabel={copy.notMeasured} description={copy.noTracking} />
         </div>
       </section>
 
