@@ -93,7 +93,7 @@ function formatDate(value: string, locale: "ja" | "en") {
 }
 
 function formatMoney(value: number | null, currency: string | null, locale: "ja" | "en") {
-  if (value == null) return locale === "ja" ? "金額未設定" : "Amount not set";
+  if (value == null) return locale === "ja" ? "報酬未設定" : "Payout not set";
   const safeCurrency = currency || "JPY";
   try {
     return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
@@ -104,6 +104,19 @@ function formatMoney(value: number | null, currency: string | null, locale: "ja"
   } catch {
     return `¥${value.toLocaleString()}`;
   }
+}
+
+function formatBudget(value: string | null, locale: "ja" | "en") {
+  const label = locale === "ja" ? "予算" : "Budget";
+  if (!value?.trim()) return locale === "ja" ? "予算未設定" : "Budget not set";
+
+  const trimmed = value.trim();
+  const normalizedNumber = trimmed.replace(/[¥￥,\s]/g, "");
+  if (/^\d+$/.test(normalizedNumber)) {
+    return `${label} ¥${Number(normalizedNumber).toLocaleString(locale === "ja" ? "ja-JP" : "en-US")}`;
+  }
+
+  return `${label} ${trimmed}`;
 }
 
 function deadlineLabel(value: string | null, locale: "ja" | "en") {
@@ -150,7 +163,7 @@ function SourceBadge({ source }: { source: OrderItem["source"] }) {
 }
 
 function Meta({ children }: { children: ReactNode }) {
-  return <span className="text-xs font-medium text-slate-400">{children}</span>;
+  return <span className="text-xs font-semibold text-slate-500">{children}</span>;
 }
 
 function OrderCard({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
@@ -186,9 +199,9 @@ function OrderCard({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
             {item.source === "trend_mart" ? (
-              <Meta>{formatMoney(item.amount, item.currency, locale)}</Meta>
+              <Meta>{locale === "ja" ? "報酬 " : "Payout "}{formatMoney(item.amount, item.currency, locale)}</Meta>
             ) : (
-              <Meta>{item.budget || (locale === "ja" ? "予算未設定" : "Budget not set")}</Meta>
+              <Meta>{formatBudget(item.budget, locale)}</Meta>
             )}
             <Meta>{formatDate(item.createdAt, locale)}</Meta>
           </div>
@@ -209,6 +222,7 @@ export default function CreatorOrdersPage() {
 
   const copy = safeLocale === "ja"
     ? {
+        eyebrow: "受注前",
         title: "Order",
         description: "成立前の注文・相談・見積もり依頼をまとめて確認します。",
         all: "すべて",
@@ -220,6 +234,7 @@ export default function CreatorOrdersPage() {
         retry: "もう一度試す",
       }
     : {
+        eyebrow: "Before agreement",
         title: "Order",
         description: "Review orders, inquiries, and quote requests before they become jobs.",
         all: "All",
@@ -320,7 +335,7 @@ export default function CreatorOrdersPage() {
   return (
     <div className="mx-auto w-full max-w-3xl pb-4 pt-3">
       <section className="px-1 pb-5 pt-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ff4765]">Creator workspace</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ff4765]">{copy.eyebrow}</p>
         <h1 className="mt-2 text-[34px] font-bold tracking-[-0.06em] text-slate-950">{copy.title}</h1>
         <p className="mt-2 max-w-xl text-sm font-medium leading-7 text-slate-500">{copy.description}</p>
       </section>
