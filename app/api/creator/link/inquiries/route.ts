@@ -28,6 +28,7 @@ const INQUIRY_SELECT = `
   offer_type,
   purpose,
   message,
+  request_data,
   source,
   company_user_id,
   converted_order_id,
