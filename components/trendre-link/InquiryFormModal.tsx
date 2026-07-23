@@ -67,7 +67,7 @@ const PLATFORM_OPTIONS = [
 
 const REQUEST_OPTIONS = [
   ["pr_post", "PR投稿", "クリエイターのアカウントから投稿"],
-  ["ugc", "UGC制作", "素材を制作してデータで納品"],
+  ["ugc", "UGC制作", "写真や動画素材を制作して納品"],
   ["product_review", "商品レビュー", "使用感や体験を紹介"],
   ["visit_event", "来店・体験", "店舗・施設・イベントを体験"],
   ["other", "その他", "上記以外の内容を相談"],
@@ -104,6 +104,14 @@ const USAGE_OPTIONS = [
   ["organic", "自社SNS・サイトで利用"],
   ["paid_ads", "広告にも利用"],
   ["undecided", "相談して決める"],
+] as const;
+
+const PR_STEP_TITLES = ["依頼タイプ", "制作内容", "条件・予算", "企業情報"] as const;
+const PR_STEP_DESCRIPTIONS = [
+  "まず、依頼したい内容を選んでください",
+  "掲載先と制作物の内容を選びます",
+  "見積もりに必要な条件を入力します",
+  "連絡先と補足情報を入力してください",
 ] as const;
 
 function CloseIcon() {
@@ -157,15 +165,25 @@ function SelectTile({
       className={`flex w-full items-center gap-3 rounded-[14px] px-4 py-3 text-left ring-1 transition duration-200 active:scale-[0.985] ${
         checked
           ? "bg-slate-950 text-white ring-slate-950"
-          : "bg-white text-slate-950 ring-slate-200 hover:ring-slate-300"
+          : "bg-white text-slate-950 ring-slate-200 active:bg-slate-50"
       }`}
     >
-      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1 ${checked ? "bg-white text-slate-950 ring-white" : "text-transparent ring-slate-300"}`}>
+      <span
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1 ${
+          checked
+            ? "bg-white text-slate-950 ring-white"
+            : "text-transparent ring-slate-300"
+        }`}
+      >
         <CheckIcon />
       </span>
       <span className="min-w-0">
         <span className="block text-[14px] font-semibold">{title}</span>
-        {body ? <span className={`mt-0.5 block text-[11px] leading-5 ${checked ? "text-white/60" : "text-slate-400"}`}>{body}</span> : null}
+        {body ? (
+          <span className={`mt-0.5 block text-[11px] leading-5 ${checked ? "text-white/60" : "text-slate-400"}`}>
+            {body}
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -228,14 +246,23 @@ export default function InquiryFormModal({
   const validateStep = (targetStep: number) => {
     if (kind !== "pr") return true;
 
-    if (targetStep === 0) {
-      if (!fields.requestContent) return "依頼内容を選択してください。";
-      if (fields.requestedPlatforms.length === 0) return "希望するSNSを1つ以上選択してください。";
-      if (fields.contentFormats.length === 0) return "希望する制作物を1つ以上選択してください。";
-      if (fields.deliverableCount < 1 || fields.deliverableCount > 20) return "制作数を確認してください。";
+    if (targetStep === 0 && !fields.requestContent) {
+      return "依頼内容を選択してください。";
     }
 
     if (targetStep === 1) {
+      if (fields.requestedPlatforms.length === 0) {
+        return "希望するSNSを1つ以上選択してください。";
+      }
+      if (fields.contentFormats.length === 0) {
+        return "希望する制作物を1つ以上選択してください。";
+      }
+      if (fields.deliverableCount < 1 || fields.deliverableCount > 20) {
+        return "制作数を確認してください。";
+      }
+    }
+
+    if (targetStep === 2) {
       if (!fields.productName.trim()) return "商品・サービス名を入力してください。";
       if (!fields.campaignGoal) return "今回の目的を選択してください。";
       if (!fields.desiredTiming.trim()) return "希望時期を入力してください。";
@@ -244,7 +271,7 @@ export default function InquiryFormModal({
       if (!fields.usageRights) return "二次利用について選択してください。";
     }
 
-    if (targetStep === 2) {
+    if (targetStep === 3) {
       if (!fields.companyName.trim()) return "会社名・ブランド名を入力してください。";
       if (!fields.contactName.trim()) return "担当者名を入力してください。";
       if (!fields.contactEmail.trim()) return "メールアドレスを入力してください。";
@@ -260,14 +287,14 @@ export default function InquiryFormModal({
       return;
     }
     setError(null);
-    setStep((current) => Math.min(current + 1, 2));
+    setStep((current) => Math.min(current + 1, 3));
   };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (mode !== "public" || submitting) return;
 
-    const result = validateStep(kind === "pr" ? 2 : 0);
+    const result = validateStep(kind === "pr" ? 3 : 0);
     if (result !== true) {
       setError(result);
       return;
@@ -315,13 +342,6 @@ export default function InquiryFormModal({
     "mt-2 h-12 w-full rounded-[14px] bg-slate-50 px-4 text-[15px] text-slate-950 outline-none ring-1 ring-slate-200 transition focus:bg-white focus:ring-2 focus:ring-slate-950/20";
   const textareaClass =
     "mt-2 w-full resize-none rounded-[14px] bg-slate-50 px-4 py-3 text-[15px] leading-6 text-slate-950 outline-none ring-1 ring-slate-200 transition focus:bg-white focus:ring-2 focus:ring-slate-950/20";
-
-  const stepTitles = ["依頼の内容", "条件・スケジュール", "企業情報"];
-  const stepDescriptions = [
-    "希望する制作物を選んでください",
-    "見積もりに必要な条件を入力してください",
-    "最後に連絡先と補足情報を入力します",
-  ];
 
   return (
     <div
@@ -371,20 +391,16 @@ export default function InquiryFormModal({
           </div>
 
           {kind === "pr" ? (
-            <div className="mt-3 grid grid-cols-3 gap-1.5">
-              {[0, 1, 2].map((item) => (
+            <div className="mt-3 grid grid-cols-4 gap-1.5" aria-label={`${step + 1} / 4`}>
+              {[0, 1, 2, 3].map((item) => (
                 <span
                   key={item}
-                  className={`h-1 rounded-full transition-colors duration-300 ${item <= step ? "bg-slate-950" : "bg-slate-100"}`}
+                  className={`h-1 rounded-full transition-colors duration-300 ${
+                    item <= step ? "bg-slate-950" : "bg-slate-100"
+                  }`}
                 />
               ))}
             </div>
-          ) : null}
-
-          {mode === "preview" ? (
-            <p className="mt-3 text-center text-[11px] font-medium text-slate-400">
-              プレビューでは送信されません
-            </p>
           ) : null}
         </header>
 
@@ -460,27 +476,36 @@ export default function InquiryFormModal({
               ) : (
                 <>
                   <div className="pb-5">
-                    <p className="text-[20px] font-semibold tracking-[-0.04em]">{stepTitles[step]}</p>
-                    <p className="mt-1 text-[13px] leading-6 text-slate-500">{stepDescriptions[step]}</p>
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-[20px] font-semibold tracking-[-0.04em]">
+                        {PR_STEP_TITLES[step]}
+                      </p>
+                      <p className="text-[11px] font-medium text-slate-400">{step + 1} / 4</p>
+                    </div>
+                    <p className="mt-1 text-[13px] leading-6 text-slate-500">
+                      {PR_STEP_DESCRIPTIONS[step]}
+                    </p>
                   </div>
 
                   {step === 0 ? (
-                    <div className="space-y-6">
-                      <fieldset>
-                        <legend><FieldLabel required>依頼したいこと</FieldLabel></legend>
-                        <div className="mt-3 space-y-2">
-                          {REQUEST_OPTIONS.map(([value, optionTitle, body]) => (
-                            <SelectTile
-                              key={value}
-                              checked={fields.requestContent === value}
-                              title={optionTitle}
-                              body={body}
-                              onClick={() => update("requestContent", value)}
-                            />
-                          ))}
-                        </div>
-                      </fieldset>
+                    <fieldset>
+                      <legend className="sr-only">依頼したいこと</legend>
+                      <div className="space-y-2">
+                        {REQUEST_OPTIONS.map(([value, optionTitle, body]) => (
+                          <SelectTile
+                            key={value}
+                            checked={fields.requestContent === value}
+                            title={optionTitle}
+                            body={body}
+                            onClick={() => update("requestContent", value)}
+                          />
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
 
+                  {step === 1 ? (
+                    <div className="space-y-6">
                       <fieldset>
                         <legend><FieldLabel required>希望するSNS</FieldLabel></legend>
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -491,7 +516,11 @@ export default function InquiryFormModal({
                                 key={value}
                                 type="button"
                                 onClick={() => toggleArray("requestedPlatforms", value)}
-                                className={`min-h-10 rounded-full px-4 text-[13px] font-medium ring-1 transition active:scale-[0.97] ${checked ? "bg-slate-950 text-white ring-slate-950" : "bg-white text-slate-600 ring-slate-200"}`}
+                                className={`min-h-10 rounded-full px-4 text-[13px] font-medium ring-1 transition active:scale-[0.97] ${
+                                  checked
+                                    ? "bg-slate-950 text-white ring-slate-950"
+                                    : "bg-white text-slate-600 ring-slate-200"
+                                }`}
                               >
                                 {label}
                               </button>
@@ -510,7 +539,11 @@ export default function InquiryFormModal({
                                 key={value}
                                 type="button"
                                 onClick={() => toggleArray("contentFormats", value)}
-                                className={`flex min-h-11 items-center justify-between rounded-[13px] px-3 text-left text-[13px] font-medium ring-1 transition active:scale-[0.98] ${checked ? "bg-slate-950 text-white ring-slate-950" : "bg-white text-slate-700 ring-slate-200"}`}
+                                className={`flex min-h-11 items-center justify-between rounded-[13px] px-3 text-left text-[13px] font-medium ring-1 transition active:scale-[0.98] ${
+                                  checked
+                                    ? "bg-slate-950 text-white ring-slate-950"
+                                    : "bg-white text-slate-700 ring-slate-200"
+                                }`}
                               >
                                 {label}
                                 {checked ? <CheckIcon /> : null}
@@ -525,16 +558,28 @@ export default function InquiryFormModal({
                         <div className="mt-3 flex h-12 items-center justify-between rounded-[14px] bg-slate-50 px-2 ring-1 ring-slate-200">
                           <button
                             type="button"
-                            onClick={() => setFields((current) => ({ ...current, deliverableCount: Math.max(1, current.deliverableCount - 1) }))}
+                            onClick={() =>
+                              setFields((current) => ({
+                                ...current,
+                                deliverableCount: Math.max(1, current.deliverableCount - 1),
+                              }))
+                            }
                             className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-xl text-slate-700 ring-1 ring-slate-200 transition active:scale-90"
+                            aria-label="制作数を減らす"
                           >
                             −
                           </button>
                           <span className="text-[15px] font-semibold">{fields.deliverableCount}件</span>
                           <button
                             type="button"
-                            onClick={() => setFields((current) => ({ ...current, deliverableCount: Math.min(20, current.deliverableCount + 1) }))}
+                            onClick={() =>
+                              setFields((current) => ({
+                                ...current,
+                                deliverableCount: Math.min(20, current.deliverableCount + 1),
+                              }))
+                            }
                             className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-xl text-white transition active:scale-90"
+                            aria-label="制作数を増やす"
                           >
                             ＋
                           </button>
@@ -543,7 +588,7 @@ export default function InquiryFormModal({
                     </div>
                   ) : null}
 
-                  {step === 1 ? (
+                  {step === 2 ? (
                     <div className="space-y-6">
                       <label className="block">
                         <FieldLabel required>商品・サービス名</FieldLabel>
@@ -579,7 +624,11 @@ export default function InquiryFormModal({
                                 key={value}
                                 type="button"
                                 onClick={() => update("campaignGoal", value)}
-                                className={`min-h-12 rounded-[13px] px-3 text-left text-[13px] font-medium ring-1 transition active:scale-[0.98] ${checked ? "bg-slate-950 text-white ring-slate-950" : "bg-white text-slate-700 ring-slate-200"}`}
+                                className={`min-h-12 rounded-[13px] px-3 text-left text-[13px] font-medium ring-1 transition active:scale-[0.98] ${
+                                  checked
+                                    ? "bg-slate-950 text-white ring-slate-950"
+                                    : "bg-white text-slate-700 ring-slate-200"
+                                }`}
                               >
                                 {label}
                               </button>
@@ -643,7 +692,7 @@ export default function InquiryFormModal({
                     </div>
                   ) : null}
 
-                  {step === 2 ? (
+                  {step === 3 ? (
                     <div className="space-y-5">
                       <label className="block">
                         <FieldLabel required>会社名・ブランド名</FieldLabel>
@@ -741,21 +790,21 @@ export default function InquiryFormModal({
             </div>
 
             <footer className="shrink-0 border-t border-slate-100 bg-white/96 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
-              {mode === "preview" ? (
-                <button
-                  type="button"
-                  disabled
-                  className="h-12 w-full rounded-full bg-slate-100 text-sm font-semibold text-slate-400"
-                >
-                  プレビューでは送信されません
-                </button>
-              ) : kind === "pr" && step < 2 ? (
+              {kind === "pr" && step < 3 ? (
                 <button
                   type="button"
                   onClick={goNext}
                   className="h-12 w-full rounded-full bg-slate-950 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition active:scale-[0.975]"
                 >
                   次へ
+                </button>
+              ) : mode === "preview" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="h-12 w-full rounded-full bg-slate-100 text-sm font-semibold text-slate-400"
+                >
+                  送信は公開ページで行えます
                 </button>
               ) : (
                 <button
