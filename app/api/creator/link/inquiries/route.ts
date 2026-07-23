@@ -11,7 +11,9 @@ import {
 } from "@/lib/trendre-link/inquiry-inbox";
 import { getTrendreLinkAuthenticatedUser } from "@/lib/trendre-link/server-auth";
 
-const INQUIRY_SELECT = `
+// Keep this typed as a runtime string until the generated Supabase database
+// types include creator_inquiries.request_data.
+const INQUIRY_SELECT: string = `
   id,
   created_at,
   updated_at,
@@ -42,6 +44,12 @@ function errorResponse(error: string, status: number) {
   );
 }
 
+function asInquiryList(value: unknown): CreatorLinkInquiryListItem[] {
+  return Array.isArray(value)
+    ? (value as CreatorLinkInquiryListItem[])
+    : [];
+}
+
 export async function GET(request: NextRequest) {
   const auth = await getTrendreLinkAuthenticatedUser(request);
   if (!auth.user) return errorResponse("ログインが必要です。", 401);
@@ -60,8 +68,8 @@ export async function GET(request: NextRequest) {
     const locale = getCreatorLinkInquiryLocale(
       request.headers.get("accept-language")
     );
-    const inquiries = ((data ?? []) as CreatorLinkInquiryListItem[]).map(
-      (inquiry) => localizeCreatorLinkInquiry(inquiry, locale)
+    const inquiries = asInquiryList(data).map((inquiry) =>
+      localizeCreatorLinkInquiry(inquiry, locale)
     );
     const activeStatuses =
       CREATOR_LINK_ACTIVE_INQUIRY_STATUSES as readonly string[];
