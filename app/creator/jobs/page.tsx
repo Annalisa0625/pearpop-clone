@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAppLocale } from "@/lib/i18n/locale";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type FulfillmentType = "material_provided" | "product_shipping" | "visit" | null;
-
 type PreparationStatus =
   | "not_started"
   | "waiting_materials"
@@ -44,11 +43,7 @@ type ActiveOrder = {
   preparationStatus: PreparationStatus;
 };
 
-type ChatReadRow = {
-  user_id: string;
-  last_read_at: string | null;
-};
-
+type ChatReadRow = { user_id: string; last_read_at: string | null };
 type ChatRow = {
   id: string;
   order_id: string | null;
@@ -77,44 +72,44 @@ type ChatItem = {
 
 type TabKey = "jobs" | "messages";
 
-function ArrowIcon() {
+function ChevronIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function BriefcaseIcon({ className = "h-5 w-5" }: { className?: string }) {
+function WorkIcon({ message = false }: { message?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <rect x="4" y="7" width="16" height="13" rx="3" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M4 12h16M10 12v2h4v-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function MessageIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
-      <path d="M7.5 9.5h9M7.5 13h6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-    </svg>
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-white to-slate-100 text-slate-700 shadow-[0_5px_14px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
+      {message ? (
+        <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+          <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M7.5 9.5h9M7.5 13h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+          <rect x="4" y="7" width="16" height="13" rx="3" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M4 12h16M10 12v2h4v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      )}
+    </span>
   );
 }
 
 function EmptyIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7" aria-hidden="true">
-      <path d="M5 12.5 10 17 19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 12.5 10 17 19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
+  if (!value) return "";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
     month: "numeric",
     day: "numeric",
@@ -170,144 +165,123 @@ function countUnreadMessages(chat: ChatRow | null, messages: MessageRow[], userI
   return Math.max(count, 1);
 }
 
-function getStatus(order: ActiveOrder, locale: "ja" | "en") {
+function getNextAction(order: ActiveOrder, locale: "ja" | "en") {
+  const ja = locale === "ja";
+
   if (order.status === "revision_requested") {
     return {
-      label: locale === "ja" ? "修正対応が必要" : "Revision required",
-      body: locale === "ja" ? "修正内容を確認して、再提出へ進んでください。" : "Review the requested changes and submit again.",
-      tone: "rose" as const,
-      action: true,
+      title: ja ? "修正内容を確認してください" : "Review requested changes",
+      body: ja ? "内容を確認して再提出へ進みます" : "Review the details and submit again",
+      urgent: true,
     };
   }
-
   if (order.status === "delivered") {
     return {
-      label: locale === "ja" ? "確認待ち" : "Waiting for review",
-      body: locale === "ja" ? "依頼元の確認が完了するまでお待ちください。" : "Waiting for the requester to review the delivery.",
-      tone: "blue" as const,
-      action: false,
+      title: ja ? "依頼元の確認待ち" : "Waiting for review",
+      body: ja ? "納品内容を確認してもらっています" : "The delivery is being reviewed",
+      urgent: false,
     };
   }
-
   if (order.fulfillmentType === "product_shipping") {
     if (order.preparationStatus === "waiting_shipping_address") {
       return {
-        label: locale === "ja" ? "配送先を入力" : "Add shipping address",
-        body: locale === "ja" ? "商品を受け取るために配送先の登録が必要です。" : "Add an address so the product can be shipped.",
-        tone: "amber" as const,
-        action: true,
+        title: ja ? "配送先を入力してください" : "Add a shipping address",
+        body: ja ? "商品の発送に必要な情報を登録します" : "Add the details needed for shipping",
+        urgent: true,
       };
     }
     if (["waiting_shipment", "shipped"].includes(order.preparationStatus ?? "")) {
       return {
-        label: locale === "ja" ? "商品の到着待ち" : "Waiting for product",
-        body: locale === "ja" ? "発送状況を確認し、商品が届いたら受取確認へ進みます。" : "Check shipping and confirm when the product arrives.",
-        tone: "blue" as const,
-        action: false,
+        title: ja ? "商品の到着を待っています" : "Waiting for the product",
+        body: ja ? "届いたら受取確認へ進みます" : "Confirm when the product arrives",
+        urgent: false,
       };
     }
   }
-
-  if (order.fulfillmentType === "visit" && !["schedule_confirmed", "ready_to_start"].includes(order.preparationStatus ?? "")) {
+  if (
+    order.fulfillmentType === "visit" &&
+    !["schedule_confirmed", "ready_to_start"].includes(order.preparationStatus ?? "")
+  ) {
     return {
-      label: locale === "ja" ? "日程を調整" : "Schedule the visit",
-      body: locale === "ja" ? "来店日・場所・撮影ルールを依頼元と調整してください。" : "Coordinate the visit date, location, and rules.",
-      tone: "amber" as const,
-      action: true,
+      title: ja ? "日程を調整してください" : "Schedule the visit",
+      body: ja ? "候補日を確認して日程を決めます" : "Review dates and confirm the schedule",
+      urgent: true,
     };
   }
-
-  if (order.fulfillmentType === "material_provided" && ["waiting_materials", "materials_provided"].includes(order.preparationStatus ?? "")) {
+  if (
+    order.fulfillmentType === "material_provided" &&
+    ["waiting_materials", "materials_provided"].includes(order.preparationStatus ?? "")
+  ) {
     return {
-      label: locale === "ja" ? "素材を確認" : "Review materials",
-      body: locale === "ja" ? "提供された素材を確認し、作業開始の準備を進めてください。" : "Review the supplied materials and prepare to start.",
-      tone: "amber" as const,
-      action: true,
+      title: ja ? "素材を確認してください" : "Review the materials",
+      body: ja ? "受け取った素材を確認して作業を始めます" : "Review the supplied materials and start",
+      urgent: true,
     };
   }
 
   return {
-    label: locale === "ja" ? "進行中" : "In progress",
-    body: locale === "ja" ? "案件詳細を確認して、次の作業を進めてください。" : "Review the job details and continue the next task.",
-    tone: "slate" as const,
-    action: false,
+    title: ja ? "進行中" : "In progress",
+    body: ja ? "案件詳細から次の作業を確認できます" : "Open the job to see the next step",
+    urgent: false,
   };
 }
 
-function ToneBadge({ tone, children }: { tone: "rose" | "blue" | "amber" | "slate"; children: ReactNode }) {
-  const className =
-    tone === "rose"
-      ? "bg-rose-50 text-[#ff4765]"
-      : tone === "blue"
-        ? "bg-blue-50 text-blue-700"
-        : tone === "amber"
-          ? "bg-amber-50 text-amber-700"
-          : "bg-slate-100 text-slate-600";
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${className}`}>{children}</span>;
-}
-
-function JobCard({ order, locale }: { order: ActiveOrder; locale: "ja" | "en" }) {
-  const status = getStatus(order, locale);
-
+function JobRow({ order, locale }: { order: ActiveOrder; locale: "ja" | "en" }) {
+  const action = getNextAction(order, locale);
   return (
-    <Link href={`/creator/orders/${order.id}`} className="group block rounded-[22px] bg-white px-4 py-4 ring-1 ring-slate-200/70 transition active:scale-[0.99]">
-      <div className="flex items-start gap-3">
-        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${status.action ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-500"}`}>
-          <BriefcaseIcon />
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600">Trend Mart</span>
-            <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
+    <Link href={`/creator/orders/${order.id}`} className="group flex min-h-[112px] items-start gap-3.5 px-4 py-4 transition duration-200 active:scale-[0.985] active:bg-slate-50/80">
+      <div className="relative">
+        <WorkIcon />
+        {action.urgent ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff304f] ring-[3px] ring-white" /> : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-medium text-slate-400">{locale === "ja" ? "進行中" : "Active"}</p>
+          <time className="text-[11px] font-medium text-slate-400">{formatDate(order.updatedAt || order.createdAt, locale)}</time>
+        </div>
+        <div className="mt-1 flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[16px] font-semibold tracking-[-0.025em] text-slate-950">{order.title}</h2>
+            <p className={`mt-1 line-clamp-1 text-[13px] leading-5 ${action.urgent ? "font-medium text-slate-800" : "text-slate-500"}`}>{action.title}</p>
+            <p className="mt-1 line-clamp-1 text-[11px] text-slate-400">{action.body}</p>
           </div>
-
-          <div className="mt-3 flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-[17px] font-bold tracking-[-0.035em] text-slate-950">{order.title}</h2>
-              <p className="mt-1 text-sm font-medium leading-6 text-slate-500">{status.body}</p>
-            </div>
-            <span className="mt-1 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500"><ArrowIcon /></span>
-          </div>
-
-          <div className="mt-4 border-t border-slate-100 pt-3 text-xs font-medium text-slate-400">
-            {locale === "ja" ? "更新" : "Updated"} {formatDate(order.updatedAt || order.createdAt, locale)}
-          </div>
+          <span className="mt-1 shrink-0 text-slate-300 transition duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"><ChevronIcon /></span>
         </div>
       </div>
     </Link>
   );
 }
 
-function ChatCard({ item, locale, fallback }: { item: ChatItem; locale: "ja" | "en"; fallback: string }) {
+function ChatRowItem({ item, locale, fallback }: { item: ChatItem; locale: "ja" | "en"; fallback: string }) {
   const unread = item.unreadCount > 0;
   return (
-    <Link href={`/creator/chats/${item.order.id}`} className={`group flex items-center gap-3 rounded-[22px] px-4 py-4 ring-1 transition active:scale-[0.99] ${unread ? "bg-white ring-violet-200" : "bg-white ring-slate-200/70"}`}>
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${unread ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500"}`}>
-        <MessageIcon />
-      </span>
+    <Link href={`/creator/chats/${item.order.id}`} className="group flex min-h-[94px] items-center gap-3.5 px-4 py-3.5 transition duration-200 active:scale-[0.985] active:bg-slate-50/80">
+      <div className="relative">
+        <WorkIcon message />
+        {unread ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff304f] ring-[3px] ring-white" /> : null}
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <h2 className={`truncate text-[16px] tracking-[-0.03em] text-slate-950 ${unread ? "font-bold" : "font-semibold"}`}>{item.order.title}</h2>
-          <span className={`shrink-0 text-[11px] font-medium ${unread ? "text-violet-700" : "text-slate-400"}`}>{formatChatTimestamp(item.latestAt, locale)}</span>
+          <h2 className={`truncate text-[15px] tracking-[-0.02em] text-slate-950 ${unread ? "font-semibold" : "font-medium"}`}>{item.order.title}</h2>
+          <time className="shrink-0 text-[11px] font-medium text-slate-400">{formatChatTimestamp(item.latestAt, locale)}</time>
         </div>
         <div className="mt-1 flex items-center gap-2">
-          <p className={`min-w-0 flex-1 truncate text-sm ${unread ? "font-semibold text-slate-700" : "font-medium text-slate-500"}`}>{getMessageText(item.latestMessage, fallback)}</p>
-          {unread ? <span className="flex min-w-5 items-center justify-center rounded-full bg-[#ff4765] px-1.5 py-0.5 text-[10px] font-bold text-white">{item.unreadCount > 99 ? "99+" : item.unreadCount}</span> : null}
+          <p className={`min-w-0 flex-1 truncate text-[13px] ${unread ? "font-medium text-slate-800" : "text-slate-500"}`}>{getMessageText(item.latestMessage, fallback)}</p>
+          {unread ? <span className="flex min-w-5 items-center justify-center rounded-full bg-[#ff304f] px-1.5 py-0.5 text-[10px] font-semibold text-white">{item.unreadCount > 99 ? "99+" : item.unreadCount}</span> : null}
         </div>
       </div>
-      <span className="text-slate-300 transition group-hover:translate-x-0.5"><ArrowIcon /></span>
+      <span className="shrink-0 text-slate-300 transition duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"><ChevronIcon /></span>
     </Link>
   );
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-[24px] bg-white px-6 py-12 text-center ring-1 ring-slate-200/70">
-      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100"><EmptyIcon /></span>
-      <h2 className="mt-5 text-lg font-bold tracking-[-0.035em] text-slate-950">{title}</h2>
-      <p className="mx-auto mt-2 max-w-sm text-sm font-medium leading-6 text-slate-500">{body}</p>
-    </section>
+    <div className="px-6 py-14 text-center">
+      <span className="mx-auto flex h-13 w-13 items-center justify-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100"><EmptyIcon /></span>
+      <h2 className="mt-4 text-[16px] font-semibold tracking-[-0.025em] text-slate-950">{title}</h2>
+      <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-slate-500">{body}</p>
+    </div>
   );
 }
 
@@ -323,36 +297,28 @@ export default function CreatorJobsPage() {
 
   const copy = safeLocale === "ja"
     ? {
-        eyebrow: "成立後",
-        title: "Job",
-        description: "承認済みの案件と、進行に必要なやりとりを確認します。",
-        jobs: "案件",
+        title: "仕事",
+        jobs: "進行中",
         messages: "メッセージ",
-        active: "進行中",
-        unread: "未読",
-        emptyJobs: "進行中のJobはありません",
-        emptyJobsBody: "Orderを承認した案件や、企業に承認された見積もりがここへ移動します。",
+        emptyJobs: "進行中の仕事はありません",
+        emptyJobsBody: "成立した依頼は、ここで準備から納品まで進めます。",
         emptyMessages: "メッセージはありません",
-        emptyMessagesBody: "進行中のJobでやりとりが始まると、ここに表示されます。",
+        emptyMessagesBody: "案件のやりとりが始まると、ここに表示されます。",
         noMessage: "まだメッセージはありません",
-        loadError: "Jobを読み込めませんでした。",
-        retry: "もう一度試す",
+        loadError: "仕事を読み込めませんでした。",
+        retry: "再読み込み",
       }
     : {
-        eyebrow: "After agreement",
-        title: "Job",
-        description: "Manage accepted work and the conversations needed to complete it.",
-        jobs: "Jobs",
+        title: "Jobs",
+        jobs: "Active",
         messages: "Messages",
-        active: "Active",
-        unread: "Unread",
         emptyJobs: "No active jobs",
-        emptyJobsBody: "Accepted orders and approved quotes will move here.",
+        emptyJobsBody: "Accepted work will appear here from preparation through delivery.",
         emptyMessages: "No messages",
-        emptyMessagesBody: "Conversations for active jobs will appear here.",
+        emptyMessagesBody: "Job conversations will appear here.",
         noMessage: "No messages yet",
-        loadError: "Could not load Job.",
-        retry: "Try again",
+        loadError: "Could not load jobs.",
+        retry: "Reload",
       };
 
   const loadJobs = useCallback(async () => {
@@ -399,13 +365,19 @@ export default function CreatorJobsPage() {
         .in("order_id", orderIds);
 
       if (chatError) {
-        console.warn("creator active chats load skipped", chatError);
-        setChatItems(nextOrders.map((order) => ({ order, latestMessage: null, unreadCount: 0, latestAt: order.updatedAt || order.createdAt })));
+        setChatItems(nextOrders.map((order) => ({
+          order,
+          latestMessage: null,
+          unreadCount: 0,
+          latestAt: order.updatedAt || order.createdAt,
+        })));
         return;
       }
 
       const chats = (chatData ?? []) as unknown as ChatRow[];
-      const chatByOrder = new Map(chats.filter((chat) => chat.order_id).map((chat) => [chat.order_id as string, chat]));
+      const chatByOrder = new Map(
+        chats.filter((chat) => chat.order_id).map((chat) => [chat.order_id as string, chat])
+      );
       const chatIds = chats.map((chat) => chat.id).filter(Boolean);
       const messagesByChat = new Map<string, MessageRow[]>();
 
@@ -439,7 +411,11 @@ export default function CreatorJobsPage() {
             latestAt: latestMessage?.created_at ?? chat?.last_message_at ?? order.updatedAt ?? order.createdAt,
           };
         })
-        .sort((a, b) => b.unreadCount - a.unreadCount || new Date(b.latestAt ?? b.order.createdAt).getTime() - new Date(a.latestAt ?? a.order.createdAt).getTime());
+        .sort((a, b) =>
+          b.unreadCount - a.unreadCount ||
+          new Date(b.latestAt ?? b.order.createdAt).getTime() -
+            new Date(a.latestAt ?? a.order.createdAt).getTime()
+        );
 
       setChatItems(nextChats);
     } catch (loadError) {
@@ -476,54 +452,57 @@ export default function CreatorJobsPage() {
   const unreadTotal = chatItems.reduce((sum, item) => sum + item.unreadCount, 0);
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-4 pt-3">
-      <section className="px-1 pb-5 pt-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ff4765]">{copy.eyebrow}</p>
-        <h1 className="mt-2 text-[34px] font-bold tracking-[-0.06em] text-slate-950">{copy.title}</h1>
-        <p className="mt-2 max-w-xl text-sm font-medium leading-7 text-slate-500">{copy.description}</p>
-      </section>
+    <div className="mx-auto w-full max-w-3xl pb-5 pt-3">
+      <header className="flex items-end justify-between px-1 pb-3 pt-2">
+        <h1 className="text-[27px] font-semibold tracking-[-0.05em] text-slate-950">{copy.title}</h1>
+        <p className="pb-1 text-xs font-medium text-slate-400">{orders.length}</p>
+      </header>
 
-      <section className="grid grid-cols-2 overflow-hidden rounded-[24px] bg-[#121117] text-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-        <div className="border-r border-white/10 px-5 py-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">{copy.active}</p>
-          <p className="mt-2 text-[30px] font-bold tracking-[-0.06em]">{orders.length}</p>
-        </div>
-        <div className="px-5 py-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">{copy.unread}</p>
-          <p className="mt-2 text-[30px] font-bold tracking-[-0.06em]">{unreadTotal}</p>
-        </div>
-      </section>
-
-      <div className="mt-5 flex gap-2">
-        <button type="button" onClick={() => setTab("jobs")} className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition ${tab === "jobs" ? "bg-slate-950 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200/70"}`}>
-          <BriefcaseIcon className="h-4 w-4" />
-          {copy.jobs}
-          <span className={tab === "jobs" ? "text-white/55" : "text-slate-400"}>{orders.length}</span>
+      <nav className="flex border-b border-slate-200/80" aria-label={copy.title}>
+        <button type="button" onClick={() => setTab("jobs")} className={`relative min-h-11 flex-1 px-4 text-[13px] font-medium transition duration-200 active:opacity-60 ${tab === "jobs" ? "text-slate-950" : "text-slate-400"}`}>
+          {copy.jobs}<span className="ml-1.5 text-[11px] text-slate-400">{orders.length}</span>
+          {tab === "jobs" ? <span className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-slate-950" /> : null}
         </button>
-        <button type="button" onClick={() => setTab("messages")} className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition ${tab === "messages" ? "bg-slate-950 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200/70"}`}>
-          <MessageIcon className="h-4 w-4" />
-          {copy.messages}
-          <span className={tab === "messages" ? "text-white/55" : "text-slate-400"}>{unreadTotal}</span>
+        <button type="button" onClick={() => setTab("messages")} className={`relative min-h-11 flex-1 px-4 text-[13px] font-medium transition duration-200 active:opacity-60 ${tab === "messages" ? "text-slate-950" : "text-slate-400"}`}>
+          <span className="relative inline-flex items-center">
+            {copy.messages}
+            {unreadTotal > 0 ? <span className="absolute -right-3 -top-1 h-2 w-2 rounded-full bg-[#ff304f]" /> : null}
+          </span>
+          {unreadTotal > 0 ? <span className="ml-1.5 text-[11px] text-slate-400">{unreadTotal}</span> : null}
+          {tab === "messages" ? <span className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-slate-950" /> : null}
         </button>
-      </div>
+      </nav>
 
-      <section className="mt-3 space-y-3" aria-busy={loading}>
+      <section className="mt-3 overflow-hidden rounded-[20px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.045)] ring-1 ring-slate-200/70" aria-busy={loading}>
         {loading ? (
-          [0, 1, 2].map((item) => <div key={item} className="h-36 animate-pulse rounded-[22px] bg-white ring-1 ring-slate-100" />)
+          <div className="divide-y divide-slate-100">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="flex h-[112px] items-center gap-4 px-4">
+                <div className="h-11 w-11 animate-pulse rounded-[14px] bg-slate-100" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-1/4 animate-pulse rounded bg-slate-100" />
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-slate-100" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : error ? (
-          <div className="rounded-[22px] bg-white px-6 py-10 text-center ring-1 ring-slate-200/70">
-            <p className="text-base font-bold text-slate-950">{copy.loadError}</p>
-            <button type="button" onClick={() => void loadJobs()} className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">{copy.retry}</button>
+          <div className="px-6 py-12 text-center">
+            <p className="text-sm font-semibold text-slate-900">{copy.loadError}</p>
+            <button type="button" onClick={() => void loadJobs()} className="mt-5 min-h-11 rounded-full bg-slate-950 px-5 text-sm font-semibold text-white transition active:scale-[0.97]">{copy.retry}</button>
           </div>
         ) : tab === "jobs" ? (
-          orders.length > 0
-            ? orders.map((order) => <JobCard key={order.id} order={order} locale={safeLocale} />)
-            : <EmptyState title={copy.emptyJobs} body={copy.emptyJobsBody} />
+          orders.length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {orders.map((order) => <JobRow key={order.id} order={order} locale={safeLocale} />)}
+            </div>
+          ) : <EmptyState title={copy.emptyJobs} body={copy.emptyJobsBody} />
         ) : chatItems.length > 0 ? (
-          chatItems.map((item) => <ChatCard key={item.order.id} item={item} locale={safeLocale} fallback={copy.noMessage} />)
-        ) : (
-          <EmptyState title={copy.emptyMessages} body={copy.emptyMessagesBody} />
-        )}
+          <div className="divide-y divide-slate-100">
+            {chatItems.map((item) => <ChatRowItem key={item.order.id} item={item} locale={safeLocale} fallback={copy.noMessage} />)}
+          </div>
+        ) : <EmptyState title={copy.emptyMessages} body={copy.emptyMessagesBody} />}
       </section>
     </div>
   );
