@@ -11,7 +11,9 @@ import {
 import { UUID_PATTERN } from "@/lib/trendre-link/items-server";
 import { getTrendreLinkAuthenticatedUser } from "@/lib/trendre-link/server-auth";
 
-const INQUIRY_SELECT = `
+// Keep this typed as a runtime string until the generated Supabase database
+// types include creator_inquiries.request_data.
+const INQUIRY_SELECT: string = `
   id,
   created_at,
   updated_at,
@@ -45,6 +47,10 @@ function errorResponse(error: string, status: number) {
   );
 }
 
+function asInquiry(value: unknown): CreatorLinkInquiryListItem {
+  return value as CreatorLinkInquiryListItem;
+}
+
 async function findOwnedInquiry(id: string, ownerUserId: string) {
   const { data, error } = await supabaseAdmin
     .from("creator_inquiries")
@@ -55,7 +61,7 @@ async function findOwnedInquiry(id: string, ownerUserId: string) {
     .maybeSingle();
 
   if (error) throw new Error("inquiry_lookup_failed");
-  return (data ?? null) as CreatorLinkInquiryListItem | null;
+  return data ? asInquiry(data) : null;
 }
 
 function localizedInquiry(
@@ -136,7 +142,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json<CreatorLinkInquiryDetailResponse>({
       ok: true,
-      inquiry: localizedInquiry(data as CreatorLinkInquiryListItem, request),
+      inquiry: localizedInquiry(asInquiry(data), request),
     });
   } catch (error) {
     console.error(
