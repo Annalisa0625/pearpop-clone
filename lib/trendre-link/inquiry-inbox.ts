@@ -1,3 +1,5 @@
+import type { CreatorLinkRequestData } from "@/lib/trendre-link/inquiry-forms";
+
 export const CREATOR_LINK_INQUIRY_STATUSES = [
   "new",
   "creator_reviewing",
@@ -26,6 +28,7 @@ export type CreatorLinkInquiryListItem = {
   offer_type: string | null;
   purpose: string | null;
   message: string | null;
+  request_data: CreatorLinkRequestData | null;
   source: string;
   company_user_id: string | null;
   converted_order_id: string | null;
