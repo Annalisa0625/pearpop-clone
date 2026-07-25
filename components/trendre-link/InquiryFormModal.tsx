@@ -170,14 +170,33 @@ function Choice({ checked, children, onClick, description }: { checked: boolean;
 
 function CountInput({ value, onChange, label }: { value: number; onChange: (value: number) => void; label: string }) {
   const set = (raw: string | number) => {
-    const value = Number(raw);
-    if (Number.isInteger(value) && value >= 1) onChange(value);
+    const nextValue = Number(raw);
+    if (!Number.isSafeInteger(nextValue) || nextValue < 1) return false;
+    onChange(nextValue);
+    return true;
   };
   return (
-    <div className="flex h-12 items-center gap-2 rounded-[14px] bg-slate-50 px-2 ring-1 ring-slate-200">
-      <button type="button" aria-label={`${label}を減らす`} onClick={() => onChange(Math.max(1, value - 1))} className="h-9 w-9 rounded-full bg-white text-xl ring-1 ring-slate-200">−</button>
-      <input aria-label={`${label}の制作数`} type="number" min={1} step={1} value={value} onChange={(event) => set(event.target.value)} className="min-w-0 flex-1 bg-transparent text-center text-[15px] font-semibold outline-none" />
-      <button type="button" aria-label={`${label}を増やす`} onClick={() => onChange(value + 1)} className="h-9 w-9 rounded-full bg-slate-950 text-xl text-white">＋</button>
+    <div>
+      <p className="mb-2 text-[13px] font-semibold text-slate-900">{label}</p>
+      <div className="flex h-12 items-center gap-2 rounded-[14px] bg-slate-50 px-2 ring-1 ring-slate-200">
+        <button type="button" aria-label={`${label}を減らす`} onClick={() => onChange(Math.max(1, value - 1))} className="h-9 w-9 shrink-0 rounded-full bg-white text-xl font-semibold text-slate-800 shadow-sm ring-1 ring-slate-300 transition active:scale-90">−</button>
+        <label className="flex min-w-0 flex-1 items-center justify-center gap-1">
+          <span className="sr-only">{label}の制作数</span>
+          <input
+            aria-label={`${label}の制作数`}
+            type="number"
+            min={1}
+            step={1}
+            value={value}
+            onChange={(event) => {
+              if (!set(event.target.value)) event.currentTarget.value = String(value);
+            }}
+            className="w-[4ch] bg-transparent text-right text-[16px] font-semibold text-slate-950 outline-none"
+          />
+          <span aria-hidden="true" className="text-[14px] font-semibold text-slate-700">件</span>
+        </label>
+        <button type="button" aria-label={`${label}を増やす`} onClick={() => set(value + 1)} className="h-9 w-9 shrink-0 rounded-full bg-slate-950 text-xl font-semibold text-white shadow-sm transition active:scale-90">＋</button>
+      </div>
     </div>
   );
 }
@@ -268,6 +287,71 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
     return "";
   };
 
+  const canAdvance = (() => {
+    if (submitting) return false;
+    if (kind === "simple") {
+      return Boolean(
+        form.contact_name.trim() &&
+        form.contact_email.trim() &&
+        form.message.trim()
+      );
+    }
+    if (step === 0) return Boolean(form.request_mode);
+    if (step === 1) {
+      return form.request_mode === "ugc"
+        ? form.ugc_deliverable_types.length > 0 &&
+            (!form.ugc_deliverable_types.includes("other") ||
+              Boolean(form.ugc_other_deliverable.trim()))
+        : Boolean(form.project_type);
+    }
+    if (step === 2 && form.request_mode === "ugc") {
+      return (
+        form.usage_purposes.length > 0 &&
+        Boolean(form.meeting_method) &&
+        (!form.usage_purposes.includes("other") || Boolean(form.usage_other.trim()))
+      );
+    }
+    if (step === 2 && form.request_mode === "pr_post") {
+      return (
+        form.requested_platforms.length > 0 &&
+        (!form.requested_platforms.includes("other") || Boolean(form.other_platform.trim())) &&
+        form.requested_platforms.every((platform) => {
+          const items = form.deliverables_by_platform[platform] ?? [];
+          return (
+            items.length > 0 &&
+            items.every(
+              (item) => item.type !== "other" || Boolean(item.other_text?.trim())
+            )
+          );
+        })
+      );
+    }
+    if (step === 3) {
+      return Boolean(
+        form.product_name.trim() &&
+        form.desired_timing.trim() &&
+        /^[1-9]\d*$/.test(form.budget_text) &&
+        form.has_free_offer &&
+        (form.has_free_offer !== "provided" || form.free_offer_item.trim()) &&
+        (form.request_mode !== "pr_post" ||
+          (form.campaign_goal &&
+            (form.campaign_goal !== "other" || form.campaign_goal_other.trim())))
+      );
+    }
+    if (step === 4) {
+      return Boolean(
+        form.company_name.trim() &&
+        form.contact_name.trim() &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email) &&
+        Object.values(form.company_social_accounts).every((username) =>
+          Boolean(username.trim())
+        )
+      );
+    }
+    if (step === 5) return form.consents.every(Boolean);
+    return true;
+  })();
+
   const next = () => {
     const message = validate();
     if (message) return setError(message);
@@ -325,7 +409,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
     );
     if (step === 0) return (
       <fieldset className="space-y-3">
-        <legend className="mb-3 text-[18px] font-semibold">依頼内容を選択</legend>
+        <legend className="mb-3 text-[18px] font-semibold text-slate-950">依頼内容を選択</legend>
         <Choice checked={form.request_mode === "pr_post"} onClick={() => update("request_mode", "pr_post")} description="インフルエンサー自身のSNSアカウントから投稿">PR投稿</Choice>
         <Choice checked={form.request_mode === "ugc"} onClick={() => update("request_mode", "ugc")} description="写真・画像・動画素材を制作して納品。インフルエンサー自身のSNSへの投稿はありません">UGC制作</Choice>
       </fieldset>
@@ -334,7 +418,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
       <div className="space-y-5">
         <fieldset><legend><FieldLabel required>希望する制作物（複数選択可）</FieldLabel></legend><div className="mt-3 grid gap-2">{UGC_DELIVERABLE_TYPES.map((value) => <Choice key={value} checked={form.ugc_deliverable_types.includes(value)} onClick={() => toggle("ugc_deliverable_types", value)}>{labels[value]}</Choice>)}</div></fieldset>
         {form.ugc_deliverable_types.includes("other") ? <label className="block"><FieldLabel required>その他の制作物</FieldLabel><input value={form.ugc_other_deliverable} maxLength={200} onChange={(e) => update("ugc_other_deliverable", e.target.value)} className={inputClass} /></label> : null}
-        <div><FieldLabel required>制作数</FieldLabel><div className="mt-2"><CountInput value={form.deliverable_count} onChange={(value) => update("deliverable_count", value)} label="制作物" /></div></div>
+        <CountInput value={form.deliverable_count} onChange={(value) => update("deliverable_count", value)} label="制作数" />
       </div>
     );
     if (step === 1) return (
@@ -351,9 +435,9 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
       <div className="space-y-6">
         <fieldset><legend><FieldLabel required>希望するSNS（複数選択可）</FieldLabel></legend><div className="mt-3 flex flex-wrap gap-2">{REQUESTED_PLATFORMS.map((value) => <button key={value} type="button" aria-pressed={form.requested_platforms.includes(value)} onClick={() => togglePlatform(value)} className={`rounded-full px-4 py-2 text-[13px] font-semibold ring-1 ${form.requested_platforms.includes(value) ? "bg-slate-950 text-white ring-slate-950" : "bg-white text-slate-700 ring-slate-200"}`}>{labels[value]}</button>)}</div></fieldset>
         {form.requested_platforms.includes("other") ? <label className="block"><FieldLabel required>その他のSNS</FieldLabel><input value={form.other_platform} maxLength={100} onChange={(e) => update("other_platform", e.target.value)} className={inputClass} /></label> : null}
-        {form.requested_platforms.map((platform) => <fieldset key={platform} className="border-t border-slate-100 pt-5"><legend className="text-[15px] font-semibold">{labels[platform] ?? form.other_platform}</legend><div className="mt-3 space-y-3">{PLATFORM_DELIVERABLES[platform as keyof typeof PLATFORM_DELIVERABLES].map((type) => {
+        {form.requested_platforms.map((platform) => <fieldset key={platform} className="border-t border-slate-100 pt-5"><legend className="text-[15px] font-semibold text-slate-950">{labels[platform] ?? form.other_platform}</legend><div className="mt-3 space-y-3">{PLATFORM_DELIVERABLES[platform as keyof typeof PLATFORM_DELIVERABLES].map((type) => {
           const item = (form.deliverables_by_platform[platform] ?? []).find((entry) => entry.type === type);
-          return <div key={type}><Choice checked={Boolean(item)} onClick={() => toggleDeliverable(platform, type)}>{labels[type]}</Choice>{item ? <div className="mt-2 pl-4"><CountInput label={`${labels[platform]} ${labels[type]}`} value={item.count} onChange={(count) => updateDeliverable(platform, type, { count })} />{type === "other" ? <input aria-label="その他の制作物" value={item.other_text ?? ""} maxLength={200} placeholder="制作物を入力" onChange={(e) => updateDeliverable(platform, type, { other_text: e.target.value })} className={inputClass} /> : null}</div> : null}</div>;
+          return <div key={type}><Choice checked={Boolean(item)} onClick={() => toggleDeliverable(platform, type)}>{labels[type]}</Choice>{item ? <div className="mt-3 pl-4"><CountInput label={labels[type]} value={item.count} onChange={(count) => updateDeliverable(platform, type, { count })} />{type === "other" ? <input aria-label="その他の制作物" value={item.other_text ?? ""} maxLength={200} placeholder="制作物を入力" onChange={(e) => updateDeliverable(platform, type, { other_text: e.target.value })} className={inputClass} /> : null}</div> : null}</div>;
         })}</div></fieldset>)}
       </div>
     );
@@ -378,7 +462,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
           const selected = Object.hasOwn(form.company_social_accounts, platform);
           return <button key={platform} type="button" aria-pressed={selected} onClick={() => { const next = { ...form.company_social_accounts }; if (selected) delete next[platform]; else next[platform] = ""; update("company_social_accounts", next); }} className={`flex items-center gap-2 rounded-[14px] px-3 py-3 text-left text-[13px] font-semibold ring-1 ${selected ? "bg-slate-950 text-white ring-slate-950" : "bg-white text-slate-700 ring-slate-200"}`}><Image src={socialAssets[platform]} alt="" width={22} height={22} className="rounded-md" />{labels[platform]}</button>;
         })}</div></fieldset>
-        {COMPANY_SOCIAL_PLATFORMS.filter((platform) => Object.hasOwn(form.company_social_accounts, platform)).map((platform) => <label key={platform} className="block"><FieldLabel>{labels[platform]} ユーザーネーム</FieldLabel><div className="mt-2 flex h-12 overflow-hidden rounded-[14px] bg-slate-50 ring-1 ring-slate-200"><span className="flex items-center border-r border-slate-200 px-3 text-[12px] text-slate-500">{socialPrefixes[platform]}</span><input value={form.company_social_accounts[platform]} maxLength={100} onChange={(e) => update("company_social_accounts", { ...form.company_social_accounts, [platform]: e.target.value.replace(/^@/, "") })} className="min-w-0 flex-1 bg-transparent px-3 text-[14px] outline-none" /></div></label>)}
+        {COMPANY_SOCIAL_PLATFORMS.filter((platform) => Object.hasOwn(form.company_social_accounts, platform)).map((platform) => <label key={platform} className="block"><FieldLabel required>{labels[platform]} ユーザーネーム</FieldLabel><div className="mt-2 flex h-12 overflow-hidden rounded-[14px] bg-slate-50 ring-1 ring-slate-200"><span className="flex items-center border-r border-slate-200 px-3 text-[12px] text-slate-500">{socialPrefixes[platform]}</span><input value={form.company_social_accounts[platform]} maxLength={100} onChange={(e) => update("company_social_accounts", { ...form.company_social_accounts, [platform]: e.target.value.replace(/^@/, "") })} className="min-w-0 flex-1 bg-transparent px-3 text-[14px] text-slate-950 outline-none" /></div></label>)}
       </div>
     );
     return (
@@ -387,7 +471,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
         <label className="block"><FieldLabel>特徴・アピールポイント</FieldLabel><textarea rows={4} value={form.selling_points} maxLength={2000} placeholder="商品の客観的な特徴、紹介したい機能、ブランドとして大切にしていること、撮影時の注意点" onChange={(e) => update("selling_points", e.target.value)} className={textareaClass} /></label>
         <label className="block"><FieldLabel>参考URL</FieldLabel><input type="url" value={form.reference_url} maxLength={500} placeholder="参考広告、参考動画、ブランド資料、商品ページ" onChange={(e) => update("reference_url", e.target.value)} className={inputClass} /></label>
         <label className="block"><FieldLabel>その他の補足</FieldLabel><textarea rows={4} value={form.additional_notes} maxLength={3000} placeholder="納品形式、縦横比、データサイズ、希望する修正回数、事前共有事項" onChange={(e) => update("additional_notes", e.target.value)} className={textareaClass} /></label>
-        <fieldset><legend className="text-[15px] font-semibold">送信前の確認</legend><div className="mt-3 space-y-3">{consentLabels.map((label, index) => <label key={label} className="flex cursor-pointer items-start gap-3 rounded-[12px] bg-slate-50 px-3 py-3 text-[12px] leading-5 text-slate-700"><input type="checkbox" checked={form.consents[index]} onChange={(e) => { const next = [...form.consents]; next[index] = e.target.checked; update("consents", next); }} className="mt-0.5 h-4 w-4 accent-slate-950" /><span>{index === 3 ? <>TrendMart<Link href="/terms" target="_blank" className="underline">利用規約</Link>と<Link href="/privacy" target="_blank" className="underline">プライバシーポリシー</Link>に同意します</> : label}</span></label>)}</div></fieldset>
+        <fieldset><legend className="text-[15px] font-semibold text-slate-950">送信前の確認</legend><div className="mt-3 space-y-3">{consentLabels.map((label, index) => <label key={label} className="flex cursor-pointer items-start gap-3 rounded-[12px] bg-slate-50 px-3 py-3 text-[12px] leading-5 text-slate-700"><input type="checkbox" checked={form.consents[index]} onChange={(e) => { const next = [...form.consents]; next[index] = e.target.checked; update("consents", next); }} className="mt-0.5 h-4 w-4 accent-slate-950" /><span>{index === 3 ? <>TrendMart<Link href="/terms" target="_blank" className="underline">利用規約</Link>と<Link href="/privacy" target="_blank" className="underline">プライバシーポリシー</Link>に同意します</> : label}</span></label>)}</div></fieldset>
       </div>
     );
   };
@@ -398,12 +482,12 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
       <section role="dialog" aria-modal="true" aria-label={title} className="relative z-10 flex max-h-[94dvh] w-full max-w-xl flex-col rounded-t-[26px] bg-white shadow-2xl">
         <header className="shrink-0 border-b border-slate-100 px-5 pb-4 pt-3">
           <div className="mx-auto h-1 w-10 rounded-full bg-slate-200" />
-          <div className="mt-3 flex items-center justify-between gap-3"><div><h2 className="text-[18px] font-semibold text-slate-950">{kind === "pr" ? "見積もりを依頼" : title}</h2>{kind === "pr" && step > 0 ? <p className="mt-1 text-[11px] text-slate-400">{form.request_mode === "pr_post" ? "PR投稿" : "UGC制作"}・{step}/5</p> : null}</div><button type="button" onClick={onClose} className="h-9 w-9 rounded-full bg-slate-100 text-lg" aria-label="閉じる">×</button></div>
+          <div className="mt-3 flex items-center justify-between gap-3"><div><h2 className="text-[18px] font-semibold text-slate-950">{kind === "pr" ? "見積もりを依頼" : title}</h2>{kind === "pr" && step > 0 ? <p className="mt-1 text-[11px] text-slate-500">{form.request_mode === "pr_post" ? "PR投稿" : "UGC制作"}・{step}/5</p> : null}</div><button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-semibold leading-none text-white shadow-sm ring-1 ring-slate-950 transition hover:bg-slate-800 active:scale-90" aria-label="閉じる">×</button></div>
           {kind === "pr" && step > 0 ? <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-slate-950 transition-all" style={{ width: `${step * 20}%` }} /></div> : null}
         </header>
         {submitted ? <div className="flex-1 px-6 py-14 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</div><h3 className="mt-5 text-xl font-semibold">見積もり依頼を受け付けました</h3><p className="mt-3 text-sm leading-7 text-slate-500">クリエイターが確認後、見積もりを送信します</p><button type="button" onClick={onClose} className="mt-7 h-12 w-full rounded-full bg-slate-950 text-sm font-semibold text-white">閉じる</button></div> : <form onSubmit={(e) => { e.preventDefault(); if (kind === "simple" || step === 5) void submit(); else next(); }} className="flex min-h-0 flex-1 flex-col">
-          <main className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{renderStep()}<label className="absolute -left-[10000px]" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => update("website", e.target.value)} /></label>{error ? <p role="alert" className="mt-5 text-[13px] font-medium text-rose-600">{error}</p> : null}</main>
-          <footer className="flex shrink-0 gap-2 border-t border-slate-100 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">{kind === "pr" && step > 0 ? <button type="button" onClick={() => { setStep((current) => current - 1); setError(""); }} className="h-12 w-24 rounded-full bg-slate-100 text-sm font-semibold text-slate-700">戻る</button> : null}<button type="submit" disabled={submitting} className="h-12 flex-1 rounded-full bg-slate-950 text-sm font-semibold text-white disabled:opacity-50">{submitting ? "送信中…" : kind === "simple" ? "送信する" : step === 5 ? "この内容で見積もりを依頼" : "次へ"}</button></footer>
+          <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-28 pt-5">{renderStep()}<label className="absolute -left-[10000px]" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => update("website", e.target.value)} /></label>{error ? <p role="alert" className="mt-5 text-[13px] font-medium text-rose-600">{error}</p> : null}</main>
+          <footer className="flex shrink-0 gap-2 border-t border-slate-100 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">{kind === "pr" && step > 0 ? <button type="button" onClick={() => { setStep((current) => current - 1); setError(""); }} className="h-12 w-24 rounded-full bg-slate-100 text-sm font-semibold text-slate-700">戻る</button> : null}<button type="submit" disabled={!canAdvance} className="h-12 flex-1 rounded-full bg-slate-950 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none">{submitting ? "送信中…" : kind === "simple" ? "送信する" : step === 5 ? "この内容で見積もりを依頼" : "次へ"}</button></footer>
         </form>}
       </section>
     </div>
