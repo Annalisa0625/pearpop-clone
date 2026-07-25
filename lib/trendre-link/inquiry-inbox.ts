@@ -8,8 +8,7 @@ export const CREATOR_LINK_INQUIRY_STATUSES = [
   "declined",
 ] as const;
 
-export type CreatorLinkInquiryStatus =
-  (typeof CREATOR_LINK_INQUIRY_STATUSES)[number];
+export type CreatorLinkInquiryStatus = (typeof CREATOR_LINK_INQUIRY_STATUSES)[number];
 
 export type CreatorLinkInquiryListItem = {
   id: string;
@@ -39,12 +38,7 @@ export type CreatorLinkInquiryInboxResponse =
   | {
       ok: true;
       inquiries: CreatorLinkInquiryListItem[];
-      counts: {
-        all: number;
-        new: number;
-        active: number;
-        closed: number;
-      };
+      counts: { all: number; new: number; active: number; closed: number };
     }
   | { ok: false; error: string };
 
@@ -52,15 +46,8 @@ export type CreatorLinkInquiryDetailResponse =
   | { ok: true; inquiry: CreatorLinkInquiryListItem }
   | { ok: false; error: string };
 
-export const CREATOR_LINK_ACTIVE_INQUIRY_STATUSES = [
-  "creator_reviewing",
-  "quoted",
-] as const;
-
-export const CREATOR_LINK_CLOSED_INQUIRY_STATUSES = [
-  "converted",
-  "declined",
-] as const;
+export const CREATOR_LINK_ACTIVE_INQUIRY_STATUSES = ["creator_reviewing", "quoted"] as const;
+export const CREATOR_LINK_CLOSED_INQUIRY_STATUSES = ["converted", "declined"] as const;
 
 const REQUEST_TYPE_LABELS = {
   ja: {
@@ -79,9 +66,7 @@ const REQUEST_TYPE_LABELS = {
   },
 } as const;
 
-export function getCreatorLinkInquiryLocale(
-  acceptLanguage: string | null
-): "ja" | "en" {
+export function getCreatorLinkInquiryLocale(acceptLanguage: string | null): "ja" | "en" {
   return acceptLanguage?.toLowerCase().startsWith("en") ? "en" : "ja";
 }
 
@@ -90,20 +75,11 @@ export function localizeCreatorLinkInquiry(
   locale: "ja" | "en"
 ): CreatorLinkInquiryListItem {
   if (!inquiry.purpose) return inquiry;
-
-  const labels = REQUEST_TYPE_LABELS[locale] as Record<string, string>;
-  const localizedPurpose = labels[inquiry.purpose];
-
-  return localizedPurpose
-    ? { ...inquiry, purpose: localizedPurpose }
-    : inquiry;
+  const localizedPurpose = (REQUEST_TYPE_LABELS[locale] as Record<string, string>)[inquiry.purpose];
+  return localizedPurpose ? { ...inquiry, purpose: localizedPurpose } : inquiry;
 }
 
-export function isCreatorLinkInquiryStatus(
-  value: unknown
-): value is CreatorLinkInquiryStatus {
-  return (
-    typeof value === "string" &&
-    (CREATOR_LINK_INQUIRY_STATUSES as readonly string[]).includes(value)
-  );
+export function isCreatorLinkInquiryStatus(value: unknown): value is CreatorLinkInquiryStatus {
+  return typeof value === "string" &&
+    (CREATOR_LINK_INQUIRY_STATUSES as readonly string[]).includes(value);
 }
