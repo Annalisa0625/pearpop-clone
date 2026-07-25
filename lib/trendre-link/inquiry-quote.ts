@@ -24,6 +24,16 @@ export type CreatorInquiryQuote = {
   updated_at: string;
 };
 
+export type CreatorInquiryQuoteNotification = {
+  status: "sent" | "failed" | "not_configured";
+  sent: boolean;
+  duplicate?: boolean;
+};
+
 export type CreatorInquiryQuoteResponse =
-  | { ok: true; quote: CreatorInquiryQuote | null }
+  | {
+      ok: true;
+      quote: CreatorInquiryQuote | null;
+      notification?: CreatorInquiryQuoteNotification;
+    }
   | { ok: false; error: string; setupRequired?: boolean };

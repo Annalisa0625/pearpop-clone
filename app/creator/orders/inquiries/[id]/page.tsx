@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import type { CreatorInquiryQuote, CreatorInquiryQuoteResponse } from "@/lib/trendre-link/inquiry-quote";
+import type {
+  CreatorInquiryQuote,
+  CreatorInquiryQuoteNotification,
+  CreatorInquiryQuoteResponse,
+} from "@/lib/trendre-link/inquiry-quote";
 import type { CreatorLinkInquiryDetailResponse, CreatorLinkInquiryListItem } from "@/lib/trendre-link/inquiry-inbox";
 
 const valueLabels: Record<string, string> = {
@@ -95,6 +99,10 @@ export default function CreatorInquiryDetailPage() {
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState("");
+  const [sendNotice, setSendNotice] = useState("");
+  const [sendNoticeWarning, setSendNoticeWarning] = useState(false);
+  const [notification, setNotification] = useState<CreatorInquiryQuoteNotification | null>(null);
+  const [resending, setResending] = useState(false);
   const [declining, setDeclining] = useState(false);
 
   const load = async () => {
@@ -113,7 +121,10 @@ export default function CreatorInquiryDetailPage() {
       const quoteBody = await quoteResponse.json() as CreatorInquiryQuoteResponse;
       if (!inquiryResponse.ok || !inquiryBody.ok) throw new Error(inquiryBody.ok ? "依頼を読み込めませんでした。" : inquiryBody.error);
       setInquiry(inquiryBody.inquiry);
-      if (quoteResponse.ok && quoteBody.ok) setQuote(quoteBody.quote);
+      if (quoteResponse.ok && quoteBody.ok) {
+        setQuote(quoteBody.quote);
+        setNotification(quoteBody.notification ?? null);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "依頼を読み込めませんでした。");
     } finally {
@@ -146,6 +157,7 @@ export default function CreatorInquiryDetailPage() {
     if (!/^[1-9]\d*$/.test(amount) || Number(amount) < 1000) return setFormError("見積金額は1,000円以上の整数で入力してください。");
     setSending(true);
     setFormError("");
+    setSendNotice("");
     try {
       const response = await fetch(`/api/creator/orders/inquiries/${params.id}/quote`, {
         method: "POST", headers: { "content-type": "application/json" },
@@ -155,11 +167,46 @@ export default function CreatorInquiryDetailPage() {
       if (!response.ok || !body.ok || !body.quote) throw new Error(body.ok ? "見積もりを送信できませんでした。" : body.error);
       setQuote(body.quote);
       setInquiry((current) => current ? { ...current, status: "quoted" } : current);
+      const notificationFailed =
+        body.notification?.status === "failed" ||
+        body.notification?.status === "not_configured";
+      setSendNoticeWarning(notificationFailed);
+      setNotification(body.notification ?? null);
+      setSendNotice(
+        notificationFailed
+          ? "見積もりは保存されましたが、通知メールを送信できませんでした"
+          : "見積もりを送信しました"
+      );
       setSheetOpen(false);
     } catch (cause) {
       setFormError(cause instanceof Error ? cause.message : "見積もりを送信できませんでした。");
     } finally {
       setSending(false);
+    }
+  };
+
+  const resendNotification = async () => {
+    if (resending) return;
+    setResending(true);
+    setSendNotice("");
+    try {
+      const response = await fetch(`/api/creator/orders/inquiries/${params.id}/quote`, {
+        method: "PATCH",
+      });
+      const body = await response.json() as CreatorInquiryQuoteResponse;
+      if (!response.ok || !body.ok || !body.notification) throw new Error();
+      setNotification(body.notification);
+      setSendNoticeWarning(!body.notification.sent);
+      setSendNotice(
+        body.notification.sent
+          ? "通知メールを再送しました"
+          : "通知メールを送信できませんでした"
+      );
+    } catch {
+      setSendNoticeWarning(true);
+      setSendNotice("通知メールを送信できませんでした");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -257,6 +304,28 @@ export default function CreatorInquiryDetailPage() {
           </Section>
         </div>
 
+        {sendNotice ? (
+          <p
+            role="status"
+            className={`mt-4 rounded-[14px] px-4 py-3 text-[13px] ${
+              sendNoticeWarning
+                ? "bg-amber-50 text-amber-800"
+                : "bg-emerald-50 text-emerald-800"
+            }`}
+          >
+            {sendNotice}
+          </p>
+        ) : null}
+        {quote && notification && !notification.sent ? (
+          <button
+            type="button"
+            onClick={() => void resendNotification()}
+            disabled={resending}
+            className="mt-3 w-full rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-slate-800 ring-1 ring-slate-200 disabled:opacity-50"
+          >
+            {resending ? "通知メールを再送しています…" : "通知メールを再送する"}
+          </button>
+        ) : null}
         {error ? <p className="mt-4 text-[13px] text-rose-600">{error}</p> : null}
         {!["declined", "converted"].includes(inquiry.status) ? <div className="sticky bottom-[76px] z-20 mt-5 bg-gradient-to-t from-[#f6f7f9] via-[#f6f7f9] to-transparent pb-2 pt-6"><button type="button" onClick={openQuote} className="h-[52px] w-full rounded-full bg-slate-950 text-[14px] font-semibold text-white">{quote ? "見積もりを確認・編集" : "見積もりを作成"}</button></div> : null}
       </> : null}
