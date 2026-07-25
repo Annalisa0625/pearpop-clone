@@ -1,5 +1,4 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createElement } from "react";
 import { Resend } from "resend";
 import type { User } from "@supabase/supabase-js";
 
@@ -79,66 +78,28 @@ export function isTrustedRequestOrigin(request: Request) {
   }
 }
 
-function quoteEmailReact(creatorName: string, activationUrl: string) {
-  const h = createElement;
-  return h(
-    "div",
-    {
-      style: {
-        margin: "0",
-        padding: "32px 16px",
-        backgroundColor: "#f6f7f9",
-        fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-        color: "#0f172a",
-      },
-    },
-    h(
-      "div",
-      {
-        style: {
-          maxWidth: "560px",
-          margin: "0 auto",
-          padding: "32px",
-          backgroundColor: "#ffffff",
-          borderRadius: "20px",
-        },
-      },
-      h("div", { style: { fontSize: "20px", fontWeight: "800" } }, "TrendMart"),
-      h(
-        "h1",
-        { style: { margin: "28px 0 12px", fontSize: "24px", lineHeight: "1.5" } },
-        `${creatorName}さんから見積もりが届きました`
-      ),
-      h(
-        "p",
-        { style: { margin: "0", fontSize: "15px", lineHeight: "1.8", color: "#475569" } },
-        "以下のボタンから内容をご確認ください。"
-      ),
-      h(
-        "a",
-        {
-          href: activationUrl,
-          style: {
-            display: "inline-block",
-            marginTop: "24px",
-            padding: "14px 24px",
-            borderRadius: "999px",
-            backgroundColor: "#0f172a",
-            color: "#ffffff",
-            fontSize: "15px",
-            fontWeight: "700",
-            textDecoration: "none",
-          },
-        },
-        "見積もりを確認する"
-      ),
-      h(
-        "p",
-        { style: { margin: "28px 0 0", fontSize: "12px", lineHeight: "1.8", color: "#64748b" } },
-        "このリンクには有効期限があります。心当たりがない場合は、このメールを破棄してください。"
-      )
-    )
-  );
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function quoteEmailHtml(creatorName: string, activationUrl: string) {
+  const escapedCreatorName = escapeHtml(creatorName);
+  const escapedActivationUrl = escapeHtml(activationUrl);
+
+  return `<div style="margin:0;padding:32px 16px;background-color:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#0f172a;">
+  <div style="max-width:560px;margin:0 auto;padding:32px;background-color:#ffffff;border-radius:20px;">
+    <div style="font-size:20px;font-weight:800;">TrendMart</div>
+    <h1 style="margin:28px 0 12px;font-size:24px;line-height:1.5;">${escapedCreatorName}さんから見積もりが届きました</h1>
+    <p style="margin:0;font-size:15px;line-height:1.8;color:#475569;">以下のボタンから内容をご確認ください。</p>
+    <a href="${escapedActivationUrl}" style="display:inline-block;margin-top:24px;padding:14px 24px;border-radius:999px;background-color:#0f172a;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">見積もりを確認する</a>
+    <p style="margin:28px 0 0;font-size:12px;line-height:1.8;color:#64748b;">このリンクには有効期限があります。心当たりがない場合は、このメールを破棄してください。</p>
+  </div>
+</div>`;
 }
 
 function quoteEmailText(creatorName: string, activationUrl: string) {
@@ -214,7 +175,7 @@ async function deliverNotification(
         from,
         to: context.contactEmail,
         subject: `${context.creatorName}さんから見積もりが届きました｜TrendMart`,
-        react: quoteEmailReact(context.creatorName, activationUrl.toString()),
+        html: quoteEmailHtml(context.creatorName, activationUrl.toString()),
         text: quoteEmailText(context.creatorName, activationUrl.toString()),
       },
       { idempotencyKey: `creator-quote-received/${context.quoteId}/${context.attempt}` }
