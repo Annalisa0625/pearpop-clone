@@ -287,7 +287,7 @@ export default function CreatorInquiryDetailPage() {
 
         {quote ? <section className={`mb-5 rounded-[18px] px-5 py-5 text-white ${quoteCardClass(effectiveQuoteStatus || quote.status)}`}>
           <div className="flex items-start justify-between"><div><p className="text-[11px] text-white/55">送信済みの見積もり</p><p className="mt-2 text-[27px] font-semibold">{formatMoney(quote.quoted_amount)}</p></div><span className="max-w-[150px] text-right text-[11px] leading-5 text-white/70">{quoteStatusLabel(effectiveQuoteStatus || quote.status)}</span></div>
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-4"><div><p className="text-[10px] text-white/45">企業の支払合計</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.buyer_total_amount)}</p></div><div><p className="text-[10px] text-white/45">受取予定額</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.creator_payout_amount)}</p></div></div>
+          <div className="mt-4 border-t border-white/10 pt-4"><p className="text-[10px] text-white/45">受取予定額</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.creator_payout_amount)}</p></div>
           {quote.note ? <p className="mt-4 border-t border-white/10 pt-4 text-[12px] leading-6 text-white/75">企業への備考: {quote.note}</p> : null}
         </section> : null}
 
