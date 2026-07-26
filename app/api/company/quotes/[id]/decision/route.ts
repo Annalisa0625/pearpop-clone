@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { UUID_PATTERN } from "@/lib/trendre-link/items-server";
-import { isTrustedRequestOrigin } from "@/lib/trendre-link/quote-access";
 import { allowQuoteAccessRequest } from "@/lib/trendre-link/request-rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +34,17 @@ function isDecision(value: unknown): value is QuoteDecision {
   return value === "accepted" || value === "declined";
 }
 
+function isSameOriginRequest(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  try {
+    return new URL(origin).origin === new URL(request.url).origin;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest, context: RouteContext) {
   if (
     !allowQuoteAccessRequest({
@@ -47,7 +57,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return errorResponse("操作が集中しています。時間を置いてもう一度お試しください。", 429);
   }
 
-  if (!isTrustedRequestOrigin(request)) {
+  if (!isSameOriginRequest(request)) {
     return errorResponse("この操作を実行できませんでした。", 403);
   }
 
