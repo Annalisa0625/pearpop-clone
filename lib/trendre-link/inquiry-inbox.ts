@@ -34,6 +34,7 @@ export type CreatorLinkInquiryListItem = {
   converted_order_id: string | null;
   converted_request_id: string | null;
   quote_status?: CreatorInquiryQuoteStatus | null;
+  quote_amount?: number | null;
 };
 
 export type CreatorLinkInquiryInboxResponse =
