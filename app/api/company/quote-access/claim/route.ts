@@ -6,7 +6,6 @@ import { allowQuoteAccessRequest } from "@/lib/trendre-link/request-rate-limit";
 import {
   claimQuoteAccess,
   hashClaimToken,
-  isTrustedRequestOrigin,
   normalizeEmail,
 } from "@/lib/trendre-link/quote-access";
 
@@ -22,6 +21,17 @@ function errorResult(status = 400) {
   );
 }
 
+function isSameOriginRequest(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  try {
+    return new URL(origin).origin === new URL(request.url).origin;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (
     !allowQuoteAccessRequest({
@@ -33,7 +43,7 @@ export async function POST(request: NextRequest) {
   ) {
     return errorResult(429);
   }
-  if (!isTrustedRequestOrigin(request)) {
+  if (!isSameOriginRequest(request)) {
     return errorResult(403);
   }
 
