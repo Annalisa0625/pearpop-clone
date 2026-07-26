@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  isTrustedRequestOrigin,
-  resendQuoteNotification,
-} from "@/lib/trendre-link/quote-access";
+import { resendQuoteNotification } from "@/lib/trendre-link/quote-access";
 import { allowQuoteAccessRequest } from "@/lib/trendre-link/request-rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +9,17 @@ const GENERIC_RESPONSE = {
   ok: true,
   message: "再送リクエストを受け付けました。",
 };
+
+function isSameOriginRequest(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  try {
+    return new URL(origin).origin === new URL(request.url).origin;
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(request: NextRequest) {
   if (
@@ -26,7 +34,7 @@ export async function POST(request: NextRequest) {
       headers: { "cache-control": "no-store" },
     });
   }
-  if (!isTrustedRequestOrigin(request)) {
+  if (!isSameOriginRequest(request)) {
     return NextResponse.json(GENERIC_RESPONSE, {
       headers: { "cache-control": "no-store" },
     });
