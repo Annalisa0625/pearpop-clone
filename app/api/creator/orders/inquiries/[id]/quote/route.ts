@@ -158,6 +158,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       .eq("inquiry_id", inquiry.id)
       .maybeSingle();
     if (error || !quote) return errorResponse("見積もりが見つかりません。", 404);
+    if (quote.status !== "sent") {
+      return errorResponse("企業が回答済みのため、通知メールを再送できません。", 409);
+    }
 
     let notification = await resendQuoteNotificationByQuoteId(quote.id);
     if (!notification) {
@@ -214,6 +217,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (["converted", "declined"].includes(inquiry.status)) {
       return errorResponse("この依頼には見積もりを送信できません。", 409);
     }
+
+    const admin = supabaseAdmin as any;
+    const { data: existingQuote, error: existingQuoteError } = await admin
+      .from("creator_inquiry_quotes")
+      .select("status")
+      .eq("inquiry_id", inquiry.id)
+      .maybeSingle();
+    if (existingQuoteError?.code !== "42P01" && existingQuoteError) throw existingQuoteError;
+    if (existingQuote && ["accepted", "declined", "cancelled"].includes(existingQuote.status)) {
+      return errorResponse("企業が回答済みのため、見積もりを変更できません。", 409);
+    }
+
     const fees = calculateOrderFees({
       menuPriceAmount: quotedAmount,
       buyerPlanCode: await getBuyerPlanCode(inquiry.company_user_id),
@@ -221,7 +236,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const now = new Date().toISOString();
     const validUntilDate = new Date();
     validUntilDate.setDate(validUntilDate.getDate() + 30);
-    const admin = supabaseAdmin as any;
     const { data, error } = await admin.from("creator_inquiry_quotes").upsert({
       inquiry_id: inquiry.id,
       creator_user_id: auth.user.id,
