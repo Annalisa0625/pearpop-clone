@@ -1,1036 +1,504 @@
-// File: app/creator/dashboard/page.tsx
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useEffect, useMemo, useState } from "react";
+
 import { useAppLocale } from "@/lib/i18n/locale";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { CreatorLinkInquiryInboxResponse } from "@/lib/trendre-link/inquiry-inbox";
 
-type DashboardCounts = {
-  pendingRequests: number;
-  acceptedJobs: number;
-  deliveredJobs: number;
-  completedJobs: number;
-  activeMenus: number;
+type Period = 7 | 30 | 90;
+type Metric = "link" | "profile";
+type SeriesPoint = { date: string; count: number };
+
+type HomeState = {
+  displayName: string;
+  linkStarted: boolean;
+  martStarted: boolean;
+  linkSlug: string | null;
+  pendingOrders: number;
+  activeJobs: number;
 };
 
-type RecentJob = {
-  kind: "order" | "legacy_request";
-  id: string;
-  product_name: string | null;
-  status: string | null;
-  updated_at: string | null;
-  created_at: string;
-  completed_at?: string | null;
-  delivered_post_url: string | null;
+type AnalyticsState = {
+  totals: Record<Metric, number>;
+  series: Record<Metric, SeriesPoint[]>;
 };
 
-type ActivityItem = {
-  kind: "order" | "legacy_request";
-  id: string;
-  product_name: string | null;
-  status: string | null;
-  date: string;
+type AnalyticsResponse =
+  | {
+      ok: true;
+      days: Period;
+      totals: Record<Metric, number>;
+      series: Record<Metric, SeriesPoint[]>;
+      setupPending?: boolean;
+    }
+  | { ok: false; error: string };
+
+const EMPTY_HOME: HomeState = {
+  displayName: "Creator",
+  linkStarted: false,
+  martStarted: false,
+  linkSlug: null,
+  pendingOrders: 0,
+  activeJobs: 0,
 };
 
-type CreatorState = {
-  isCreator: boolean;
-  isSuspended: boolean;
-  creatorProfileCompleted: boolean;
-  creatorApprovalStatus: string | null;
+const EMPTY_ANALYTICS: AnalyticsState = {
+  totals: { link: 0, profile: 0 },
+  series: { link: [], profile: [] },
 };
 
-type CreatorProfile = {
-  id: string;
-  user_id: string;
-  display_name: string | null;
-  full_name: string | null;
-  approval_status: string | null;
-};
-
-type PayoutProfileStatus = {
-  status: "not_submitted" | "submitted" | "verified" | "rejected" | null;
-  payout_method: "manual_bank_transfer" | "stripe_connect" | null;
-};
-
-type PayoutSummary = {
-  completedPayoutAmount: number;
-  paidAmount: number;
-  pendingAmount: number;
-};
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.filter((value): value is string => Boolean(value)))
+function ArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
-  if (!value) return "-";
+function TrendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+      <path d="m4 16 5-5 4 3 7-8" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15 6h5v5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
-  const date = new Date(value);
+function formatShortDate(value: string, locale: "ja" | "en") {
+  const date = new Date(`${value}T00:00:00+09:00`);
   if (Number.isNaN(date.getTime())) return value;
-
   return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
     month: "numeric",
     day: "numeric",
   });
 }
 
-function formatMoney(value: number, locale: "ja" | "en") {
-  try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
-      style: "currency",
-      currency: "JPY",
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `¥${value.toLocaleString()}`;
-  }
-}
-
-function getItemHref(item: ActivityItem) {
-  return item.kind === "order"
-    ? `/creator/orders/${item.id}`
-    : `/creator/requests/${item.id}`;
-}
-
-function DashboardMotionStyle() {
-  return (
-    <style jsx global>{`
-      @keyframes trendreBubbleFloat {
-        0%, 100% {
-          transform: translate3d(0, 0, 0);
-        }
-        50% {
-          transform: translate3d(0, -4px, 0);
-        }
-      }
-
-      @keyframes trendreBubbleGlow {
-        0%, 100% {
-          box-shadow: 0 10px 24px rgba(255, 56, 96, 0.14);
-        }
-        50% {
-          box-shadow: 0 14px 30px rgba(255, 56, 96, 0.24);
-        }
-      }
-
-      .trendre-action-bubble {
-        animation:
-          trendreBubbleFloat 2.4s ease-in-out infinite,
-          trendreBubbleGlow 2.4s ease-in-out infinite;
-      }
-
-      .trendre-action-bubble::after {
-        content: "";
-        position: absolute;
-        left: 18px;
-        bottom: -6px;
-        width: 12px;
-        height: 12px;
-        border-radius: 3px;
-        background: inherit;
-        transform: rotate(45deg);
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .trendre-action-bubble {
-          animation: none;
-        }
-      }
-    `}</style>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m9 5 7 7-7 7"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ReceiptIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M7 4h10a2 2 0 0 1 2 2v14l-3-1.6-2.7 1.6-2.6-1.6L8 20l-3-1.6V6a2 2 0 0 1 2-2Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 9h8M8 13h5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="m5 12.5 4.4 4.2L19 7"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ProfileIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20a7 7 0 0 1 14 0"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function LoadingView() {
-  return (
-    <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-      <DashboardMotionStyle />
-      <div className="space-y-3">
-        <div className="h-28 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
-        <div className="h-28 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
-        <div className="h-44 animate-pulse rounded-[26px] bg-white ring-1 ring-slate-100" />
-      </div>
-    </main>
-  );
-}
-
-function Notice({
-  tone = "slate",
-  title,
-  body,
+function LineChart({
+  points,
+  metric,
+  period,
+  locale,
+  emptyText,
 }: {
-  tone?: "slate" | "red" | "amber";
-  title: string;
-  body: string;
+  points: SeriesPoint[];
+  metric: Metric;
+  period: Period;
+  locale: "ja" | "en";
+  emptyText: string;
 }) {
-  const className =
-    tone === "red"
-      ? "bg-rose-50 text-rose-800 ring-rose-100"
-      : tone === "amber"
-        ? "bg-amber-50 text-amber-800 ring-amber-100"
-        : "bg-white text-slate-700 ring-slate-100";
+  const width = 340;
+  const height = 150;
+  const paddingX = 18;
+  const paddingTop = 16;
+  const paddingBottom = 28;
+  const plotHeight = height - paddingTop - paddingBottom;
+  const values = points.map((point) => point.count);
+  const maximum = Math.max(...values, 1);
+  const hasData = values.some((value) => value > 0);
+
+  const coordinates = points.map((point, index) => {
+    const x = points.length <= 1
+      ? width / 2
+      : paddingX + (index / (points.length - 1)) * (width - paddingX * 2);
+    const y = paddingTop + plotHeight - (point.count / maximum) * (plotHeight - 8);
+    return { x, y, count: point.count, date: point.date };
+  });
+
+  const linePath = coordinates
+    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(" ");
+  const areaPath = coordinates.length > 0
+    ? `${linePath} L${coordinates[coordinates.length - 1].x.toFixed(2)} ${(height - paddingBottom).toFixed(2)} L${coordinates[0].x.toFixed(2)} ${(height - paddingBottom).toFixed(2)} Z`
+    : "";
+  const gradientId = `analytics-${metric}-${period}`;
 
   return (
-    <section className={`rounded-[20px] px-4 py-3 ring-1 ${className}`}>
-      <p className="text-sm font-semibold text-slate-950">{title}</p>
-      <p className="mt-1 text-xs font-medium leading-5 opacity-80">{body}</p>
-    </section>
-  );
-}
+    <div className="relative mt-5 overflow-hidden rounded-2xl bg-[#fafafd] ring-1 ring-slate-100">
+      <svg viewBox={`0 0 ${width} ${height}`} className="block h-[168px] w-full" role="img" aria-label={emptyText}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#b65cff" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#ff5aa5" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={`${gradientId}-line`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#8b5cf6" />
+            <stop offset="100%" stopColor="#f04f9b" />
+          </linearGradient>
+        </defs>
 
-function IconBubble({
-  children,
-  tone = "slate",
-}: {
-  children: ReactNode;
-  tone?: "rose" | "slate" | "green";
-}) {
-  const className =
-    tone === "rose"
-      ? "bg-rose-50 text-[#ff3860] ring-rose-100"
-      : tone === "green"
-        ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-        : "bg-slate-50 text-slate-500 ring-slate-100";
+        {[0.25, 0.5, 0.75].map((ratio) => (
+          <line
+            key={ratio}
+            x1={paddingX}
+            x2={width - paddingX}
+            y1={paddingTop + plotHeight * ratio}
+            y2={paddingTop + plotHeight * ratio}
+            stroke="#e8eaf0"
+            strokeWidth="1"
+          />
+        ))}
+        <line
+          x1={paddingX}
+          x2={width - paddingX}
+          y1={height - paddingBottom}
+          y2={height - paddingBottom}
+          stroke="#dfe2e9"
+          strokeWidth="1"
+        />
 
-  return (
-    <span
-      className={`grid h-11 w-11 shrink-0 place-items-center rounded-[18px] ring-1 ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
+        {hasData && areaPath ? <path d={areaPath} fill={`url(#${gradientId})`} /> : null}
+        {hasData && linePath ? (
+          <path
+            d={linePath}
+            fill="none"
+            stroke={`url(#${gradientId}-line)`}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
+        {hasData
+          ? coordinates.map((point, index) => {
+              const showPoint = period === 7 || index === coordinates.length - 1;
+              return showPoint ? (
+                <circle
+                  key={`${point.date}:${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r="3"
+                  fill="#ffffff"
+                  stroke={metric === "link" ? "#9b5cf6" : "#ed579f"}
+                  strokeWidth="2"
+                />
+              ) : null;
+            })
+          : null}
 
-function CloudBubble({ children }: { children: ReactNode }) {
-  return (
-    <span className="trendre-action-bubble relative inline-flex rounded-[18px] bg-[#ff3860] px-4 py-2 text-[14px] font-semibold leading-none tracking-[-0.02em] text-white">
-      {children}
-    </span>
-  );
-}
+        {points.length > 0 ? (
+          <>
+            <text x={paddingX} y={height - 8} fill="#94a3b8" fontSize="10">
+              {formatShortDate(points[0].date, locale)}
+            </text>
+            <text x={width - paddingX} y={height - 8} fill="#94a3b8" fontSize="10" textAnchor="end">
+              {formatShortDate(points[points.length - 1].date, locale)}
+            </text>
+          </>
+        ) : null}
+      </svg>
 
-function ActionCard({
-  title,
-  body,
-  href,
-  cta,
-  icon,
-  bubble,
-  tone = "rose",
-}: {
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-  icon: ReactNode;
-  bubble?: string;
-  tone?: "rose" | "slate" | "green";
-}) {
-  return (
-    <Link href={href} className="block">
-      <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100 transition active:scale-[0.99]">
-        <div className="flex items-start gap-3">
-          <IconBubble tone={tone}>{icon}</IconBubble>
-
-          <div className="min-w-0 flex-1">
-            {bubble ? (
-              <div className="mb-3">
-                <CloudBubble>{bubble}</CloudBubble>
-              </div>
-            ) : null}
-
-            <p className="text-[16px] font-semibold tracking-[-0.03em] text-slate-950">
-              {title}
-            </p>
-            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-              {body}
-            </p>
-
-            <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100">
-              {cta}
-              <ChevronIcon />
+      {!hasData ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-8 pb-5 text-center">
+          <div>
+            <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-100">
+              <TrendIcon />
             </span>
+            <p className="mt-3 text-xs font-medium leading-5 text-slate-400">{emptyText}</p>
           </div>
         </div>
-      </section>
+      ) : null}
+    </div>
+  );
+}
+
+function AttentionRow({
+  href,
+  title,
+  description,
+  count,
+  notify,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  count: number;
+  notify?: boolean;
+}) {
+  return (
+    <Link href={href} className="group flex min-h-[72px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 active:bg-slate-50">
+      <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-600">
+        {count}
+        {notify && count > 0 ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff385c] ring-2 ring-white" /> : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold tracking-[-0.025em] text-slate-900">{title}</span>
+        <span className="mt-0.5 block truncate text-xs font-medium text-slate-400">{description}</span>
+      </span>
+      <span className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500"><ArrowIcon /></span>
     </Link>
   );
 }
 
-function ActivityRow({
-  item,
-  locale,
-  productUnset,
-  dateLabel,
+function Promotion({
+  href,
+  title,
+  body,
+  cta,
 }: {
-  item: ActivityItem;
-  locale: "ja" | "en";
-  productUnset: string;
-  dateLabel: string;
+  href: string;
+  title: string;
+  body: string;
+  cta: string;
 }) {
   return (
-    <Link href={getItemHref(item)} className="block">
-      <div className="flex items-center gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-100 transition active:scale-[0.99]">
-        <IconBubble tone="slate">
-          <ReceiptIcon />
-        </IconBubble>
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-semibold text-slate-950">
-            {item.product_name || productUnset}
-          </p>
-          <p className="mt-0.5 text-[12px] font-medium text-slate-500">
-            {dateLabel}：{formatDate(item.date, locale)}
-          </p>
-        </div>
-
-        <span className="shrink-0 text-slate-300">
-          <ChevronIcon />
+    <Link href={href} className="group relative block overflow-hidden rounded-2xl bg-[#17131f] p-5 text-white shadow-[0_18px_55px_rgba(40,24,69,0.2)] active:scale-[0.99]">
+      <div className="absolute -right-12 -top-20 h-48 w-48 rounded-full bg-fuchsia-500/40 blur-3xl" />
+      <div className="absolute -bottom-24 left-8 h-44 w-44 rounded-full bg-violet-500/35 blur-3xl" />
+      <div className="relative z-10">
+        <h2 className="max-w-md text-[23px] font-semibold leading-tight tracking-[-0.045em]">{title}</h2>
+        <p className="mt-3 max-w-lg text-sm font-medium leading-7 text-white/65">{body}</p>
+        <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition group-hover:gap-3">
+          {cta}
+          <ArrowIcon />
         </span>
       </div>
     </Link>
   );
 }
 
-function EmptyBox({
-  title,
-  body,
-}: {
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="rounded-[22px] bg-white px-5 py-8 text-center ring-1 ring-slate-100">
-      <div className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
-        <CheckIcon />
-      </div>
-      <p className="mt-4 text-[14px] font-semibold text-slate-800">{title}</p>
-      <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-        {body}
-      </p>
-    </div>
-  );
-}
-
 export default function CreatorDashboardPage() {
-  const router = useRouter();
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const db = useMemo(() => supabase as any, [supabase]);
-
-  const copy = useMemo(
-    () =>
-      safeLocale === "ja"
-        ? {
-            defaultDisplayName: "クリエイター",
-            loadingError: "ホームの読み込み中にエラーが発生しました。",
-            loadError: "ホーム情報の取得に失敗しました。",
-            requestLoadError: "注文データの取得に失敗しました。",
-            genericErrorTitle: "読み込みに失敗しました",
-            creatorOnlyTitle: "クリエイター専用ページです",
-            creatorOnlyBody:
-              "このページはクリエイターアカウントのみ利用できます。",
-
-            suspendedTitle: "アカウント確認中です",
-            suspendedBody:
-              "一部機能を制限しています。確認が完了するまでお待ちください。",
-            reviewPendingTitle: "審査中です",
-            reviewPendingBody: "承認後に注文受付や進行機能を利用できます。",
-
-            profilePromptTitle: "プロフィールを整えましょう",
-            profilePromptBody:
-              "写真・SNS・メニューを整えると、注文を受けやすくなります。",
-            goToProfile: "プロフィールを見る",
-            profileBubble: "準備しましょう",
-
-            payoutPromptTitle: "受け取り口座を登録しましょう",
-            payoutPromptBody:
-              "報酬を受け取るために、銀行口座の登録が必要です。",
-            goToPayoutSettings: "口座を登録する",
-            payoutBubble: "口座を登録しましょう",
-
-            orderActionTitle: "新しい注文があります",
-            orderActionBody: "内容を確認して、受けるか相談できます。",
-            orderActionCta: "注文を確認する",
-            orderBubble: "注文を受けましょう",
-
-            todoActionTitle: "進行中の案件があります",
-            todoActionBody: "制作・投稿・納品URLの提出を進めましょう。",
-            todoActionCta: "ToDoを見る",
-            todoBubble: "投稿しましょう",
-
-            readyTitle: "新しい注文を待っています",
-            readyBody: "プロフィールやメニューを整えて、次の注文に備えます。",
-            readyCta: "プロフィールを見る",
-            readyBubble: "準備OK",
-
-            sectionActionTitle: "今やること",
-            pastTitle: "過去案件",
-            viewAll: "すべて見る",
-            noPastTitle: "完了した案件はまだありません",
-            noPastBody: "案件が完了すると、ここに表示されます。",
-            productUnset: "商品名未設定",
-            completedDateLabel: "完了日",
-          }
-        : {
-            defaultDisplayName: "Creator",
-            loadingError: "An error occurred while loading home.",
-            loadError: "Failed to load home information.",
-            requestLoadError: "Failed to load order data.",
-            genericErrorTitle: "Failed to load",
-            creatorOnlyTitle: "Creator access only",
-            creatorOnlyBody:
-              "This page is available only for creator accounts.",
-
-            suspendedTitle: "Account under review",
-            suspendedBody:
-              "Some features are temporarily limited while your account is reviewed.",
-            reviewPendingTitle: "Your review is in progress",
-            reviewPendingBody:
-              "Order handling becomes available after approval.",
-
-            profilePromptTitle: "Improve your profile",
-            profilePromptBody:
-              "Add photos, social accounts, and menus so brands can order easily.",
-            goToProfile: "View profile",
-            profileBubble: "Get ready",
-
-            payoutPromptTitle: "Register your payout account",
-            payoutPromptBody:
-              "Register your bank account to receive creator payouts.",
-            goToPayoutSettings: "Register account",
-            payoutBubble: "Register account",
-
-            orderActionTitle: "You have a new order",
-            orderActionBody: "Review details and decide whether to accept.",
-            orderActionCta: "Review order",
-            orderBubble: "Accept the order",
-
-            todoActionTitle: "Active orders need action",
-            todoActionBody: "Continue production, posting, or delivery URL submission.",
-            todoActionCta: "View ToDo",
-            todoBubble: "Post now",
-
-            readyTitle: "Waiting for new orders",
-            readyBody:
-              "Update your profile and menus to prepare for future orders.",
-            readyCta: "View profile",
-            readyBubble: "Ready",
-
-            sectionActionTitle: "Next action",
-            pastTitle: "Past orders",
-            viewAll: "View all",
-            noPastTitle: "No completed orders yet",
-            noPastBody: "Completed orders will appear here.",
-            productUnset: "No product name",
-            completedDateLabel: "Completed",
-          },
-    [safeLocale]
-  );
-
+  const [state, setState] = useState<HomeState>(EMPTY_HOME);
+  const [analytics, setAnalytics] = useState<AnalyticsState>(EMPTY_ANALYTICS);
+  const [period, setPeriod] = useState<Period>(7);
+  const [metric, setMetric] = useState<Metric>("link");
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [payoutProfile, setPayoutProfile] =
-    useState<PayoutProfileStatus | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
-  const [gate, setGate] = useState<CreatorState>({
-    isCreator: false,
-    isSuspended: false,
-    creatorProfileCompleted: false,
-    creatorApprovalStatus: null,
-  });
-
-  const [counts, setCounts] = useState<DashboardCounts>({
-    pendingRequests: 0,
-    acceptedJobs: 0,
-    deliveredJobs: 0,
-    completedJobs: 0,
-    activeMenus: 0,
-  });
-
-  const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
-
-  const [payoutSummary, setPayoutSummary] = useState<PayoutSummary>({
-    completedPayoutAmount: 0,
-    paidAmount: 0,
-    pendingAmount: 0,
-  });
+  const copy = safeLocale === "ja"
+    ? {
+        greeting: "こんにちは",
+        overview: "今日の状況を確認しましょう。",
+        access: "アクセス",
+        link: "リンク",
+        profile: "プロフィール",
+        opens: "回",
+        seven: "7日",
+        thirty: "30日",
+        ninety: "90日",
+        chartEmpty: "公開ページが開かれると、ここに推移が表示されます",
+        chartLoading: "アクセスを読み込んでいます",
+        attention: "対応が必要",
+        orders: "注文・見積もり依頼",
+        ordersBody: "成立前の依頼を確認します",
+        jobs: "進行中の仕事",
+        jobsBody: "成立後の案件を進めます",
+        startMartTitle: "企業から見つけてもらう",
+        startMartBody: "公開プロフィールを整えると、企業の検索やメニュー注文から新しい仕事につながります。",
+        startMartCta: "プロフィールを作成",
+        startLinkTitle: "SNSから相談を受け付ける",
+        startLinkBody: "専用リンクをSNSプロフィールに置いて、企業から相談や見積もり依頼を直接受け取れます。",
+        startLinkCta: "リンクを作成",
+        loading: "ホームを読み込んでいます…",
+      }
+    : {
+        greeting: "Hello",
+        overview: "Here is what is happening today.",
+        access: "Traffic",
+        link: "Link",
+        profile: "Profile",
+        opens: "views",
+        seven: "7D",
+        thirty: "30D",
+        ninety: "90D",
+        chartEmpty: "Traffic will appear here after your public page is opened",
+        chartLoading: "Loading traffic",
+        attention: "Needs attention",
+        orders: "Orders and quote requests",
+        ordersBody: "Review work before agreement",
+        jobs: "Active jobs",
+        jobsBody: "Continue work after agreement",
+        startMartTitle: "Help companies discover you",
+        startMartBody: "Publish your profile to appear in company searches and receive menu orders.",
+        startMartCta: "Create profile",
+        startLinkTitle: "Receive inquiries from social media",
+        startLinkBody: "Add your dedicated link to social profiles and receive inquiries and quote requests.",
+        startLinkCta: "Create link",
+        loading: "Loading Home…",
+      };
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
-      setLoading(true);
-      setErrorMsg(null);
-
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          window.location.href = "/login";
-          return;
-        }
-
-        const [
-          { data: roles, error: rolesError },
-          { data: userState, error: stateError },
-          { data: activeSuspensions, error: suspensionsError },
-          { data: creatorRow, error: creatorError },
-        ] = await Promise.all([
-          db.from("user_roles").select("role").eq("user_id", user.id),
-          db
-            .from("user_states")
-            .select("creator_profile_completed")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          db
-            .from("user_suspensions")
-            .select("id")
-            .eq("user_id", user.id)
-            .eq("is_active", true),
-          db
-            .from("creators")
-            .select("id, user_id, display_name, full_name, approval_status")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-        ]);
-
-        if (rolesError || stateError || suspensionsError || creatorError) {
-          console.error({
-            rolesError,
-            stateError,
-            suspensionsError,
-            creatorError,
-          });
-          setErrorMsg(copy.loadError);
-          setLoading(false);
-          return;
-        }
-
-        const roleRows = (roles ?? []) as Array<{ role: string }>;
-        const isCreator = roleRows.some((item) => item.role === "creator");
-        const isSuspended = (activeSuspensions ?? []).length > 0;
-        const typedUserState = userState as
-          | { creator_profile_completed?: boolean | null }
-          | null;
-        const typedCreatorRow = creatorRow as CreatorProfile | null;
-        const creatorProfileCompleted =
-          !!typedUserState?.creator_profile_completed;
-        const creatorApprovalStatus = typedCreatorRow?.approval_status ?? null;
-
-        setGate({
-          isCreator,
-          isSuspended,
-          creatorProfileCompleted,
-          creatorApprovalStatus,
-        });
-
-        if (!typedCreatorRow) {
-          setLoading(false);
-          return;
-        }
-
-        const { data: payoutProfileRow, error: payoutProfileError } = await db
-          .from("creator_payout_profiles")
-          .select("status, payout_method")
-          .eq("creator_id", typedCreatorRow.id)
-          .maybeSingle();
-
-        if (payoutProfileError) {
-          console.error({ payoutProfileError });
-          setErrorMsg(copy.loadError);
-          setLoading(false);
-          return;
-        }
-
-        const typedPayoutProfile =
-          (payoutProfileRow ?? null) as PayoutProfileStatus | null;
-
-        setPayoutProfile(typedPayoutProfile);
-
-        const payoutReady =
-          typedPayoutProfile?.status === "submitted" ||
-          typedPayoutProfile?.status === "verified";
-
-        if (!payoutReady) {
-          router.replace("/creator/payouts?from=signup&required=1");
-          return;
-        }
-
-        const legacyCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
-        const menuCreatorKeys = uniqueStrings([typedCreatorRow.id, user.id]);
-
-        const [
-          { count: legacyPendingCount, error: legacyPendingError },
-          { count: legacyAcceptedCount, error: legacyAcceptedError },
-          { count: legacyDeliveredCount, error: legacyDeliveredError },
-          { count: legacyCompletedCount, error: legacyCompletedError },
-          { count: orderPendingCount, error: orderPendingError },
-          { count: orderAcceptedCount, error: orderAcceptedError },
-          { count: orderDeliveredCount, error: orderDeliveredError },
-          { count: orderCompletedCount, error: orderCompletedError },
-          { count: activeMenusCount, error: activeMenusError },
-          { data: recentLegacyCompletedRows, error: recentLegacyCompletedError },
-          { data: recentOrderCompletedRows, error: recentOrderCompletedError },
-          { data: completedPayoutRows, error: completedPayoutError },
-        ] = await Promise.all([
-          db
-            .from("requests")
-            .select("id", { count: "exact", head: true })
-            .in("creator_user_id", legacyCreatorKeys)
-            .eq("status", "pending"),
-
-          db
-            .from("requests")
-            .select("id", { count: "exact", head: true })
-            .in("creator_user_id", legacyCreatorKeys)
-            .eq("status", "accepted"),
-
-          db
-            .from("requests")
-            .select("id", { count: "exact", head: true })
-            .in("creator_user_id", legacyCreatorKeys)
-            .eq("status", "delivered"),
-
-          db
-            .from("requests")
-            .select("id", { count: "exact", head: true })
-            .in("creator_user_id", legacyCreatorKeys)
-            .eq("status", "completed"),
-
-          db
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("creator_user_id", user.id)
-            .eq("status", "authorized_pending_creator"),
-
-          db
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("creator_user_id", user.id)
-            .in("status", ["accepted_captured", "in_progress", "revision_requested"]),
-
-          db
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("creator_user_id", user.id)
-            .eq("status", "delivered"),
-
-          db
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("creator_user_id", user.id)
-            .eq("status", "completed"),
-
-          db
-            .from("creator_menus")
-            .select("id", { count: "exact", head: true })
-            .in("creator_id", menuCreatorKeys)
-            .eq("is_active", true),
-
-          db
-            .from("requests")
-            .select(
-              "id, product_name, status, updated_at, created_at, delivered_post_url"
-            )
-            .in("creator_user_id", legacyCreatorKeys)
-            .eq("status", "completed")
-            .order("updated_at", { ascending: false, nullsFirst: false })
-            .limit(5),
-
-          db
-            .from("orders")
-            .select(
-              "id, product_name, status, updated_at, created_at, completed_at, delivered_post_url"
-            )
-            .eq("creator_user_id", user.id)
-            .eq("status", "completed")
-            .order("completed_at", { ascending: false, nullsFirst: false })
-            .order("updated_at", { ascending: false, nullsFirst: false })
-            .limit(5),
-
-          db
-            .from("orders")
-            .select("creator_payout_amount, payout_status")
-            .eq("creator_user_id", user.id)
-            .eq("status", "completed")
-            .eq("payment_status", "captured"),
-        ]);
-
-        const dashboardErrors = [
-          legacyPendingError,
-          legacyAcceptedError,
-          legacyDeliveredError,
-          legacyCompletedError,
-          orderPendingError,
-          orderAcceptedError,
-          orderDeliveredError,
-          orderCompletedError,
-          activeMenusError,
-          recentLegacyCompletedError,
-          recentOrderCompletedError,
-          completedPayoutError,
-        ].filter(Boolean);
-
-        if (dashboardErrors.length > 0) {
-          console.error({ dashboardErrors });
-          setErrorMsg(copy.requestLoadError);
-          setLoading(false);
-          return;
-        }
-
-        setCounts({
-          pendingRequests: (legacyPendingCount ?? 0) + (orderPendingCount ?? 0),
-          acceptedJobs: (legacyAcceptedCount ?? 0) + (orderAcceptedCount ?? 0),
-          deliveredJobs: (legacyDeliveredCount ?? 0) + (orderDeliveredCount ?? 0),
-          completedJobs: (legacyCompletedCount ?? 0) + (orderCompletedCount ?? 0),
-          activeMenus: activeMenusCount ?? 0,
-        });
-
-        const payoutRows = (completedPayoutRows ?? []) as Array<{
-          creator_payout_amount: number | null;
-          payout_status: string | null;
-        }>;
-
-        const completedPayoutAmount = payoutRows.reduce(
-          (sum, row) => sum + Number(row.creator_payout_amount ?? 0),
-          0
-        );
-
-        const paidAmount = payoutRows
-          .filter((row) => row.payout_status === "paid")
-          .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
-
-        const pendingAmount = payoutRows
-          .filter((row) =>
-            ["unpaid", "pending", null, undefined].includes(row.payout_status)
-          )
-          .reduce((sum, row) => sum + Number(row.creator_payout_amount ?? 0), 0);
-
-        setPayoutSummary({
-          completedPayoutAmount,
-          paidAmount,
-          pendingAmount,
-        });
-
-        const legacyCompletedItems: RecentJob[] = (
-          recentLegacyCompletedRows ?? []
-        ).map((row: any) => ({
-          kind: "legacy_request",
-          id: row.id,
-          product_name: row.product_name,
-          status: row.status,
-          updated_at: row.updated_at,
-          created_at: row.created_at,
-          completed_at: row.updated_at,
-          delivered_post_url: row.delivered_post_url,
-        }));
-
-        const orderCompletedItems: RecentJob[] = (
-          recentOrderCompletedRows ?? []
-        ).map((row: any) => ({
-          kind: "order",
-          id: row.id,
-          product_name: row.product_name,
-          status: row.status,
-          updated_at: row.updated_at,
-          created_at: row.created_at,
-          completed_at: row.completed_at,
-          delivered_post_url: row.delivered_post_url,
-        }));
-
-        setRecentJobs(
-          [...orderCompletedItems, ...legacyCompletedItems]
-            .sort((a, b) => {
-              const aTime = new Date(
-                a.completed_at || a.updated_at || a.created_at
-              ).getTime();
-              const bTime = new Date(
-                b.completed_at || b.updated_at || b.created_at
-              ).getTime();
-              return bTime - aTime;
-            })
-            .slice(0, 3)
-        );
-
-        setLoading(false);
-      } catch (e) {
-        console.error(e);
-        setErrorMsg(copy.loadingError);
-        setLoading(false);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.assign("/login?next=/creator/dashboard");
+        return;
       }
+
+      const [creatorResult, userStateResult, linkResult, pendingResult, jobsResult, inquiryResult] = await Promise.all([
+        supabase.from("creators").select("display_name, full_name").eq("user_id", user.id).maybeSingle(),
+        supabase.from("user_states").select("creator_profile_completed").eq("user_id", user.id).maybeSingle(),
+        supabase.from("creator_link_pages").select("slug, status").eq("owner_user_id", user.id).maybeSingle(),
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("creator_user_id", user.id).eq("status", "authorized_pending_creator"),
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("creator_user_id", user.id).in("status", ["accepted", "accepted_captured", "in_progress", "delivered", "revision_requested"]),
+        fetch("/api/creator/link/inquiries", { credentials: "same-origin", cache: "no-store" })
+          .then(async (response) => ({ response, body: (await response.json().catch(() => null)) as CreatorLinkInquiryInboxResponse | null }))
+          .catch(() => null),
+      ]);
+
+      if (cancelled) return;
+
+      const creator = creatorResult.data as { display_name?: string | null; full_name?: string | null } | null;
+      const martStarted = Boolean((userStateResult.data as { creator_profile_completed?: boolean } | null)?.creator_profile_completed);
+      const link = linkResult.data as { slug?: string | null } | null;
+      const inquiryCount = inquiryResult?.response.ok && inquiryResult.body?.ok
+        ? inquiryResult.body.counts.new + inquiryResult.body.counts.active
+        : 0;
+
+      setState({
+        displayName: creator?.display_name || creator?.full_name || user.email?.split("@")[0] || "Creator",
+        linkStarted: Boolean(link?.slug),
+        martStarted,
+        linkSlug: link?.slug ?? null,
+        pendingOrders: (pendingResult.count ?? 0) + inquiryCount,
+        activeJobs: jobsResult.count ?? 0,
+      });
+      setLoading(false);
     };
 
     void load();
-  }, [
-    copy.loadError,
-    copy.loadingError,
-    copy.requestLoadError,
-    db,
-    router,
-    supabase.auth,
-  ]);
+    return () => { cancelled = true; };
+  }, [supabase]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setAnalyticsLoading(true);
+
+    void fetch(`/api/creator/analytics?days=${period}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (response.status === 401) {
+          window.location.assign("/login?next=/creator/dashboard");
+          return null;
+        }
+        const body = (await response.json().catch(() => null)) as AnalyticsResponse | null;
+        return response.ok && body?.ok ? body : null;
+      })
+      .then((body) => {
+        if (!body) return;
+        setAnalytics({ totals: body.totals, series: body.series });
+      })
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setAnalytics(EMPTY_ANALYTICS);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setAnalyticsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [period]);
 
   if (loading) {
-    return <LoadingView />;
+    return <div className="flex min-h-[60vh] items-center justify-center text-sm font-medium text-slate-400">{copy.loading}</div>;
   }
 
-  if (errorMsg) {
-    return (
-      <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-        <DashboardMotionStyle />
-        <Notice title={copy.genericErrorTitle} body={errorMsg} tone="red" />
-      </main>
-    );
-  }
+  const promotion = state.linkStarted && !state.martStarted
+    ? {
+        href: "/creator/profile?start=trend-mart",
+        title: copy.startMartTitle,
+        body: copy.startMartBody,
+        cta: copy.startMartCta,
+      }
+    : state.martStarted && !state.linkStarted
+      ? {
+          href: "/creator/link",
+          title: copy.startLinkTitle,
+          body: copy.startLinkBody,
+          cta: copy.startLinkCta,
+        }
+      : null;
 
-  if (!gate.isCreator) {
-    return (
-      <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-        <DashboardMotionStyle />
-        <Notice title={copy.creatorOnlyTitle} body={copy.creatorOnlyBody} />
-      </main>
-    );
-  }
-
-  const activeTodoCount = counts.acceptedJobs + counts.deliveredJobs;
-
-  const isPayoutReady =
-    payoutProfile?.status === "submitted" || payoutProfile?.status === "verified";
-
-  const actionCards: Array<{
-    key: string;
-    title: string;
-    body: string;
-    href: string;
-    cta: string;
-    icon: ReactNode;
-    bubble: string;
-    tone: "rose" | "slate" | "green";
-  }> = [];
-
-  if (!gate.creatorProfileCompleted) {
-    actionCards.push({
-      key: "profile",
-      title: copy.profilePromptTitle,
-      body: copy.profilePromptBody,
-      href: "/creator/profile",
-      cta: copy.goToProfile,
-      icon: <ProfileIcon />,
-      bubble: copy.profileBubble,
-      tone: "slate",
-    });
-  } else if (!isPayoutReady) {
-    actionCards.push({
-      key: "payout",
-      title: copy.payoutPromptTitle,
-      body: copy.payoutPromptBody,
-      href: "/creator/payouts?from=signup&required=1",
-      cta: copy.goToPayoutSettings,
-      icon: <ProfileIcon />,
-      bubble: copy.payoutBubble,
-      tone: "rose",
-    });
-  } else {
-    if (counts.pendingRequests > 0) {
-      actionCards.push({
-        key: "orders",
-        title: copy.orderActionTitle,
-        body:
-          safeLocale === "ja"
-            ? `${counts.pendingRequests}件の注文に返答が必要です。`
-            : `${counts.pendingRequests} order${
-                counts.pendingRequests === 1 ? "" : "s"
-              } need a reply.`,
-        href: "/creator/requests",
-        cta: copy.orderActionCta,
-        icon: <ReceiptIcon />,
-        bubble: copy.orderBubble,
-        tone: "rose",
-      });
-    }
-
-    if (activeTodoCount > 0) {
-      actionCards.push({
-        key: "todo",
-        title: copy.todoActionTitle,
-        body:
-          safeLocale === "ja"
-            ? `${activeTodoCount}件の案件を進めましょう。`
-            : `${activeTodoCount} active order${
-                activeTodoCount === 1 ? "" : "s"
-              } need action.`,
-        href: "/creator/jobs",
-        cta: copy.todoActionCta,
-        icon: <CheckIcon />,
-        bubble: copy.todoBubble,
-        tone: "rose",
-      });
-    }
-
-    if (actionCards.length === 0) {
-      actionCards.push({
-        key: "ready",
-        title: copy.readyTitle,
-        body: copy.readyBody,
-        href: "/creator/profile",
-        cta: copy.readyCta,
-        icon: <CheckIcon />,
-        bubble: copy.readyBubble,
-        tone: "green",
-      });
-    }
-  }
-
-  const pastItems: ActivityItem[] = recentJobs
-    .filter((item) => item.status === "completed")
-    .map((item) => ({
-      kind: item.kind,
-      id: item.id,
-      product_name: item.product_name,
-      status: item.status,
-      date: item.completed_at ?? item.updated_at ?? item.created_at,
-    }));
+  const activePoints = analytics.series[metric] ?? [];
+  const activeTotal = analytics.totals[metric] ?? 0;
 
   return (
-    <main className="mx-auto max-w-[760px] px-4 pb-24 pt-4">
-      <DashboardMotionStyle />
+    <div className="mx-auto w-full max-w-4xl pb-5 pt-3">
+      <section className="px-1 pb-5 pt-2">
+        <h1 className="text-[29px] font-semibold tracking-[-0.055em] text-slate-950">{copy.greeting}、{state.displayName}</h1>
+        <p className="mt-1.5 text-sm font-medium text-slate-500">{copy.overview}</p>
+      </section>
 
-      <div className="space-y-3">
-        {gate.isSuspended ? (
-          <Notice
-            tone="red"
-            title={copy.suspendedTitle}
-            body={copy.suspendedBody}
-          />
-        ) : null}
-
-        {gate.creatorApprovalStatus === "pending" ? (
-          <Notice
-            tone="amber"
-            title={copy.reviewPendingTitle}
-            body={copy.reviewPendingBody}
-          />
-        ) : null}
-
-        <section>
-          <div className="mb-2 flex items-center justify-between px-1">
-            <h1 className="text-[15px] font-semibold text-slate-950">
-              {copy.sectionActionTitle}
-            </h1>
+      <section className="rounded-2xl bg-white p-4 shadow-[0_16px_45px_rgba(31,24,48,0.055)] ring-1 ring-slate-200/70">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">{copy.access}</p>
+            <p className="mt-1 flex items-baseline gap-1.5 text-[36px] font-semibold tracking-[-0.065em] text-slate-950">
+              {activeTotal.toLocaleString(safeLocale === "ja" ? "ja-JP" : "en-US")}
+              <span className="text-sm font-medium tracking-normal text-slate-400">{copy.opens}</span>
+            </p>
           </div>
 
-          <div className="space-y-3">
-            {actionCards.map((card) => (
-              <ActionCard
-                key={card.key}
-                title={card.title}
-                body={card.body}
-                href={card.href}
-                cta={card.cta}
-                icon={card.icon}
-                bubble={card.bubble}
-                tone={card.tone}
-              />
+          <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold text-slate-500">
+            {([7, 30, 90] as Period[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPeriod(value)}
+                className={`min-h-8 rounded-lg px-3 transition ${period === value ? "bg-white text-slate-950 shadow-sm" : "text-slate-400"}`}
+              >
+                {value === 7 ? copy.seven : value === 30 ? copy.thirty : copy.ninety}
+              </button>
             ))}
           </div>
-        </section>
+        </div>
 
-        <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-slate-950">
-              {copy.pastTitle}
-            </h2>
-            <Link
-              href="/creator/jobs"
-              className="text-[12px] font-semibold text-slate-400"
+        <div className="mt-4 flex gap-6 border-b border-slate-100">
+          {(["link", "profile"] as Metric[]).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMetric(value)}
+              className={`relative pb-3 text-sm font-semibold transition ${metric === value ? "text-slate-950" : "text-slate-400"}`}
             >
-              {copy.viewAll}
-            </Link>
-          </div>
+              {value === "link" ? copy.link : copy.profile}
+              {metric === value ? <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-violet-500 to-pink-500" /> : null}
+            </button>
+          ))}
+        </div>
 
-          {pastItems.length === 0 ? (
-            <EmptyBox title={copy.noPastTitle} body={copy.noPastBody} />
-          ) : (
-            <div className="space-y-2">
-              {pastItems.map((item) => (
-                <ActivityRow
-                  key={`${item.kind}-${item.id}`}
-                  item={item}
-                  locale={safeLocale}
-                  productUnset={copy.productUnset}
-                  dateLabel={copy.completedDateLabel}
-                />
-              ))}
-            </div>
-          )}
+        <LineChart
+          points={activePoints}
+          metric={metric}
+          period={period}
+          locale={safeLocale}
+          emptyText={analyticsLoading ? copy.chartLoading : copy.chartEmpty}
+        />
+      </section>
+
+      <section className="mt-6">
+        <h2 className="px-1 text-[17px] font-semibold tracking-[-0.035em] text-slate-950">{copy.attention}</h2>
+        <div className="mt-3 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/70">
+          <AttentionRow
+            href="/creator/orders"
+            title={copy.orders}
+            description={copy.ordersBody}
+            count={state.pendingOrders}
+            notify
+          />
+          <AttentionRow
+            href="/creator/jobs"
+            title={copy.jobs}
+            description={copy.jobsBody}
+            count={state.activeJobs}
+          />
+        </div>
+      </section>
+
+      {promotion ? (
+        <section className="mt-6">
+          <Promotion {...promotion} />
         </section>
-      </div>
-    </main>
+      ) : null}
+    </div>
   );
 }
