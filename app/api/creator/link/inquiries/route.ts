@@ -71,13 +71,16 @@ export async function GET(request: NextRequest) {
     if (error) throw new Error("inquiry_list_failed");
 
     const rawInquiries = asInquiryList(data);
-    const quoteStatusByInquiryId = new Map<string, CreatorInquiryQuoteStatus>();
+    const quoteByInquiryId = new Map<
+      string,
+      { status: CreatorInquiryQuoteStatus; quotedAmount: number | null }
+    >();
     const inquiryIds = rawInquiries.map((inquiry) => inquiry.id);
 
     if (inquiryIds.length) {
       const { data: quotes, error: quoteError } = await (supabaseAdmin as any)
         .from("creator_inquiry_quotes")
-        .select("inquiry_id,status")
+        .select("inquiry_id,status,quoted_amount")
         .in("inquiry_id", inquiryIds);
 
       if (quoteError?.code !== "42P01" && quoteError) {
@@ -87,10 +90,11 @@ export async function GET(request: NextRequest) {
       if (Array.isArray(quotes)) {
         for (const quote of quotes) {
           if (quote?.inquiry_id && typeof quote.status === "string") {
-            quoteStatusByInquiryId.set(
-              quote.inquiry_id,
-              quote.status as CreatorInquiryQuoteStatus
-            );
+            const amount = Number(quote.quoted_amount);
+            quoteByInquiryId.set(quote.inquiry_id, {
+              status: quote.status as CreatorInquiryQuoteStatus,
+              quotedAmount: Number.isFinite(amount) ? amount : null,
+            });
           }
         }
       }
@@ -99,15 +103,17 @@ export async function GET(request: NextRequest) {
     const locale = getCreatorLinkInquiryLocale(
       request.headers.get("accept-language")
     );
-    const inquiries = rawInquiries.map((inquiry) =>
-      localizeCreatorLinkInquiry(
+    const inquiries = rawInquiries.map((inquiry) => {
+      const quote = quoteByInquiryId.get(inquiry.id);
+      return localizeCreatorLinkInquiry(
         {
           ...inquiry,
-          quote_status: quoteStatusByInquiryId.get(inquiry.id) ?? null,
+          quote_status: quote?.status ?? null,
+          quote_amount: quote?.quotedAmount ?? null,
         },
         locale
-      )
-    );
+      );
+    });
     const activeStatuses =
       CREATOR_LINK_ACTIVE_INQUIRY_STATUSES as readonly string[];
     const closedStatuses =
