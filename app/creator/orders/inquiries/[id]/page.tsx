@@ -62,6 +62,22 @@ function statusLabel(status: string) {
   return status;
 }
 
+function quoteStatusLabel(status: string) {
+  if (status === "accepted") return "企業が見積もりを承認しました";
+  if (status === "declined") return "企業が見積もりを見送りました";
+  if (status === "expired") return "見積もりの有効期限が切れました";
+  if (status === "cancelled") return "見積もりは取り消されています";
+  return "企業の回答待ち";
+}
+
+function quoteCardClass(status: string) {
+  if (status === "accepted") return "bg-emerald-950";
+  if (status === "declined") return "bg-slate-700";
+  if (status === "expired") return "bg-amber-900";
+  if (status === "cancelled") return "bg-slate-500";
+  return "bg-slate-950";
+}
+
 function Row({ name, value, href }: { name: string; value: React.ReactNode; href?: string | null }) {
   if (value === null || value === undefined || value === "") return null;
   return (
@@ -144,8 +160,18 @@ export default function CreatorInquiryDetailPage() {
   }, [inquiry, requestMode]);
   const isNewPr = requestMode === "pr_post";
   const isNewUgc = requestMode === "ugc";
+  const effectiveQuoteStatus = useMemo(() => {
+    if (!quote) return null;
+    if (quote.status === "sent") {
+      const expiry = new Date(quote.valid_until).getTime();
+      if (!Number.isNaN(expiry) && expiry <= Date.now()) return "expired";
+    }
+    return quote.status;
+  }, [quote]);
+  const canManageQuote = !effectiveQuoteStatus || effectiveQuoteStatus === "sent";
 
   const openQuote = () => {
+    if (!canManageQuote) return;
     setAmount(quote ? String(quote.quoted_amount) : "");
     setNote(quote?.note ?? "");
     setFormError("");
@@ -154,6 +180,7 @@ export default function CreatorInquiryDetailPage() {
 
   const sendQuote = async () => {
     if (sending) return;
+    if (!canManageQuote) return setFormError("企業が回答済みのため、見積もりを変更できません。");
     if (!/^[1-9]\d*$/.test(amount) || Number(amount) < 1000) return setFormError("見積金額は1,000円以上の整数で入力してください。");
     setSending(true);
     setFormError("");
@@ -186,7 +213,7 @@ export default function CreatorInquiryDetailPage() {
   };
 
   const resendNotification = async () => {
-    if (resending) return;
+    if (resending || effectiveQuoteStatus !== "sent") return;
     setResending(true);
     setSendNotice("");
     try {
@@ -211,7 +238,7 @@ export default function CreatorInquiryDetailPage() {
   };
 
   const decline = async () => {
-    if (!inquiry || declining || !window.confirm("この依頼を辞退しますか？")) return;
+    if (!inquiry || declining || !canManageQuote || !window.confirm("この依頼を辞退しますか？")) return;
     setDeclining(true);
     try {
       const response = await fetch(`/api/creator/link/inquiries/${inquiry.id}`, {
@@ -244,20 +271,22 @@ export default function CreatorInquiryDetailPage() {
       <header className="flex h-12 items-center justify-between">
         <Link href="/creator/orders" aria-label="受注一覧へ戻る" className="flex h-10 w-10 items-center justify-center rounded-full text-xl">‹</Link>
         <h1 className="text-[14px] font-semibold">見積もり依頼</h1>
-        <button type="button" onClick={() => void decline()} disabled={declining} className="px-2 text-[12px] font-medium text-rose-600 disabled:opacity-50">辞退</button>
+        {inquiry && canManageQuote && !["declined", "converted"].includes(inquiry.status) ? (
+          <button type="button" onClick={() => void decline()} disabled={declining} className="px-2 text-[12px] font-medium text-rose-600 disabled:opacity-50">辞退</button>
+        ) : <span className="w-10" />}
       </header>
 
       {loading ? <div className="mt-4 h-64 animate-pulse rounded-[18px] bg-white ring-1 ring-slate-100" /> : error && !inquiry ? (
         <div className="mt-4 rounded-[18px] bg-white px-6 py-12 text-center ring-1 ring-slate-200"><p className="text-sm">{error}</p><button type="button" onClick={() => void load()} className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm text-white">再読み込み</button></div>
       ) : inquiry ? <>
         <section className="px-1 pb-5 pt-3">
-          <p className="text-[12px] text-slate-500">{statusLabel(inquiry.status)}</p>
+          <p className="text-[12px] text-slate-500">{quote && effectiveQuoteStatus ? quoteStatusLabel(effectiveQuoteStatus) : statusLabel(inquiry.status)}</p>
           <h2 className="mt-3 text-[25px] font-semibold tracking-[-0.04em] text-slate-950">{inquiry.company_name || inquiry.contact_name}</h2>
           <p className="mt-2 text-[14px] text-slate-500">{[requestType, inquiry.product_name].filter(Boolean).join(" · ")}</p>
         </section>
 
-        {quote ? <section className="mb-5 rounded-[18px] bg-slate-950 px-5 py-5 text-white">
-          <div className="flex items-start justify-between"><div><p className="text-[11px] text-white/55">送信済みの見積もり</p><p className="mt-2 text-[27px] font-semibold">{formatMoney(quote.quoted_amount)}</p></div><span className="text-[11px] text-white/55">企業の回答待ち</span></div>
+        {quote ? <section className={`mb-5 rounded-[18px] px-5 py-5 text-white ${quoteCardClass(effectiveQuoteStatus || quote.status)}`}>
+          <div className="flex items-start justify-between"><div><p className="text-[11px] text-white/55">送信済みの見積もり</p><p className="mt-2 text-[27px] font-semibold">{formatMoney(quote.quoted_amount)}</p></div><span className="max-w-[150px] text-right text-[11px] leading-5 text-white/70">{quoteStatusLabel(effectiveQuoteStatus || quote.status)}</span></div>
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-4"><div><p className="text-[10px] text-white/45">企業の支払合計</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.buyer_total_amount)}</p></div><div><p className="text-[10px] text-white/45">受取予定額</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.creator_payout_amount)}</p></div></div>
           {quote.note ? <p className="mt-4 border-t border-white/10 pt-4 text-[12px] leading-6 text-white/75">企業への備考: {quote.note}</p> : null}
         </section> : null}
@@ -316,7 +345,7 @@ export default function CreatorInquiryDetailPage() {
             {sendNotice}
           </p>
         ) : null}
-        {quote && notification && !notification.sent ? (
+        {quote && effectiveQuoteStatus === "sent" && notification && !notification.sent ? (
           <button
             type="button"
             onClick={() => void resendNotification()}
@@ -327,7 +356,7 @@ export default function CreatorInquiryDetailPage() {
           </button>
         ) : null}
         {error ? <p className="mt-4 text-[13px] text-rose-600">{error}</p> : null}
-        {!["declined", "converted"].includes(inquiry.status) ? <div className="sticky bottom-[76px] z-20 mt-5 bg-gradient-to-t from-[#f6f7f9] via-[#f6f7f9] to-transparent pb-2 pt-6"><button type="button" onClick={openQuote} className="h-[52px] w-full rounded-full bg-slate-950 text-[14px] font-semibold text-white">{quote ? "見積もりを確認・編集" : "見積もりを作成"}</button></div> : null}
+        {!['declined', 'converted'].includes(inquiry.status) && canManageQuote ? <div className="sticky bottom-[76px] z-20 mt-5 bg-gradient-to-t from-[#f6f7f9] via-[#f6f7f9] to-transparent pb-2 pt-6"><button type="button" onClick={openQuote} className="h-[52px] w-full rounded-full bg-slate-950 text-[14px] font-semibold text-white">{quote ? "見積もりを確認・編集" : "見積もりを作成"}</button></div> : null}
       </> : null}
 
       {sheetOpen ? <div className="fixed inset-0 z-[170] flex items-end justify-center bg-slate-950/40 backdrop-blur-[2px]">
