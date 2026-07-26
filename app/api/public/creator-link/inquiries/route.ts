@@ -20,7 +20,6 @@ import {
   type CreatorLinkRequestData,
   type PlatformDeliverable,
 } from "@/lib/trendre-link/inquiry-forms";
-import { getTrendreLinkAuthenticatedUser } from "@/lib/trendre-link/server-auth";
 import { validateCreatorLinkSlug } from "@/lib/trendre-link/slug";
 import type { CreatorLinkPublicInquiryResponse } from "@/lib/trendre-link/types";
 
@@ -288,11 +287,10 @@ export async function POST(request: NextRequest) {
     const inquiryType = inquiryTypes?.[0];
     if (!inquiryType) return errorResponse("このフォームは現在公開されていません。", 404);
 
-    const auth = await getTrendreLinkAuthenticatedUser(request);
     const { error } = await supabaseAdmin.from("creator_inquiries").insert({
       creator_id: page.creator_id,
       creator_user_id: page.owner_user_id,
-      company_user_id: auth.user?.id ?? null,
+      company_user_id: null,
       link_page_id: page.id,
       inquiry_type_id: inquiryType.id,
       inquiry_type_title_snapshot: inquiryType.title,
