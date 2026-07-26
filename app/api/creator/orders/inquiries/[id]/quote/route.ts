@@ -4,6 +4,10 @@ import { calculateOrderFees } from "@/lib/orders/fees";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { CreatorInquiryQuote, CreatorInquiryQuoteResponse } from "@/lib/trendre-link/inquiry-quote";
 import { UUID_PATTERN } from "@/lib/trendre-link/items-server";
+import {
+  resendQuoteNotificationByQuoteId,
+  sendInitialQuoteNotification,
+} from "@/lib/trendre-link/quote-access";
 import { getTrendreLinkAuthenticatedUser } from "@/lib/trendre-link/server-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -53,6 +57,8 @@ type OwnedInquiry = {
   creator_user_id: string;
   company_user_id: string | null;
   contact_email: string;
+  company_name: string | null;
+  contact_name: string | null;
   status: string;
   inquiry_type: string;
   purpose: string | null;
@@ -64,7 +70,7 @@ type OwnedInquiry = {
 async function findOwnedInquiry(id: string, creatorUserId: string) {
   const admin = supabaseAdmin as any;
   const { data, error } = await admin.from("creator_inquiries")
-    .select("id,creator_user_id,company_user_id,contact_email,status,source,inquiry_type,purpose,product_name,requested_platform,request_data")
+    .select("id,creator_user_id,company_user_id,contact_email,company_name,contact_name,status,source,inquiry_type,purpose,product_name,requested_platform,request_data")
     .eq("id", id).eq("creator_user_id", creatorUserId).eq("source", "trendre_link").maybeSingle();
   if (error) throw error;
   return data as OwnedInquiry | null;
@@ -105,10 +111,85 @@ export async function GET(request: NextRequest, context: RouteContext) {
       .select(QUOTE_SELECT).eq("inquiry_id", id).maybeSingle();
     if (error?.code === "42P01") return NextResponse.json<CreatorInquiryQuoteResponse>({ ok: true, quote: null });
     if (error) throw error;
-    return NextResponse.json<CreatorInquiryQuoteResponse>({ ok: true, quote: (data ?? null) as CreatorInquiryQuote | null });
+    let notification: {
+      status: "sent" | "failed" | "not_configured";
+      sent: boolean;
+    } | undefined;
+    if (data?.id) {
+      const { data: access } = await admin
+        .from("creator_inquiry_quote_access")
+        .select("email_status")
+        .eq("quote_id", data.id)
+        .maybeSingle();
+      if (
+        access &&
+        ["sent", "failed", "not_configured"].includes(access.email_status)
+      ) {
+        notification = {
+          status: access.email_status,
+          sent: access.email_status === "sent",
+        };
+      }
+    }
+    return NextResponse.json<CreatorInquiryQuoteResponse>(
+      { ok: true, quote: (data ?? null) as CreatorInquiryQuote | null, notification },
+      { headers: { "cache-control": "no-store" } }
+    );
   } catch (cause) {
     console.error("creator inquiry quote load failed", { cause: cause instanceof Error ? cause.message : "unknown" });
     return errorResponse("見積もりを読み込めませんでした。", 500);
+  }
+}
+
+export async function PATCH(request: NextRequest, context: RouteContext) {
+  const auth = await getTrendreLinkAuthenticatedUser(request);
+  if (!auth.user) return errorResponse("ログインが必要です。", 401);
+  const { id } = await context.params;
+  if (!UUID_PATTERN.test(id)) return errorResponse("見積もり依頼が見つかりません。", 400);
+
+  try {
+    const inquiry = await findOwnedInquiry(id, auth.user.id);
+    if (!inquiry) return errorResponse("見積もり依頼が見つかりません。", 404);
+
+    const admin = supabaseAdmin as any;
+    const { data: quote, error } = await admin
+      .from("creator_inquiry_quotes")
+      .select(QUOTE_SELECT)
+      .eq("inquiry_id", inquiry.id)
+      .maybeSingle();
+    if (error || !quote) return errorResponse("見積もりが見つかりません。", 404);
+
+    let notification = await resendQuoteNotificationByQuoteId(quote.id);
+    if (!notification) {
+      const initial = await sendInitialQuoteNotification({
+        inquiryId: inquiry.id,
+        quoteId: quote.id,
+        creatorUserId: auth.user.id,
+        contactEmail: inquiry.contact_email,
+        companyName: inquiry.company_name,
+        contactName: inquiry.contact_name,
+      });
+      notification = { result: initial, rawClaimToken: "" };
+    }
+
+    return NextResponse.json<CreatorInquiryQuoteResponse>(
+      {
+        ok: true,
+        quote: quote as CreatorInquiryQuote,
+        notification: notification.result,
+      },
+      { headers: { "cache-control": "no-store" } }
+    );
+  } catch {
+    console.error("creator inquiry quote notification resend failed");
+    return NextResponse.json<CreatorInquiryQuoteResponse>(
+      {
+        ok: true,
+        quote: null,
+        notification: { status: "failed", sent: false },
+      },
+      { headers: { "cache-control": "no-store" } }
+    );
   }
 }
 
@@ -169,7 +250,30 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { error: inquiryError } = await admin.from("creator_inquiries")
       .update({ status: "quoted", updated_at: now }).eq("id", inquiry.id).eq("creator_user_id", auth.user.id);
     if (inquiryError) throw inquiryError;
-    return NextResponse.json<CreatorInquiryQuoteResponse>({ ok: true, quote: data as CreatorInquiryQuote });
+    let notification: {
+      status: "sent" | "failed" | "not_configured";
+      sent: boolean;
+      duplicate?: boolean;
+    };
+    try {
+      notification = await sendInitialQuoteNotification({
+        inquiryId: inquiry.id,
+        quoteId: data.id,
+        creatorUserId: auth.user.id,
+        contactEmail: inquiry.contact_email,
+        companyName: inquiry.company_name,
+        contactName: inquiry.contact_name,
+      });
+    } catch {
+      // The quote and inquiry status are already durable. Notification failures
+      // must not turn a successful quote save into an HTTP 500 response.
+      console.error("creator inquiry quote notification setup failed");
+      notification = { status: "failed", sent: false };
+    }
+    return NextResponse.json<CreatorInquiryQuoteResponse>(
+      { ok: true, quote: data as CreatorInquiryQuote, notification },
+      { headers: { "cache-control": "no-store" } }
+    );
   } catch (cause) {
     console.error("creator inquiry quote send failed", { cause: cause instanceof Error ? cause.message : "unknown" });
     return errorResponse("見積もりを送信できませんでした。", 500);
