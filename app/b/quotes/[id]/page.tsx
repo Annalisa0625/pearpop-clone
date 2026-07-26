@@ -6,6 +6,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { UUID_PATTERN } from "@/lib/trendre-link/items-server";
 
+import QuoteDecisionActions from "./QuoteDecisionActions";
+
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
@@ -146,7 +148,7 @@ export default async function CompanyQuotePage({ params }: PageProps) {
       admin
         .from("creator_inquiry_quotes")
         .select(
-          "id,creator_user_id,currency,quoted_amount,buyer_plan_code_snapshot,buyer_marketplace_fee_amount,buyer_total_amount,note,valid_until,sent_at"
+          "id,creator_user_id,status,currency,quoted_amount,buyer_plan_code_snapshot,buyer_marketplace_fee_amount,buyer_total_amount,note,valid_until,sent_at,accepted_at,declined_at"
         )
         .eq("id", access.quote_id)
         .single(),
@@ -230,6 +232,12 @@ export default async function CompanyQuotePage({ params }: PageProps) {
           </div>
         ) : null}
       </section>
+
+      <QuoteDecisionActions
+        quoteId={quote.id}
+        initialStatus={quote.status || "sent"}
+        validUntil={quote.valid_until}
+      />
 
       <div className="space-y-6">
         <Section title="依頼内容">
