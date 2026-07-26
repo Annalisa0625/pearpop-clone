@@ -1,4 +1,5 @@
 import type { CreatorLinkRequestData } from "@/lib/trendre-link/inquiry-forms";
+import type { CreatorInquiryQuoteStatus } from "@/lib/trendre-link/inquiry-quote";
 
 export const CREATOR_LINK_INQUIRY_STATUSES = [
   "new",
@@ -32,6 +33,7 @@ export type CreatorLinkInquiryListItem = {
   company_user_id: string | null;
   converted_order_id: string | null;
   converted_request_id: string | null;
+  quote_status?: CreatorInquiryQuoteStatus | null;
 };
 
 export type CreatorLinkInquiryInboxResponse =
