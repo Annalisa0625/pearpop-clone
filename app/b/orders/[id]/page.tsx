@@ -14,6 +14,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import DeadlineBadge from "@/app/components/DeadlineBadge";
 import ChatEmbed from "@/app/components/ChatEmbed";
+import OrderReferenceAssets from "@/app/components/OrderReferenceAssets";
 
 type FulfillmentType = "material_provided" | "product_shipping" | "visit";
 type Locale = "ja" | "en";
@@ -1638,6 +1639,8 @@ function OrderDetailsAccordion({
           emptyLabel={copy.notSet}
         />
       </div>
+
+      <OrderReferenceAssets orderId={order.id} />
     </AccordionItem>
   );
 }
