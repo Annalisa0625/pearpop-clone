@@ -2484,6 +2484,8 @@ function DeliveryActionBox({
   onDeliver: () => void;
   isRevisionRequested: boolean;
 }) {
+  const revisionNote = order.revision_note?.trim() ?? "";
+
   return (
     <Surface className="overflow-hidden">
       <div className="bg-white px-4 py-3.5 sm:px-5">
@@ -2497,10 +2499,38 @@ function DeliveryActionBox({
               {isRevisionRequested ? copy.redeliveryTitle : copy.deliveryTitle}
             </p>
             <p className="mt-1 text-[12px] font-medium leading-6 text-slate-600">
-              {copy.deliveryBody}
+              {isRevisionRequested ? copy.redeliveryBody : copy.deliveryBody}
             </p>
           </div>
         </div>
+
+        {isRevisionRequested ? (
+          <div className="mt-3 rounded-[16px] border border-amber-200 bg-amber-50/80 px-3.5 py-3">
+            <div className="flex items-start gap-2.5">
+              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[13px] font-black text-amber-700">
+                !
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-[14px] font-black tracking-[-0.02em] text-amber-950">
+                  {copy.revisionTitle}
+                </p>
+                <p className="mt-1 text-[11px] font-medium leading-5 text-amber-800">
+                  {copy.revisionBody}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-[14px] bg-white px-3 py-3 ring-1 ring-amber-100">
+              <p className="text-[11px] font-black text-amber-700">
+                {copy.revisionContentLabel}
+              </p>
+              <p className="mt-1.5 whitespace-pre-line break-words text-[13px] font-semibold leading-6 text-slate-800">
+                {revisionNote || copy.revisionNoDetails}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-3 space-y-2.5">
           <input
@@ -2829,6 +2859,8 @@ export default function CreatorOrderDetailPage() {
             redeliveryTitle: "修正版を送る",
             deliveryBody:
               "来店・投稿・制作が完了したら、投稿URLや成果物URLを送ってください。",
+            redeliveryBody:
+              "修正依頼の内容を確認し、対応後の投稿URLや成果物URLを送ってください。",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "提出済みURLを開く",
             deliver: "このURLを送る",
@@ -2905,7 +2937,12 @@ export default function CreatorOrderDetailPage() {
             payoutHoldNote:
               "この報酬は現在確認中です。必要な場合は運営から連絡します。",
             payoutPaidNote: "この案件の報酬は支払済みです。",
-            revisionTitle: "修正依頼",
+            revisionTitle: "修正依頼が届いています",
+            revisionBody:
+              "依頼元から届いた修正内容を確認してから、修正版を提出してください。",
+            revisionContentLabel: "修正内容",
+            revisionNoDetails:
+              "修正内容の詳細がありません。チャットで依頼元へ確認してください。",
 
             notSet: "未設定",
             noPostInstruction: "指定された投稿用テキストはありません。",
@@ -3012,6 +3049,8 @@ export default function CreatorOrderDetailPage() {
             redeliveryTitle: "Send the revised URL",
             deliveryBody:
               "After the visit, post, or production is complete, submit a URL that can be reviewed.",
+            redeliveryBody:
+              "Review the revision request, make the changes, and submit the updated post or deliverable URL.",
             deliveredPostUrlPlaceholder: "https://...",
             openDeliveredUrl: "Open submitted URL",
             deliver: "Send this URL",
@@ -3087,7 +3126,12 @@ export default function CreatorOrderDetailPage() {
             payoutHoldNote:
               "This payout is currently being checked. Trendre will contact you if needed.",
             payoutPaidNote: "The payout for this order has been paid.",
-            revisionTitle: "Revision request",
+            revisionTitle: "A revision has been requested",
+            revisionBody:
+              "Review the requester's instructions before submitting the revised version.",
+            revisionContentLabel: "Requested changes",
+            revisionNoDetails:
+              "No revision details were provided. Please confirm them with the requester in chat.",
 
             notSet: "Not set",
             noPostInstruction: "No post text was specified.",
