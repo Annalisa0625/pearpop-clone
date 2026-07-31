@@ -249,6 +249,24 @@ function getMonthlyPayoutDate(value: Date) {
   return new Date(value.getFullYear(), value.getMonth() + 1, 25, 0, 0, 0, 0);
 }
 
+function getNextScheduledPayoutDate(value: Date) {
+  const thisMonthPayoutEnd = new Date(
+    value.getFullYear(),
+    value.getMonth(),
+    25,
+    23,
+    59,
+    59,
+    999,
+  );
+
+  if (value.getTime() <= thisMonthPayoutEnd.getTime()) {
+    return new Date(value.getFullYear(), value.getMonth(), 25, 0, 0, 0, 0);
+  }
+
+  return new Date(value.getFullYear(), value.getMonth() + 1, 25, 0, 0, 0, 0);
+}
+
 function getOrderDate(order: PayoutOrderRow) {
   const raw = order.completed_at || order.created_at;
   if (!raw) return null;
@@ -657,7 +675,7 @@ function PayoutHero({
                 : "対象なし"}
             </p>
             <p className="mt-1 text-[10px] font-medium text-slate-400">
-              {nextPayoutCount > 0 ? nextPayoutDateLabel : "前月分が入ると表示"}
+              {nextPayoutCount > 0 ? nextPayoutDateLabel : "対象報酬があると表示"}
             </p>
           </div>
         </div>
@@ -693,7 +711,7 @@ function NextPayoutCard({
             次回振込予定
           </h2>
           <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-            前月以前に完了した未払い分です。
+            次回の振込対象となる未払い分です。
           </p>
         </div>
 
@@ -723,7 +741,7 @@ function NextPayoutCard({
             まだ対象はありません
           </p>
           <p className="mt-2 text-[11px] font-medium leading-5 text-slate-500">
-            前月分の未払い報酬がある場合、ここに振込予定が表示されます。
+            次回の振込対象となる未払い報酬がある場合、ここに予定額が表示されます。
           </p>
         </div>
       )}
@@ -850,14 +868,10 @@ export default function PayoutsClient() {
     () => addMonths(currentMonthStart, 1),
     [currentMonthStart],
   );
-  const previousMonthStart = useMemo(
-    () => addMonths(currentMonthStart, -1),
-    [currentMonthStart],
-  );
 
   const currentMonthLabel = formatMonth(currentMonthStart, safeLocale);
-  const previousMonthLabel = formatMonth(previousMonthStart, safeLocale);
-  const nextPayoutDate = getMonthlyPayoutDate(previousMonthStart);
+  const nextPayoutDate = getNextScheduledPayoutDate(now);
+  const nextPayoutCutoff = startOfMonth(nextPayoutDate);
   const currentMonthPayoutDate = getMonthlyPayoutDate(currentMonthStart);
   const nextPayoutDateLabel = `${formatShortDate(nextPayoutDate.toISOString(), safeLocale)}頃`;
   const currentMonthPayoutDateLabel = `${formatShortDate(currentMonthPayoutDate.toISOString(), safeLocale)}頃`;
@@ -887,13 +901,13 @@ export default function PayoutsClient() {
     );
   });
 
-  const closedUnpaidOrders = payableOrders.filter((order) => {
+  const nextPayoutOrders = payableOrders.filter((order) => {
     const orderDate = getOrderDate(order);
-    return !!orderDate && orderDate < currentMonthStart;
+    return !!orderDate && orderDate < nextPayoutCutoff;
   });
 
   const currentMonthAmount = sumPayoutAmount(currentMonthOrders);
-  const nextPayoutGrossAmount = sumPayoutAmount(closedUnpaidOrders);
+  const nextPayoutGrossAmount = sumPayoutAmount(nextPayoutOrders);
   const paidAmount = sumPayoutAmount(paidOrders);
 
   const estimatedBankFeeAmount =
@@ -1644,7 +1658,7 @@ export default function PayoutsClient() {
             currentMonthAmount={currentMonthAmount}
             nextPayoutAmount={estimatedNextPayoutAmount}
             currentMonthCount={currentMonthOrders.length}
-            nextPayoutCount={closedUnpaidOrders.length}
+            nextPayoutCount={nextPayoutOrders.length}
             currentMonthLabel={currentMonthLabel}
             nextPayoutDateLabel={nextPayoutDateLabel}
             locale={safeLocale}
@@ -1684,14 +1698,14 @@ export default function PayoutsClient() {
 
           <CollapsibleCard
             title="次回振込予定の案件"
-            subtitle={`${previousMonthLabel}以前に完了した未払い案件です`}
+            subtitle={`次回${nextPayoutDateLabel}の振込対象となる未払い案件です`}
             badge={
               <StatusPill className="bg-slate-50 text-slate-600 ring-slate-100">
-                {closedUnpaidOrders.length}件
+                {nextPayoutOrders.length}件
               </StatusPill>
             }
           >
-            <PayoutOrderList orders={closedUnpaidOrders} locale={safeLocale} />
+            <PayoutOrderList orders={nextPayoutOrders} locale={safeLocale} />
           </CollapsibleCard>
 
           <CollapsibleCard
