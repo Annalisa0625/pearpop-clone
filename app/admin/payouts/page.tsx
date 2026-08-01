@@ -88,6 +88,59 @@ type PayoutAccountValidation = {
   warnings: string[];
 };
 
+type CreatedPayoutBatch = {
+  id: string;
+  batch_code: string | null;
+  payout_method: PayoutMethod;
+  status: string;
+  period_start: string;
+  period_end: string;
+  scheduled_date: string | null;
+  total_orders: number;
+  total_creators: number;
+  total_payout_amount: number;
+  total_transfer_fee: number;
+  total_withholding_amount: number;
+  total_adjustment_amount: number;
+  total_net_amount: number;
+  currency: string;
+  created_at: string;
+};
+
+type InvalidBatchCreator = {
+  creator_id: string;
+  creator_user_id: string;
+  creator_name: string;
+  order_ids: string[];
+  warnings: string[];
+};
+
+type CarriedBatchCreator = {
+  creator_id: string;
+  creator_user_id: string;
+  creator_name: string;
+  gross_amount: number;
+  minimum_payout: number;
+  order_ids: string[];
+};
+
+type CreatePayoutBatchResponse = {
+  ok?: boolean;
+  error?: string;
+  detail?: string;
+  batch?: CreatedPayoutBatch;
+  settings?: {
+    transfer_fee: number;
+    minimum_payout: number;
+  };
+  included_creator_count?: number;
+  included_order_count?: number;
+  invalid_creators?: InvalidBatchCreator[];
+  carried_creators?: CarriedBatchCreator[];
+  invalid_messages?: string[];
+  existing_batch?: Partial<CreatedPayoutBatch>;
+};
+
 const EMPTY_SUMMARY: PayoutSummary = {
   total_count: 0,
   pending_count: 0,
@@ -99,6 +152,51 @@ const EMPTY_SUMMARY: PayoutSummary = {
   withheld_amount: 0,
   failed_amount: 0,
 };
+
+function toDateInputValue(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function getDefaultBatchFormDates(now = new Date()) {
+  const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const year = jstNow.getUTCFullYear();
+  const month = jstNow.getUTCMonth();
+
+  return {
+    periodStart: toDateInputValue(new Date(Date.UTC(year, month - 1, 1))),
+    periodEnd: toDateInputValue(new Date(Date.UTC(year, month, 0))),
+    scheduledDate: toDateInputValue(new Date(Date.UTC(year, month, 25))),
+  };
+}
+
+function buildBatchErrorDetails(json: CreatePayoutBatchResponse) {
+  const details: string[] = [];
+
+  if (Array.isArray(json.invalid_messages)) {
+    details.push(...json.invalid_messages);
+  }
+
+  if (Array.isArray(json.carried_creators)) {
+    for (const creator of json.carried_creators) {
+      details.push(
+        `${creator.creator_name}: ${formatPrice(
+          creator.gross_amount,
+          "JPY"
+        )}（最低振込額 ${formatPrice(creator.minimum_payout, "JPY")} 未満のため繰越）`
+      );
+    }
+  }
+
+  if (json.existing_batch?.batch_code) {
+    details.push(`既存バッチ: ${json.existing_batch.batch_code}`);
+  }
+
+  if (json.detail && !details.includes(json.detail)) {
+    details.push(json.detail);
+  }
+
+  return Array.from(new Set(details));
+}
 
 function formatPrice(value: number | null | undefined, currency?: string | null) {
   const amount = Number(value ?? 0);
@@ -631,6 +729,25 @@ export default function AdminPayoutsPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string[]>([]);
 
+  const defaultBatchDates = useMemo(() => getDefaultBatchFormDates(), []);
+  const [batchPeriodStart, setBatchPeriodStart] = useState(
+    defaultBatchDates.periodStart
+  );
+  const [batchPeriodEnd, setBatchPeriodEnd] = useState(
+    defaultBatchDates.periodEnd
+  );
+  const [batchScheduledDate, setBatchScheduledDate] = useState(
+    defaultBatchDates.scheduledDate
+  );
+  const [batchTransferFee, setBatchTransferFee] = useState("165");
+  const [batchMinimumPayout, setBatchMinimumPayout] = useState("3000");
+  const [batchAdminNote, setBatchAdminNote] = useState("");
+  const [creatingBatch, setCreatingBatch] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [batchErrorDetails, setBatchErrorDetails] = useState<string[]>([]);
+  const [batchResult, setBatchResult] =
+    useState<CreatePayoutBatchResponse | null>(null);
+
   const load = async () => {
     setLoading(true);
     setError(null);
@@ -765,6 +882,109 @@ export default function AdminPayoutsPage() {
 
       return next;
     });
+  };
+
+  const createMonthlyBatch = async () => {
+    const transferFee = Number(batchTransferFee);
+    const minimumPayout = Number(batchMinimumPayout);
+
+    if (!batchPeriodStart || !batchPeriodEnd || !batchScheduledDate) {
+      setBatchError("対象期間と振込予定日を入力してください");
+      setBatchErrorDetails([]);
+      return;
+    }
+
+    if (batchPeriodStart > batchPeriodEnd) {
+      setBatchError("対象期間の開始日は終了日以前にしてください");
+      setBatchErrorDetails([]);
+      return;
+    }
+
+    if (batchScheduledDate <= batchPeriodEnd) {
+      setBatchError("振込予定日は対象期間終了日より後にしてください");
+      setBatchErrorDetails([]);
+      return;
+    }
+
+    if (
+      !Number.isFinite(transferFee) ||
+      transferFee < 0 ||
+      !Number.isInteger(transferFee)
+    ) {
+      setBatchError("振込事務手数料は0以上の整数で入力してください");
+      setBatchErrorDetails([]);
+      return;
+    }
+
+    if (
+      !Number.isFinite(minimumPayout) ||
+      minimumPayout < 0 ||
+      !Number.isInteger(minimumPayout)
+    ) {
+      setBatchError("最低振込額は0以上の整数で入力してください");
+      setBatchErrorDetails([]);
+      return;
+    }
+
+    const ok = confirm(
+      [
+        "月次振込バッチを作成します。",
+        `対象期間：${batchPeriodStart} ～ ${batchPeriodEnd}`,
+        `振込予定日：${batchScheduledDate}`,
+        `振込事務手数料：${formatPrice(transferFee, "JPY")} / C`,
+        `最低振込額：${formatPrice(minimumPayout, "JPY")}`,
+        "",
+        "作成後、対象注文はこのバッチに固定されます。よろしいですか？",
+      ].join("\n")
+    );
+
+    if (!ok) return;
+
+    setCreatingBatch(true);
+    setBatchError(null);
+    setBatchErrorDetails([]);
+    setBatchResult(null);
+
+    try {
+      const res = await fetch("/api/admin/payouts/batches/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          period_start: batchPeriodStart,
+          period_end: batchPeriodEnd,
+          scheduled_date: batchScheduledDate,
+          transfer_fee: transferFee,
+          minimum_payout: minimumPayout,
+          admin_note: batchAdminNote.trim() || undefined,
+        }),
+      });
+
+      const json = (await res
+        .json()
+        .catch(() => ({}))) as CreatePayoutBatchResponse;
+
+      if (!res.ok) {
+        setBatchError(json.error ?? "振込バッチの作成に失敗しました");
+        setBatchErrorDetails(buildBatchErrorDetails(json));
+        return;
+      }
+
+      setBatchResult(json);
+      await load();
+    } catch (error) {
+      console.error("admin create payout batch error:", error);
+      setBatchError(
+        error instanceof Error
+          ? error.message
+          : "振込バッチの作成に失敗しました"
+      );
+      setBatchErrorDetails([]);
+    } finally {
+      setCreatingBatch(false);
+    }
   };
 
   const downloadCsv = async () => {
@@ -943,6 +1163,238 @@ export default function AdminPayoutsPage() {
               {downloadingCsv ? "CSV確認中..." : "CSV出力"}
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="mb-5 rounded-[30px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-500">
+                Monthly payout batch
+              </p>
+              <h2 className="mt-2 text-[22px] font-black tracking-[-0.05em] text-slate-950">
+                月次振込バッチを作成
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
+                締め期間終了日までに完了した未精算注文をCごとに集約し、銀行口座のスナップショットと注文明細を固定します。最低振込額未満は次回へ繰り越します。
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-800 ring-1 ring-amber-100">
+              現在のCSV出力・支払済み更新は旧方式です。
+              <br />
+              次工程で、このバッチを基準とする方式へ切り替えます。
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">
+                対象期間 開始
+              </span>
+              <input
+                type="date"
+                value={batchPeriodStart}
+                onChange={(event) => setBatchPeriodStart(event.target.value)}
+                disabled={creatingBatch}
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">
+                対象期間 終了
+              </span>
+              <input
+                type="date"
+                value={batchPeriodEnd}
+                onChange={(event) => setBatchPeriodEnd(event.target.value)}
+                disabled={creatingBatch}
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">
+                振込予定日
+              </span>
+              <input
+                type="date"
+                value={batchScheduledDate}
+                onChange={(event) => setBatchScheduledDate(event.target.value)}
+                disabled={creatingBatch}
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">
+                振込事務手数料 / C
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={batchTransferFee}
+                onChange={(event) => setBatchTransferFee(event.target.value)}
+                disabled={creatingBatch}
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">
+                最低振込額
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={batchMinimumPayout}
+                onChange={(event) => setBatchMinimumPayout(event.target.value)}
+                disabled={creatingBatch}
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <label className="block flex-1">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">
+                管理メモ（任意）
+              </span>
+              <input
+                value={batchAdminNote}
+                onChange={(event) => setBatchAdminNote(event.target.value)}
+                disabled={creatingBatch}
+                placeholder="例：2026年7月締め・8月25日振込"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 placeholder:text-slate-400 disabled:opacity-50"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void createMonthlyBatch()}
+              disabled={creatingBatch}
+              className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(79,70,229,0.2)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {creatingBatch ? "バッチ作成中..." : "振込バッチを作成"}
+            </button>
+          </div>
+
+          {batchError ? (
+            <div className="rounded-[22px] bg-red-50 p-4 text-sm font-bold text-red-700 ring-1 ring-red-100">
+              <p className="font-black">{batchError}</p>
+              {batchErrorDetails.length > 0 ? (
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {batchErrorDetails.map((detail) => (
+                    <li key={detail}>{detail}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+
+          {batchResult?.batch ? (
+            <div className="rounded-[24px] bg-emerald-50 p-5 text-emerald-900 ring-1 ring-emerald-100">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">
+                    Created
+                  </p>
+                  <h3 className="mt-1 text-lg font-black">
+                    振込バッチを作成しました
+                  </h3>
+                  <p className="mt-1 text-sm font-bold text-emerald-700">
+                    {batchResult.batch.batch_code || shortId(batchResult.batch.id)} /
+                    {" "}
+                    {formatDate(batchResult.batch.period_start)} ～ {" "}
+                    {formatDate(batchResult.batch.period_end)} / 振込予定 {" "}
+                    {formatDate(batchResult.batch.scheduled_date)}
+                  </p>
+                </div>
+
+                <Pill className="bg-white text-emerald-700 ring-emerald-200">
+                  {batchResult.batch.status}
+                </Pill>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">対象C</p>
+                  <p className="mt-1 text-xl font-black">
+                    {batchResult.batch.total_creators}名
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">対象注文</p>
+                  <p className="mt-1 text-xl font-black">
+                    {batchResult.batch.total_orders}件
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">報酬総額</p>
+                  <p className="mt-1 text-xl font-black">
+                    {formatPrice(
+                      batchResult.batch.total_payout_amount,
+                      batchResult.batch.currency
+                    )}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">手数料合計</p>
+                  <p className="mt-1 text-xl font-black">
+                    {formatPrice(
+                      batchResult.batch.total_transfer_fee,
+                      batchResult.batch.currency
+                    )}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">振込予定総額</p>
+                  <p className="mt-1 text-xl font-black">
+                    {formatPrice(
+                      batchResult.batch.total_net_amount,
+                      batchResult.batch.currency
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {(batchResult.invalid_creators?.length ?? 0) > 0 ? (
+                <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 ring-1 ring-amber-100">
+                  <p className="font-black">
+                    口座不備などにより除外：
+                    {batchResult.invalid_creators?.length ?? 0}名
+                  </p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {batchResult.invalid_creators?.map((creator) => (
+                      <li key={creator.creator_id}>
+                        {creator.creator_name}: {creator.warnings.join("、")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {(batchResult.carried_creators?.length ?? 0) > 0 ? (
+                <div className="mt-4 rounded-2xl bg-sky-50 p-4 text-sm font-bold text-sky-800 ring-1 ring-sky-100">
+                  <p className="font-black">
+                    最低振込額未満で次回へ繰越：
+                    {batchResult.carried_creators?.length ?? 0}名
+                  </p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {batchResult.carried_creators?.map((creator) => (
+                      <li key={creator.creator_id}>
+                        {creator.creator_name}: {formatPrice(creator.gross_amount, "JPY")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
