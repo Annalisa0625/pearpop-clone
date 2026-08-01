@@ -1261,6 +1261,13 @@ export default function AdminPayoutsPage() {
               注文管理へ
             </Link>
 
+            <Link
+              href="/admin/payouts/history"
+              className="rounded-full bg-indigo-50 px-4 py-2.5 text-sm font-black text-indigo-700 ring-1 ring-indigo-100"
+            >
+              振込バッチ履歴
+            </Link>
+
             <button
               type="button"
               onClick={() => void load()}
