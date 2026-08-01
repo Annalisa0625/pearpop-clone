@@ -3,6 +3,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAdminApi } from "@/lib/admin/guard";
+import { createInAppNotification } from "@/lib/notifications/in-app";
+import {
+  buildLineMessage,
+  sendLineTextToUserId,
+} from "@/lib/notifications/line";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { Json } from "@/types/database.types";
 
@@ -126,6 +131,258 @@ function uniqueStrings(values: Array<string | null | undefined>) {
 
 function sumBy<T>(values: T[], getter: (value: T) => unknown) {
   return values.reduce((total, value) => total + getInteger(getter(value)), 0);
+}
+
+function formatCurrency(amount: number, currency = "JPY") {
+  try {
+    return new Intl.NumberFormat("ja-JP", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: currency === "JPY" ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return currency === "JPY"
+      ? `¥${amount.toLocaleString("ja-JP")}`
+      : `${amount.toLocaleString("ja-JP")} ${currency}`;
+  }
+}
+
+function formatPaidDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+type CreatorPayoutNotificationTarget = {
+  creatorUserId: string;
+  creatorId: string | null;
+  payoutItemIds: string[];
+  orderIds: string[];
+  grossAmount: number;
+  transferFee: number;
+  withholdingAmount: number;
+  adjustmentAmount: number;
+  netAmount: number;
+  currency: string;
+};
+
+type PayoutNotificationSummary = {
+  target_creators: number;
+  in_app_sent: number;
+  in_app_failed: number;
+  line_sent: number;
+  line_skipped: number;
+  line_failed: number;
+};
+
+function buildCreatorPayoutNotificationTargets(args: {
+  payoutItems: PayoutItemRow[];
+  payoutOrderItems: PayoutOrderItemRow[];
+}) {
+  const orderIdsByPayoutItemId = new Map<string, string[]>();
+
+  for (const orderItem of args.payoutOrderItems) {
+    const current = orderIdsByPayoutItemId.get(orderItem.payout_item_id) ?? [];
+    current.push(orderItem.order_id);
+    orderIdsByPayoutItemId.set(orderItem.payout_item_id, current);
+  }
+
+  const targets = new Map<string, CreatorPayoutNotificationTarget>();
+
+  for (const item of args.payoutItems) {
+    const creatorUserId = item.creator_user_id?.trim();
+
+    if (!creatorUserId) {
+      continue;
+    }
+
+    const current = targets.get(creatorUserId) ?? {
+      creatorUserId,
+      creatorId: item.creator_id || null,
+      payoutItemIds: [],
+      orderIds: [],
+      grossAmount: 0,
+      transferFee: 0,
+      withholdingAmount: 0,
+      adjustmentAmount: 0,
+      netAmount: 0,
+      currency: item.currency || "JPY",
+    };
+
+    current.payoutItemIds.push(item.id);
+    current.orderIds.push(...(orderIdsByPayoutItemId.get(item.id) ?? []));
+    current.grossAmount += getInteger(item.gross_amount);
+    current.transferFee += getInteger(item.transfer_fee);
+    current.withholdingAmount += getInteger(item.withholding_amount);
+    current.adjustmentAmount += getInteger(item.adjustment_amount);
+    current.netAmount += getInteger(item.net_amount);
+
+    targets.set(creatorUserId, current);
+  }
+
+  return Array.from(targets.values()).map((target) => ({
+    ...target,
+    payoutItemIds: uniqueStrings(target.payoutItemIds),
+    orderIds: uniqueStrings(target.orderIds),
+  }));
+}
+
+async function safeSendCreatorPayoutPaidNotifications(args: {
+  payoutItems: PayoutItemRow[];
+  payoutOrderItems: PayoutOrderItemRow[];
+  batch: PayoutBatchRow;
+  paidAt: string;
+  actorUserId: string | null;
+}) {
+  const targets = buildCreatorPayoutNotificationTargets({
+    payoutItems: args.payoutItems,
+    payoutOrderItems: args.payoutOrderItems,
+  });
+
+  const summary: PayoutNotificationSummary = {
+    target_creators: targets.length,
+    in_app_sent: 0,
+    in_app_failed: 0,
+    line_sent: 0,
+    line_skipped: 0,
+    line_failed: 0,
+  };
+
+  for (const target of targets) {
+    const bodyLines = [
+      `報酬総額：${formatCurrency(target.grossAmount, target.currency)}`,
+      `振込手数料：-${formatCurrency(target.transferFee, target.currency)}`,
+    ];
+
+    if (target.withholdingAmount > 0) {
+      bodyLines.push(
+        `源泉徴収：-${formatCurrency(
+          target.withholdingAmount,
+          target.currency
+        )}`
+      );
+    }
+
+    if (target.adjustmentAmount !== 0) {
+      const adjustmentPrefix = target.adjustmentAmount > 0 ? "+" : "-";
+      bodyLines.push(
+        `調整額：${adjustmentPrefix}${formatCurrency(
+          Math.abs(target.adjustmentAmount),
+          target.currency
+        )}`
+      );
+    }
+
+    bodyLines.push(
+      `実際の受取額：${formatCurrency(target.netAmount, target.currency)}`,
+      `振込日：${formatPaidDate(args.paidAt)}`,
+      "",
+      "報酬画面で明細を確認できます。"
+    );
+
+    try {
+      const inAppResult = await createInAppNotification({
+        recipientUserId: target.creatorUserId,
+        actorUserId: args.actorUserId,
+        notificationType: "creator_payout_paid",
+        title: "報酬を振り込みました",
+        body: bodyLines.join("\n"),
+        linkPath: "/creator/payouts",
+        entityType: "payout_batch",
+        entityId: args.batch.id,
+        importance: "high",
+        dedupeKey: `creator_payout_paid:${args.batch.id}:${target.creatorUserId}`,
+        metadata: {
+          payout_batch_id: args.batch.id,
+          batch_code: args.batch.batch_code,
+          payout_item_ids: target.payoutItemIds,
+          order_ids: target.orderIds,
+          gross_amount: target.grossAmount,
+          transfer_fee: target.transferFee,
+          withholding_amount: target.withholdingAmount,
+          adjustment_amount: target.adjustmentAmount,
+          net_amount: target.netAmount,
+          currency: target.currency,
+          paid_at: args.paidAt,
+        },
+      });
+
+      if (inAppResult.ok) {
+        summary.in_app_sent += 1;
+      } else {
+        summary.in_app_failed += 1;
+        console.warn("creator payout in-app notification not sent:", {
+          payoutBatchId: args.batch.id,
+          creatorUserId: target.creatorUserId,
+          skipped: inAppResult.skipped,
+          error: inAppResult.error,
+        });
+      }
+    } catch (error) {
+      summary.in_app_failed += 1;
+      console.warn("creator payout in-app notification skipped:", {
+        payoutBatchId: args.batch.id,
+        creatorUserId: target.creatorUserId,
+        error,
+      });
+    }
+
+    try {
+      const lineMessage = buildLineMessage({
+        title: "報酬の振込が完了しました",
+        body:
+          "今回の受取額や対象案件は、\nTrendMartの報酬画面からご確認ください。",
+        linkPath: "/creator/payouts",
+      });
+
+      const lineResult = await sendLineTextToUserId(
+        target.creatorUserId,
+        lineMessage,
+        {
+          notificationType: "creator_payout_paid",
+          creatorId: target.creatorId,
+          entityType: "payout_batch",
+          entityId: args.batch.id,
+        }
+      );
+
+      if (lineResult.ok) {
+        summary.line_sent += 1;
+      } else if (lineResult.skipped) {
+        summary.line_skipped += 1;
+        console.warn("creator payout LINE notification skipped:", {
+          payoutBatchId: args.batch.id,
+          creatorUserId: target.creatorUserId,
+          error: lineResult.error,
+        });
+      } else {
+        summary.line_failed += 1;
+        console.warn("creator payout LINE notification failed:", {
+          payoutBatchId: args.batch.id,
+          creatorUserId: target.creatorUserId,
+          error: lineResult.error,
+        });
+      }
+    } catch (error) {
+      summary.line_failed += 1;
+      console.warn("creator payout LINE notification exception:", {
+        payoutBatchId: args.batch.id,
+        creatorUserId: target.creatorUserId,
+        error,
+      });
+    }
+  }
+
+  return summary;
 }
 
 async function safeInsertOrderEvent(args: {
@@ -673,6 +930,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const notificationSummary =
+      await safeSendCreatorPayoutPaidNotifications({
+        payoutItems: originalItems,
+        payoutOrderItems,
+        batch,
+        paidAt,
+        actorUserId: admin.userId,
+      });
+
     return NextResponse.json({
       ok: true,
       already_paid: false,
@@ -682,6 +948,7 @@ export async function POST(req: NextRequest) {
       paid_at: paidAt,
       note,
       external_reference: externalReference,
+      notifications: notificationSummary,
     });
   } catch (error) {
     console.error("admin payout batch mark paid error:", error);
