@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type PayoutMethod = "manual_bank_transfer" | "stripe_connect";
-
 type PayoutStatus = "unpaid" | "pending" | "paid" | "withheld" | "failed";
 
 type OrderForComplete = {
@@ -72,14 +71,11 @@ function getOrderTitle(
 ) {
   const productName = order.product_name?.trim();
   const menuTitle = order.menu_title_snapshot?.trim();
-
   return productName || menuTitle || "注文";
 }
 
 function formatAmount(value: number | null | undefined, currency: string | null) {
-  if (value == null) {
-    return null;
-  }
+  if (value == null) return null;
 
   const safeCurrency = currency || "JPY";
 
@@ -97,18 +93,19 @@ function formatAmount(value: number | null | undefined, currency: string | null)
 }
 
 /**
- * 月末締め・翌月末払いのMVP用。
- * JSTの翌月末 23:59:59.999 をUTC ISOに変換して保存します。
+ * 月末締め・翌月25日払いのMVP用。
+ * 完了日の翌月25日 00:00:00 JSTをUTC ISOへ変換して保存します。
+ *
+ * 例: 2026年7月中に完了 → 2026年8月25日 00:00 JST
  */
-function getNextMonthEndDueAtIso(from = new Date()) {
+function getNextMonth25DueAtIso(from = new Date()) {
   const jstNow = new Date(from.getTime() + 9 * 60 * 60 * 1000);
-
   const jstYear = jstNow.getUTCFullYear();
   const jstMonth = jstNow.getUTCMonth();
 
-  // JST翌月末 23:59:59.999 = UTC 14:59:59.999
+  // JST翌月25日 00:00 = UTC前日15:00
   const dueAtUtc = new Date(
-    Date.UTC(jstYear, jstMonth + 2, 0, 14, 59, 59, 999)
+    Date.UTC(jstYear, jstMonth + 1, 24, 15, 0, 0, 0)
   );
 
   return dueAtUtc.toISOString();
@@ -138,9 +135,7 @@ async function safeSendOrderCompletedLineNotification(args: {
   payoutDueAt: string | null;
 }) {
   try {
-    if (!args.order.creator_user_id) {
-      return;
-    }
+    if (!args.order.creator_user_id) return;
 
     const amountText = formatAmount(
       args.order.creator_payout_amount,
@@ -153,10 +148,7 @@ async function safeSendOrderCompletedLineNotification(args: {
       `案件：${getOrderTitle(args.order)}`,
     ];
 
-    if (amountText) {
-      bodyLines.push(`報酬予定：${amountText}`);
-    }
-
+    if (amountText) bodyLines.push(`報酬予定：${amountText}`);
     bodyLines.push("", "報酬ページにも反映されます。");
 
     const message = buildLineMessage({
@@ -225,9 +217,7 @@ export async function POST(
       .eq("id", orderId)
       .maybeSingle();
 
-    if (orderError) {
-      throw orderError;
-    }
+    if (orderError) throw orderError;
 
     const order = orderRow as OrderForComplete | null;
 
@@ -283,7 +273,7 @@ export async function POST(
     }
 
     const nowIso = new Date().toISOString();
-    const payoutDueAt = getNextMonthEndDueAtIso(new Date(nowIso));
+    const payoutDueAt = getNextMonth25DueAtIso(new Date(nowIso));
 
     const nextPayoutStatus: PayoutStatus =
       currentPayoutStatus === "paid" ||
@@ -305,9 +295,7 @@ export async function POST(
       })
       .eq("id", order.id);
 
-    if (updateError) {
-      throw updateError;
-    }
+    if (updateError) throw updateError;
 
     await safeInsertOrderEvent({
       orderId: order.id,
@@ -331,7 +319,7 @@ export async function POST(
           payout_method: payoutMethod,
           payout_status: "pending",
           payout_due_at: payoutDueAt,
-          rule: "month_end_close_next_month_end_manual_bank_transfer",
+          rule: "month_end_close_next_month_25_manual_bank_transfer",
         },
       });
     }
