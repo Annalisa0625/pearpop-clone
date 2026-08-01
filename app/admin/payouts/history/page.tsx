@@ -204,6 +204,16 @@ function shortId(value: string | null | undefined) {
   return `${value.slice(0, 8)}...`;
 }
 
+function maskAccountNumber(value: string | null | undefined) {
+  const digits = String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[^0-9]/g, "");
+
+  if (!digits) return "-";
+
+  return `••••${digits.slice(-3)}`;
+}
+
 function getStatusLabel(status: BatchStatus) {
   if (status === "draft") return "作成済み";
   if (status === "ready") return "準備完了";
@@ -1025,7 +1035,9 @@ export default function AdminPayoutBatchHistoryPage() {
                                 label="口座"
                                 value={`${getAccountTypeLabel(
                                   item.bank.account_type,
-                                )} / ${item.bank.account_number || "-"}`}
+                                )} / ${maskAccountNumber(
+                                  item.bank.account_number,
+                                )}`}
                                 sub={item.bank.account_holder_kana || "-"}
                               />
                             </div>
