@@ -141,6 +141,38 @@ type CreatePayoutBatchResponse = {
   existing_batch?: Partial<CreatedPayoutBatch>;
 };
 
+type PayoutBatchCandidate = {
+  id: string;
+  order_count: number;
+  creator_count: number;
+  gross_amount: number;
+  currency: string;
+};
+
+type MarkPayoutBatchPaidResponse = {
+  ok?: boolean;
+  already_paid?: boolean;
+  error?: string;
+  detail?: string;
+  batch?: {
+    id: string;
+    batch_code: string | null;
+    status: string;
+    paid_at: string | null;
+    total_orders: number;
+    total_creators: number;
+    total_payout_amount: number;
+    total_transfer_fee: number;
+    total_net_amount: number;
+    currency: string;
+  };
+  order_ids?: string[];
+  payout_item_ids?: string[];
+  paid_at?: string;
+  note?: string;
+  external_reference?: string | null;
+};
+
 const EMPTY_SUMMARY: PayoutSummary = {
   total_count: 0,
   pending_count: 0,
@@ -155,6 +187,12 @@ const EMPTY_SUMMARY: PayoutSummary = {
 
 function toDateInputValue(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function getJstTodayInputValue(now = new Date()) {
+  return new Date(now.getTime() + 9 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 function getDefaultBatchFormDates(now = new Date()) {
@@ -384,16 +422,6 @@ function validatePayoutAccount(item: PayoutItem): PayoutAccountValidation {
   };
 }
 
-function isSelectableForPaid(item: PayoutItem) {
-  const validation = validatePayoutAccount(item);
-
-  return (
-    item.payout_status === "pending" &&
-    item.payout_method === "manual_bank_transfer" &&
-    validation.ready
-  );
-}
-
 function Pill({
   children,
   className,
@@ -538,22 +566,13 @@ function CreatorSummaryCard({ creator }: { creator: CreatorSummary }) {
   );
 }
 
-function PayoutCard({
-  item,
-  selected,
-  onToggle,
-}: {
-  item: PayoutItem;
-  selected: boolean;
-  onToggle: () => void;
-}) {
+function PayoutCard({ item }: { item: PayoutItem }) {
   const title =
     item.product_name?.trim() ||
     item.menu_title_snapshot?.trim() ||
     "注文名未設定";
 
   const validation = validatePayoutAccount(item);
-  const selectable = isSelectableForPaid(item);
 
   return (
     <article className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100">
@@ -578,6 +597,18 @@ function PayoutCard({
               </Pill>
             )}
 
+            {item.payout_status === "pending" ? (
+              item.payout_batch_id ? (
+                <Pill className="bg-indigo-50 text-indigo-700 ring-indigo-100">
+                  バッチ登録済み
+                </Pill>
+              ) : (
+                <Pill className="bg-slate-100 text-slate-600 ring-slate-200">
+                  バッチ未登録
+                </Pill>
+              )
+            ) : null}
+
             {item.payout_due_at ? (
               <Pill className="bg-amber-50 text-amber-700 ring-amber-100">
                 支払予定 {formatDate(item.payout_due_at)}
@@ -593,9 +624,17 @@ function PayoutCard({
             注文ID：{shortId(item.order_id)}
           </p>
 
+          {item.payout_batch_id ? (
+            <p className="mt-1 text-xs font-bold text-indigo-500">
+              振込バッチ：{shortId(item.payout_batch_id)}
+            </p>
+          ) : null}
+
           {!validation.ready ? (
             <div className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-bold leading-6 text-red-700 ring-1 ring-red-100">
-              <p className="font-black">CSV出力・支払済み更新の前に修正が必要です</p>
+              <p className="font-black">
+                次回の振込バッチ作成前に口座情報の修正が必要です
+              </p>
               <ul className="mt-1 list-disc pl-5">
                 {validation.warnings.map((warning) => (
                   <li key={warning}>{warning}</li>
@@ -606,7 +645,7 @@ function PayoutCard({
 
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="text-xs font-black text-slate-400">C受取額</p>
+              <p className="text-xs font-black text-slate-400">C報酬額</p>
               <p className="mt-1 truncate font-black text-slate-800">
                 {formatPrice(item.creator_payout_amount, item.currency)}
               </p>
@@ -620,7 +659,7 @@ function PayoutCard({
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="text-xs font-black text-slate-400">インフルエンサー</p>
+              <p className="text-xs font-black text-slate-400">クリエイター</p>
               <p className="mt-1 truncate font-black text-slate-800">
                 {item.creator_name}
               </p>
@@ -671,30 +710,6 @@ function PayoutCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 lg:flex-col">
-          {selectable ? (
-            <label
-              className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-black ring-1 transition ${
-                selected
-                  ? "bg-emerald-600 text-white ring-emerald-600"
-                  : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={onToggle}
-                className="h-4 w-4"
-              />
-              支払対象
-            </label>
-          ) : null}
-
-          {!selectable && item.payout_status === "pending" ? (
-            <span className="rounded-full bg-red-50 px-4 py-2.5 text-center text-xs font-black text-red-700 ring-1 ring-red-100">
-              支払対象外
-            </span>
-          ) : null}
-
           <Link
             href={`/admin/orders/${item.order_id}`}
             className="rounded-full bg-[#ff5f67] px-4 py-2.5 text-center text-xs font-black text-white shadow-[0_12px_26px_rgba(255,95,103,0.22)]"
@@ -719,12 +734,9 @@ export default function AdminPayoutsPage() {
   const [summary, setSummary] = useState<PayoutSummary>(EMPTY_SUMMARY);
   const [creatorSummary, setCreatorSummary] = useState<CreatorSummary[]>([]);
   const [items, setItems] = useState<PayoutItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<TabKey>("pending");
   const [q, setQ] = useState("");
-  const [note, setNote] = useState("Admin manual payout marked as paid");
   const [loading, setLoading] = useState(true);
-  const [markingPaid, setMarkingPaid] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string[]>([]);
@@ -748,6 +760,19 @@ export default function AdminPayoutsPage() {
   const [batchResult, setBatchResult] =
     useState<CreatePayoutBatchResponse | null>(null);
 
+  const [selectedBatchId, setSelectedBatchId] = useState("");
+  const [batchPaidAt, setBatchPaidAt] = useState(getJstTodayInputValue());
+  const [batchPaidNote, setBatchPaidNote] = useState(
+    "GMOあおぞら銀行の振込完了を管理者が確認"
+  );
+  const [batchExternalReference, setBatchExternalReference] = useState("");
+  const [markingBatchPaid, setMarkingBatchPaid] = useState(false);
+  const [batchPaidResult, setBatchPaidResult] =
+    useState<MarkPayoutBatchPaidResponse | null>(null);
+  const [lastExportedBatchId, setLastExportedBatchId] = useState<string | null>(
+    null
+  );
+
   const load = async () => {
     setLoading(true);
     setError(null);
@@ -769,14 +794,12 @@ export default function AdminPayoutsPage() {
       setSummary(json.summary ?? EMPTY_SUMMARY);
       setCreatorSummary(json.creator_summary ?? []);
       setItems(json.items ?? []);
-      setSelectedIds(new Set());
     } catch (error) {
       console.error("admin payouts page load error:", error);
       setError("支払管理一覧の取得に失敗しました");
       setSummary(EMPTY_SUMMARY);
       setCreatorSummary([]);
       setItems([]);
-      setSelectedIds(new Set());
     } finally {
       setLoading(false);
     }
@@ -836,53 +859,77 @@ export default function AdminPayoutsPage() {
     });
   }, [items, q, tab]);
 
-  const selectableIds = useMemo(() => {
-    return filteredItems
-      .filter((item) => isSelectableForPaid(item))
-      .map((item) => item.order_id);
-  }, [filteredItems]);
+  const batchCandidates = useMemo<PayoutBatchCandidate[]>(() => {
+    const groups = new Map<
+      string,
+      {
+        orderIds: Set<string>;
+        creatorIds: Set<string>;
+        grossAmount: number;
+        currency: string;
+      }
+    >();
 
-  const selectedTotalAmount = useMemo(() => {
-    return items
-      .filter((item) => selectedIds.has(item.order_id))
-      .reduce((sum, item) => sum + item.creator_payout_amount, 0);
-  }, [items, selectedIds]);
-
-  const allSelectableSelected =
-    selectableIds.length > 0 &&
-    selectableIds.every((id) => selectedIds.has(id));
-
-  const toggleSelected = (orderId: string) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-
-      if (next.has(orderId)) {
-        next.delete(orderId);
-      } else {
-        next.add(orderId);
+    for (const item of items) {
+      if (
+        item.payout_status !== "pending" ||
+        item.payout_method !== "manual_bank_transfer" ||
+        !item.payout_batch_id
+      ) {
+        continue;
       }
 
-      return next;
-    });
-  };
+      const current = groups.get(item.payout_batch_id) ?? {
+        orderIds: new Set<string>(),
+        creatorIds: new Set<string>(),
+        grossAmount: 0,
+        currency: item.currency || "JPY",
+      };
 
-  const toggleAllSelectable = () => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-
-      if (allSelectableSelected) {
-        for (const id of selectableIds) {
-          next.delete(id);
-        }
-      } else {
-        for (const id of selectableIds) {
-          next.add(id);
-        }
+      if (!current.orderIds.has(item.order_id)) {
+        current.orderIds.add(item.order_id);
+        current.grossAmount += Number(item.creator_payout_amount ?? 0);
       }
 
-      return next;
-    });
-  };
+      current.creatorIds.add(item.creator_id || item.creator_user_id);
+      groups.set(item.payout_batch_id, current);
+    }
+
+    return Array.from(groups.entries()).map(([id, group]) => ({
+      id,
+      order_count: group.orderIds.size,
+      creator_count: group.creatorIds.size,
+      gross_amount: group.grossAmount,
+      currency: group.currency,
+    }));
+  }, [items]);
+
+  const selectedBatch = useMemo(
+    () => batchCandidates.find((batch) => batch.id === selectedBatchId) ?? null,
+    [batchCandidates, selectedBatchId]
+  );
+
+  const unbatchedPendingCount = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.payout_status === "pending" &&
+          item.payout_method === "manual_bank_transfer" &&
+          !item.payout_batch_id
+      ).length,
+    [items]
+  );
+
+  useEffect(() => {
+    if (
+      selectedBatchId &&
+      batchCandidates.some((batch) => batch.id === selectedBatchId)
+    ) {
+      return;
+    }
+
+    setSelectedBatchId(batchCandidates[0]?.id ?? "");
+  }, [batchCandidates, selectedBatchId]);
 
   const createMonthlyBatch = async () => {
     const transferFee = Number(batchTransferFee);
@@ -973,6 +1020,12 @@ export default function AdminPayoutsPage() {
       }
 
       setBatchResult(json);
+
+      if (json.batch?.id) {
+        setSelectedBatchId(json.batch.id);
+      }
+
+      setBatchPaidResult(null);
       await load();
     } catch (error) {
       console.error("admin create payout batch error:", error);
@@ -987,15 +1040,28 @@ export default function AdminPayoutsPage() {
     }
   };
 
-  const downloadCsv = async () => {
+  const downloadCsv = async (batchId?: string) => {
+    const targetBatchId = batchId || selectedBatchId || batchResult?.batch?.id;
+
+    if (!targetBatchId) {
+      setError(
+        "CSV出力する振込バッチがありません。先に月次振込バッチを作成してください。"
+      );
+      setErrorDetails([]);
+      return;
+    }
+
     setDownloadingCsv(true);
     setError(null);
     setErrorDetails([]);
 
     try {
-      const res = await fetch("/api/admin/payouts/export", {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/admin/payouts/export?batch_id=${encodeURIComponent(targetBatchId)}`,
+        {
+          cache: "no-store",
+        }
+      );
 
       const contentType = res.headers.get("content-type") ?? "";
 
@@ -1004,10 +1070,16 @@ export default function AdminPayoutsPage() {
           const json = (await res.json().catch(() => ({}))) as {
             error?: string;
             messages?: string[];
+            detail?: string;
           };
 
           setError(json.error ?? "CSV出力に失敗しました");
-          setErrorDetails(Array.isArray(json.messages) ? json.messages : []);
+          setErrorDetails(
+            [
+              ...(Array.isArray(json.messages) ? json.messages : []),
+              ...(json.detail ? [json.detail] : []),
+            ].filter(Boolean)
+          );
           return;
         }
 
@@ -1017,7 +1089,8 @@ export default function AdminPayoutsPage() {
       const blob = await res.blob();
       const contentDisposition = res.headers.get("content-disposition") ?? "";
       const fileNameMatch = contentDisposition.match(/filename="([^"]+)"/);
-      const fileName = fileNameMatch?.[1] ?? "trendre-payouts.csv";
+      const fileName =
+        fileNameMatch?.[1] ?? `gmo-aozora-${targetBatchId}.csv`;
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1029,6 +1102,21 @@ export default function AdminPayoutsPage() {
       a.remove();
 
       window.URL.revokeObjectURL(url);
+
+      setLastExportedBatchId(targetBatchId);
+      setBatchResult((current) => {
+        if (!current?.batch || current.batch.id !== targetBatchId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          batch: {
+            ...current.batch,
+            status: "exported",
+          },
+        };
+      });
     } catch (error) {
       console.error("admin payout CSV download error:", error);
       setError(
@@ -1039,76 +1127,103 @@ export default function AdminPayoutsPage() {
     }
   };
 
-  const markSelectedPaid = async () => {
-    const orderIds = Array.from(selectedIds);
-
-    if (orderIds.length === 0) {
-      alert("支払済みにする注文を選択してください");
+  const markBatchPaid = async () => {
+    if (!selectedBatchId || !selectedBatch) {
+      setError("支払済みにする振込バッチを選択してください");
+      setErrorDetails([]);
       return;
     }
 
-    const selectedItems = items.filter((item) => selectedIds.has(item.order_id));
-    const invalidSelectedItems = selectedItems.filter(
-      (item) => !isSelectableForPaid(item)
-    );
-
-    if (invalidSelectedItems.length > 0) {
-      setError("口座情報に不備がある注文、または支払対象外の注文が含まれています。");
-      setErrorDetails(
-        invalidSelectedItems.map((item) => {
-          const validation = validatePayoutAccount(item);
-          return `${item.creator_name} / 注文 ${item.order_id}: ${validation.warnings.join(
-            "、"
-          )}`;
-        })
-      );
+    if (!batchPaidAt) {
+      setError("振込完了日を入力してください");
+      setErrorDetails([]);
       return;
     }
+
+    const knownBatch =
+      batchResult?.batch?.id === selectedBatchId
+        ? batchResult.batch
+        : null;
+
+    const displayAmount = knownBatch
+      ? formatPrice(knownBatch.total_net_amount, knownBatch.currency)
+      : `${formatPrice(
+          selectedBatch.gross_amount,
+          selectedBatch.currency
+        )}からバッチ内の手数料等を控除した金額`;
 
     const ok = confirm(
-      `${orderIds.length}件、合計 ${formatPrice(
-        selectedTotalAmount,
-        "JPY"
-      )} を支払済みに更新します。よろしいですか？`
+      [
+        "この振込バッチを支払済みに更新します。",
+        `バッチID：${selectedBatchId}`,
+        `対象C：${selectedBatch.creator_count}名`,
+        `対象注文：${selectedBatch.order_count}件`,
+        `振込対象額：${displayAmount}`,
+        `振込完了日：${batchPaidAt}`,
+        "",
+        "GMOあおぞら銀行側で振込内容を確定した後に実行してください。",
+        "実行後、バッチ・振込明細・対象注文がすべて支払済みになります。",
+      ].join("\n")
     );
 
     if (!ok) return;
 
-    setMarkingPaid(true);
+    setMarkingBatchPaid(true);
     setError(null);
     setErrorDetails([]);
+    setBatchPaidResult(null);
 
     try {
-      const res = await fetch("/api/admin/payouts/mark-paid", {
+      const res = await fetch("/api/admin/payouts/batches/mark-paid", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         cache: "no-store",
         body: JSON.stringify({
-          order_ids: orderIds,
-          note,
+          batch_id: selectedBatchId,
+          paid_at: batchPaidAt,
+          note: batchPaidNote.trim() || undefined,
+          external_reference:
+            batchExternalReference.trim() || undefined,
         }),
       });
 
-      const json = await res.json().catch(() => ({}));
+      const json = (await res
+        .json()
+        .catch(() => ({}))) as MarkPayoutBatchPaidResponse;
 
       if (!res.ok) {
-        setErrorDetails(Array.isArray(json?.messages) ? json.messages : []);
-        throw new Error(json?.error ?? "支払済み更新に失敗しました");
+        setError(json.error ?? "振込バッチの支払済み更新に失敗しました");
+        setErrorDetails(json.detail ? [json.detail] : []);
+        return;
       }
 
-      alert("支払済みに更新しました");
+      setBatchPaidResult(json);
+      setBatchResult((current) => {
+        if (!current?.batch || current.batch.id !== selectedBatchId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          batch: {
+            ...current.batch,
+            status: "paid",
+          },
+        };
+      });
+      setTab("paid");
       await load();
     } catch (error) {
-      console.error("admin mark paid page error:", error);
+      console.error("admin payout batch mark paid page error:", error);
       setError(
         error instanceof Error
           ? error.message
-          : "支払済み更新に失敗しました"
+          : "振込バッチの支払済み更新に失敗しました"
       );
     } finally {
-      setMarkingPaid(false);
+      setMarkingBatchPaid(false);
     }
   };
 
@@ -1156,8 +1271,8 @@ export default function AdminPayoutsPage() {
 
             <button
               type="button"
-              onClick={() => void downloadCsv()}
-              disabled={downloadingCsv}
+              onClick={() => void downloadCsv(selectedBatchId)}
+              disabled={downloadingCsv || !selectedBatchId}
               className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {downloadingCsv ? "CSV確認中..." : "CSV出力"}
@@ -1181,10 +1296,10 @@ export default function AdminPayoutsPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-800 ring-1 ring-amber-100">
-              現在のCSV出力・支払済み更新は旧方式です。
+            <div className="rounded-2xl bg-indigo-50 px-4 py-3 text-xs font-bold leading-5 text-indigo-700 ring-1 ring-indigo-100">
+              CSV出力・支払済み更新は振込バッチ基準です。
               <br />
-              次工程で、このバッチを基準とする方式へ切り替えます。
+              注文を個別選択せず、バッチ全体を一括処理します。
             </div>
           </div>
 
@@ -1398,6 +1513,210 @@ export default function AdminPayoutsPage() {
         </div>
       </section>
 
+      <section className="mb-5 rounded-[30px] bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">
+                Batch settlement
+              </p>
+              <h2 className="mt-2 text-[22px] font-black tracking-[-0.05em] text-slate-950">
+                振込バッチを支払済みにする
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
+                GMOあおぞら銀行でCSVの内容と振込結果を確認した後、対象バッチ全体を支払済みに更新します。
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-red-50 px-4 py-3 text-xs font-bold leading-5 text-red-700 ring-1 ring-red-100">
+              実際の振込完了前には押さないでください。
+              <br />
+              更新後はC側の報酬画面にも支払済みとして反映されます。
+            </div>
+          </div>
+
+          {batchCandidates.length > 0 ? (
+            <>
+              <div className="grid gap-3 lg:grid-cols-4">
+                <label className="block lg:col-span-2">
+                  <span className="mb-1.5 block text-xs font-black text-slate-500">
+                    対象振込バッチ
+                  </span>
+                  <select
+                    value={selectedBatchId}
+                    onChange={(event) => {
+                      setSelectedBatchId(event.target.value);
+                      setBatchPaidResult(null);
+                    }}
+                    disabled={markingBatchPaid}
+                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+                  >
+                    {batchCandidates.map((batch) => (
+                      <option key={batch.id} value={batch.id}>
+                        {shortId(batch.id)} / {batch.creator_count}名 /{" "}
+                        {batch.order_count}件 /{" "}
+                        {formatPrice(batch.gross_amount, batch.currency)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-black text-slate-500">
+                    振込完了日
+                  </span>
+                  <input
+                    type="date"
+                    value={batchPaidAt}
+                    onChange={(event) => setBatchPaidAt(event.target.value)}
+                    disabled={markingBatchPaid}
+                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-black text-slate-500">
+                    銀行側の受付番号（任意）
+                  </span>
+                  <input
+                    value={batchExternalReference}
+                    onChange={(event) =>
+                      setBatchExternalReference(event.target.value)
+                    }
+                    disabled={markingBatchPaid}
+                    placeholder="例：GMO受付番号"
+                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 placeholder:text-slate-400 disabled:opacity-50"
+                  />
+                </label>
+              </div>
+
+              {selectedBatch ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                    <p className="text-xs font-black text-slate-400">対象C</p>
+                    <p className="mt-1 text-xl font-black text-slate-900">
+                      {selectedBatch.creator_count}名
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                    <p className="text-xs font-black text-slate-400">対象注文</p>
+                    <p className="mt-1 text-xl font-black text-slate-900">
+                      {selectedBatch.order_count}件
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                    <p className="text-xs font-black text-slate-400">報酬総額</p>
+                    <p className="mt-1 text-xl font-black text-slate-900">
+                      {formatPrice(
+                        selectedBatch.gross_amount,
+                        selectedBatch.currency
+                      )}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-black text-slate-500">
+                  支払メモ
+                </span>
+                <input
+                  value={batchPaidNote}
+                  onChange={(event) => setBatchPaidNote(event.target.value)}
+                  disabled={markingBatchPaid}
+                  className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none ring-1 ring-slate-100 disabled:opacity-50"
+                />
+              </label>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => void downloadCsv(selectedBatchId)}
+                  disabled={downloadingCsv || markingBatchPaid}
+                  className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {downloadingCsv
+                    ? "CSV出力中..."
+                    : lastExportedBatchId === selectedBatchId
+                      ? "CSVを再ダウンロード"
+                      : "このバッチのCSVを出力"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void markBatchPaid()}
+                  disabled={markingBatchPaid || downloadingCsv}
+                  className="rounded-full bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(5,150,105,0.2)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {markingBatchPaid
+                    ? "支払済み更新中..."
+                    : "この振込バッチを支払済みにする"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-[24px] bg-slate-50 p-6 text-center ring-1 ring-slate-100">
+              <p className="font-black text-slate-800">
+                支払待ちの振込バッチはありません
+              </p>
+              <p className="mt-2 text-sm font-bold text-slate-400">
+                先に月次振込バッチを作成し、CSVを出力してください。
+              </p>
+            </div>
+          )}
+
+          {unbatchedPendingCount > 0 ? (
+            <div className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 ring-1 ring-amber-100">
+              バッチ未登録の支払待ち注文が {unbatchedPendingCount} 件あります。
+              次回の月次振込バッチ作成時に処理してください。
+            </div>
+          ) : null}
+
+          {batchPaidResult?.ok ? (
+            <div className="rounded-[24px] bg-emerald-50 p-5 text-emerald-900 ring-1 ring-emerald-100">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">
+                Paid
+              </p>
+              <h3 className="mt-1 text-lg font-black">
+                振込バッチを支払済みに更新しました
+              </h3>
+              <p className="mt-2 text-sm font-bold text-emerald-700">
+                {batchPaidResult.batch?.batch_code ||
+                  shortId(batchPaidResult.batch?.id)}{" "}
+                / 支払済み日 {formatDateTime(batchPaidResult.paid_at)}
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">対象C</p>
+                  <p className="mt-1 text-xl font-black">
+                    {batchPaidResult.batch?.total_creators ?? 0}名
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">
+                    対象注文
+                  </p>
+                  <p className="mt-1 text-xl font-black">
+                    {batchPaidResult.batch?.total_orders ?? 0}件
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-3 ring-1 ring-emerald-100">
+                  <p className="text-xs font-black text-emerald-600">
+                    振込総額
+                  </p>
+                  <p className="mt-1 text-xl font-black">
+                    {formatPrice(
+                      batchPaidResult.batch?.total_net_amount,
+                      batchPaidResult.batch?.currency
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
       {error ? (
         <div className="mb-5 rounded-[24px] bg-red-50 p-4 text-sm font-bold text-red-700 ring-1 ring-red-100">
           <p className="font-black">{error}</p>
@@ -1521,56 +1840,10 @@ export default function AdminPayoutsPage() {
         </div>
       </section>
 
-      <section className="sticky top-3 z-10 mb-5 rounded-[28px] bg-white/95 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 backdrop-blur">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-black text-slate-950">
-              選択中：{selectedIds.size}件 /{" "}
-              {formatPrice(selectedTotalAmount, "JPY")}
-            </p>
-            <p className="mt-1 text-xs font-bold text-slate-400">
-              支払待ち・銀行振込・口座OKの注文だけ支払済みに更新できます。
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="支払メモ"
-              className="w-full rounded-full bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none ring-1 ring-slate-100 sm:w-[360px]"
-            />
-
-            <button
-              type="button"
-              onClick={toggleAllSelectable}
-              disabled={selectableIds.length === 0}
-              className="rounded-full bg-white px-4 py-3 text-sm font-black text-slate-700 ring-1 ring-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {allSelectableSelected ? "選択解除" : "表示分を選択"}
-            </button>
-
-            <button
-              type="button"
-              onClick={markSelectedPaid}
-              disabled={markingPaid || selectedIds.size === 0}
-              className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(5,150,105,0.18)] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {markingPaid ? "更新中..." : "支払済みにする"}
-            </button>
-          </div>
-        </div>
-      </section>
-
       {filteredItems.length > 0 ? (
         <section className="space-y-4">
           {filteredItems.map((item) => (
-            <PayoutCard
-              key={item.order_id}
-              item={item}
-              selected={selectedIds.has(item.order_id)}
-              onToggle={() => toggleSelected(item.order_id)}
-            />
+            <PayoutCard key={item.order_id} item={item} />
           ))}
         </section>
       ) : (
