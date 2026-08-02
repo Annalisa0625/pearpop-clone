@@ -44,6 +44,7 @@ type OrderItem =
       description: string;
       status: string;
       budget: string | null;
+      quoteAmount: number | null;
     };
 
 function ChevronIcon() {
@@ -130,13 +131,28 @@ function quoteStatusText(status: string, locale: "ja" | "en") {
   if (locale === "en") {
     if (status === "new") return "Create a quote";
     if (status === "creator_reviewing") return "Quote in progress";
-    if (status === "quoted") return "Waiting for the company";
+    if (status === "quoted" || status === "sent") return "Waiting for the company";
+    if (status === "accepted") return "Quote approved";
+    if (status === "declined") return "Quote declined";
+    if (status === "expired") return "Quote expired";
+    if (status === "cancelled") return "Quote cancelled";
     return "Review the request";
   }
   if (status === "new") return "見積もりを作成してください";
   if (status === "creator_reviewing") return "見積もりを作成中";
-  if (status === "quoted") return "企業の回答を待っています";
+  if (status === "quoted" || status === "sent") return "企業の回答を待っています";
+  if (status === "accepted") return "企業が見積もりを承認しました";
+  if (status === "declined") return "企業が見積もりを見送りました";
+  if (status === "expired") return "見積もりの期限が切れました";
+  if (status === "cancelled") return "見積もりは取り消されています";
   return "依頼内容を確認してください";
+}
+
+function quoteStatusClass(status: string) {
+  if (status === "accepted") return "text-emerald-700";
+  if (status === "declined" || status === "cancelled") return "text-slate-500";
+  if (status === "expired") return "text-amber-700";
+  return "text-slate-500";
 }
 
 function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
@@ -144,6 +160,9 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
   const urgent = item.kind === "order" && item.deadline
     ? new Date(item.deadline).getTime() - Date.now() <= 24 * 60 * 60 * 1000
     : false;
+  const statusClass = item.kind === "order"
+    ? urgent ? "text-[#e22645]" : "text-slate-500"
+    : quoteStatusClass(item.status);
 
   return (
     <Link
@@ -187,9 +206,11 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
           <p className="text-[13px] font-semibold text-slate-800">
             {item.kind === "order"
               ? formatMoney(item.amount, item.currency, locale)
-              : formatBudget(item.budget, locale)}
+              : item.quoteAmount != null
+                ? formatMoney(item.quoteAmount, "JPY", locale)
+                : formatBudget(item.budget, locale)}
           </p>
-          <p className={`text-[11px] font-medium ${urgent ? "text-[#e22645]" : "text-slate-500"}`}>
+          <p className={`text-[11px] font-medium ${statusClass}`}>
             {item.kind === "order"
               ? deadlineText(item.deadline, locale)
               : quoteStatusText(item.status, locale)}
@@ -278,8 +299,9 @@ export default function CreatorOrdersPage() {
           href: `/creator/orders/inquiries/${inquiry.id}`,
           title: inquiry.company_name || inquiry.contact_name || (safeLocale === "ja" ? "見積もり依頼" : "Quote request"),
           description: inquiry.product_name || inquiry.purpose || inquiry.message || (safeLocale === "ja" ? "依頼内容を確認してください" : "Review the request"),
-          status: inquiry.status,
+          status: inquiry.quote_status || inquiry.status,
           budget: inquiry.budget_text,
+          quoteAmount: inquiry.quote_amount ?? null,
         }));
 
       setItems([...orderItems, ...quoteItems].sort(

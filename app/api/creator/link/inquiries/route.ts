@@ -9,6 +9,7 @@ import {
   type CreatorLinkInquiryInboxResponse,
   type CreatorLinkInquiryListItem,
 } from "@/lib/trendre-link/inquiry-inbox";
+import type { CreatorInquiryQuoteStatus } from "@/lib/trendre-link/inquiry-quote";
 import { getTrendreLinkAuthenticatedUser } from "@/lib/trendre-link/server-auth";
 
 // Keep this typed as a runtime string until the generated Supabase database
@@ -50,6 +51,10 @@ function asInquiryList(value: unknown): CreatorLinkInquiryListItem[] {
     : [];
 }
 
+function isClosedQuoteStatus(status: CreatorInquiryQuoteStatus | null | undefined) {
+  return Boolean(status && ["accepted", "declined", "expired", "cancelled"].includes(status));
+}
+
 export async function GET(request: NextRequest) {
   const auth = await getTrendreLinkAuthenticatedUser(request);
   if (!auth.user) return errorResponse("ログインが必要です。", 401);
@@ -65,12 +70,50 @@ export async function GET(request: NextRequest) {
 
     if (error) throw new Error("inquiry_list_failed");
 
+    const rawInquiries = asInquiryList(data);
+    const quoteByInquiryId = new Map<
+      string,
+      { status: CreatorInquiryQuoteStatus; quotedAmount: number | null }
+    >();
+    const inquiryIds = rawInquiries.map((inquiry) => inquiry.id);
+
+    if (inquiryIds.length) {
+      const { data: quotes, error: quoteError } = await (supabaseAdmin as any)
+        .from("creator_inquiry_quotes")
+        .select("inquiry_id,status,quoted_amount")
+        .in("inquiry_id", inquiryIds);
+
+      if (quoteError?.code !== "42P01" && quoteError) {
+        throw new Error("inquiry_quote_status_load_failed");
+      }
+
+      if (Array.isArray(quotes)) {
+        for (const quote of quotes) {
+          if (quote?.inquiry_id && typeof quote.status === "string") {
+            const amount = Number(quote.quoted_amount);
+            quoteByInquiryId.set(quote.inquiry_id, {
+              status: quote.status as CreatorInquiryQuoteStatus,
+              quotedAmount: Number.isFinite(amount) ? amount : null,
+            });
+          }
+        }
+      }
+    }
+
     const locale = getCreatorLinkInquiryLocale(
       request.headers.get("accept-language")
     );
-    const inquiries = asInquiryList(data).map((inquiry) =>
-      localizeCreatorLinkInquiry(inquiry, locale)
-    );
+    const inquiries = rawInquiries.map((inquiry) => {
+      const quote = quoteByInquiryId.get(inquiry.id);
+      return localizeCreatorLinkInquiry(
+        {
+          ...inquiry,
+          quote_status: quote?.status ?? null,
+          quote_amount: quote?.quotedAmount ?? null,
+        },
+        locale
+      );
+    });
     const activeStatuses =
       CREATOR_LINK_ACTIVE_INQUIRY_STATUSES as readonly string[];
     const closedStatuses =
@@ -82,10 +125,12 @@ export async function GET(request: NextRequest) {
       counts: {
         all: inquiries.length,
         new: inquiries.filter((item) => item.status === "new").length,
-        active: inquiries.filter((item) => activeStatuses.includes(item.status))
-          .length,
-        closed: inquiries.filter((item) => closedStatuses.includes(item.status))
-          .length,
+        active: inquiries.filter(
+          (item) => activeStatuses.includes(item.status) && !isClosedQuoteStatus(item.quote_status)
+        ).length,
+        closed: inquiries.filter(
+          (item) => closedStatuses.includes(item.status) || isClosedQuoteStatus(item.quote_status)
+        ).length,
       },
     });
   } catch (error) {

@@ -8,6 +8,64 @@ import { useAppLocale } from "@/lib/i18n/locale";
 import CompanySignupGateModal from "@/components/CompanySignupGateModal";
 
 const BILLING_PATH = "/b/billing";
+const PROFILE_VIEW_DEDUP_MS = 30 * 60 * 1000;
+
+async function recordCreatorProfileView(creatorId: string) {
+  if (typeof window === "undefined" || !creatorId) return;
+
+  const storageKey = `trendmart:creator-profile-view:${creatorId}`;
+  const now = Date.now();
+  let storedAt = 0;
+
+  try {
+    storedAt = Number(window.localStorage.getItem(storageKey) ?? 0);
+
+    if (
+      Number.isFinite(storedAt) &&
+      storedAt > 0 &&
+      now - storedAt < PROFILE_VIEW_DEDUP_MS
+    ) {
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, String(now));
+  } catch {
+    // localStorageを利用できない環境でも、閲覧記録自体は試みます。
+  }
+
+  try {
+    const response = await fetch("/api/public/creator-profile-views", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+      keepalive: true,
+      body: JSON.stringify({
+        creator_id: creatorId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`profile view tracking failed: ${response.status}`);
+    }
+  } catch (error) {
+    console.warn("creator profile view tracking skipped:", error);
+
+    try {
+      const currentStoredAt = Number(
+        window.localStorage.getItem(storageKey) ?? 0
+      );
+
+      if (currentStoredAt === now) {
+        window.localStorage.removeItem(storageKey);
+      }
+    } catch {
+      // 次回の閲覧時に再試行されるため、ここでは何もしません。
+    }
+  }
+}
 
 type Creator = {
   id: string;
@@ -938,7 +996,13 @@ export default function CreatorDetailPage() {
         return;
       }
 
-      setCreator(creatorData as Creator);
+      const loadedCreator = creatorData as Creator;
+
+      setCreator(loadedCreator);
+
+      if (user?.id !== loadedCreator.user_id) {
+        void recordCreatorProfileView(loadedCreator.id);
+      }
 
       const [
         { data: menuData, error: menuError },

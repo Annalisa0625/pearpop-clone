@@ -54,6 +54,37 @@ type PayoutOrderRow = {
   created_at: string | null;
 };
 
+type PayoutSettlementOrder = {
+  id: string;
+  product_name: string | null;
+  completed_at: string | null;
+  payout_paid_at: string | null;
+  creator_payout_amount: number;
+  currency: string;
+};
+
+type PayoutSettlement = {
+  id: string;
+  payout_batch_id: string;
+  batch_code: string | null;
+  status: string;
+  gross_amount: number;
+  adjustment_amount: number;
+  withholding_amount: number;
+  transfer_fee: number;
+  net_amount: number;
+  currency: string;
+  scheduled_date: string | null;
+  paid_at: string | null;
+  orders: PayoutSettlementOrder[];
+};
+
+type PayoutHistoryResponse = {
+  ok?: boolean;
+  settlements?: PayoutSettlement[];
+  error?: string;
+};
+
 type FormState = {
   bank_name: string;
   bank_code: string;
@@ -197,6 +228,21 @@ function formatMoney(
   }
 }
 
+function formatSignedMoney(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+  locale: "ja" | "en",
+) {
+  const amount = Number(value ?? 0);
+
+  if (amount === 0) {
+    return formatMoney(0, currency, locale);
+  }
+
+  const sign = amount > 0 ? "+" : "-";
+  return `${sign}${formatMoney(Math.abs(amount), currency, locale)}`;
+}
+
 function formatDate(value: string | null | undefined, locale: "ja" | "en") {
   if (!value) return "-";
 
@@ -246,6 +292,24 @@ function addMonths(value: Date, months: number) {
 }
 
 function getMonthlyPayoutDate(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth() + 1, 25, 0, 0, 0, 0);
+}
+
+function getNextScheduledPayoutDate(value: Date) {
+  const thisMonthPayoutEnd = new Date(
+    value.getFullYear(),
+    value.getMonth(),
+    25,
+    23,
+    59,
+    59,
+    999,
+  );
+
+  if (value.getTime() <= thisMonthPayoutEnd.getTime()) {
+    return new Date(value.getFullYear(), value.getMonth(), 25, 0, 0, 0, 0);
+  }
+
   return new Date(value.getFullYear(), value.getMonth() + 1, 25, 0, 0, 0, 0);
 }
 
@@ -657,7 +721,7 @@ function PayoutHero({
                 : "対象なし"}
             </p>
             <p className="mt-1 text-[10px] font-medium text-slate-400">
-              {nextPayoutCount > 0 ? nextPayoutDateLabel : "前月分が入ると表示"}
+              {nextPayoutCount > 0 ? nextPayoutDateLabel : "対象報酬があると表示"}
             </p>
           </div>
         </div>
@@ -693,7 +757,7 @@ function NextPayoutCard({
             次回振込予定
           </h2>
           <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-            前月以前に完了した未払い分です。
+            次回の振込対象となる未払い分です。
           </p>
         </div>
 
@@ -723,7 +787,7 @@ function NextPayoutCard({
             まだ対象はありません
           </p>
           <p className="mt-2 text-[11px] font-medium leading-5 text-slate-500">
-            前月分の未払い報酬がある場合、ここに振込予定が表示されます。
+            次回の振込対象となる未払い報酬がある場合、ここに予定額が表示されます。
           </p>
         </div>
       )}
@@ -827,6 +891,12 @@ export default function PayoutsClient() {
   const [profile, setProfile] = useState<PayoutProfile | null>(null);
   const [form, setForm] = useState<FormState>(createEmptyForm());
   const [orders, setOrders] = useState<PayoutOrderRow[]>([]);
+  const [payoutSettlements, setPayoutSettlements] = useState<
+    PayoutSettlement[]
+  >([]);
+  const [payoutHistoryError, setPayoutHistoryError] = useState<string | null>(
+    null,
+  );
 
   const [bankQuery, setBankQuery] = useState("");
   const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
@@ -850,14 +920,10 @@ export default function PayoutsClient() {
     () => addMonths(currentMonthStart, 1),
     [currentMonthStart],
   );
-  const previousMonthStart = useMemo(
-    () => addMonths(currentMonthStart, -1),
-    [currentMonthStart],
-  );
 
   const currentMonthLabel = formatMonth(currentMonthStart, safeLocale);
-  const previousMonthLabel = formatMonth(previousMonthStart, safeLocale);
-  const nextPayoutDate = getMonthlyPayoutDate(previousMonthStart);
+  const nextPayoutDate = getNextScheduledPayoutDate(now);
+  const nextPayoutCutoff = startOfMonth(nextPayoutDate);
   const currentMonthPayoutDate = getMonthlyPayoutDate(currentMonthStart);
   const nextPayoutDateLabel = `${formatShortDate(nextPayoutDate.toISOString(), safeLocale)}頃`;
   const currentMonthPayoutDateLabel = `${formatShortDate(currentMonthPayoutDate.toISOString(), safeLocale)}頃`;
@@ -887,14 +953,27 @@ export default function PayoutsClient() {
     );
   });
 
-  const closedUnpaidOrders = payableOrders.filter((order) => {
+  const nextPayoutOrders = payableOrders.filter((order) => {
     const orderDate = getOrderDate(order);
-    return !!orderDate && orderDate < currentMonthStart;
+    return !!orderDate && orderDate < nextPayoutCutoff;
   });
 
   const currentMonthAmount = sumPayoutAmount(currentMonthOrders);
-  const nextPayoutGrossAmount = sumPayoutAmount(closedUnpaidOrders);
-  const paidAmount = sumPayoutAmount(paidOrders);
+  const nextPayoutGrossAmount = sumPayoutAmount(nextPayoutOrders);
+
+  const settledOrderIds = useMemo(
+    () =>
+      new Set(
+        payoutSettlements.flatMap((settlement) =>
+          settlement.orders.map((order) => order.id),
+        ),
+      ),
+    [payoutSettlements],
+  );
+
+  const legacyPaidOrders = paidOrders.filter(
+    (order) => !settledOrderIds.has(order.id),
+  );
 
   const estimatedBankFeeAmount =
     nextPayoutGrossAmount >= MIN_PAYOUT_AMOUNT
@@ -924,6 +1003,7 @@ export default function PayoutsClient() {
       setLoading(true);
       setErrorMsg(null);
       setSuccessMsg(null);
+      setPayoutHistoryError(null);
 
       try {
         const {
@@ -1001,6 +1081,44 @@ export default function PayoutsClient() {
         }
 
         setOrders((payoutOrderRows ?? []) as PayoutOrderRow[]);
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.access_token) {
+          try {
+            const historyResponse = await fetch("/api/creator/payouts/history", {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              cache: "no-store",
+            });
+
+            const historyJson = (await historyResponse
+              .json()
+              .catch(() => ({}))) as PayoutHistoryResponse;
+
+            if (!historyResponse.ok) {
+              setPayoutSettlements([]);
+              setPayoutHistoryError(
+                historyJson.error || "支払済みの内訳を取得できませんでした。",
+              );
+            } else {
+              setPayoutSettlements(historyJson.settlements ?? []);
+              setPayoutHistoryError(null);
+            }
+          } catch (historyError) {
+            console.error({ historyError });
+            setPayoutSettlements([]);
+            setPayoutHistoryError("支払済みの内訳を取得できませんでした。");
+          }
+        } else {
+          setPayoutSettlements([]);
+          setPayoutHistoryError("支払済みの内訳を取得できませんでした。");
+        }
+
         setLoading(false);
       } catch (e) {
         console.error(e);
@@ -1644,7 +1762,7 @@ export default function PayoutsClient() {
             currentMonthAmount={currentMonthAmount}
             nextPayoutAmount={estimatedNextPayoutAmount}
             currentMonthCount={currentMonthOrders.length}
-            nextPayoutCount={closedUnpaidOrders.length}
+            nextPayoutCount={nextPayoutOrders.length}
             currentMonthLabel={currentMonthLabel}
             nextPayoutDateLabel={nextPayoutDateLabel}
             locale={safeLocale}
@@ -1684,30 +1802,207 @@ export default function PayoutsClient() {
 
           <CollapsibleCard
             title="次回振込予定の案件"
-            subtitle={`${previousMonthLabel}以前に完了した未払い案件です`}
+            subtitle={`次回${nextPayoutDateLabel}の振込対象となる未払い案件です`}
             badge={
               <StatusPill className="bg-slate-50 text-slate-600 ring-slate-100">
-                {closedUnpaidOrders.length}件
+                {nextPayoutOrders.length}件
               </StatusPill>
             }
           >
-            <PayoutOrderList orders={closedUnpaidOrders} locale={safeLocale} />
+            <PayoutOrderList orders={nextPayoutOrders} locale={safeLocale} />
           </CollapsibleCard>
 
           <CollapsibleCard
             title="支払い済みの案件"
-            subtitle="過去に支払い済みになった案件です"
+            subtitle="振込ごとの手数料と実際の受取額を確認できます"
             badge={
               <StatusPill className="bg-slate-50 text-slate-600 ring-slate-100">
                 {paidOrders.length}件
               </StatusPill>
             }
+            defaultOpen={paidOrders.length > 0}
           >
-            <PayoutOrderList orders={paidOrders} locale={safeLocale} />
+            <PaidPayoutList
+              settlements={payoutSettlements}
+              legacyOrders={legacyPaidOrders}
+              historyError={payoutHistoryError}
+              locale={safeLocale}
+            />
           </CollapsibleCard>
         </div>
       ) : null}
     </main>
+  );
+}
+
+function PaidPayoutList({
+  settlements,
+  legacyOrders,
+  historyError,
+  locale,
+}: {
+  settlements: PayoutSettlement[];
+  legacyOrders: PayoutOrderRow[];
+  historyError: string | null;
+  locale: "ja" | "en";
+}) {
+  const hasExactSettlements = settlements.length > 0;
+  const hasLegacyOrders = legacyOrders.length > 0;
+
+  if (!hasExactSettlements && !hasLegacyOrders) {
+    return (
+      <div className="rounded-[16px] bg-slate-50 px-4 py-5 text-center ring-1 ring-slate-100">
+        <p className="text-[13px] font-bold text-slate-600">
+          対象の案件はありません
+        </p>
+        <p className="mt-1 text-xs font-medium leading-5 text-slate-500">
+          振込が完了すると、受取額の内訳がここに表示されます。
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {historyError ? (
+        <Alert
+          tone="amber"
+          title="一部の支払内訳を表示できません"
+          body={historyError}
+        />
+      ) : null}
+
+      {settlements.map((settlement) => {
+        const currency = settlement.currency || "JPY";
+        const paidAt =
+          settlement.paid_at ||
+          settlement.orders.find((order) => order.payout_paid_at)
+            ?.payout_paid_at ||
+          null;
+
+        return (
+          <section
+            key={settlement.id}
+            className="overflow-hidden rounded-[20px] bg-white shadow-sm ring-1 ring-emerald-100"
+          >
+            <div className="bg-emerald-50/80 px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold tracking-[0.12em] text-emerald-700">
+                    振込済み
+                  </p>
+                  <p className="mt-1 text-[13px] font-bold text-slate-950">
+                    {formatDate(paidAt, locale)}
+                  </p>
+                  {settlement.batch_code ? (
+                    <p className="mt-1 truncate text-[10px] font-medium text-slate-500">
+                      {settlement.batch_code}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] font-semibold text-slate-500">
+                    実際の受取額
+                  </p>
+                  <p className="mt-0.5 whitespace-nowrap text-[22px] font-black tracking-[-0.04em] text-emerald-700">
+                    {formatMoney(settlement.net_amount, currency, locale)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-4 py-3">
+              <div className="divide-y divide-slate-100 rounded-[15px] bg-slate-50/60 px-3 py-1 ring-1 ring-slate-100">
+                <DetailRow
+                  label="報酬額"
+                  value={formatMoney(settlement.gross_amount, currency, locale)}
+                />
+
+                {settlement.adjustment_amount !== 0 ? (
+                  <DetailRow
+                    label="調整額"
+                    value={formatSignedMoney(
+                      settlement.adjustment_amount,
+                      currency,
+                      locale,
+                    )}
+                  />
+                ) : null}
+
+                {settlement.withholding_amount > 0 ? (
+                  <DetailRow
+                    label="源泉徴収額"
+                    value={`-${formatMoney(
+                      settlement.withholding_amount,
+                      currency,
+                      locale,
+                    )}`}
+                  />
+                ) : null}
+
+                {settlement.transfer_fee > 0 ? (
+                  <DetailRow
+                    label="振込手数料"
+                    value={`-${formatMoney(
+                      settlement.transfer_fee,
+                      currency,
+                      locale,
+                    )}`}
+                  />
+                ) : null}
+
+                <DetailRow
+                  label="実際の受取額"
+                  value={formatMoney(settlement.net_amount, currency, locale)}
+                  strong
+                />
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {settlement.orders.map((order) => (
+                  <div
+                    key={`${settlement.id}-${order.id}`}
+                    className="flex items-start justify-between gap-3 rounded-[14px] bg-white px-3 py-2.5 ring-1 ring-slate-100"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-[12px] font-bold text-slate-950">
+                        {order.product_name || "案件名未設定"}
+                      </p>
+                      <p className="mt-1 text-[10px] font-medium text-slate-500">
+                        完了日：{formatDate(order.completed_at, locale)}
+                      </p>
+                    </div>
+
+                    <p className="shrink-0 whitespace-nowrap text-[12px] font-bold text-slate-950">
+                      {formatMoney(
+                        order.creator_payout_amount,
+                        order.currency || currency,
+                        locale,
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })}
+
+      {hasLegacyOrders ? (
+        <div>
+          {hasExactSettlements ? (
+            <p className="mb-2 text-[11px] font-bold text-slate-500">
+              過去の支払い済み案件
+            </p>
+          ) : null}
+          <PayoutOrderList orders={legacyOrders} locale={locale} />
+          <p className="mt-2 text-[10px] font-medium leading-5 text-slate-400">
+            過去方式で処理した案件は、振込手数料と受取額の内訳が保存されていない場合があります。
+          </p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

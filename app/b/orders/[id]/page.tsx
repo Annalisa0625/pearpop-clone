@@ -14,6 +14,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import DeadlineBadge from "@/app/components/DeadlineBadge";
 import ChatEmbed from "@/app/components/ChatEmbed";
+import OrderReferenceAssets from "@/app/components/OrderReferenceAssets";
 
 type FulfillmentType = "material_provided" | "product_shipping" | "visit";
 type Locale = "ja" | "en";
@@ -466,14 +467,28 @@ function getStatusMeta(status: string, locale: Locale) {
     },
     declined_canceled: {
       label: "終了",
-      title: "終了",
-      body: "この注文は終了しています。",
+      title: "注文は終了しました",
+      body:
+        "インフルエンサーが辞退したため、この注文は終了しました。支払いは確定していません。",
       tone: "slate",
     },
     expired_canceled: {
       label: "期限切れ",
-      title: "期限切れ",
-      body: "返答期限を過ぎたため終了しました。",
+      title: "返答期限を過ぎました",
+      body:
+        "返答期限を過ぎたため、この注文は終了しました。支払いは確定していません。",
+      tone: "slate",
+    },
+    canceled: {
+      label: "終了",
+      title: "注文は終了しました",
+      body: "この注文は終了しました。支払いは確定していません。",
+      tone: "slate",
+    },
+    cancelled: {
+      label: "終了",
+      title: "注文は終了しました",
+      body: "この注文は終了しました。支払いは確定していません。",
       tone: "slate",
     },
   };
@@ -523,14 +538,28 @@ function getStatusMeta(status: string, locale: Locale) {
     },
     declined_canceled: {
       label: "Ended",
-      title: "Ended",
-      body: "This order has ended.",
+      title: "This order has ended",
+      body:
+        "The influencer declined the order. Payment was not captured.",
       tone: "slate",
     },
     expired_canceled: {
       label: "Expired",
-      title: "Expired",
-      body: "The reply deadline has passed.",
+      title: "The reply deadline has passed",
+      body:
+        "This order ended after the reply deadline. Payment was not captured.",
+      tone: "slate",
+    },
+    canceled: {
+      label: "Ended",
+      title: "This order has ended",
+      body: "This order has ended. Payment was not captured.",
+      tone: "slate",
+    },
+    cancelled: {
+      label: "Ended",
+      title: "This order has ended",
+      body: "This order has ended. Payment was not captured.",
       tone: "slate",
     },
   };
@@ -577,6 +606,24 @@ function getHeroSubtitle(status: string, locale: Locale) {
     return locale === "ja"
       ? "修正依頼を送信済みです。再納品をお待ちください。"
       : "A revision request has been sent. Please wait for the updated delivery.";
+  }
+
+  if (status === "declined_canceled") {
+    return locale === "ja"
+      ? "インフルエンサーが辞退したため、注文は終了しました。支払いは確定していません。"
+      : "The influencer declined the order. Payment was not captured.";
+  }
+
+  if (status === "expired_canceled") {
+    return locale === "ja"
+      ? "返答期限を過ぎたため、注文は終了しました。支払いは確定していません。"
+      : "The reply deadline passed, so the order ended. Payment was not captured.";
+  }
+
+  if (isCanceledStatus(status)) {
+    return locale === "ja"
+      ? "この注文は終了しました。支払いは確定していません。"
+      : "This order has ended. Payment was not captured.";
   }
 
   if (isCompletedStatus(status)) {
@@ -931,13 +978,41 @@ function ProgressItem({
 function ProgressCard({
   order,
   copy,
+  locale,
 }: {
   order: OrderDetail;
   copy: Record<string, string>;
+  locale: Locale;
 }) {
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
   const delivered = Boolean(order.delivered_at || order.delivered_post_url);
   const completed = isCompletedStatus(order.status);
+
+  if (isCanceledStatus(order.status)) {
+    const meta = getStatusMeta(order.status, locale);
+    const endedAt = getCancellationDate(order);
+
+    return (
+      <Card className="p-6 md:p-8">
+        <SectionHeader title={meta.title} body={meta.body} />
+
+        <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50 p-5">
+          <p className="text-sm font-bold text-slate-900">
+            {copy.paymentNotCaptured}
+          </p>
+          <p className="mt-2 text-sm leading-7 text-slate-600">
+            {copy.paymentNotCapturedBody}
+          </p>
+
+          {endedAt ? (
+            <p className="mt-4 border-t border-slate-200 pt-4 text-xs font-medium text-slate-500">
+              {copy.endedAt}：{formatDateTime(endedAt, locale)}
+            </p>
+          ) : null}
+        </div>
+      </Card>
+    );
+  }
 
   let steps: Array<{
     label: string;
@@ -1095,21 +1170,30 @@ function PaymentCard({
   const currency = order.currency || "JPY";
   const cancellationDate = getCancellationDate(order);
   const isPaid = order.payment_status === "captured" || Boolean(order.captured_at);
+  const isPaymentCanceled =
+    !isPaid &&
+    (order.payment_status === "canceled" || isCanceledStatus(order.status));
+
+  const paymentPillClass = isPaid
+    ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+    : isPaymentCanceled
+      ? "border-slate-200 bg-slate-50 text-slate-700"
+      : "border-amber-100 bg-amber-50 text-amber-800";
+
+  const paymentPillLabel = isPaid
+    ? copy.paymentPaid
+    : isPaymentCanceled
+      ? copy.paymentNotCaptured
+      : copy.paymentAuthorized;
 
   return (
     <Card className="p-6 md:p-8">
       <SectionHeader
         title={copy.paymentTitle}
-        body={copy.paymentBody}
+        body={isPaymentCanceled ? copy.paymentNotCapturedBody : copy.paymentBody}
         action={
-          <Pill
-            className={
-              isPaid
-                ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                : "border-amber-100 bg-amber-50 text-amber-800"
-            }
-          >
-            {isPaid ? copy.paymentPaid : copy.paymentAuthorized}
+          <Pill className={paymentPillClass}>
+            {paymentPillLabel}
           </Pill>
         }
       />
@@ -1524,6 +1608,9 @@ function ChatLockedCard({
 }) {
   const meta = getStatusMeta(order.status, locale);
   const tone = toneClasses(meta.tone);
+  const isEnded = isCanceledStatus(order.status);
+  const lockedTitle = isEnded ? copy.chatEndedTitle : copy.chatLockedTitle;
+  const lockedBody = isEnded ? copy.chatEndedBody : copy.chatLockedBody;
 
   return (
     <Card className="p-6 md:p-8 lg:sticky lg:top-24">
@@ -1540,8 +1627,8 @@ function ChatLockedCard({
       </div>
 
       <div className={`mt-8 rounded-2xl border p-5 ${tone.soft}`}>
-        <p className="text-sm font-bold">{copy.chatLockedTitle}</p>
-        <p className="mt-2 text-sm leading-7">{copy.chatLockedBody}</p>
+        <p className="text-sm font-bold">{lockedTitle}</p>
+        <p className="mt-2 text-sm leading-7">{lockedBody}</p>
       </div>
 
       {creator?.id ? (
@@ -1638,6 +1725,8 @@ function OrderDetailsAccordion({
           emptyLabel={copy.notSet}
         />
       </div>
+
+      <OrderReferenceAssets orderId={order.id} />
     </AccordionItem>
   );
 }
@@ -1747,6 +1836,9 @@ export default function CompanyOrderDetailPage() {
             chatLockedTitle: "チャットはまだ利用できません",
             chatLockedBody:
               "返答待ち・支払い確認中の注文では、承認されるまでチャットは表示されません。",
+            chatEndedTitle: "チャットは利用できません",
+            chatEndedBody:
+              "この注文は終了しているため、チャットは開始されません。",
 
             progressTitle: "進捗",
             progressBody:
@@ -1788,6 +1880,9 @@ export default function CompanyOrderDetailPage() {
               "お支払いはTrend Martが管理します。案件完了後、報酬がインフルエンサーへ支払われます。",
             paymentPaid: "支払い済み",
             paymentAuthorized: "支払い方法確認済み",
+            paymentNotCaptured: "支払い未確定",
+            paymentNotCapturedBody:
+              "この注文は終了したため、支払いは確定していません。",
             paymentDetailTitle: "支払い日付・明細",
             paymentDetailBody:
               "注文日、支払い確認日、支払い確定日などの詳細情報です。",
@@ -1908,6 +2003,9 @@ export default function CompanyOrderDetailPage() {
             chatLockedTitle: "Chat is not available yet",
             chatLockedBody:
               "Chat appears after the influencer accepts the order.",
+            chatEndedTitle: "Chat is unavailable",
+            chatEndedBody:
+              "This order has ended, so chat will not be opened.",
 
             progressTitle: "Progress",
             progressBody:
@@ -1949,6 +2047,9 @@ export default function CompanyOrderDetailPage() {
               "Trendre manages the payment and releases payout after completion.",
             paymentPaid: "Paid",
             paymentAuthorized: "Authorized",
+            paymentNotCaptured: "Payment not captured",
+            paymentNotCapturedBody:
+              "This order ended before payment was captured.",
             paymentDetailTitle: "Payment dates and details",
             paymentDetailBody:
               "Order date, authorization date, capture date, and completion details.",
@@ -2556,7 +2657,7 @@ export default function CompanyOrderDetailPage() {
                 />
               ) : null}
 
-              <ProgressCard order={order} copy={copy} />
+              <ProgressCard order={order} copy={copy} locale={safeLocale} />
 
               <PaymentCard
                 order={order}

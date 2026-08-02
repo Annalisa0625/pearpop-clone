@@ -154,6 +154,7 @@ function formatDeadlineForLine(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) return null;
 
   return date.toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
