@@ -173,7 +173,38 @@ function isUnreadChat(chat: ChatRow | null, userId: string | null) {
   );
 }
 
+function isCanceledOrderStatus(status: string) {
+  return [
+    "declined_canceled",
+    "expired_canceled",
+    "canceled",
+    "cancelled",
+  ].includes(status);
+}
+
 function getStatusMeta(status: string, tab: TabKey, locale: "ja" | "en") {
+  if (isCanceledOrderStatus(status)) {
+    const isExpired = status === "expired_canceled";
+
+    return locale === "ja"
+      ? {
+          label: isExpired ? "期限切れ" : "終了",
+          message: isExpired
+            ? "返答期限を過ぎたため終了した注文です"
+            : "インフルエンサーが辞退したため終了した注文です",
+          action: "詳細を見る",
+          className: "bg-slate-100 text-slate-700 ring-slate-200",
+        }
+      : {
+          label: isExpired ? "Expired" : "Ended",
+          message: isExpired
+            ? "This order ended after the reply deadline passed"
+            : "This order ended because the influencer declined it",
+          action: "View details",
+          className: "bg-slate-100 text-slate-700 ring-slate-200",
+        };
+  }
+
   const ja: Record<TabKey, { label: string; message: string; action: string; className: string }> = {
     all: {
       label: "注文",
@@ -481,7 +512,7 @@ export default function CompanyOrdersPage() {
             loading: "読み込み中...",
             title: "注文管理",
             subtitle:
-              "返答待ち、進行中、納品確認、完了までをまとめて確認できます。",
+              "返答待ち、進行中、納品確認、完了・終了までをまとめて確認できます。",
             searchInfluencers: "インフルエンサーを探す",
             empty: "表示する注文はありません",
             emptyBody:
@@ -490,7 +521,7 @@ export default function CompanyOrdersPage() {
             waiting: "返答待ち",
             active: "進行中",
             review: "納品確認",
-            completed: "完了",
+            completed: "完了・終了",
             unnamedInfluencer: "インフルエンサー",
             unnamedOrder: "未入力",
             menu: "依頼メニュー",
@@ -509,7 +540,7 @@ export default function CompanyOrdersPage() {
             loading: "Loading...",
             title: "Orders",
             subtitle:
-              "Track replies, progress, delivery review, and completed orders in one place.",
+              "Track replies, progress, delivery review, and completed or ended orders in one place.",
             searchInfluencers: "Find influencers",
             empty: "No orders to show",
             emptyBody:
@@ -518,7 +549,7 @@ export default function CompanyOrdersPage() {
             waiting: "Waiting",
             active: "In progress",
             review: "Delivery review",
-            completed: "Completed",
+            completed: "Completed / Ended",
             unnamedInfluencer: "Influencer",
             unnamedOrder: "Not entered",
             menu: "Selected menu",
