@@ -136,6 +136,81 @@ function withTimeout<T = any>(
   });
 }
 
+function normalizeOrigin(value: string | null | undefined) {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return null;
+    }
+
+    return url.origin.replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function normalizeVercelHost(value: string | null | undefined) {
+  const trimmed = value?.trim().toLowerCase();
+
+  if (!trimmed) return null;
+
+  try {
+    const url = trimmed.includes("://")
+      ? new URL(trimmed)
+      : new URL(`https://${trimmed}`);
+
+    return url.host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function getCheckoutBaseUrl(req: NextRequest, fallbackBaseUrl: string) {
+  const fallback = fallbackBaseUrl.replace(/\/$/, "");
+  const requestOrigin = normalizeOrigin(req.nextUrl.origin);
+
+  if (!requestOrigin) {
+    return fallback;
+  }
+
+  const requestUrl = new URL(requestOrigin);
+  const vercelEnv = (process.env.VERCEL_ENV ?? "").trim().toLowerCase();
+
+  if (vercelEnv === "production") {
+    return fallback;
+  }
+
+  if (vercelEnv === "preview") {
+    const allowedPreviewHosts = new Set(
+      [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL]
+        .map(normalizeVercelHost)
+        .filter((host): host is string => Boolean(host))
+    );
+
+    if (
+      requestUrl.protocol === "https:" &&
+      allowedPreviewHosts.has(requestUrl.host.toLowerCase())
+    ) {
+      return requestOrigin;
+    }
+
+    return fallback;
+  }
+
+  const hostname = requestUrl.hostname.toLowerCase();
+  const isLocalhost =
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+
+  if (requestUrl.protocol === "http:" && isLocalhost) {
+    return requestOrigin;
+  }
+
+  return fallback;
+}
+
 async function loadServerDeps(): Promise<ServerDeps> {
   const [supabaseModule, stripeModule, feesModule] = await Promise.all([
     import("@/lib/supabaseAdmin"),
@@ -1191,7 +1266,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const baseUrl = getBaseUrl();
+    const baseUrl = getCheckoutBaseUrl(req, getBaseUrl());
 
     const customer = await findOrCreateStripeCustomer({
       stripe,
