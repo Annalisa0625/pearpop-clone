@@ -1,5 +1,10 @@
 // @ts-check
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+
 function normalizeAppUrl(value, { allowLocal = false } = {}) {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -51,6 +56,9 @@ const appUrl = resolveAppUrl();
 
 /** @type {import("next").NextConfig} */
 const nextConfig = {
+  turbopack: {
+    root: projectRoot,
+  },
   env: appUrl
     ? {
         NEXT_PUBLIC_APP_URL: appUrl,
