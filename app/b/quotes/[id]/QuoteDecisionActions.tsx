@@ -57,10 +57,12 @@ export default function QuoteDecisionActions({
   quoteId,
   initialStatus,
   validUntil,
+  initialOrderId,
 }: {
   quoteId: string;
   initialStatus: QuoteStatus;
   validUntil: string;
+  initialOrderId: string | null;
 }) {
   const router = useRouter();
 
@@ -214,16 +216,25 @@ export default function QuoteDecisionActions({
           内容とお支払い金額を確認し、Stripeの安全な決済画面へ進んでください。
         </p>
 
-        <button
-          type="button"
-          onClick={() => void startCheckout()}
-          disabled={checkoutSubmitting}
-          className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {checkoutSubmitting
-            ? "決済画面を準備しています…"
-            : "支払い方法の確認へ進む"}
-        </button>
+        {initialOrderId ? (
+          <a
+            href={`/b/orders/${initialOrderId}`}
+            className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white transition active:scale-[0.98]"
+          >
+            正式注文を確認する
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void startCheckout()}
+            disabled={checkoutSubmitting}
+            className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {checkoutSubmitting
+              ? "決済画面を準備しています…"
+              : "支払い方法の確認へ進む"}
+          </button>
+        )}
 
         <p className="mt-3 text-xs leading-5 text-emerald-700">
           このボタンを押しただけでは、支払いは確定しません。

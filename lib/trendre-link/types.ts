@@ -138,7 +138,7 @@ export type CreatorLinkInquiryFormsUpdateResponse =
   | { ok: false; error: string };
 
 export type CreatorLinkPublicInquiryResponse =
-  | { ok: true }
+  | { ok: true; inquiryId?: string; duplicate?: boolean }
   | { ok: false; error: string };
 
 export type CreatorLinkInquiryFormConfig = {

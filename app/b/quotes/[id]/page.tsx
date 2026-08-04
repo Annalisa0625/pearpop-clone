@@ -156,7 +156,7 @@ export default async function CompanyQuotePage({ params }: PageProps) {
     ]);
   if (quoteError || inquiryError || !quote || !inquiry) notFound();
 
-  const [{ data: linkPage }, { data: creator }] = await Promise.all([
+  const [{ data: linkPage }, { data: creator }, { data: convertedOrder }] = await Promise.all([
     admin
       .from("creator_link_pages")
       .select("display_name")
@@ -166,6 +166,11 @@ export default async function CompanyQuotePage({ params }: PageProps) {
       .from("creators")
       .select("display_name")
       .eq("user_id", quote.creator_user_id)
+      .maybeSingle(),
+    admin
+      .from("orders")
+      .select("id")
+      .eq("trendre_link_quote_id", quote.id)
       .maybeSingle(),
   ]);
 
@@ -237,6 +242,7 @@ export default async function CompanyQuotePage({ params }: PageProps) {
         quoteId={quote.id}
         initialStatus={quote.status || "sent"}
         validUntil={quote.valid_until}
+        initialOrderId={convertedOrder?.id ?? null}
       />
 
       <div className="space-y-6">
