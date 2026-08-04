@@ -171,6 +171,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         contactEmail: inquiry.contact_email,
         companyName: inquiry.company_name,
         contactName: inquiry.contact_name,
+        companyUserId: inquiry.company_user_id,
       });
       notification = { result: initial, rawClaimToken: "" };
     }
@@ -277,6 +278,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         contactEmail: inquiry.contact_email,
         companyName: inquiry.company_name,
         contactName: inquiry.contact_name,
+        companyUserId: inquiry.company_user_id,
       });
     } catch {
       // The quote and inquiry status are already durable. Notification failures

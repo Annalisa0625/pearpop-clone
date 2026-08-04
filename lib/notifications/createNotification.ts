@@ -1,5 +1,6 @@
 // File: lib/notifications/createNotification.ts
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { insertOrRecoverUnique } from "@/lib/db/unique-insert";
 
 export type NotificationImportance = "low" | "normal" | "high";
 
@@ -147,11 +148,7 @@ export async function createNotification(
     dedupe_key: input.dedupeKey ?? null,
   };
 
-  const { data: inserted, error: insertError } = await admin
-    .from("notifications")
-    .insert(notificationPayload)
-    .select(
-      `
+  const notificationSelection = `
       id,
       recipient_user_id,
       actor_user_id,
@@ -171,58 +168,40 @@ export async function createNotification(
       dedupe_key,
       created_at,
       updated_at
-    `
-    )
-    .single();
-
-  if (insertError) {
-    const isDuplicate = insertError.code === "23505";
-
-    if (isDuplicate && input.dedupeKey) {
-      const { data: existing, error: existingError } = await admin
+    `;
+  const insertion = await insertOrRecoverUnique({
+    insert: async () => {
+      const { data, error } = await admin
         .from("notifications")
-        .select(
-          `
-          id,
-          recipient_user_id,
-          actor_user_id,
-          notification_type,
-          title,
-          body,
-          link_path,
-          entity_type,
-          entity_id,
-          order_id,
-          chat_id,
-          message_id,
-          importance,
-          read_at,
-          archived_at,
-          metadata,
-          dedupe_key,
-          created_at,
-          updated_at
-        `
-        )
+        .insert(notificationPayload)
+        .select(notificationSelection)
+        .single();
+      return { data, error };
+    },
+    recover: async () => {
+      if (!input.dedupeKey) {
+        return { data: null, error: { message: "notification_dedupe_key_missing" } };
+      }
+      const { data, error } = await admin
+        .from("notifications")
+        .select(notificationSelection)
         .eq("recipient_user_id", recipientUserId)
         .eq("dedupe_key", input.dedupeKey)
         .maybeSingle();
+      return { data, error };
+    },
+    missingError: "notification_insert_missing",
+  });
 
-      if (existingError) {
-        throw existingError;
-      }
-
-      return {
-        notification: existing ?? null,
-        skipped: true,
-        reason: "duplicate notification",
-      };
-    }
-
-    throw insertError;
+  if (insertion.duplicate) {
+    return {
+      notification: insertion.value,
+      skipped: true,
+      reason: "duplicate notification",
+    };
   }
 
-  const notification = inserted ?? null;
+  const notification = insertion.value;
 
   if (
     notification?.id &&

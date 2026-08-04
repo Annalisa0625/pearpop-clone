@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getStripe } from "@/lib/stripe";
+import { createOrderFromTrendreLinkCheckout } from "@/lib/trendre-link/quote-order";
+import {
+  constructVerifiedStripeEvent,
+  handleTrendreLinkWebhookEvent,
+} from "@/lib/trendre-link/stripe-webhook-service";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -582,7 +587,12 @@ export async function POST(req: NextRequest) {
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+      event = constructVerifiedStripeEvent({
+        payload,
+        signature,
+        secret: webhookSecret,
+        constructEvent: stripe.webhooks.constructEvent.bind(stripe.webhooks),
+      });
     } catch (error: any) {
       console.error("webhook signature verification failed", error?.message);
       return NextResponse.json(
@@ -595,6 +605,15 @@ export async function POST(req: NextRequest) {
       eventId: event.id,
       eventType: event.type,
     });
+
+    if (
+      await handleTrendreLinkWebhookEvent({
+        event,
+        createOrder: createOrderFromTrendreLinkCheckout,
+      })
+    ) {
+      return NextResponse.json({ received: true });
+    }
 
     switch (event.type) {
       case "checkout.session.completed": {
