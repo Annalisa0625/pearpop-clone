@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test --experimental-strip-types --experimental-loader ./tests/resolve-typescript.mjs tests/*.test.ts",
+    "typecheck": "tsc --noEmit --incremental false && tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
