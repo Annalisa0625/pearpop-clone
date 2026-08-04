@@ -5,13 +5,11 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  isCreatorLinkInquiryTemplate,
   isCreatorLinkItemType,
   isCreatorLinkStatus,
   isCreatorLinkTheme,
   isCreatorLinkButtonStyle,
   isCreatorLinkFontStyle,
-  type CreatorLinkInquiryTemplate,
   type CreatorLinkItemType,
   type CreatorLinkStatus,
   type CreatorLinkTheme,
@@ -19,6 +17,7 @@ import {
   type CreatorLinkFontStyle,
 } from "@/lib/trendre-link/constants";
 import { normalizeCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
+import { mapPublicCreatorLinkInquiryTypes } from "@/lib/trendre-link/public-inquiry-types";
 import type { Database } from "@/types/database.types";
 import RequestForm from "./RequestForm";
 import TrendreLinkPublicView, {
@@ -94,11 +93,6 @@ type CreatorLinkItemRow = Pick<
   | "url"
   | "image_url"
   | "metadata"
->;
-
-type CreatorLinkInquiryTypeRow = Pick<
-  Database["public"]["Tables"]["creator_link_inquiry_types"]["Row"],
-  "template_key" | "title" | "description" | "is_custom"
 >;
 
 const requestButtons = [
@@ -224,22 +218,6 @@ function isCreatorLinkItemRow(
   );
 }
 
-function isCreatorLinkInquiryTypeRow(
-  value: unknown
-): value is CreatorLinkInquiryTypeRow & {
-  template_key: CreatorLinkInquiryTemplate | null;
-} {
-  return (
-    isRecord(value) &&
-    (value.template_key === null ||
-      (typeof value.template_key === "string" &&
-        isCreatorLinkInquiryTemplate(value.template_key))) &&
-    typeof value.title === "string" &&
-    isNullableString(value.description) &&
-    typeof value.is_custom === "boolean"
-  );
-}
-
 const loadTrendreLink = cache(
   async (slug: string): Promise<TrendreLinkPublicData | null> => {
     const supabase = await createSupabaseServerClient();
@@ -277,7 +255,7 @@ const loadTrendreLink = cache(
         .order("sort_order", { ascending: true }),
       supabase
         .from("creator_link_inquiry_types")
-        .select("template_key, title, description, is_custom")
+        .select("id, sort_order, template_key, title, description, is_custom")
         .eq("page_id", rawPage.id)
         .eq("is_enabled", true)
         .order("sort_order", { ascending: true }),
@@ -306,14 +284,7 @@ const loadTrendreLink = cache(
       imageUrl: item.image_url,
       metadata: normalizeCreatorLinkItemAppearance(item.metadata),
     }));
-    const inquiryTypes = rawInquiryTypes
-      .filter(isCreatorLinkInquiryTypeRow)
-      .map((inquiryType) => ({
-        templateKey: inquiryType.template_key,
-        title: inquiryType.title,
-        description: inquiryType.description,
-        isCustom: inquiryType.is_custom,
-      }));
+    const inquiryTypes = mapPublicCreatorLinkInquiryTypes(rawInquiryTypes);
 
     return {
       page: {

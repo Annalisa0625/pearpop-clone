@@ -12,6 +12,7 @@ import type { CreatorLinkButtonStyle, CreatorLinkFontStyle, CreatorLinkItemType,
 import { CREATOR_LINK_ITEM_COLOR_VALUES, isCreatorLinkSocialPlatform, normalizeCreatorLinkItemAppearance, type CreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
 import type { CreatorLinkInquiryFormKind } from "@/lib/trendre-link/inquiry-forms";
 import { inquiryDraftStorageKey, parseInquiryDraft, safeSessionStorageGet } from "@/lib/trendre-link/inquiry-return";
+import { createCreatorLinkInquiryFormSelection } from "@/lib/trendre-link/public-inquiry-types";
 
 export type TrendreLinkCanvasMode = "edit" | "preview" | "public";
 export type TrendreLinkEditableField = "displayName" | "bio" | null;
@@ -129,9 +130,9 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
     url.searchParams.delete("resume");
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
     if (draft && formType) {
-      const expectedKind = formType.templateKey === "pr_post" ? "pr" : "simple";
-      if (draft.kind === expectedKind && formType.id) {
-        setSelectedForm({ id: formType.id, kind: draft.kind, title: formType.title });
+      const selection = createCreatorLinkInquiryFormSelection(formType);
+      if (selection && draft.kind === selection.kind) {
+        setSelectedForm(selection);
       }
     }
   }, [data.inquiryTypes, mode, page.slug]);
@@ -146,7 +147,10 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
   const clearSelection = () => document.getSelection()?.removeAllRanges();
   const openForm = (type: TrendreLinkCanvasInquiryType) => {
     if (isEdit) onEditInquirySettings?.();
-    else if (type.id) setSelectedForm({ id: type.id, kind: type.templateKey === "pr_post" ? "pr" : "simple", title: type.title });
+    else {
+      const selection = createCreatorLinkInquiryFormSelection(type);
+      if (selection) setSelectedForm(selection);
+    }
   };
 
   return <div style={backgroundStyle} className={`relative min-h-[100dvh] w-full overflow-x-hidden ${theme.shell} ${fontClass}`}>
