@@ -2,7 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import {
+  buildInquiryReturnPath,
+  createInquiryDraft,
+  createInquirySubmissionId,
+  inquiryDraftStorageKey,
+  parseInquiryDraft,
+  safeSessionStorageGet,
+  safeSessionStorageRemove,
+  safeSessionStorageSet,
+  type CreatorLinkInquiryFormState,
+} from "@/lib/trendre-link/inquiry-return";
 
 import {
   CAMPAIGN_GOALS,
@@ -23,48 +37,13 @@ type Props = {
   kind: CreatorLinkInquiryFormKind;
   title: string;
   slug: string;
+  formId: string | null;
   mode: "public" | "preview";
   locale: "ja" | "en";
   onClose: () => void;
 };
 
-type FormState = {
-  request_mode: CreatorLinkRequestMode | "";
-  project_type: string;
-  requested_platforms: string[];
-  other_platform: string;
-  deliverables_by_platform: Record<string, PlatformDeliverable[]>;
-  ugc_deliverable_types: string[];
-  ugc_other_deliverable: string;
-  deliverable_count: number;
-  usage_purposes: string[];
-  usage_other: string;
-  meeting_method: string;
-  product_name: string;
-  product_url: string;
-  desired_timing: string;
-  budget_text: string;
-  campaign_goal: string;
-  campaign_goal_other: string;
-  has_free_offer: "" | "provided" | "not_provided";
-  free_offer_item: string;
-  free_offer_quantity: string;
-  free_offer_frequency: string;
-  free_offer_people: string;
-  free_offer_conditions: string;
-  company_name: string;
-  contact_name: string;
-  contact_email: string;
-  company_website: string;
-  company_social_accounts: Record<string, string>;
-  selling_points: string;
-  reference_url: string;
-  additional_notes: string;
-  consents: boolean[];
-  subject: string;
-  message: string;
-  website: string;
-};
+type FormState = CreatorLinkInquiryFormState;
 
 const initialState: FormState = {
   request_mode: "",
@@ -201,12 +180,68 @@ function CountInput({ value, onChange, label }: { value: number; onChange: (valu
   );
 }
 
-export default function InquiryFormModal({ kind, title, slug, mode, onClose }: Props) {
+export default function InquiryFormModal({ kind, title, slug, formId, mode, onClose }: Props) {
+  const router = useRouter();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [form, setForm] = useState<FormState>(initialState);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submissionId, setSubmissionId] = useState("");
+  useEffect(() => {
+    if (mode !== "public" || typeof window === "undefined") return;
+    if (!formId) return;
+    const key = inquiryDraftStorageKey(slug);
+    const stored = safeSessionStorageGet(key);
+    const draft = parseInquiryDraft(
+      stored,
+      { slug, formId, kind }
+    );
+    if (!draft) {
+      if (stored) safeSessionStorageRemove(key);
+      setSubmissionId(createInquirySubmissionId() ?? "");
+      return;
+    }
+    setForm(draft.form);
+    setStep(draft.step);
+    setSubmissionId(draft.submissionId);
+  }, [formId, kind, mode, slug]);
+
+  const ensureSubmissionId = () => {
+    if (submissionId) return submissionId;
+    const created = createInquirySubmissionId();
+    if (created) setSubmissionId(created);
+    return created;
+  };
+
+  const saveDraftAndContinueToAuth = () => {
+    if (!formId) return false;
+    const activeSubmissionId = ensureSubmissionId();
+    if (!activeSubmissionId) {
+      setError("安全な送信IDを作成できませんでした。ブラウザを更新してもう一度お試しください。");
+      return false;
+    }
+    const returnPath = buildInquiryReturnPath(slug);
+    const saved = safeSessionStorageSet(
+      inquiryDraftStorageKey(slug),
+      JSON.stringify(createInquiryDraft({
+        slug,
+        formId,
+        submissionId: activeSubmissionId,
+        kind,
+        title,
+        form,
+        step,
+      }))
+    );
+    if (!saved) {
+      setError("入力内容をブラウザへ安全に保存できませんでした。ストレージ設定を確認してください。");
+      return false;
+    }
+    router.push(`/signup/company?next=${encodeURIComponent(returnPath)}`);
+    return true;
+  };
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }));
   const toggle = (key: "requested_platforms" | "ugc_deliverable_types" | "usage_purposes", value: string) =>
     update(key, form[key].includes(value) ? form[key].filter((item) => item !== value) : [...form[key], value]);
@@ -363,16 +398,42 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
     const message = validate();
     if (message) return setError(message);
     if (mode === "preview") return setError("送信は公開ページで行えます。");
+    if (!formId) return setError("フォームを確認できませんでした。");
+    const activeSubmissionId = ensureSubmissionId();
+    if (!activeSubmissionId) {
+      return setError("安全な送信IDを作成できませんでした。ブラウザを更新してもう一度お試しください。");
+    }
     setSubmitting(true);
     setError("");
     try {
+      if (kind === "pr") {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.user) {
+          saveDraftAndContinueToAuth();
+          return;
+        }
+      }
+
       const response = await fetch("/api/public/creator-link/inquiries", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug, formKind: kind, ...form }),
+        body: JSON.stringify({
+          slug,
+          formId,
+          submissionId: activeSubmissionId,
+          formKind: kind,
+          ...form,
+        }),
       });
       const body = await response.json();
+      if (response.status === 401 && kind === "pr") {
+        saveDraftAndContinueToAuth();
+        return;
+      }
       if (!response.ok || !body.ok) throw new Error(body.error || "送信できませんでした。");
+      safeSessionStorageRemove(inquiryDraftStorageKey(slug));
       setSubmitted(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "送信できませんでした。");
@@ -386,7 +447,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
     "実際に体験していない感想や、根拠のない効果表現を求めません",
     "特定の高評価や好意的な感想を強制しません",
     "TrendMart利用規約とプライバシーポリシーに同意します",
-    "見積もりが届いた場合、入力したメールアドレスで無料のTrendMartアカウントを有効化して確認することに同意します",
+    "見積もりが届いた場合、登録したTrendMartアカウントで内容を確認することに同意します",
     "本案件の契約・連絡・支払いをTrendMart上で行うことに同意します",
   ];
 

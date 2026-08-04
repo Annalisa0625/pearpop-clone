@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CAMPAIGN_GOALS,
   COMPANY_SOCIAL_PLATFORMS,
@@ -21,7 +22,14 @@ import {
   type PlatformDeliverable,
 } from "@/lib/trendre-link/inquiry-forms";
 import { validateCreatorLinkSlug } from "@/lib/trendre-link/slug";
+import { UUID_PATTERN } from "@/lib/trendre-link/items-server";
+import {
+  isInquirySubmissionId,
+  isPublicInquiryFormTarget,
+  matchesInquirySubmissionTarget,
+} from "@/lib/trendre-link/inquiry-submission";
 import type { CreatorLinkPublicInquiryResponse } from "@/lib/trendre-link/types";
+import { insertOrRecoverUnique } from "@/lib/db/unique-insert";
 
 type Body = Record<string, unknown>;
 const MAX_BODY_BYTES = 48_000;
@@ -125,16 +133,47 @@ export async function POST(request: NextRequest) {
   if (typeof body.website === "string" && body.website.trim()) {
     return NextResponse.json<CreatorLinkPublicInquiryResponse>({ ok: true });
   }
-  if (typeof body.slug !== "string" || !isCreatorLinkInquiryFormKind(body.formKind)) {
+  if (
+    typeof body.slug !== "string" ||
+    !isCreatorLinkInquiryFormKind(body.formKind) ||
+    typeof body.formId !== "string" ||
+    !UUID_PATTERN.test(body.formId) ||
+    !isInquirySubmissionId(body.submissionId)
+  ) {
     return errorResponse("問い合わせ先が正しくありません。");
   }
   const slugValidation = validateCreatorLinkSlug(body.slug);
   if (!slugValidation.valid) return errorResponse("問い合わせ先が正しくありません。");
+  const submissionId = body.submissionId;
 
   const contactName = text(body, "contact_name", 80, true);
   const contactEmail = text(body, "contact_email", 254, true);
   if (!contactName.ok || !contactEmail.ok || !contactEmail.value || !isValidInquiryEmail(contactEmail.value)) {
     return errorResponse("担当者名と正しいメールアドレスを入力してください。");
+  }
+
+  let companyUserId: string | null = null;
+  if (body.formKind === "pr") {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return errorResponse("見積もり依頼には企業アカウントでのログインが必要です。", 401);
+    }
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from("companies")
+      .select("id,approval_status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (companyError) {
+      console.error("[trendre-link/public-inquiries] company lookup failed");
+      return errorResponse("企業アカウントを確認できませんでした。", 500);
+    }
+    if (!company || company.approval_status !== "approved") {
+      return errorResponse("承認済みの企業アカウントでログインしてください。", 403);
+    }
+    companyUserId = user.id;
   }
 
   let insert: Record<string, unknown>;
@@ -269,7 +308,7 @@ export async function POST(request: NextRequest) {
   try {
     const { data: page, error: pageError } = await supabaseAdmin
       .from("creator_link_pages")
-      .select("id, creator_id, owner_user_id")
+      .select("id, creator_id, owner_user_id, status, is_accepting_inquiries")
       .eq("slug", slugValidation.normalizedSlug)
       .eq("status", "published")
       .eq("is_accepting_inquiries", true)
@@ -278,21 +317,58 @@ export async function POST(request: NextRequest) {
     if (!page) return errorResponse("現在、このページでは問い合わせを受け付けていません。", 404);
 
     let typeQuery = supabaseAdmin.from("creator_link_inquiry_types")
-      .select("id, template_key, title").eq("page_id", page.id).eq("is_enabled", true);
+      .select("id, page_id, template_key, title, is_custom, is_enabled")
+      .eq("id", body.formId)
+      .eq("page_id", page.id)
+      .eq("is_enabled", true);
     typeQuery = body.formKind === "simple"
       ? typeQuery.is("template_key", null).eq("is_custom", true)
       : typeQuery.eq("template_key", "pr_post");
-    const { data: inquiryTypes, error: typeError } = await typeQuery.order("sort_order").limit(1);
+    const { data: inquiryType, error: typeError } = await typeQuery.maybeSingle();
     if (typeError) throw typeError;
-    const inquiryType = inquiryTypes?.[0];
-    if (!inquiryType) return errorResponse("このフォームは現在公開されていません。", 404);
+    if (
+      !inquiryType ||
+      !isPublicInquiryFormTarget({
+        pageStatus: page.status,
+        isAcceptingInquiries: page.is_accepting_inquiries,
+        pageId: page.id,
+        formPageId: inquiryType.page_id,
+        formEnabled: inquiryType.is_enabled,
+        requestedKind: body.formKind,
+        templateKey: inquiryType.template_key,
+        isCustom: inquiryType.is_custom,
+      })
+    ) {
+      return errorResponse("このフォームは現在公開されていません。", 404);
+    }
 
-    const { error } = await supabaseAdmin.from("creator_inquiries").insert({
+    let existingQuery = supabaseAdmin
+      .from("creator_inquiries")
+      .select("id,link_page_id,inquiry_type_id")
+      .eq("submission_id", submissionId);
+    existingQuery = companyUserId
+      ? existingQuery.eq("company_user_id", companyUserId)
+      : existingQuery.is("company_user_id", null).eq("link_page_id", page.id);
+    const { data: existing, error: existingError } = await existingQuery.maybeSingle();
+    if (existingError) throw existingError;
+    if (existing) {
+      if (!matchesInquirySubmissionTarget(existing, { pageId: page.id, formId: inquiryType.id })) {
+        return errorResponse("この送信IDは別の問い合わせで使用されています。", 409);
+      }
+      return NextResponse.json<CreatorLinkPublicInquiryResponse>({
+        ok: true,
+        inquiryId: existing.id,
+        duplicate: true,
+      });
+    }
+
+    const inquiryPayload = {
       creator_id: page.creator_id,
       creator_user_id: page.owner_user_id,
-      company_user_id: null,
+      company_user_id: companyUserId,
       link_page_id: page.id,
       inquiry_type_id: inquiryType.id,
+      submission_id: submissionId,
       inquiry_type_title_snapshot: inquiryType.title,
       inquiry_type: body.formKind === "simple" ? "other" : "pr_post",
       contact_name: contactName.value,
@@ -311,9 +387,39 @@ export async function POST(request: NextRequest) {
       verification_expires_at: null,
       verified_at: null,
       ...insert,
+    };
+    const insertion = await insertOrRecoverUnique({
+      insert: async () => {
+        const { data, error } = await supabaseAdmin
+          .from("creator_inquiries")
+          .insert(inquiryPayload)
+          .select("id,link_page_id,inquiry_type_id")
+          .single();
+        return { data, error };
+      },
+      recover: async () => {
+        let racedQuery = supabaseAdmin
+          .from("creator_inquiries")
+          .select("id,link_page_id,inquiry_type_id")
+          .eq("submission_id", submissionId);
+        racedQuery = companyUserId
+          ? racedQuery.eq("company_user_id", companyUserId)
+          : racedQuery.is("company_user_id", null).eq("link_page_id", page.id);
+        const { data, error } = await racedQuery.maybeSingle();
+        return { data, error };
+      },
+      validateRecovered: (raced) =>
+        matchesInquirySubmissionTarget(raced, {
+          pageId: page.id,
+          formId: inquiryType.id,
+        }),
+      missingError: "inquiry_insert_missing",
     });
-    if (error) throw error;
-    return NextResponse.json<CreatorLinkPublicInquiryResponse>({ ok: true });
+    return NextResponse.json<CreatorLinkPublicInquiryResponse>({
+      ok: true,
+      inquiryId: insertion.value.id,
+      ...(insertion.duplicate ? { duplicate: true } : {}),
+    });
   } catch (cause) {
     console.error("[trendre-link/public-inquiries] inquiry insert failed", {
       cause: cause instanceof Error ? cause.message : "unknown",

@@ -7,13 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { useAppLocale } from "@/lib/i18n/locale";
-
-function normalizeNextPath(value: string | null) {
-  if (!value) return null;
-  if (!value.startsWith("/")) return null;
-  if (value.startsWith("//")) return null;
-  return value;
-}
+import { normalizeNextPath } from "@/lib/auth/next-path";
 
 function normalizeAuthError(message: string, locale: "ja" | "en") {
   const lower = message.toLowerCase();

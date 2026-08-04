@@ -11,6 +11,7 @@ import { findCreatorLinkBackgroundPreset } from "@/lib/trendre-link/background-p
 import type { CreatorLinkButtonStyle, CreatorLinkFontStyle, CreatorLinkItemType, CreatorLinkTheme } from "@/lib/trendre-link/constants";
 import { CREATOR_LINK_ITEM_COLOR_VALUES, isCreatorLinkSocialPlatform, normalizeCreatorLinkItemAppearance, type CreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
 import type { CreatorLinkInquiryFormKind } from "@/lib/trendre-link/inquiry-forms";
+import { inquiryDraftStorageKey, parseInquiryDraft, safeSessionStorageGet } from "@/lib/trendre-link/inquiry-return";
 
 export type TrendreLinkCanvasMode = "edit" | "preview" | "public";
 export type TrendreLinkEditableField = "displayName" | "bio" | null;
@@ -102,7 +103,7 @@ function FormCard({ type, theme, onClick, reorder }: { type: TrendreLinkCanvasIn
 export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingField = null, onEditingFieldChange, onDisplayNameChange, onBioChange, onEditProfile, onEditInquirySettings, onAddFirstLink, onEditItem, onReorderItems, onReorderInquiryTypes }: CanvasProps) {
   const { page, items } = data;
   const [reorderMode, setReorderMode] = useState(false);
-  const [selectedForm, setSelectedForm] = useState<{ kind: CreatorLinkInquiryFormKind; title: string } | null>(null);
+  const [selectedForm, setSelectedForm] = useState<{ id: string; kind: CreatorLinkInquiryFormKind; title: string } | null>(null);
   useEffect(() => { if (mode !== "edit") setReorderMode(false); }, [mode]);
   const preset = findCreatorLinkBackgroundPreset(page);
   const baseTheme = THEMES[page.themeKey];
@@ -114,6 +115,26 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 10 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const canSortItems = reorderMode && items.length > 0 && items.every((item) => Boolean(item.id));
   const enabledForms = data.inquiryTypes.filter((type) => (type.templateKey === null && type.isCustom !== false) || type.templateKey === "pr_post").sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  useEffect(() => {
+    if (mode !== "public" || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("resume") !== "inquiry") return;
+    const draft = parseInquiryDraft(
+      safeSessionStorageGet(inquiryDraftStorageKey(page.slug)),
+      { slug: page.slug }
+    );
+    const formType = draft
+      ? enabledForms.find((type) => type.id === draft.formId)
+      : null;
+    url.searchParams.delete("resume");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    if (draft && formType) {
+      const expectedKind = formType.templateKey === "pr_post" ? "pr" : "simple";
+      if (draft.kind === expectedKind && formType.id) {
+        setSelectedForm({ id: formType.id, kind: draft.kind, title: formType.title });
+      }
+    }
+  }, [data.inquiryTypes, mode, page.slug]);
   const canSortForms = reorderMode && enabledForms.length > 1 && enabledForms.every((type) => Boolean(type.id));
   const copy = locale === "ja" ? { editName: "表示名を編集", editPhoto: "プロフィール写真を編集", addPhoto: "写真を追加", addName: "名前を追加", addBio: "自己紹介を追加", firstLinkTitle: "SNSやリンクを追加", firstLinkHelp: "上のメニューから追加できます", inquiries: "お問い合わせ", reorder: "並び替え", reordering: "並び替え中", done: "完了" } : { editName: "Edit display name", editPhoto: "Edit profile photo", addPhoto: "Add photo", addName: "Add name", addBio: "Add a bio", firstLinkTitle: "Add social profiles or links", firstLinkHelp: "Use the menu above to add one", inquiries: "Work inquiries", reorder: "Reorder", reordering: "Reordering", done: "Done" };
   const profileTopPadding = mode === "public"
@@ -123,7 +144,10 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
       : "pt-12";
   const backgroundStyle = coverUrl ? { backgroundImage: `url(${JSON.stringify(coverUrl).slice(1, -1)})`, backgroundSize: "cover", backgroundPosition: "center" } : preset ? { background: preset.background, color: preset.foreground === "light" ? "#FAF9F7" : "#29272A" } : undefined;
   const clearSelection = () => document.getSelection()?.removeAllRanges();
-  const openForm = (type: TrendreLinkCanvasInquiryType) => { if (isEdit) onEditInquirySettings?.(); else setSelectedForm({ kind: type.templateKey === "pr_post" ? "pr" : "simple", title: type.title }); };
+  const openForm = (type: TrendreLinkCanvasInquiryType) => {
+    if (isEdit) onEditInquirySettings?.();
+    else if (type.id) setSelectedForm({ id: type.id, kind: type.templateKey === "pr_post" ? "pr" : "simple", title: type.title });
+  };
 
   return <div style={backgroundStyle} className={`relative min-h-[100dvh] w-full overflow-x-hidden ${theme.shell} ${fontClass}`}>
     {coverUrl ? <div className={`pointer-events-none absolute inset-0 ${page.themeKey === "night-purple" || page.themeKey === "minimal-black" ? "bg-black/45" : "bg-white/40"}`} /> : null}
@@ -141,7 +165,7 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
       {page.isAcceptingInquiries && enabledForms.length ? <section className="px-4 pt-7"><h2 className="mb-2 px-1 text-base font-medium">{copy.inquiries}</h2>{canSortForms ? <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={clearSelection} onDragEnd={(event: DragEndEvent) => { clearSelection(); const { active, over } = event; if (!over || active.id === over.id) return; const from = enabledForms.findIndex((type) => type.id === active.id); const to = enabledForms.findIndex((type) => type.id === over.id); if (from >= 0 && to >= 0) onReorderInquiryTypes?.(arrayMove(enabledForms, from, to)); }}><SortableContext items={enabledForms.map((type) => type.id!)} strategy={rectSortingStrategy}><div className="space-y-2">{enabledForms.map((type) => <SortableShell key={type.id} id={type.id!} width="w-full"><FormCard type={type} theme={theme} reorder /></SortableShell>)}</div></SortableContext></DndContext> : <div className={`space-y-2 ${isEdit ? "opacity-[0.94] saturate-[0.94]" : ""}`}>{enabledForms.map((type, index) => <FormCard key={type.id ?? `${type.templateKey ?? "simple"}-${index}`} type={type} theme={theme} onClick={() => openForm(type)} />)}</div>}</section> : null}
       <footer className={`mt-auto px-5 pb-1 pt-10 text-center text-xs font-medium ${theme.subtle}`}>Powered by Trendre</footer>
     </div>
-    {selectedForm ? <InquiryFormModal key={`${selectedForm.kind}-${selectedForm.title}`} kind={selectedForm.kind} title={selectedForm.title} slug={page.slug} mode={mode === "public" ? "public" : "preview"} locale={locale} onClose={() => setSelectedForm(null)} /> : null}
+    {selectedForm ? <InquiryFormModal key={`${selectedForm.id}-${selectedForm.kind}`} formId={selectedForm.id} kind={selectedForm.kind} title={selectedForm.title} slug={page.slug} mode={mode === "public" ? "public" : "preview"} locale={locale} onClose={() => setSelectedForm(null)} /> : null}
   </div>;
 }
 
