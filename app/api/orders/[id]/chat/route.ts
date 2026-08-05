@@ -1,19 +1,17 @@
 // File: app/api/orders/[id]/chat/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  canCreateOrderChatForOrder,
+  isOrderChatParticipant,
+} from "@/lib/orders/order-chat";
+import {
+  createOrderChatForOrder,
+  getOrderChatForOrder,
+} from "@/lib/orders/order-chat-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-type ChatRow = {
-  id: string;
-  request_id: string | null;
-  order_id: string | null;
-  company_user_id: string;
-  creator_user_id: string;
-  created_at: string;
-  last_message_at: string | null;
-};
 
 async function getAuthenticatedUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -52,7 +50,9 @@ export async function GET(
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
-      .select("id, b_user_id, creator_user_id, status")
+      .select(
+        "id, b_user_id, creator_user_id, creator_menu_id, status, payment_status, accepted_at"
+      )
       .eq("id", orderId)
       .maybeSingle();
 
@@ -67,84 +67,42 @@ export async function GET(
       );
     }
 
-    const isParticipant =
-      order.b_user_id === user.id || order.creator_user_id === user.id;
-
-    if (!isParticipant) {
+    if (!isOrderChatParticipant(order, user.id)) {
       return NextResponse.json(
         { error: "この注文のチャットを見る権限がありません" },
         { status: 403 }
       );
     }
 
-    const chatSelect =
-      "id, request_id, order_id, company_user_id, creator_user_id, created_at, last_message_at";
-
-    const { data: existingChat, error: existingChatError } =
-      await supabaseAdmin
-        .from("chats")
-        .select(chatSelect)
-        .eq("order_id", order.id)
-        .maybeSingle();
-
-    if (existingChatError) {
-      throw existingChatError;
+    const existingChat = await getOrderChatForOrder(order);
+    if (existingChat) {
+      return NextResponse.json({ ok: true, chat: existingChat });
     }
 
-    if (existingChat) {
-      return NextResponse.json({
-        ok: true,
-        chat: existingChat as ChatRow,
+    if (!canCreateOrderChatForOrder(order)) {
+      return NextResponse.json(
+        {
+          error: "この注文ではまだチャットを開始できません",
+          error_code: "order_chat_not_available",
+        },
+        { status: 409 }
+      );
+    }
+
+    const { chat, created } = await createOrderChatForOrder(order);
+
+    if (created) {
+      await supabaseAdmin.from("order_events").insert({
+        order_id: order.id,
+        actor_user_id: user.id,
+        event_type: "order_chat_created",
+        event_data: { chat_id: chat.id },
       });
     }
 
-    const { data: createdChat, error: createError } = await supabaseAdmin
-      .from("chats")
-      .insert({
-        request_id: null,
-        order_id: order.id,
-        company_user_id: order.b_user_id,
-        creator_user_id: order.creator_user_id,
-        last_message_at: null,
-      })
-      .select(chatSelect)
-      .single();
-
-    if (createError) {
-      const isDuplicate = createError.code === "23505";
-
-      if (isDuplicate) {
-        const { data: retryChat, error: retryError } = await supabaseAdmin
-          .from("chats")
-          .select(chatSelect)
-          .eq("order_id", order.id)
-          .maybeSingle();
-
-        if (retryError) {
-          throw retryError;
-        }
-
-        if (retryChat) {
-          return NextResponse.json({
-            ok: true,
-            chat: retryChat as ChatRow,
-          });
-        }
-      }
-
-      throw createError;
-    }
-
-    await supabaseAdmin.from("order_events").insert({
-      order_id: order.id,
-      actor_user_id: user.id,
-      event_type: "order_chat_created",
-      event_data: {},
-    });
-
     return NextResponse.json({
       ok: true,
-      chat: createdChat as ChatRow,
+      chat,
     });
   } catch (error) {
     console.error("order chat get/create error", error);

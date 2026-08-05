@@ -2,6 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getStripe } from "@/lib/stripe";
+import { ensureOrderChatForOrder } from "@/lib/orders/order-chat-server";
+import {
+  isOrderCaptureInProgress,
+  isOrderCreator,
+  retrieveOrCaptureOrderPaymentIntent,
+  shouldRepairAcceptedOrder,
+} from "@/lib/orders/order-acceptance";
 import type { Json } from "@/types/database.types";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +39,10 @@ type OrderForAccept = {
   b_user_id: string;
   creator_id: string;
   creator_user_id: string;
+  creator_menu_id: string | null;
   status: string;
   payment_status: string;
+  stripe_payment_status: string | null;
   stripe_payment_intent_id: string | null;
   stripe_amount: number | null;
   currency: string | null;
@@ -147,8 +156,10 @@ export async function POST(
         b_user_id,
         creator_id,
         creator_user_id,
+        creator_menu_id,
         status,
         payment_status,
+        stripe_payment_status,
         stripe_payment_intent_id,
         stripe_amount,
         currency,
@@ -172,7 +183,7 @@ export async function POST(
       );
     }
 
-    if (order.creator_user_id !== user.id) {
+    if (!isOrderCreator(order, user.id)) {
       return NextResponse.json(
         { error: "この注文を承認する権限がありません" },
         { status: 403 }
@@ -240,6 +251,20 @@ export async function POST(
       );
     }
 
+    if (shouldRepairAcceptedOrder(order)) {
+      const { chat } = await ensureOrderChatForOrder(order);
+      return NextResponse.json({
+        ok: true,
+        order_id: order.id,
+        chat_id: chat.id,
+        status: order.status,
+        payment_status: order.payment_status,
+        stripe_payment_status: order.stripe_payment_status,
+        payout_method: payoutMethod,
+        payout_status: order.payout_status || "unpaid",
+      });
+    }
+
     if (
       order.status !== "authorized_pending_creator" ||
       order.payment_status !== "authorized"
@@ -259,19 +284,32 @@ export async function POST(
 
     const stripe = getStripe();
 
-    const currentPaymentIntent = await stripe.paymentIntents.retrieve(
-      order.stripe_payment_intent_id
-    );
-
-    let capturedPaymentIntent = currentPaymentIntent;
-
-    if (currentPaymentIntent.status === "requires_capture") {
-      capturedPaymentIntent = await stripe.paymentIntents.capture(
-        order.stripe_payment_intent_id
-      );
-    }
+    const capturedPaymentIntent = await retrieveOrCaptureOrderPaymentIntent({
+      orderId: order.id,
+      paymentIntentId: order.stripe_payment_intent_id,
+      gateway: {
+        retrieve: (paymentIntentId) =>
+          stripe.paymentIntents.retrieve(paymentIntentId),
+        capture: (paymentIntentId, idempotencyKey) =>
+          stripe.paymentIntents.capture(
+            paymentIntentId,
+            {},
+            { idempotencyKey }
+          ),
+      },
+    });
 
     const nowIso = new Date().toISOString();
+
+    if (isOrderCaptureInProgress(capturedPaymentIntent.status)) {
+      return NextResponse.json(
+        {
+          error: "Stripe決済の確定処理中です。時間をおいて再度お試しください",
+          error_code: "stripe_capture_in_progress",
+        },
+        { status: 409 }
+      );
+    }
 
     if (capturedPaymentIntent.status !== "succeeded") {
       await supabaseAdmin
@@ -337,9 +375,21 @@ export async function POST(
       },
     });
 
+    const { chat, created: chatCreated } = await ensureOrderChatForOrder(order);
+
+    if (chatCreated) {
+      await safeInsertOrderEvent({
+        orderId: order.id,
+        actorUserId: user.id,
+        eventType: "order_chat_created",
+        eventData: { chat_id: chat.id },
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       order_id: order.id,
+      chat_id: chat.id,
       status: "accepted_captured",
       payment_status: "captured",
       stripe_payment_status: capturedPaymentIntent.status,
