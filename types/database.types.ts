@@ -1585,6 +1585,16 @@ export type Database = {
           menu_title_snapshot: string
           menu_type_snapshot: string | null
           metadata: Json
+          payment_action_auto_cancel_attempted_at: string | null
+          payment_action_effects_completed_at: string | null
+          payment_action_effects_attempted_at: string | null
+          payment_action_execution_started_at: string | null
+          payment_action_reconcile_attempted_at: string | null
+          payment_action_started_at: string | null
+          payment_action_state: string | null
+          payment_action_token: string | null
+          payment_action_type: string | null
+          payment_action_updated_at: string | null
           payment_flow: string | null
           payment_status: string
           payout_batch_id: string | null
@@ -1683,6 +1693,16 @@ export type Database = {
           menu_title_snapshot: string
           menu_type_snapshot?: string | null
           metadata?: Json
+          payment_action_auto_cancel_attempted_at?: string | null
+          payment_action_effects_completed_at?: string | null
+          payment_action_effects_attempted_at?: string | null
+          payment_action_execution_started_at?: string | null
+          payment_action_reconcile_attempted_at?: string | null
+          payment_action_started_at?: string | null
+          payment_action_state?: string | null
+          payment_action_token?: string | null
+          payment_action_type?: string | null
+          payment_action_updated_at?: string | null
           payment_flow?: string | null
           payment_status?: string
           payout_batch_id?: string | null
@@ -1781,6 +1801,16 @@ export type Database = {
           menu_title_snapshot?: string
           menu_type_snapshot?: string | null
           metadata?: Json
+          payment_action_auto_cancel_attempted_at?: string | null
+          payment_action_effects_completed_at?: string | null
+          payment_action_effects_attempted_at?: string | null
+          payment_action_execution_started_at?: string | null
+          payment_action_reconcile_attempted_at?: string | null
+          payment_action_started_at?: string | null
+          payment_action_state?: string | null
+          payment_action_token?: string | null
+          payment_action_type?: string | null
+          payment_action_updated_at?: string | null
           payment_flow?: string | null
           payment_status?: string
           payout_batch_id?: string | null
@@ -2414,6 +2444,94 @@ export type Database = {
       }
     }
     Functions: {
+      claim_order_payment_action: {
+        Args: {
+          p_action: string
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+        }
+        Returns: {
+          claimed: boolean
+          previous_action: string | null
+          reason: string
+        }[]
+      }
+      claim_order_payment_action_work: {
+        Args: {
+          p_batch_size: number
+          p_retry_after_seconds: number
+          p_work_type: string
+        }
+        Returns: {
+          order_id: string
+        }[]
+      }
+      clear_stale_order_payment_action_claims: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cleared_count: number
+        }[]
+      }
+      finalize_order_payment_action: {
+        Args: {
+          p_action: string
+          p_cancel_action: string | null
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+          p_outcome: string
+          p_stripe_status: string
+        }
+        Returns: {
+          finalized: boolean
+          reason: string
+        }[]
+      }
+      start_order_payment_action_execution: {
+        Args: {
+          p_action: string
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+        }
+        Returns: {
+          reason: string
+          started: boolean
+        }[]
+      }
+      verify_order_payment_action_execution: {
+        Args: {
+          p_action: string
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+        }
+        Returns: {
+          authorized: boolean
+          reason: string
+        }[]
+      }
       create_app_notification: {
         Args: {
           p_actor_user_id: string
