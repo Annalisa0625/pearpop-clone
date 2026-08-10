@@ -18,6 +18,7 @@ import {
   findMatchingOnboardingPreset,
   type CreatorLinkOnboardingPreset,
 } from "@/lib/trendre-link/onboarding-presets";
+import { applyLinkDesignPreset } from "@/lib/trendre-link/link-design-presets";
 
 type Props = {
   draft: AnonymousLinkDraft;
@@ -166,7 +167,7 @@ export default function DeferredLinkOnboarding({ draft, avatarPreviewUrl, slugSt
   const [linkUrl, setLinkUrl] = useState(draft.links[0]?.url ?? "");
   const [linkError, setLinkError] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<CreatorLinkOnboardingPreset["id"] | null>(() =>
-    draft.step >= 6 ? findMatchingOnboardingPreset(draft.page)?.id ?? null : null
+    draft.step >= 6 ? findMatchingOnboardingPreset({ page: draft.page, socials: draft.socials, links: draft.links })?.id ?? null : null
   );
 
   useEffect(() => {
@@ -178,7 +179,7 @@ export default function DeferredLinkOnboarding({ draft, avatarPreviewUrl, slugSt
   useEffect(() => {
     if (selectedPresetId || draft.step < 5 || typeof window === "undefined") return;
     const stored = window.sessionStorage.getItem(`trendre-link:preset:${draft.draftId}`);
-    const preset = findMatchingOnboardingPreset(draft.page);
+    const preset = findMatchingOnboardingPreset({ page: draft.page, socials: draft.socials, links: draft.links });
     if (preset && (stored === preset.id || draft.step >= 6)) setSelectedPresetId(preset.id);
   }, [draft.draftId, draft.page, draft.step, selectedPresetId]);
 
@@ -228,22 +229,7 @@ export default function DeferredLinkOnboarding({ draft, avatarPreviewUrl, slugSt
   const selectPreset = (preset: CreatorLinkOnboardingPreset) => {
     setSelectedPresetId(preset.id);
     window.sessionStorage.setItem(`trendre-link:preset:${draft.draftId}`, preset.id);
-    onChange({
-      ...draft,
-      page: {
-        ...draft.page,
-        themeKey: preset.page.themeKey,
-        accentColor: preset.page.accentColor,
-        displayNameColor: preset.page.displayNameColor,
-        buttonStyle: preset.page.buttonStyle,
-        fontStyle: preset.page.fontStyle,
-      },
-      socials: draft.socials.map((item) => ({ ...item, metadata: { ...item.metadata, iconColor: preset.socialIconColor } })),
-      links: draft.links.map((item) => ({
-        ...item,
-        metadata: { ...preset.linkAppearance },
-      })),
-    });
+    onChange({ ...draft, ...applyLinkDesignPreset(preset, { page: draft.page, socials: draft.socials, links: draft.links }) });
   };
   const normalizedSocial = normalizeSocialProfile(activeSocial, socialValue);
   const validLink = validateGeneralLink({ title: linkTitle, url: linkUrl }).ok;

@@ -18,6 +18,7 @@ import ProfileImageCropModal from "./_components/ProfileImageCropModal";
 import CreatorLinkOnboarding, { type OnboardingLinkForm } from "./_components/CreatorLinkOnboarding";
 import CreatorLinkItemsEditor from "./_components/CreatorLinkItemsEditor";
 import { CREATOR_LINK_BACKGROUND_PRESETS } from "@/lib/trendre-link/background-presets";
+import { applyLinkDesignPreset } from "@/lib/trendre-link/link-design-presets";
 import type { CreatorLinkOnboardingPreset } from "@/lib/trendre-link/onboarding-presets";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
@@ -495,10 +496,14 @@ export default function CreatorLinkBuilderPage() {
     if (!page || !form || itemSaving || saving) return false;
     const previousForm = form;
     const previousItems = items;
-    const nextForm = { ...form, ...preset.page, coverUrl: null };
-    const nextItems = items.map((item) => item.itemType === "social"
-      ? { ...item, metadata: { ...item.metadata, iconColor: preset.socialIconColor } }
-      : item.itemType === "link" ? { ...item, metadata: { ...preset.linkAppearance } } : item);
+    const applied = applyLinkDesignPreset(preset, {
+      page: form,
+      socials: items.filter((item) => item.itemType === "social"),
+      links: items.filter((item) => item.itemType === "link"),
+    });
+    const nextForm = { ...applied.page, coverUrl: null };
+    const updatedItems = new Map([...applied.socials, ...applied.links].map((item) => [item.id, item]));
+    const nextItems = items.map((item) => updatedItems.get(item.id) ?? item);
     setForm(nextForm);
     setItems(nextItems);
     setItemSaving("style-preset");

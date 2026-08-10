@@ -3,7 +3,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import TrendreLinkCanvas, { TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT, TRENDRE_LINK_LOGICAL_CANVAS_WIDTH, type TrendreLinkCanvasData, type TrendreLinkCanvasItem } from "./TrendreLinkCanvas";
-import { CREATOR_LINK_ONBOARDING_PRESETS, type CreatorLinkOnboardingPreset } from "@/lib/trendre-link/onboarding-presets";
+import { CREATOR_LINK_ONBOARDING_PRESETS, type CreatorLinkOnboardingPreset } from "@/lib/trendre-link/link-design-presets";
 
 type Props = {
   data: TrendreLinkCanvasData;

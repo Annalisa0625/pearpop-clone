@@ -74,7 +74,7 @@ function Phone({ data }: { data: TrendreLinkCanvasData }) {
 export default function CreatorLinkOnboarding(props: Props) {
   const step = Math.min(Math.max(props.step, 0), STEP_COUNT - 1);
   const [activeSocial, setActiveSocial] = useState<CreatorLinkSocialPlatform>("instagram");
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(() => findMatchingOnboardingPreset(props.form)?.id ?? null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(() => findMatchingOnboardingPreset({ page: props.form, socials: props.previewData.items.filter((item) => item.itemType === "social"), links: props.previewData.items.filter((item) => item.itemType === "link") })?.id ?? null);
   useEffect(() => { document.body.classList.add("trendre-link-onboarding-active"); return () => document.body.classList.remove("trendre-link-onboarding-active"); }, []);
   const back = () => step > 0 ? props.onStepChange(step - 1) : props.onFinish();
   const styles = <><OnboardingMotionStyles /><style jsx global>{`body.trendre-link-onboarding-active .creator-link-workspace>nav{display:none!important}.link-preset-renderer>div,.link-preset-renderer>div>div{min-height:854px!important}.link-preset-card:has(.link-preset-hitbox:active){transform:scale(.985)}@media(prefers-reduced-motion:reduce){.link-preset-card{transition:none!important}.link-preset-card:has(.link-preset-hitbox:active){transform:none!important}}`}</style></>;

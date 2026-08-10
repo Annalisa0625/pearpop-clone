@@ -1,6 +1,8 @@
 import type { CreatorLinkButtonStyle, CreatorLinkFontStyle, CreatorLinkTheme } from "./constants";
 
 export type CreatorLinkBackgroundPreset = {
+  /** Stable catalog identifier. This is not persisted in Phase 1. */
+  id: string;
   name: string;
   group: "solid" | "gradient" | "pattern" | "texture" | "metallic";
   themeKey: CreatorLinkTheme;
@@ -16,7 +18,7 @@ export type CreatorLinkBackgroundPreset = {
   foreground: "light" | "dark";
 };
 
-export const CREATOR_LINK_BACKGROUND_PRESETS: readonly CreatorLinkBackgroundPreset[] = [
+const BACKGROUND_PRESET_DEFINITIONS = [
   { name: "Snow", group: "solid", themeKey: "soft-ivory", accentColor: "#F4F5F7", buttonStyle: "rounded", fontStyle: "modern", background: "#F4F5F7", foreground: "dark" },
   { name: "Ivory", group: "solid", themeKey: "soft-ivory", accentColor: "#F7EFE1", buttonStyle: "pill", fontStyle: "soft", background: "#F7EFE1", foreground: "dark" },
   { name: "Sand", group: "solid", themeKey: "natural-beige", accentColor: "#D8C8AE", buttonStyle: "rounded", fontStyle: "soft", background: "#D8C8AE", foreground: "dark" },
@@ -72,6 +74,15 @@ export const CREATOR_LINK_BACKGROUND_PRESETS: readonly CreatorLinkBackgroundPres
   { name: "Large Dots", group: "pattern", themeKey: "soft-ivory", accentColor: "#E8A8B3", buttonStyle: "pill", fontStyle: "bold", background: "radial-gradient(circle at 18% 20%,rgba(113,55,98,.24) 0 8%,transparent 8.5%),radial-gradient(circle at 75% 62%,rgba(255,255,255,.35) 0 11%,transparent 11.5%),radial-gradient(circle at 30% 88%,rgba(140,67,112,.18) 0 6%,transparent 6.5%),linear-gradient(145deg,#F3CBD1,#E8A8B3)", foreground: "dark" },
   { name: "Abstract Geometry", group: "pattern", themeKey: "night-purple", accentColor: "#7871A8", buttonStyle: "square", fontStyle: "bold", background: "linear-gradient(135deg,transparent 0 44%,rgba(255,255,255,.12) 44% 52%,transparent 52%),linear-gradient(45deg,rgba(39,31,76,.24) 0 18%,transparent 18% 72%,rgba(234,180,255,.13) 72%),linear-gradient(145deg,#514A80,#8A79B8)", foreground: "light" },
 ] as const;
+
+function backgroundPresetId(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+export const CREATOR_LINK_BACKGROUND_PRESETS: readonly CreatorLinkBackgroundPreset[] = BACKGROUND_PRESET_DEFINITIONS.map((preset) => ({
+  ...preset,
+  id: backgroundPresetId(preset.name),
+}));
 
 export function findCreatorLinkBackgroundPreset(values: {
   themeKey: CreatorLinkTheme;

@@ -7,7 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { BriefcaseBusiness, ChevronRight, Link as LinkGlyph } from "lucide-react";
 import InquiryFormModal from "@/components/trendre-link/InquiryFormModal";
 import SocialBrandIcon from "@/components/trendre-link/SocialBrandIcon";
-import { findCreatorLinkBackgroundPreset } from "@/lib/trendre-link/background-presets";
+import { findLinkDesignBackgroundPreset } from "@/lib/trendre-link/link-design-presets";
 import type { CreatorLinkButtonStyle, CreatorLinkFontStyle, CreatorLinkItemType, CreatorLinkTheme } from "@/lib/trendre-link/constants";
 import { CREATOR_LINK_ITEM_COLOR_VALUES, isCreatorLinkSocialPlatform, normalizeCreatorLinkItemAppearance, type CreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
 import type { CreatorLinkInquiryFormKind } from "@/lib/trendre-link/inquiry-forms";
@@ -131,7 +131,7 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
   const [selectedForm, setSelectedForm] = useState<{ id: string; kind: CreatorLinkInquiryFormKind; title: string } | null>(null);
   const [showFormChoices, setShowFormChoices] = useState(false);
   useEffect(() => { if (mode !== "edit") setReorderMode(false); }, [mode]);
-  const preset = findCreatorLinkBackgroundPreset(page);
+  const preset = findLinkDesignBackgroundPreset(page);
   const baseTheme = THEMES[page.themeKey];
   const accentForeground = page.accentColor ? contrast(page.accentColor) : null;
   const theme = page.coverUrl
