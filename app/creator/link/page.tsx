@@ -10,6 +10,7 @@ import TrendreLinkCanvas, {
   type TrendreLinkCanvasItem,
   type TrendreLinkCanvasInquiryType,
 } from "@/components/trendre-link/TrendreLinkCanvas";
+import StylePresetGallery from "@/components/trendre-link/StylePresetGallery";
 import SocialBrandIcon from "@/components/trendre-link/SocialBrandIcon";
 import InquiryFormModal from "@/components/trendre-link/InquiryFormModal";
 import CardDesignSelector from "./_components/CardDesignSelector";
@@ -18,7 +19,7 @@ import ProfileImageCropModal from "./_components/ProfileImageCropModal";
 import CreatorLinkOnboarding, { type OnboardingLinkForm } from "./_components/CreatorLinkOnboarding";
 import CreatorLinkItemsEditor from "./_components/CreatorLinkItemsEditor";
 import { CREATOR_LINK_BACKGROUND_PRESETS } from "@/lib/trendre-link/background-presets";
-import { applyLinkDesignPreset } from "@/lib/trendre-link/link-design-presets";
+import { applyLinkDesignPreset, findMatchingLinkDesignPreset } from "@/lib/trendre-link/link-design-presets";
 import type { CreatorLinkOnboardingPreset } from "@/lib/trendre-link/onboarding-presets";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
@@ -72,7 +73,7 @@ type LinkFormState = {
 };
 
 type SlugCheckState = "idle" | "checking" | "available" | "unavailable" | "invalid";
-type Sheet = "links" | "profile" | "theme" | "wallpaper" | "text" | "buttons" | "colors" | "social" | "social-design" | "link" | "inquiry" | null;
+type Sheet = "links" | "profile" | "preset" | "theme" | "wallpaper" | "text" | "buttons" | "colors" | "social" | "social-design" | "link" | "inquiry" | null;
 type Toast = { tone: "success" | "error" | "info"; message: string } | null;
 type SocialInputs = Record<CreatorLinkSocialPlatform, string>;
 type SocialAppearances = Record<CreatorLinkSocialPlatform, CreatorLinkItemAppearance>;
@@ -763,6 +764,7 @@ export default function CreatorLinkBuilderPage() {
   };
 
   const sheetTitle = sheet === "links" ? (locale === "ja" ? "リンク" : "Links")
+    : sheet === "preset" ? (locale === "ja" ? "スタイル" : "Style")
     : sheet === "theme" ? (locale === "ja" ? "デザイン" : "Design")
     : sheet === "wallpaper" ? (locale === "ja" ? "壁紙・背景" : "Wallpaper")
     : sheet === "text" ? (locale === "ja" ? "テキスト" : "Text")
@@ -779,6 +781,7 @@ export default function CreatorLinkBuilderPage() {
     : sheet === "inquiry" ? (locale === "ja" ? "公開ページから受け付ける相談内容を設定します" : "Choose the inquiries shown on your public page")
     : undefined;
   const designCategories = [
+    { key: "preset" as const, label: locale === "ja" ? "スタイル" : "Style", icon: Sparkles },
     { key: "theme" as const, label: "Theme", icon: Palette },
     { key: "profile" as const, label: "Header", icon: UserIcon },
     { key: "wallpaper" as const, label: "Wallpaper", icon: CameraIcon },
@@ -786,10 +789,15 @@ export default function CreatorLinkBuilderPage() {
     { key: "buttons" as const, label: "Buttons", icon: Link2 },
     { key: "colors" as const, label: "Colors", icon: Palette },
   ];
-  const isDesignSheet = sheet === "theme" || sheet === "wallpaper" || sheet === "text" || sheet === "buttons" || sheet === "colors";
+  const isDesignSheet = sheet === "preset" || sheet === "theme" || sheet === "wallpaper" || sheet === "text" || sheet === "buttons" || sheet === "colors";
+  const selectedPresetId = findMatchingLinkDesignPreset({
+    page: form,
+    socials: items.filter((item) => item.itemType === "social"),
+    links: items.filter((item) => item.itemType === "link"),
+  })?.id ?? null;
   const editorNavigation = [
     { key: "links" as const, label: "Links", icon: Link2, action: () => setSheet("links") },
-    { key: "theme" as const, label: "Design", icon: Sparkles, action: () => setSheet("theme") },
+    { key: "preset" as const, label: "Design", icon: Sparkles, action: () => setSheet("preset") },
     { key: "profile" as const, label: "Profile", icon: UserRound, action: () => setSheet("profile") },
     { key: "social" as const, label: "Social", icon: Share2, action: openSocialSheet },
     { key: "inquiry" as const, label: locale === "ja" ? "仕事相談" : "Work", icon: MessageSquareText, action: () => setSheet("inquiry") },
@@ -865,6 +873,8 @@ export default function CreatorLinkBuilderPage() {
             {isDesignSheet ? <div role="tablist" aria-label="Design categories" className="sticky top-0 z-10 -mx-4 flex gap-1.5 overflow-x-auto border-b border-black/[0.05] bg-[#fffdfa]/96 px-4 py-2 [scrollbar-width:none]">
               {designCategories.map((category) => { const Icon = category.icon; const selected = sheet === category.key; return <button key={category.key} type="button" role="tab" aria-selected={selected} onClick={() => setSheet(category.key)} className={`onboarding-press flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold outline-none focus-visible:ring-4 focus-visible:ring-rose-200 ${selected ? "bg-[#242326] text-white" : "bg-slate-100 text-slate-600"}`}><Icon className="h-4 w-4" aria-hidden="true" />{category.label}</button>; })}
             </div> : null}
+
+            {sheet === "preset" ? <div className="mt-4 pb-3"><p className="mb-3 text-sm leading-5 text-slate-500">{locale === "ja" ? "スタイルを選ぶと、背景・文字・SNS・リンクの見た目をまとめて更新します。" : "Choosing a style updates the background, typography, social icons, and link cards together."}</p><StylePresetGallery data={viewData} selectedPresetId={selectedPresetId} onSelect={(preset) => void applyOnboardingPreset(preset)} /></div> : null}
 
             {sheet === "theme" ? (
               <div className="mt-4 grid grid-cols-3 gap-2">

@@ -37,7 +37,7 @@ export const LINK_DESIGN_PRESETS: readonly LinkDesignPreset[] = [
 ] as const;
 
 export const CREATOR_LINK_ONBOARDING_PRESETS: readonly CreatorLinkOnboardingPreset[] = LINK_DESIGN_PRESETS.map((preset) => ({ ...preset, backgroundPresetKey: preset.backgroundId }));
-export type LinkDesignPage = { themeKey: CreatorLinkTheme; accentColor: string | null; displayNameColor?: string | null; buttonStyle: CreatorLinkButtonStyle; fontStyle: CreatorLinkFontStyle };
+export type LinkDesignPage = { themeKey: CreatorLinkTheme; accentColor: string | null; displayNameColor?: string | null; buttonStyle: CreatorLinkButtonStyle; fontStyle: CreatorLinkFontStyle; coverUrl?: string | null };
 export type LinkDesignItem = { metadata: CreatorLinkItemAppearance };
 
 export function applyLinkDesignPreset<TPage extends LinkDesignPage, TSocial extends LinkDesignItem, TLink extends LinkDesignItem>(preset: LinkDesignPreset, state: { page: TPage; socials: readonly TSocial[]; links: readonly TLink[] }) {
@@ -55,7 +55,7 @@ function sameAppearance(left: CreatorLinkItemAppearance, right: CreatorLinkItemA
 }
 
 export function matchesLinkDesignPreset(preset: LinkDesignPreset, state: { page: LinkDesignPage; socials: readonly LinkDesignItem[]; links: readonly LinkDesignItem[] }) {
-  return preset.page.themeKey === state.page.themeKey && preset.page.accentColor === state.page.accentColor && preset.page.displayNameColor === state.page.displayNameColor && preset.page.buttonStyle === state.page.buttonStyle && preset.page.fontStyle === state.page.fontStyle
+  return !state.page.coverUrl && preset.page.themeKey === state.page.themeKey && preset.page.accentColor === state.page.accentColor && preset.page.displayNameColor === state.page.displayNameColor && preset.page.buttonStyle === state.page.buttonStyle && preset.page.fontStyle === state.page.fontStyle
     && state.socials.every((item) => normalizeCreatorLinkItemAppearance(item.metadata).iconColor === preset.socialIconColor)
     && state.links.every((item) => sameAppearance(item.metadata, preset.linkAppearance));
 }

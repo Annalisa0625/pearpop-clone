@@ -5,6 +5,7 @@ import {
   LINK_DESIGN_PRESETS,
   applyLinkDesignPreset,
   findLinkDesignBackgroundById,
+  findMatchingLinkDesignPreset,
   findLinkDesignBackgroundPreset,
   matchesLinkDesignPreset,
 } from "../lib/trendre-link/link-design-presets.ts";
@@ -37,7 +38,10 @@ test("applying a preset updates page and item appearances", () => {
 
 test("matchesPreset requires page, social, and link appearance equality", () => {
   assert.equal(matchesLinkDesignPreset(preset, base), true);
+  assert.equal(findMatchingLinkDesignPreset(base)?.id, preset.id);
+  assert.equal(matchesLinkDesignPreset(preset, { ...base, page: { ...base.page, coverUrl: "https://example.com/custom.jpg" } }), false);
   assert.equal(matchesLinkDesignPreset(preset, { ...base, socials: [{ metadata: { ...base.socials[0].metadata, iconColor: "#123456" } }] }), false);
+  assert.equal(findMatchingLinkDesignPreset({ ...base, socials: [{ metadata: { ...base.socials[0].metadata, iconColor: "#123456" } }] }), null);
   assert.equal(matchesLinkDesignPreset(preset, { ...base, links: [{ metadata: { ...base.links[0].metadata, depth: "raised" } }] }), false);
 });
 
