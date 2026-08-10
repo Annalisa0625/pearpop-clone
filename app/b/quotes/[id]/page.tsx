@@ -11,7 +11,10 @@ import QuoteDecisionActions from "./QuoteDecisionActions";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 type Data = Record<string, any>;
 
 const LABELS: Record<string, string> = {
@@ -121,8 +124,13 @@ function freeOffer(data: Data, inquiry: Data) {
     .join("\n");
 }
 
-export default async function CompanyQuotePage({ params }: PageProps) {
+function singleSearchParam(value: string | string[] | undefined) {
+  return typeof value === "string" ? value : null;
+}
+
+export default async function CompanyQuotePage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const query = await searchParams;
   if (!UUID_PATTERN.test(id)) notFound();
 
   const supabase = await createSupabaseServerClient();
@@ -148,7 +156,7 @@ export default async function CompanyQuotePage({ params }: PageProps) {
       admin
         .from("creator_inquiry_quotes")
         .select(
-          "id,creator_user_id,status,currency,quoted_amount,buyer_plan_code_snapshot,buyer_marketplace_fee_amount,buyer_total_amount,note,valid_until,sent_at,accepted_at,declined_at"
+          "id,creator_user_id,status,currency,quoted_amount,buyer_plan_code_snapshot,buyer_marketplace_fee_amount,buyer_total_amount,note,valid_until,sent_at,accepted_at,declined_at,checkout_status,stripe_checkout_session_id"
         )
         .eq("id", access.quote_id)
         .single(),
@@ -169,7 +177,7 @@ export default async function CompanyQuotePage({ params }: PageProps) {
       .maybeSingle(),
     admin
       .from("orders")
-      .select("id")
+      .select("id,status,payment_status")
       .eq("trendre_link_quote_id", quote.id)
       .maybeSingle(),
   ]);
@@ -200,6 +208,18 @@ export default async function CompanyQuotePage({ params }: PageProps) {
     joinLabels(requestData.requested_platforms) || inquiry.requested_platform || null;
   const inquiryMessage =
     requestData.additional_notes || requestData.key_message || inquiry.message || null;
+  const checkoutParam = singleSearchParam(query.checkout);
+  const checkoutReturn =
+    checkoutParam === "success" || checkoutParam === "cancelled"
+      ? checkoutParam
+      : null;
+  const returnedSessionId = singleSearchParam(query.session_id);
+  const canReconcileSuccess = Boolean(
+    checkoutReturn === "success" &&
+      returnedSessionId &&
+      quote.stripe_checkout_session_id &&
+      returnedSessionId === quote.stripe_checkout_session_id
+  );
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 pb-10 pt-2">
@@ -242,7 +262,18 @@ export default async function CompanyQuotePage({ params }: PageProps) {
         quoteId={quote.id}
         initialStatus={quote.status || "sent"}
         validUntil={quote.valid_until}
-        initialOrderId={convertedOrder?.id ?? null}
+        initialCheckoutStatus={quote.checkout_status || "not_started"}
+        checkoutReturn={checkoutReturn}
+        canReconcileSuccess={canReconcileSuccess}
+        initialOrder={
+          convertedOrder?.id
+            ? {
+                id: convertedOrder.id,
+                status: convertedOrder.status || "",
+                paymentStatus: convertedOrder.payment_status || "",
+              }
+            : null
+        }
       />
 
       <div className="space-y-6">
