@@ -3,10 +3,13 @@ import test from "node:test";
 
 import {
   LINK_DESIGN_PRESETS,
+  LINK_DESIGN_PRESET_CATEGORIES,
   applyLinkDesignPreset,
   findLinkDesignBackgroundById,
   findMatchingLinkDesignPreset,
   findLinkDesignBackgroundPreset,
+  getAvailableLinkDesignPresetCategories,
+  getLinkDesignPresets,
   matchesLinkDesignPreset,
 } from "../lib/trendre-link/link-design-presets.ts";
 import { CREATOR_LINK_BACKGROUND_PRESETS } from "../lib/trendre-link/background-presets.ts";
@@ -23,6 +26,27 @@ test("design and background preset IDs are unique", () => {
   assert.equal(new Set(LINK_DESIGN_PRESETS.map((entry) => entry.id)).size, LINK_DESIGN_PRESETS.length);
   assert.equal(new Set(CREATOR_LINK_BACKGROUND_PRESETS.map((entry) => entry.id)).size, CREATOR_LINK_BACKGROUND_PRESETS.length);
   for (const entry of LINK_DESIGN_PRESETS) assert.ok(findLinkDesignBackgroundById(entry.backgroundId));
+});
+
+test("every preset has a valid category and optional tags remain optional", () => {
+  const categories = new Set(LINK_DESIGN_PRESET_CATEGORIES);
+  assert.ok(LINK_DESIGN_PRESETS.every((entry) => categories.has(entry.category)));
+  assert.ok(LINK_DESIGN_PRESETS.some((entry) => entry.tags === undefined));
+});
+
+test("selectable catalog provides twelve normal, four gradient, and gold/silver metal presets", () => {
+  assert.equal(getLinkDesignPresets("normal").length, 12);
+  assert.equal(getLinkDesignPresets("gradient").length, 4);
+  assert.deepEqual(getLinkDesignPresets("metal").map((entry) => entry.name), ["Gold", "Chrome"]);
+  assert.equal(getLinkDesignPresets().length, 18);
+});
+
+test("editor exposes only non-empty categories while onboarding receives all selectable presets", () => {
+  assert.deepEqual(getAvailableLinkDesignPresetCategories(), ["normal", "gradient", "metal"]);
+  assert.deepEqual(getAvailableLinkDesignPresetCategories([...LINK_DESIGN_PRESETS, { category: "animal" }]), ["normal", "gradient", "metal", "animal"]);
+  for (const category of ["animal", "pattern", "emotion", "pretty", "nature", "city"] as const) assert.equal(getLinkDesignPresets(category).length, 0);
+  assert.deepEqual(getLinkDesignPresets().map((entry) => entry.id), LINK_DESIGN_PRESETS.map((entry) => entry.id));
+  assert.equal(getLinkDesignPresets().length, 18);
 });
 
 test("applying a preset updates page and item appearances", () => {
