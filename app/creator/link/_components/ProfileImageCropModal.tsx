@@ -34,8 +34,21 @@ function centerBetween(first: Point, second: Point): Point {
   return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
-  return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    try {
+      canvas.toBlob(
+        (blob) => {
+          if (blob && blob.size > 0) resolve(blob);
+          else reject(new Error(`canvas_to_blob_failed:${type}`));
+        },
+        type,
+        quality,
+      );
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 export default function ProfileImageCropModal({
@@ -207,6 +220,8 @@ export default function ProfileImageCropModal({
     if (!image || !imageReady || working) return;
     setWorking(true);
     setError(null);
+    let stage = "canvas_setup";
+    let croppedBlob: Blob | null = null;
     try {
       const displayScale = baseScale * zoom;
       const sourceSize = viewport / displayScale;
@@ -234,21 +249,30 @@ export default function ProfileImageCropModal({
         outputSize,
       );
 
-      let blob = await canvasToBlob(canvas, "image/webp", 0.85);
-      let extension = "webp";
-      let mimeType = "image/webp";
-      if (!blob || blob.type !== "image/webp") {
-        blob = await canvasToBlob(canvas, "image/jpeg", 0.88);
-        extension = "jpg";
-        mimeType = "image/jpeg";
+      stage = "canvas_encode_jpeg";
+      try {
+        croppedBlob = await canvasToBlob(canvas, "image/jpeg", 0.88);
+      } catch {
+        stage = "canvas_encode_png";
+        croppedBlob = await canvasToBlob(canvas, "image/png");
       }
-      if (!blob) throw new Error("crop_failed");
+      const mimeType = croppedBlob.type === "image/png" ? "image/png" : "image/jpeg";
+      const extension = mimeType === "image/png" ? "png" : "jpg";
 
+      stage = "persist_cropped_image";
       const uploaded = await onConfirm(
-        new File([blob], `avatar-cropped.${extension}`, { type: mimeType }),
+        new File([croppedBlob], `avatar-cropped.${extension}`, { type: mimeType }),
       );
       if (!uploaded) setWorking(false);
-    } catch {
+    } catch (caught) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[trendre-link/avatar] Failed to crop or persist guest image", {
+          stage,
+          error: caught,
+          source: { name: file.name, type: file.type, size: file.size },
+          cropped: croppedBlob ? { type: croppedBlob.type, size: croppedBlob.size } : null,
+        });
+      }
       setError(
         locale === "ja"
           ? "写真を保存できませんでした"
@@ -259,22 +283,28 @@ export default function ProfileImageCropModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[140] flex justify-center bg-[#1f1e21] md:items-center md:bg-black/75 md:p-6 md:backdrop-blur-sm">
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
+      <style jsx global>{`
+        @keyframes trendre-crop-open { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
+        .trendre-crop-dialog { animation: trendre-crop-open 200ms ease both; }
+        @media (prefers-reduced-motion: reduce) { .trendre-crop-dialog { animation: none; } }
+      `}</style>
       <section
         role="dialog"
         aria-modal="true"
         aria-label={locale === "ja" ? "プロフィール写真" : "Profile photo"}
-        className="flex h-[100dvh] w-full max-w-lg flex-col overflow-hidden bg-[#232225] text-white md:h-auto md:max-h-[90dvh] md:rounded-3xl"
+        className="trendre-crop-dialog flex max-h-[calc(100dvh-32px)] w-full max-w-lg flex-col overflow-hidden rounded-[28px] bg-white text-[#242326] shadow-[0_30px_90px_rgba(0,0,0,.28)]"
       >
-        <div className="shrink-0 pt-[env(safe-area-inset-top)]">
-          <header className="grid h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-white/10 px-3">
+        <div className="shrink-0">
+          <header className="grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-black/[0.06] px-3">
             <button
               type="button"
               disabled={working}
               onClick={onCancel}
-              className="min-h-11 justify-self-start px-2 text-sm text-white/75 disabled:opacity-50"
+              aria-label={locale === "ja" ? "閉じる" : "Close"}
+              className="flex h-11 w-11 items-center justify-center justify-self-start rounded-full text-xl text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
             >
-              {locale === "ja" ? "キャンセル" : "Cancel"}
+              ×
             </button>
             <h2 className="text-[16px] font-semibold">
               {locale === "ja" ? "プロフィール写真" : "Profile photo"}
@@ -283,7 +313,7 @@ export default function ProfileImageCropModal({
               type="button"
               disabled={!imageReady || working}
               onClick={() => void confirm()}
-              className="flex min-h-11 min-w-11 items-center justify-end gap-1.5 justify-self-end px-2 text-[15px] font-semibold text-rose-400 disabled:opacity-45"
+              className="onboarding-press flex min-h-11 min-w-[72px] items-center justify-center gap-1.5 justify-self-end rounded-full bg-[#242326] px-3 text-[13px] font-semibold text-white disabled:opacity-35"
             >
               {working ? (
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-300/35 border-t-rose-300" />
@@ -300,7 +330,7 @@ export default function ProfileImageCropModal({
         </div>
 
         <main className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-4 py-4">
-          <p className="mb-4 text-center text-sm text-white/65">
+          <p className="mb-4 text-center text-sm text-slate-500">
             {locale === "ja" ? "位置と大きさを調整" : "Adjust position and size"}
           </p>
           <div
@@ -310,7 +340,7 @@ export default function ProfileImageCropModal({
             onPointerUp={endGesture}
             onPointerCancel={endGesture}
             onContextMenu={(event) => event.preventDefault()}
-            className="relative mx-auto aspect-square w-full max-w-[420px] touch-none select-none overflow-hidden bg-black [webkit-touch-callout:none]"
+            className="relative mx-auto aspect-square w-full max-w-[420px] touch-none select-none overflow-hidden rounded-2xl bg-black [webkit-touch-callout:none]"
           >
             <img
               ref={imageRef}
@@ -348,14 +378,14 @@ export default function ProfileImageCropModal({
           </div>
 
           {error ? (
-            <p role="alert" className="mx-auto mt-3 w-full max-w-[420px] text-sm text-rose-300">
+            <p role="alert" className="mx-auto mt-3 w-full max-w-[420px] text-sm text-rose-600">
               {error}
             </p>
           ) : null}
         </main>
 
-        <div className="shrink-0 border-t border-white/10 bg-[#232225]/96 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
-          <label className="mx-auto block max-w-[420px] text-sm text-white/70">
+        <div className="shrink-0 border-t border-black/[0.06] bg-white/96 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <label className="mx-auto block max-w-[420px] text-sm text-slate-500">
             <span className="sr-only">{locale === "ja" ? "ズーム" : "Zoom"}</span>
             <input
               aria-label={locale === "ja" ? "ズーム" : "Zoom"}
@@ -366,7 +396,7 @@ export default function ProfileImageCropModal({
               value={zoom}
               disabled={!imageReady || working}
               onChange={(event) => changeZoom(Number(event.target.value))}
-              className="h-11 w-full accent-rose-400 disabled:opacity-50"
+                className="h-11 w-full accent-[#242326] disabled:opacity-50"
             />
           </label>
         </div>

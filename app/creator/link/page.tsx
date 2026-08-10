@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ExternalLink, Link2, MessageSquareText, Palette, Share2, Sparkles, UserRound } from "lucide-react";
 import TrendreLinkCanvas, {
   type TrendreLinkCanvasData,
   type TrendreLinkEditableField,
@@ -14,7 +15,10 @@ import InquiryFormModal from "@/components/trendre-link/InquiryFormModal";
 import CardDesignSelector from "./_components/CardDesignSelector";
 import EditorBottomSheet from "./_components/EditorBottomSheet";
 import ProfileImageCropModal from "./_components/ProfileImageCropModal";
+import CreatorLinkOnboarding, { type OnboardingLinkForm } from "./_components/CreatorLinkOnboarding";
+import CreatorLinkItemsEditor from "./_components/CreatorLinkItemsEditor";
 import { CREATOR_LINK_BACKGROUND_PRESETS } from "@/lib/trendre-link/background-presets";
+import type { CreatorLinkOnboardingPreset } from "@/lib/trendre-link/onboarding-presets";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
   isCreatorLinkStatus,
@@ -53,6 +57,7 @@ import type {
 
 type LinkFormState = {
   displayName: string;
+  displayNameColor: string | null;
   bio: string;
   slug: string;
   themeKey: CreatorLinkTheme;
@@ -66,8 +71,7 @@ type LinkFormState = {
 };
 
 type SlugCheckState = "idle" | "checking" | "available" | "unavailable" | "invalid";
-type EditorMode = "edit" | "preview";
-type Sheet = "profile" | "theme" | "social" | "social-design" | "link" | "inquiry" | null;
+type Sheet = "links" | "profile" | "theme" | "wallpaper" | "text" | "buttons" | "colors" | "social" | "social-design" | "link" | "inquiry" | null;
 type Toast = { tone: "success" | "error" | "info"; message: string } | null;
 type SocialInputs = Record<CreatorLinkSocialPlatform, string>;
 type SocialAppearances = Record<CreatorLinkSocialPlatform, CreatorLinkItemAppearance>;
@@ -89,6 +93,7 @@ function isCreatorLinkPage(value: unknown): value is CreatorLinkPage {
     typeof value.ownerUserId === "string" &&
     typeof value.slug === "string" &&
     typeof value.displayName === "string" &&
+    (value.displayNameColor === null || (typeof value.displayNameColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(value.displayNameColor))) &&
     (typeof value.bio === "string" || value.bio === null) &&
     isCreatorLinkTheme(typeof value.themeKey === "string" ? value.themeKey : "") &&
     isCreatorLinkStatus(typeof value.status === "string" ? value.status : "") &&
@@ -152,6 +157,7 @@ function getApiError(value: unknown, fallback: string): string {
 function toFormState(page: CreatorLinkPage): LinkFormState {
   return {
     displayName: page.displayName,
+    displayNameColor: page.displayNameColor,
     bio: page.bio ?? "",
     slug: page.slug,
     themeKey: page.themeKey,
@@ -166,7 +172,7 @@ function toFormState(page: CreatorLinkPage): LinkFormState {
 }
 
 function toInquiryFormEditor(types: CreatorLinkInquiryType[]): InquiryFormEditor {
-  const simple = types.find((item) => item.templateKey === null && item.isCustom);
+  const simple = types.find((item) => item.templateKey === null);
   const pr = types.find((item) => item.templateKey === "pr_post");
   return {
     simple: { title: simple?.title ?? INQUIRY_FORM_DEFAULTS.simple.title, isEnabled: simple?.isEnabled ?? false },
@@ -182,58 +188,12 @@ function CameraIcon() {
   return <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true"><path d="M8.5 6.5 10 4.75h4l1.5 1.75H18A2.5 2.5 0 0 1 20.5 9v7A2.5 2.5 0 0 1 18 18.5H6A2.5 2.5 0 0 1 3.5 16V9A2.5 2.5 0 0 1 6 6.5h2.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><circle cx="12" cy="12.5" r="3.25" stroke="currentColor" strokeWidth="1.7" /></svg>;
 }
 
-function CopyIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" strokeWidth="1.8" /></svg>;
-}
-
-function OpenIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
-}
-
 function UserIcon() {
   return <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" /><path d="M5 20c.7-3.7 3-5.5 7-5.5s6.3 1.8 7 5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
 }
 
 function CheckIcon() {
   return <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true"><path d="m5 12.5 4.2 4.2L19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-
-function FirstRunGuide({ locale, onStart, onLater }: { locale: "ja" | "en"; onStart: () => void; onLater: () => void }) {
-  const text = locale === "ja" ? {
-    title: "リンクを作りましょう",
-    description: "まずはプロフィールとSNSを追加すると、すぐに公開できます。",
-    steps: ["プロフィールを設定", "SNSやリンクを追加", "公開してプロフィールに貼る"],
-    start: "はじめる",
-    later: "あとで",
-  } : {
-    title: "Create your link",
-    description: "Add your profile and social links, then you can publish right away.",
-    steps: ["Set up your profile", "Add social profiles or links", "Publish and add it to your profile"],
-    start: "Get started",
-    later: "Later",
-  };
-
-  return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/30 px-0 backdrop-blur-[2px] sm:items-center sm:p-6">
-      <section role="dialog" aria-modal="true" aria-labelledby="first-run-title" aria-describedby="first-run-description" className="w-full max-w-md rounded-t-[28px] bg-[#fffdfa] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-16px_48px_rgba(15,23,42,0.16)] sm:rounded-[28px] sm:p-6">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300 sm:hidden" />
-        <h2 id="first-run-title" className="text-xl font-semibold tracking-[-0.03em] text-slate-900">{text.title}</h2>
-        <p id="first-run-description" className="mt-2 text-sm leading-6 text-slate-500">{text.description}</p>
-        <ol className="mt-4 space-y-2.5">
-          {text.steps.map((step, index) => <li key={step} className="flex items-center gap-3 text-sm text-slate-700"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-50 text-xs font-semibold text-[#d94b57]">{index + 1}</span><span>{step}</span></li>)}
-        </ol>
-        <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
-          <button type="button" onClick={onStart} autoFocus className="min-h-12 rounded-2xl bg-[#29272a] px-5 text-sm font-semibold text-white outline-none focus-visible:ring-4 focus-visible:ring-rose-200">{text.start}</button>
-          <button type="button" onClick={onLater} className="min-h-12 rounded-2xl px-5 text-sm font-medium text-slate-600 outline-none hover:bg-slate-100 focus-visible:ring-4 focus-visible:ring-slate-200">{text.later}</button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function ToolIcon({ name }: { name: string }) {
-  const path = name === "theme" ? "M4 12a8 8 0 1 1 8 8h-1.5a2 2 0 0 1 0-4H12a4 4 0 0 0 0-8" : name === "profile" ? "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8c.8-4 3.1-6 7-6s6.2 2 7 6" : name === "sns" ? "M7 7h10v10H7zM4 12h3m10 0h3M12 4v3m0 10v3" : name === "link" ? "m9 15 6-6m-8 9H6a4 4 0 0 1 0-8h3m6 0h3a4 4 0 1 1 0 8h-3" : "M5 5h14v14H5zM8 9h8m-8 4h5";
-  return <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true"><path d={path} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
 function TrashIcon() {
@@ -255,7 +215,6 @@ export default function CreatorLinkBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [slugCheck, setSlugCheck] = useState<SlugCheckState>("idle");
   const [slugError, setSlugError] = useState<string | null>(null);
-  const [mode, setMode] = useState<EditorMode>("edit");
   const [sheet, setSheet] = useState<Sheet>(null);
   const [editingField, setEditingField] = useState<TrendreLinkEditableField>(null);
   const [toast, setToast] = useState<Toast>(null);
@@ -267,6 +226,8 @@ export default function CreatorLinkBuilderPage() {
   const [uploadingImage, setUploadingImage] = useState<"avatar" | "background" | null>(null);
   const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
   const [showFirstRun, setShowFirstRun] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [onboardingCompletionReady, setOnboardingCompletionReady] = useState(false);
   const firstRunHandledRef = useRef(false);
   const publicUrlRef = useRef<HTMLInputElement>(null);
 
@@ -381,29 +342,29 @@ export default function CreatorLinkBuilderPage() {
     };
   }, [form?.slug, page?.id, router]);
 
-  const save = async (nextStatus: CreatorLinkStatus) => {
-    if (!form || !page || saving) return;
+  const save = async (nextStatus: CreatorLinkStatus): Promise<boolean> => {
+    if (!form || !page || saving) return false;
     if (nextStatus === "published" && !form.displayName.trim()) {
       setToast({ tone: "error", message: locale === "ja" ? "公開する前に表示名を設定してください。" : "Set a display name before publishing." });
       setSheet("profile");
-      return;
+      return false;
     }
     if (nextStatus === "published" && (slugCheck !== "available" || slugError)) {
       setToast({ tone: "error", message: locale === "ja" ? "公開URLを確認してください。" : "Check your public URL." });
       setSheet("profile");
-      return;
+      return false;
     }
-    if (slugCheck !== "available" || slugError) return;
+    if (slugCheck !== "available" || slugError) return false;
     setSaving(true);
     setToast(null);
     try {
       const response = await fetch("/api/creator/link/page", {
         method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id, displayName: form.displayName, bio: form.bio, slug: form.slug, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, isAcceptingInquiries: form.isAcceptingInquiries, status: nextStatus }),
+        body: JSON.stringify({ pageId: page.id, displayName: form.displayName, displayNameColor: form.displayNameColor, bio: form.bio, slug: form.slug, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, isAcceptingInquiries: form.isAcceptingInquiries, status: nextStatus }),
       });
       if (response.status === 401) {
         router.replace("/login");
-        return;
+        return false;
       }
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok || !isUpdateSuccess(data)) throw new Error(getApiError(data, copy.saveError));
@@ -411,8 +372,10 @@ export default function CreatorLinkBuilderPage() {
       setForm(toFormState(data.page));
       setSlugCheck("available");
       setToast({ tone: "success", message: nextStatus === "published" ? copy.publishedMessage : copy.saved });
+      return true;
     } catch (saveError) {
       setToast({ tone: "error", message: saveError instanceof Error ? saveError.message : copy.saveError });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -442,12 +405,12 @@ export default function CreatorLinkBuilderPage() {
     setSheet("link");
   };
 
-  const saveSocial = async (platform: CreatorLinkSocialPlatform) => {
-    if (!page || itemSaving) return;
+  const saveSocial = async (platform: CreatorLinkSocialPlatform): Promise<boolean> => {
+    if (!page || itemSaving) return false;
     const normalized = normalizeSocialProfile(platform, socialInputs[platform]);
     if (!normalized.ok) {
       setToast({ tone: "error", message: normalized.error });
-      return;
+      return false;
     }
     const existing = items.find((item) => item.itemType === "social" && item.platform === platform);
     setItemSaving(`social:${platform}`);
@@ -458,14 +421,16 @@ export default function CreatorLinkBuilderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId: page.id, itemType: "social", platform, url: socialInputs[platform], metadata: socialAppearances[platform] }),
       });
-      if (response.status === 401) { router.replace("/login"); return; }
+      if (response.status === 401) { router.replace("/login"); return false; }
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
       setItems((current) => existing ? current.map((item) => item.id === data.item.id ? data.item : item) : [...current, data.item]);
       setSocialInputs((current) => ({ ...current, [platform]: data.item.url ?? normalized.value.url }));
       setToast({ tone: "success", message: copy.itemSaved });
+      return true;
     } catch (error) {
       setToast({ tone: "error", message: error instanceof Error ? error.message : copy.itemError });
+      return false;
     } finally {
       setItemSaving(null);
     }
@@ -515,6 +480,82 @@ export default function CreatorLinkBuilderPage() {
       setItems((current) => linkEditor.id ? current.map((item) => item.id === data.item.id ? data.item : item) : [...current, data.item]);
       setLinkEditor({ id: data.item.id, title: data.item.title ?? "", url: data.item.url ?? "", appearance: data.item.metadata });
       setToast({ tone: "success", message: copy.itemSaved });
+      if (showFirstRun && onboardingStep === 4) {
+        setSheet(null);
+        setOnboardingStep(5);
+      }
+    } catch (error) {
+      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.itemError });
+    } finally {
+      setItemSaving(null);
+    }
+  };
+
+  const applyOnboardingPreset = async (preset: CreatorLinkOnboardingPreset): Promise<boolean> => {
+    if (!page || !form || itemSaving || saving) return false;
+    const previousForm = form;
+    const previousItems = items;
+    const nextForm = { ...form, ...preset.page, coverUrl: null };
+    const nextItems = items.map((item) => item.itemType === "social"
+      ? { ...item, metadata: { ...item.metadata, iconColor: preset.socialIconColor } }
+      : item.itemType === "link" ? { ...item, metadata: { ...preset.linkAppearance } } : item);
+    setForm(nextForm);
+    setItems(nextItems);
+    setItemSaving("style-preset");
+    try {
+      const pageRequest = fetch("/api/creator/link/page", {
+        method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: page.id, displayName: nextForm.displayName, displayNameColor: nextForm.displayNameColor, bio: nextForm.bio, slug: nextForm.slug, themeKey: nextForm.themeKey, accentColor: nextForm.accentColor, buttonStyle: nextForm.buttonStyle, fontStyle: nextForm.fontStyle, avatarUrl: nextForm.avatarUrl, coverUrl: nextForm.coverUrl, isAcceptingInquiries: nextForm.isAcceptingInquiries, status: nextForm.status }),
+      }).then(async (response) => ({ response, data: await response.json().catch(() => null) as unknown }));
+      const itemRequests = nextItems.filter((item) => item.itemType === "social" || item.itemType === "link").map(async (item) => {
+        const response = await fetch(`/api/creator/link/items/${item.id}`, {
+          method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...(item.itemType === "social" ? { platform: item.platform, url: item.url } : { title: item.title, url: item.url }), metadata: item.metadata }),
+        });
+        const data: unknown = await response.json().catch(() => null);
+        if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
+        return data.item;
+      });
+      const [{ response, data }, savedItems] = await Promise.all([pageRequest, Promise.all(itemRequests)]);
+      if (!response.ok || !isUpdateSuccess(data)) throw new Error(getApiError(data, copy.saveError));
+      setPage(data.page);
+      setForm(toFormState(data.page));
+      const savedById = new Map(savedItems.map((item) => [item.id, item]));
+      setItems((current) => current.map((item) => savedById.get(item.id) ?? item));
+      return true;
+    } catch (error) {
+      setForm(previousForm);
+      setItems(previousItems);
+      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.saveError });
+      return false;
+    } finally {
+      setItemSaving(null);
+    }
+  };
+
+  const toggleItemVisibility = async (item: CreatorLinkItem) => {
+    if (itemSaving || (item.itemType !== "social" && item.itemType !== "link")) return;
+    setItemSaving(item.id);
+    try {
+      const response = await fetch(`/api/creator/link/items/${item.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(item.itemType === "social"
+            ? { platform: item.platform, url: item.url }
+            : { title: item.title, url: item.url }),
+          metadata: item.metadata,
+          isVisible: !item.isVisible,
+        }),
+      });
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+      const data: unknown = await response.json().catch(() => null);
+      if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
+      setItems((current) => current.map((candidate) => candidate.id === data.item.id ? data.item : candidate));
     } catch (error) {
       setToast({ tone: "error", message: error instanceof Error ? error.message : copy.itemError });
     } finally {
@@ -540,7 +581,7 @@ export default function CreatorLinkBuilderPage() {
       if (!response.ok || !isInquiryFormsUpdateSuccess(data)) throw new Error(getApiError(data, "フォーム設定を保存できませんでした。"));
       setInquiryTypes((current) => {
         const managedIds = new Set(data.inquiryTypes.map((item) => item.id));
-        return [...current.filter((item) => !managedIds.has(item.id) && item.templateKey !== "pr_post" && !(item.templateKey === null && item.isCustom)), ...data.inquiryTypes];
+        return [...current.filter((item) => !managedIds.has(item.id) && item.templateKey !== "pr_post" && item.templateKey !== null), ...data.inquiryTypes];
       });
       setInquiryFormEditor(toInquiryFormEditor(data.inquiryTypes));
       setForm((current) => current ? { ...current, isAcceptingInquiries: data.isAcceptingInquiries } : current);
@@ -557,13 +598,13 @@ export default function CreatorLinkBuilderPage() {
     const orderedKinds = nextTypes.map((type) => type.templateKey === "pr_post" ? "pr" as const : "simple" as const);
     if (orderedKinds.length !== 2 || new Set(orderedKinds).size !== 2) return;
     const previous = inquiryTypes;
-    setInquiryTypes((current) => current.map((item) => { const kind = item.templateKey === "pr_post" ? "pr" : item.templateKey === null && item.isCustom ? "simple" : null; return kind ? { ...item, sortOrder: orderedKinds.indexOf(kind) } : item; }));
+    setInquiryTypes((current) => current.map((item) => { const kind = item.templateKey === "pr_post" ? "pr" : item.templateKey === null ? "simple" : null; return kind ? { ...item, sortOrder: orderedKinds.indexOf(kind) } : item; }));
     setInquirySaving(true);
     try {
       const response = await fetch("/api/creator/link/inquiry-types", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageId: page.id, forms: orderedKinds.map((kind, sortOrder) => ({ kind, title: inquiryFormEditor[kind].title, isEnabled: inquiryFormEditor[kind].isEnabled, sortOrder })) }) });
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok || !isInquiryFormsUpdateSuccess(data)) throw new Error(getApiError(data, "フォームの並び順を保存できませんでした。"));
-      setInquiryTypes((current) => [...current.filter((item) => item.templateKey !== "pr_post" && !(item.templateKey === null && item.isCustom)), ...data.inquiryTypes]);
+      setInquiryTypes((current) => [...current.filter((item) => item.templateKey !== "pr_post" && item.templateKey !== null), ...data.inquiryTypes]);
     } catch (error) {
       setInquiryTypes(previous);
       setToast({ tone: "error", message: error instanceof Error ? error.message : "フォームの並び順を保存できませんでした。" });
@@ -650,6 +691,7 @@ export default function CreatorLinkBuilderPage() {
 
   const isDirty =
     form.displayName !== page.displayName ||
+    form.displayNameColor !== page.displayNameColor ||
     form.bio !== (page.bio ?? "") ||
     form.slug !== page.slug ||
     form.themeKey !== page.themeKey ||
@@ -663,12 +705,35 @@ export default function CreatorLinkBuilderPage() {
   const slugMessage = slugError ? copy.checkFailed : slugCheck === "checking" ? copy.checking : slugCheck === "available" ? copy.available : slugCheck === "unavailable" ? copy.unavailable : copy.invalid;
   const slugTone = !slugError && slugCheck === "available" ? "text-emerald-600" : slugCheck === "checking" ? "text-amber-600" : "text-rose-600";
   const canSave = !saving && !slugError && slugCheck === "available" && form.displayName.trim().length > 0 && form.displayName.length <= 80 && form.bio.length <= 500;
+  const optimisticItems: TrendreLinkCanvasItem[] = items
+    .filter((item) => item.isVisible)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((item) => {
+      if (sheet === "social" && item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)) {
+        const normalized = normalizeSocialProfile(item.platform, socialInputs[item.platform]);
+        return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: item.title, description: item.description, url: normalized.ok ? normalized.value.url : item.url, imageUrl: item.imageUrl, metadata: item.metadata };
+      }
+      if (sheet === "link" && item.itemType === "link" && item.id === linkEditor.id) {
+        return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: linkEditor.title || item.title, description: item.description, url: linkEditor.url || item.url, imageUrl: item.imageUrl, metadata: linkEditor.appearance };
+      }
+      return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: item.title, description: item.description, url: item.url, imageUrl: item.imageUrl, metadata: sheet === "social-design" && item.platform && isCreatorLinkSocialPlatform(item.platform) ? socialAppearances[item.platform] : item.metadata };
+    });
+  if (sheet === "social") {
+    for (const platform of CREATOR_LINK_SOCIAL_PLATFORMS) {
+      if (optimisticItems.some((item) => item.itemType === "social" && item.platform === platform)) continue;
+      const normalized = normalizeSocialProfile(platform, socialInputs[platform]);
+      if (normalized.ok) optimisticItems.push({ itemType: "social", platform, title: null, description: null, url: normalized.value.url, imageUrl: null, metadata: socialAppearances[platform] });
+    }
+  }
+  const draftLink = validateGeneralLink(linkEditor);
+  if (sheet === "link" && !linkEditor.id && draftLink.ok) {
+    optimisticItems.push({ itemType: "link", platform: null, title: linkEditor.title, description: null, url: draftLink.value.url, imageUrl: null, metadata: linkEditor.appearance });
+  }
   const viewData: TrendreLinkCanvasData = {
-    page: { slug: form.slug, displayName: form.displayName, bio: form.bio, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, isAcceptingInquiries: form.isAcceptingInquiries },
-    items: items.filter((item) => item.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).map((item) => ({ id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: item.title, description: item.description, url: item.url, imageUrl: item.imageUrl, metadata: sheet === "social-design" && item.platform && isCreatorLinkSocialPlatform(item.platform) ? socialAppearances[item.platform] : sheet === "link" && item.id === linkEditor.id ? linkEditor.appearance : item.metadata })),
+    page: { slug: form.slug, displayName: form.displayName, displayNameColor: form.displayNameColor, bio: form.bio, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, isAcceptingInquiries: form.isAcceptingInquiries },
+    items: optimisticItems,
     inquiryTypes: inquiryTypes.filter((item) => item.isEnabled).map((item) => ({ id: item.id, sortOrder: item.sortOrder, templateKey: item.templateKey, title: item.title, description: item.description, isCustom: item.isCustom })),
   };
-  const rightAction = form.status === "published" ? { label: copy.unpublish, status: "private" as const } : { label: copy.publish, status: "published" as const };
 
   const copyPublicUrl = async () => {
     let copied = false;
@@ -692,87 +757,143 @@ export default function CreatorLinkBuilderPage() {
     else { publicUrlRef.current?.focus(); publicUrlRef.current?.select(); setToast({ tone: "error", message: locale === "ja" ? "URLを選択してください" : "Select the URL to copy" }); }
   };
 
-  const tools = [
-    { key: "theme", label: copy.theme, action: () => setSheet("theme") },
-    { key: "profile", label: copy.profile, action: () => setSheet("profile") },
-    { key: "sns", label: copy.sns, action: openSocialSheet },
-    { key: "link", label: copy.link, action: () => openLinkSheet() },
-    { key: "inquiry", label: copy.inquiry, action: () => setSheet("inquiry") },
+  const sheetTitle = sheet === "links" ? (locale === "ja" ? "リンク" : "Links")
+    : sheet === "theme" ? (locale === "ja" ? "デザイン" : "Design")
+    : sheet === "wallpaper" ? (locale === "ja" ? "壁紙・背景" : "Wallpaper")
+    : sheet === "text" ? (locale === "ja" ? "テキスト" : "Text")
+    : sheet === "buttons" ? (locale === "ja" ? "ボタン" : "Buttons")
+    : sheet === "colors" ? (locale === "ja" ? "カラー" : "Colors")
+    : sheet === "profile" ? copy.urlSettings
+    : sheet === "social" ? copy.socialTitle
+    : sheet === "social-design" ? `${activeSocial === "instagram" ? "Instagram" : activeSocial === "tiktok" ? "TikTok" : activeSocial === "x" ? "X" : "YouTube"}${locale === "ja" ? "のデザイン" : " design"}`
+    : sheet === "link" ? (linkEditor.id ? copy.editLinkTitle : copy.linkTitle)
+    : (locale === "ja" ? "仕事の依頼・相談" : "Work inquiries");
+  const sheetDescription = sheet === "profile" ? copy.urlHelp
+    : sheet === "social" ? copy.socialHelp
+    : sheet === "social-design" ? (locale === "ja" ? "形・見た目・カラーを選択します" : "Choose shape, surface and color")
+    : sheet === "inquiry" ? (locale === "ja" ? "公開ページから受け付ける相談内容を設定します" : "Choose the inquiries shown on your public page")
+    : undefined;
+  const designCategories = [
+    { key: "theme" as const, label: "Theme", icon: Palette },
+    { key: "profile" as const, label: "Header", icon: UserIcon },
+    { key: "wallpaper" as const, label: "Wallpaper", icon: CameraIcon },
+    { key: "text" as const, label: "Text", icon: MessageSquareText },
+    { key: "buttons" as const, label: "Buttons", icon: Link2 },
+    { key: "colors" as const, label: "Colors", icon: Palette },
   ];
-  const sheetTitle = sheet === "theme" ? copy.themeTitle : sheet === "profile" ? copy.urlSettings : sheet === "social" ? copy.socialTitle : sheet === "social-design" ? `${activeSocial === "instagram" ? "Instagram" : activeSocial === "tiktok" ? "TikTok" : activeSocial === "x" ? "X" : "YouTube"}${locale === "ja" ? "のデザイン" : " design"}` : sheet === "link" ? (linkEditor.id ? copy.editLinkTitle : copy.linkTitle) : copy.inquiryTitle;
-  const sheetDescription = sheet === "theme" ? copy.themeHelp : sheet === "profile" ? copy.urlHelp : sheet === "social" ? copy.socialHelp : sheet === "social-design" ? (locale === "ja" ? "形・見た目・カラーを選択します" : "Choose shape, surface and color") : sheet === "link" ? undefined : copy.inquiryHelp;
+  const isDesignSheet = sheet === "theme" || sheet === "wallpaper" || sheet === "text" || sheet === "buttons" || sheet === "colors";
+  const editorNavigation = [
+    { key: "links" as const, label: "Links", icon: Link2, action: () => setSheet("links") },
+    { key: "theme" as const, label: "Design", icon: Sparkles, action: () => setSheet("theme") },
+    { key: "profile" as const, label: "Profile", icon: UserRound, action: () => setSheet("profile") },
+    { key: "social" as const, label: "Social", icon: Share2, action: openSocialSheet },
+    { key: "inquiry" as const, label: locale === "ja" ? "仕事相談" : "Work", icon: MessageSquareText, action: () => setSheet("inquiry") },
+  ];
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-slate-100 text-slate-950">
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/60 bg-[#fffdfa]/95 shadow-[0_1px_6px_rgba(15,23,42,0.025)] backdrop-blur-xl">
-        <div className="mx-auto grid h-[54px] max-w-6xl grid-cols-[minmax(72px,1fr)_auto_minmax(72px,1fr)] items-center px-1.5 sm:px-4">
-          <div className="flex min-w-0 items-center overflow-hidden whitespace-nowrap">
-            <Link href="/creator/dashboard" aria-label={copy.back} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><BackIcon /></Link>
-            <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.02em]">Trendre</span>
-          </div>
-          <div className="grid h-9 w-[138px] grid-cols-2 rounded-lg border border-slate-200/70 bg-slate-100/70 p-0.5">
-            {(["edit", "preview"] as const).map((value) => <button key={value} type="button" onClick={() => { setMode(value); setEditingField(null); setSheet(null); }} className={`rounded-md text-[13px] font-medium transition ${mode === value ? "bg-[#fffdfa] text-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.07)]" : "text-slate-500"}`}>{value === "edit" ? copy.edit : copy.preview}</button>)}
-          </div>
-          <div className="flex min-w-0 items-center justify-end gap-0.5 overflow-hidden whitespace-nowrap">
-            <button type="button" onClick={() => void copyPublicUrl()} aria-label={copy.copyUrl} className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><CopyIcon /></button>
-            {page.status === "published" ? <Link href={`/in/${page.slug}`} target="_blank" rel="noopener noreferrer" aria-label={copy.openPage} className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 sm:flex"><OpenIcon /></Link> : null}
-            <Link href="/creator/profile" aria-label={copy.accountProfile} className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"><UserIcon /></Link>
+    <div className="h-[100dvh] min-h-0 overflow-hidden bg-[#f3f1ed] pb-[calc(68px+env(safe-area-inset-bottom))] text-slate-950">
+      <style jsx global>{`
+        .trendre-editor-preview { width: 286px; height: 555px; transition: width 320ms ease, height 320ms ease, transform 320ms ease; }
+        .trendre-editor-preview > div { width: 480px; transform: scale(.5958333); }
+        .trendre-editor-preview.is-editing { width: 196px; height: 350px; transform: translateY(-2px); }
+        .trendre-editor-preview.is-editing > div { transform: scale(.4083333); }
+        @keyframes trendre-sheet-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        .trendre-inline-editor-panel { animation: trendre-sheet-in 300ms ease both; }
+        @media (max-width: 360px), (max-height: 720px) {
+          .trendre-editor-preview { width: 238px; height: 430px; }
+          .trendre-editor-preview > div { transform: scale(.4958333); }
+          .trendre-editor-preview.is-editing { width: 146px; height: 246px; }
+          .trendre-editor-preview.is-editing > div { transform: scale(.3041667); }
+        }
+        @media (max-height: 620px) {
+          .trendre-editor-preview { width: 190px; height: 330px; }
+          .trendre-editor-preview > div { transform: scale(.3958333); }
+          .trendre-editor-preview.is-editing { width: 100px; height: 170px; }
+          .trendre-editor-preview.is-editing > div { transform: scale(.2083333); }
+        }
+        @media (min-height: 900px) and (min-width: 390px) {
+          .trendre-editor-preview { width: 310px; height: 604px; }
+          .trendre-editor-preview > div { transform: scale(.6458333); }
+          .trendre-editor-preview.is-editing { width: 212px; height: 400px; }
+          .trendre-editor-preview.is-editing > div { transform: scale(.4416667); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .trendre-editor-preview, .trendre-editor-preview > div { transition: none !important; }
+          .trendre-inline-editor-panel { animation: none !important; }
+        }
+      `}</style>
+      <header className="relative z-50 border-b border-black/[0.055] bg-[#fffdfa]/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+        <div className="mx-auto grid h-[60px] max-w-3xl grid-cols-[48px_1fr_auto] items-center px-2">
+          <Link href="/creator/dashboard" aria-label={copy.back} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"><BackIcon /></Link>
+          <h1 className="text-center text-[16px] font-semibold tracking-[-0.025em]">Link</h1>
+          <div className="flex min-w-[92px] justify-end gap-0.5">
+            <button type="button" onClick={() => void copyPublicUrl()} aria-label={copy.copyUrl} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><Share2 className="h-[19px] w-[19px]" /></button>
+            {isDirty ? <button type="button" disabled={!canSave} onClick={() => void save(form.status)} className="onboarding-press min-h-10 rounded-full bg-[#242326] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{saving ? copy.saving : copy.saveChanges}</button> : <Link href={`/in/${form.slug}`} target="_blank" rel="noopener noreferrer" aria-label={copy.openPage} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><ExternalLink className="h-[19px] w-[19px]" /></Link>}
           </div>
         </div>
       </header>
 
-      {mode === "edit" ? (
-        <div className="fixed inset-x-0 top-[54px] z-40 border-b border-slate-200/60 bg-[#fffdfa]/95 backdrop-blur-xl">
-          <div className="mx-auto grid h-[56px] max-w-[520px] grid-cols-5 px-1">
-            {tools.map((tool) => { const active = sheet === tool.key || (tool.key === "theme" && sheet === "theme") || (tool.key === "profile" && sheet === "profile"); return <button key={tool.key} type="button" onClick={tool.action} className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium transition ${active ? "text-[#ed5964]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"}`}><ToolIcon name={tool.key} /><span className="truncate">{tool.label}</span></button>; })}
-          </div>
-        </div>
-      ) : null}
+      {toast ? <div role="status" className={`fixed left-1/2 top-[calc(68px+env(safe-area-inset-top))] z-[120] max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-full px-4 py-2 text-center text-xs font-medium shadow-md ${toast.tone === "error" ? "bg-rose-600 text-white" : toast.tone === "success" ? "bg-[#29272a] text-white" : "bg-[#fffdfa] text-slate-700 ring-1 ring-slate-200"}`}>{toast.message}</div> : null}
 
-      {toast ? <div className={`fixed left-1/2 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-xs font-medium shadow-md ${mode === "edit" ? "top-[116px]" : "top-[61px]"} ${toast.tone === "error" ? "bg-rose-600 text-white" : toast.tone === "success" ? "bg-[#29272a] text-white" : "bg-[#fffdfa] text-slate-700 ring-1 ring-slate-200"}`}>{toast.message}</div> : null}
-
-      <main className={`${mode === "edit" ? "pt-[110px]" : "pt-[54px]"} min-h-screen bg-slate-100 md:pb-8`}>
-        {mode === "edit" ? (
-          <div className="mx-auto flex h-[38px] w-full max-w-[520px] items-center justify-between gap-3 border-b border-slate-200/60 bg-[#fffdfa] px-4 text-[13px] text-slate-700 md:mt-4 md:rounded-t-xl">
-            <input ref={publicUrlRef} readOnly value={publicUrl} aria-label={locale === "ja" ? "公開URL" : "Public URL"} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 select-text bg-transparent font-medium text-slate-700 outline-none" />
-            <button type="button" onClick={() => void copyPublicUrl()} aria-label={copy.copyUrl} className="flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-slate-800"><CopyIcon /></button>
-          </div>
-        ) : null}
-        <div className={`mx-auto min-h-[calc(100vh-3.5rem)] w-full max-w-[520px] overflow-hidden md:shadow-[0_20px_70px_rgba(15,23,42,0.12)] ${mode === "edit" ? "md:rounded-b-xl" : "md:mt-5 md:rounded-xl"}`}>
-          <TrendreLinkCanvas
-            data={viewData}
-            mode={mode}
-            locale={locale}
-            editingField={editingField}
-            onEditingFieldChange={setEditingField}
-            onDisplayNameChange={(value) => setForm({ ...form, displayName: value })}
-            onBioChange={(value) => setForm({ ...form, bio: value })}
-            onEditProfile={() => setSheet("profile")}
-            onEditInquirySettings={() => setSheet("inquiry")}
-            onAddFirstLink={() => openLinkSheet()}
-            onEditItem={(item) => { if (item.itemType === "social") { if (item.platform && isCreatorLinkSocialPlatform(item.platform)) setActiveSocial(item.platform); openSocialSheet(); } else if (item.itemType === "link") openLinkSheet(item); }}
-            onReorderItems={(nextItems) => void reorderItems(nextItems)}
-            onReorderInquiryTypes={(nextTypes) => void reorderInquiryTypes(nextTypes)}
-          />
+      <main className={`relative mx-auto flex h-[calc(100%_-_60px_-_env(safe-area-inset-top))] min-h-0 w-full max-w-[720px] items-center justify-center overflow-hidden transition-[padding] duration-300 motion-reduce:transition-none ${sheet && !showFirstRun ? "pb-[min(48dvh,380px)]" : "pb-[74px]"}`}>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-8 top-6 h-24 rounded-full bg-white/65 blur-3xl" />
+        <div className={`trendre-editor-preview relative overflow-hidden rounded-[32px] border-[5px] border-[#242326] bg-[#242326] shadow-[0_22px_60px_rgba(34,31,38,.17)] ${sheet && !showFirstRun ? "is-editing" : ""}`} aria-label="公開ページのライブプレビュー">
+          <div className="pointer-events-none origin-top-left transition-transform duration-300 motion-reduce:transition-none"><TrendreLinkCanvas data={viewData} mode="preview" locale={locale} /></div>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[27px] ring-1 ring-inset ring-white/20" />
         </div>
+        {!sheet ? <div className="absolute bottom-[86px] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-medium text-slate-600 shadow-sm backdrop-blur"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Live Preview</div> : null}
+        <input ref={publicUrlRef} readOnly value={publicUrl} className="sr-only" tabIndex={-1} aria-label={locale === "ja" ? "公開URL" : "Public URL"} />
+
+        {!sheet ? <nav aria-label={locale === "ja" ? "Link編集" : "Link editor"} className="absolute inset-x-3 bottom-2 z-30 mx-auto max-w-[560px] rounded-[22px] bg-[#fffdfa]/94 p-1.5 shadow-[0_8px_30px_rgba(31,28,35,.10)] ring-1 ring-black/[0.055] backdrop-blur-xl">
+          <div className="grid grid-cols-5 gap-0.5">
+            {editorNavigation.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" onClick={item.action} className="onboarding-press flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-[17px] px-0.5 text-[10px] font-semibold text-slate-500 outline-none hover:bg-black/[0.035] focus-visible:ring-4 focus-visible:ring-rose-200"><Icon className="h-[19px] w-[19px]" aria-hidden="true" /><span className="max-w-full truncate">{item.label}</span></button>; })}
+          </div>
+        </nav> : null}
       </main>
 
-      {mode === "edit" && (isDirty || form.status !== "published") ? (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200/60 bg-[#fffdfa]/88 px-3 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
-          <div className={`mx-auto flex max-w-lg gap-2 ${isDirty ? "" : "justify-end"}`}>
-            {isDirty ? <button type="button" disabled={!canSave} onClick={() => void save(form.status)} className="min-h-11 flex-1 rounded-xl border border-slate-200 bg-[#fffdfa] text-sm font-medium text-slate-700 disabled:opacity-40">{saving ? copy.saving : copy.saveChanges}</button> : form.status === "private" ? <button type="button" disabled={!canSave} onClick={() => void save("draft")} className="min-h-10 rounded-xl border border-slate-200 bg-[#fffdfa] px-4 text-sm font-medium text-slate-600 disabled:opacity-40">{copy.backToDraft}</button> : null}
-            <button type="button" disabled={saving || (rightAction.status !== "published" && !canSave)} onClick={() => void save(rightAction.status)} className={`${isDirty ? "flex-1" : "px-5"} min-h-11 rounded-xl bg-[#29272a] text-sm font-medium text-white disabled:opacity-40`}>{saving ? copy.saving : rightAction.label}</button>
-          </div>
-        </div>
-      ) : null}
-
       {sheet ? (
-        <EditorBottomSheet title={sheetTitle} description={sheetDescription} closeLabel={copy.close} onClose={() => setSheet(null)}>
+        <div className={`${showFirstRun ? "" : "fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] z-[55] mx-auto h-[min(48dvh,380px)] max-w-[720px]"}`}>
+        <EditorBottomSheet inline={!showFirstRun} title={sheetTitle} description={sheetDescription} closeLabel={copy.close} onClose={() => setSheet(null)}>
+
+            {sheet === "links" ? <CreatorLinkItemsEditor items={items} busyItemId={itemSaving} onAdd={() => openLinkSheet()} onEdit={openLinkSheet} onToggle={(item) => void toggleItemVisibility(item)} onReorder={(nextItems) => void reorderItems(nextItems)} /> : null}
+
+            {isDesignSheet ? <div role="tablist" aria-label="Design categories" className="sticky top-0 z-10 -mx-4 flex gap-1.5 overflow-x-auto border-b border-black/[0.05] bg-[#fffdfa]/96 px-4 py-2 [scrollbar-width:none]">
+              {designCategories.map((category) => { const Icon = category.icon; const selected = sheet === category.key; return <button key={category.key} type="button" role="tab" aria-selected={selected} onClick={() => setSheet(category.key)} className={`onboarding-press flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold outline-none focus-visible:ring-4 focus-visible:ring-rose-200 ${selected ? "bg-[#242326] text-white" : "bg-slate-100 text-slate-600"}`}><Icon className="h-4 w-4" aria-hidden="true" />{category.label}</button>; })}
+            </div> : null}
 
             {sheet === "theme" ? (
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {([
+                  { key: "soft-ivory", name: "Classic", background: "linear-gradient(145deg,#fffaf0,#f4e7d4)", foreground: "#29272a" },
+                  { key: "night-purple", name: "Hero", background: "linear-gradient(145deg,#14101d,#34234a)", foreground: "#fff" },
+                  { key: "minimal-black", name: "Burst", background: "#18171b", foreground: "#fff" },
+                ] as const).map((theme) => { const selected = form.themeKey === theme.key; return <button key={theme.key} type="button" aria-pressed={selected} onClick={() => setForm({ ...form, themeKey: theme.key })} className={`overflow-hidden rounded-xl border bg-white text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 ${selected ? "border-slate-950 ring-1 ring-slate-950" : "border-slate-200"}`}><div className="h-32 p-4" style={{ background: theme.background, color: theme.foreground }}><div className="mx-auto h-9 w-9 rounded-full border border-current/20 bg-current/10" /><div className="mx-auto mt-3 h-2 w-16 rounded-full bg-current opacity-30" /><div className="mt-4 h-8 rounded-lg border border-current/25" /></div><div className="flex h-11 items-center justify-between px-3 text-sm font-semibold"><span>{theme.name}</span>{selected ? <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-950 text-white"><CheckIcon /></span> : null}</div></button>; })}
+              </div>
+            ) : null}
+
+            {sheet === "text" ? (
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {(["modern", "soft", "serif", "bold"] as CreatorLinkFontStyle[]).map((font) => <button key={font} type="button" aria-pressed={form.fontStyle === font} onClick={() => setForm({ ...form, fontStyle: font })} className={`flex min-h-28 flex-col items-start justify-between rounded-xl border bg-white p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 ${form.fontStyle === font ? "border-slate-950 ring-1 ring-slate-950" : "border-slate-200"}`}><span className={`text-2xl ${font === "serif" ? "font-serif" : font === "bold" ? "font-black" : font === "soft" ? "font-medium tracking-wide" : "font-semibold"}`}>Aa</span><span className="text-sm font-medium capitalize">{font}</span></button>)}
+              </div>
+            ) : null}
+
+            {sheet === "buttons" ? (
+              <div className="mt-5 space-y-3">
+                {(["rounded", "pill", "square", "glass"] as CreatorLinkButtonStyle[]).map((style) => <button key={style} type="button" aria-pressed={form.buttonStyle === style} onClick={() => setForm({ ...form, buttonStyle: style })} className={`flex min-h-16 w-full items-center justify-between border px-5 text-left text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 ${style === "pill" ? "rounded-full" : style === "square" ? "rounded-none" : "rounded-xl"} ${style === "glass" ? "bg-white/50 backdrop-blur ring-1 ring-white/70" : "bg-white"} ${form.buttonStyle === style ? "border-slate-950" : "border-slate-200"}`}><span className="capitalize">{style}</span>{form.buttonStyle === style ? <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-950 text-white"><CheckIcon /></span> : null}</button>)}
+                <p className="pt-2 text-xs leading-5 text-slate-500">{locale === "ja" ? "リンクごとの色やレイアウトは、Linksタブから各リンクを編集すると変更できます。" : "Edit an individual link from the Links tab to change its color and layout."}</p>
+              </div>
+            ) : null}
+
+            {sheet === "colors" ? (
+              <div className="mt-5 grid grid-cols-5 gap-x-3 gap-y-5">
+                {["#ED5964", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#3B82F6", "#6366F1", "#A855F7", "#EC4899", "#29272A"].map((color) => <button key={color} type="button" aria-label={color} aria-pressed={form.accentColor === color} onClick={() => setForm({ ...form, accentColor: color })} className={`relative aspect-square min-h-11 rounded-full border-4 border-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 ${form.accentColor === color ? "ring-2 ring-slate-950 ring-offset-2" : "ring-1 ring-black/10"}`} style={{ backgroundColor: color }}>{form.accentColor === color ? <span className="absolute inset-0 flex items-center justify-center text-white"><CheckIcon /></span> : null}</button>)}
+              </div>
+            ) : null}
+
+            {sheet === "wallpaper" ? (
               <div className="mt-5">
                 <div className="mb-5 min-h-[104px] rounded-2xl bg-slate-50/75 p-3"><div className="flex items-center gap-3">{form.coverUrl ? <img src={form.coverUrl} alt="" className="h-20 w-24 rounded-xl object-cover" /> : <div className="flex h-20 w-24 items-center justify-center rounded-xl bg-slate-200 text-xs text-slate-400">Photo</div>}<div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-800">{locale === "ja" ? "背景写真" : "Background photo"}</p><p className="mt-0.5 text-xs text-slate-500">JPEG / PNG / WebP・10MBまで</p><div className="mt-2 flex flex-wrap gap-1"><label className="flex h-10 cursor-pointer items-center rounded-xl bg-[#29272a] px-3 text-xs font-medium text-white"><input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={Boolean(uploadingImage)} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadImage(file, "background"); event.currentTarget.value = ""; }} />{uploadingImage === "background" ? copy.saving : form.coverUrl ? (locale === "ja" ? "差し替え" : "Replace") : (locale === "ja" ? "写真を選択" : "Choose")}</label>{form.coverUrl ? <button type="button" onClick={() => setForm({ ...form, coverUrl: null })} className="h-10 px-2 text-xs text-slate-600">{locale === "ja" ? "テンプレート" : "Template"}</button> : null}</div></div></div></div>
-                {(["solid", "gradient", "metallic"] as const).map((group) => <div key={group} className="mt-5"><p className="mb-3 text-sm font-medium text-slate-700">{group === "solid" ? "Solid" : group === "gradient" ? "Gradient" : "Metallic"}</p><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{CREATOR_LINK_BACKGROUND_PRESETS.filter((preset) => preset.group === group).map((preset) => { const selected = form.themeKey === preset.themeKey && form.accentColor === preset.accentColor && form.buttonStyle === preset.buttonStyle && form.fontStyle === preset.fontStyle; return <button key={preset.name} type="button" aria-pressed={selected} onClick={() => setForm({ ...form, themeKey: preset.themeKey, accentColor: preset.accentColor, buttonStyle: preset.buttonStyle, fontStyle: preset.fontStyle, coverUrl: null })} className={`relative overflow-hidden rounded-xl border bg-white text-left transition ${selected ? "border-rose-300" : "border-slate-200/80"}`}><div style={{ background: preset.background, color: preset.foreground === "light" ? "#FAF9F7" : "#29272A" }} className="h-[116px] p-3"><div className="mx-auto mt-1 h-6 w-6 rounded-full border border-current/20 bg-white/20" /><div className="mx-auto mt-2.5 h-1.5 w-12 rounded bg-current opacity-25" /><div className="mt-3 h-5 rounded-lg border border-current/20 bg-white/20" /></div><div className="flex h-8 items-center justify-between px-3"><span className="truncate text-xs font-medium text-slate-800">{preset.name}</span>{selected ? <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white"><CheckIcon /></span> : null}</div></button>; })}</div></div>)}
+                {(["solid", "gradient", "pattern", "texture", "metallic"] as const).map((group) => <div key={group} className="mt-5"><p className="mb-3 text-sm font-medium text-slate-700">{group === "solid" ? "Solid" : group === "gradient" ? "Gradient" : group === "pattern" ? "Pattern" : group === "texture" ? "Texture" : "Metallic"}</p><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{CREATOR_LINK_BACKGROUND_PRESETS.filter((preset) => preset.group === group).map((preset) => { const selected = form.accentColor === preset.accentColor && !form.coverUrl; return <button key={preset.name} type="button" aria-pressed={selected} onClick={() => setForm({ ...form, accentColor: preset.accentColor, coverUrl: null })} className={`relative overflow-hidden rounded-xl border bg-white text-left transition ${selected ? "border-slate-950 ring-1 ring-slate-950" : "border-slate-200/80"}`}><div style={{ background: preset.background, color: preset.foreground === "light" ? "#FAF9F7" : "#29272A" }} className="h-[116px] p-3"><div className="mx-auto mt-1 h-6 w-6 rounded-full border border-current/20 bg-white/20" /><div className="mx-auto mt-2.5 h-1.5 w-12 rounded bg-current opacity-25" /><div className="mt-3 h-5 rounded-lg border border-current/20 bg-white/20" /></div><div className="flex h-8 items-center justify-between px-3"><span className="truncate text-xs font-medium text-slate-800">{preset.name}</span>{selected ? <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-950 text-white"><CheckIcon /></span> : null}</div></button>; })}</div></div>)}
               </div>
             ) : null}
 
@@ -838,17 +959,16 @@ export default function CreatorLinkBuilderPage() {
                 <label className="block text-sm font-medium text-slate-600">{copy.bio}<textarea value={form.bio} maxLength={500} rows={4} onChange={(event) => setForm({ ...form, bio: event.target.value })} className="mt-1.5 h-32 w-full resize-none select-text rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-base outline-none focus:border-rose-400" /><span className="mt-1 block text-right text-xs text-slate-400">{form.bio.length}/500</span></label>
                 <label className="block text-sm font-medium text-slate-600">slug<div className="mt-1.5 flex h-12 overflow-hidden rounded-xl border border-slate-200 bg-white/80 focus-within:border-rose-400"><span className="flex shrink-0 items-center border-r border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500">trendre.jp/in/</span><input value={form.slug} maxLength={50} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => { setForm({ ...form, slug: event.target.value }); setSlugError(null); }} className="min-w-0 flex-1 select-text bg-transparent px-3 text-base outline-none" /></div></label>
                 <p className={`flex items-center gap-1.5 text-xs font-medium ${slugTone}`}>{!slugError && slugCheck === "available" ? <CheckIcon /> : null}{slugMessage}</p>
-                <button type="button" onClick={() => setSheet(null)} className="w-full rounded-xl bg-slate-950 py-3 text-sm font-medium text-white">{copy.done}</button>
+                <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-black/[0.06] bg-[#fffdfa]/95 px-4 pb-2 pt-3 backdrop-blur"><button type="button" onClick={() => setSheet(null)} className="min-h-11 flex-1 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700">{copy.done}</button><button type="button" disabled={!canSave || saving} onClick={() => void save(form.status === "published" ? "private" : "published")} className="min-h-11 flex-1 rounded-full bg-[#242326] px-4 text-sm font-semibold text-white disabled:opacity-35">{form.status === "published" ? copy.unpublish : copy.publish}</button></div>
               </div>
             ) : null}
 
             {sheet === "social" ? (
-              <div className="mt-4 divide-y divide-slate-200/70">
-                {CREATOR_LINK_SOCIAL_PLATFORMS.map((platform) => {
-                  const existing = items.find((item) => item.itemType === "social" && item.platform === platform);
-                  const label = platform === "instagram" ? "Instagram" : platform === "tiktok" ? "TikTok" : platform === "x" ? "X" : "YouTube";
-                  return <div key={platform} className="py-4"><div className="mb-2 flex items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center text-slate-700"><SocialBrandIcon platform={platform} brand /></span><span className="text-sm font-medium text-slate-800">{label}</span>{existing ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{locale === "ja" ? "登録済み" : "Connected"}</span> : null}<span className="flex-1" />{existing ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(existing.id)} aria-label={`${label} ${copy.deleteItem}`} className="flex h-11 w-11 items-center justify-center text-slate-400 hover:text-rose-600 disabled:opacity-40"><TrashIcon /></button> : null}</div><div className="flex gap-2 pl-10"><input type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={socialInputs[platform]} onFocus={() => setActiveSocial(platform)} onChange={(event) => setSocialInputs({ ...socialInputs, [platform]: event.target.value })} placeholder={platform === "youtube" ? "@handle / youtube.com/..." : "@username / URL"} className="h-12 min-w-0 flex-1 select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /><button type="button" disabled={Boolean(itemSaving) || !socialInputs[platform].trim()} onClick={() => void saveSocial(platform)} className="h-12 w-16 shrink-0 rounded-xl bg-[#29272a] text-sm font-medium text-white disabled:bg-slate-200 disabled:text-slate-400">{copy.saveItem}</button></div>{existing ? <div className="mt-2 pl-10"><button type="button" onClick={() => { setActiveSocial(platform); setSheet("social-design"); }} className="h-10 px-2 text-xs font-medium text-slate-600">{locale === "ja" ? "デザイン" : "Design"}</button></div> : null}</div>;
-                })}
+              <div className="pt-4">
+                <div role="tablist" aria-label="SNS" className="flex items-center justify-center gap-2">
+                  {CREATOR_LINK_SOCIAL_PLATFORMS.map((platform) => { const connected = items.some((item) => item.itemType === "social" && item.platform === platform); return <button key={platform} type="button" role="tab" aria-selected={activeSocial === platform} onClick={() => setActiveSocial(platform)} aria-label={platform === "x" ? "X" : platform} className={`onboarding-press relative flex h-12 w-12 items-center justify-center rounded-full outline-none focus-visible:ring-4 focus-visible:ring-rose-200 ${activeSocial === platform ? "bg-[#242326] text-white" : "bg-slate-100 text-slate-700"}`}><SocialBrandIcon platform={platform} className="h-5 w-5" />{connected ? <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#fffdfa] bg-emerald-500" /> : null}</button>; })}
+                </div>
+                {(() => { const existing = items.find((item) => item.itemType === "social" && item.platform === activeSocial); const label = activeSocial === "instagram" ? "Instagram" : activeSocial === "tiktok" ? "TikTok" : activeSocial === "x" ? "X" : "YouTube"; return <div className="mx-auto mt-5 max-w-lg"><div className="mb-2 flex items-center justify-between"><label htmlFor="social-editor-input" className="text-sm font-semibold text-slate-800">{label}</label>{existing ? <span className="text-xs font-medium text-emerald-600">公開中</span> : <span className="text-xs text-slate-400">未設定</span>}</div><div className="flex gap-2"><input id="social-editor-input" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={socialInputs[activeSocial]} onChange={(event) => setSocialInputs({ ...socialInputs, [activeSocial]: event.target.value })} placeholder={activeSocial === "youtube" ? "@handle / youtube.com/..." : "@username / URL"} className="h-12 min-w-0 flex-1 select-text rounded-2xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100" /><button type="button" disabled={Boolean(itemSaving) || !socialInputs[activeSocial].trim()} onClick={() => void saveSocial(activeSocial)} className="onboarding-press h-12 min-w-[72px] shrink-0 rounded-2xl bg-[#242326] px-4 text-sm font-semibold text-white disabled:bg-slate-200 disabled:text-slate-400">{existing ? "更新" : "追加"}</button></div>{existing ? <div className="mt-2 flex items-center justify-between"><button type="button" onClick={() => setSheet("social-design")} className="min-h-11 px-2 text-xs font-semibold text-slate-600">{locale === "ja" ? "アイコンの見た目" : "Icon design"}</button><button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(existing.id)} className="flex min-h-11 items-center gap-1 px-2 text-xs font-medium text-slate-400 hover:text-rose-600"><TrashIcon />{copy.deleteItem}</button></div> : null}</div>; })()}
               </div>
             ) : null}
 
@@ -858,10 +978,11 @@ export default function CreatorLinkBuilderPage() {
               <div className="mt-5 space-y-4">
                 <label className="block text-sm font-medium text-slate-600">{copy.linkName}<input value={linkEditor.title} maxLength={80} onChange={(event) => setLinkEditor({ ...linkEditor, title: event.target.value })} className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
                 <label className="block text-sm font-medium text-slate-600">{copy.url}<input type="url" value={linkEditor.url} maxLength={500} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => setLinkEditor({ ...linkEditor, url: event.target.value })} placeholder="https://" className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
-                <p className="pt-1 text-sm font-medium text-slate-700">{locale === "ja" ? "カードデザイン" : "Card design"}</p>
-                <CardDesignSelector value={linkEditor.appearance} onChange={(appearance) => setLinkEditor({ ...linkEditor, appearance })} locale={locale} />
+                <details open={Boolean(linkEditor.id)} className="rounded-xl border border-slate-200 bg-white/70 px-4 py-3">
+                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500">{locale === "ja" ? "詳細デザイン" : "Advanced design"}</summary>
+                  <CardDesignSelector value={linkEditor.appearance} onChange={(appearance) => setLinkEditor({ ...linkEditor, appearance })} locale={locale} />
+                </details>
                 <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-slate-200/70 bg-[#fffdfa]/95 px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">{linkEditor.id ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(linkEditor.id!)} aria-label={copy.deleteItem} className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:text-rose-600 disabled:opacity-40"><TrashIcon /></button> : null}<button type="button" disabled={Boolean(itemSaving)} onClick={() => void saveLink()} className="min-h-11 flex-1 rounded-xl bg-[#29272a] text-sm font-medium text-white transition enabled:hover:bg-[#ed5964] disabled:opacity-40">{itemSaving ? copy.saving : copy.saveItem}</button></div>
-                {items.some((item) => item.itemType === "link" && item.id !== linkEditor.id) ? <div className="border-t border-slate-100 pt-3">{items.filter((item) => item.itemType === "link" && item.id !== linkEditor.id).map((item) => <button key={item.id} type="button" onClick={() => openLinkSheet(item)} className="flex w-full items-center justify-between border-b border-slate-100 py-3 text-left text-sm"><span className="truncate">{item.title}</span><span className="text-xs text-slate-400">{locale === "ja" ? "編集" : "Edit"}</span></button>)}</div> : null}
               </div>
             ) : null}
 
@@ -869,9 +990,10 @@ export default function CreatorLinkBuilderPage() {
               <div className="mt-5 space-y-3">{(["simple", "pr"] as const).map((kind) => { const values = inquiryFormEditor[kind]; const defaults = INQUIRY_FORM_DEFAULTS[kind]; return <article key={kind} className="rounded-2xl border border-slate-200/80 bg-white/70 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-base font-semibold text-slate-900">{kind === "simple" ? "シンプル問い合わせ" : "PR案件依頼"}</p><p className="mt-1 text-[13px] leading-5 text-slate-500">{defaults.description}</p></div><button type="button" role="switch" aria-checked={values.isEnabled} aria-label={`${kind === "simple" ? "シンプル問い合わせ" : "PR案件依頼"} ${values.isEnabled ? "ON" : "OFF"}`} onClick={() => setInquiryFormEditor({ ...inquiryFormEditor, [kind]: { ...values, isEnabled: !values.isEnabled } })} className={`relative h-6 w-11 shrink-0 rounded-full transition ${values.isEnabled ? "bg-emerald-500" : "bg-slate-300"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${values.isEnabled ? "left-[22px]" : "left-0.5"}`} /></button></div><label className="mt-3 block text-sm font-medium text-slate-600">{locale === "ja" ? "公開ページでのタイトル" : "Public title"}<input value={values.title} maxLength={80} onChange={(event) => setInquiryFormEditor({ ...inquiryFormEditor, [kind]: { ...values, title: event.target.value } })} className="mt-1.5 h-12 w-full rounded-xl border border-slate-200 px-3 text-base outline-none focus:border-rose-400" /></label><button type="button" onClick={() => setPreviewInquiry({ kind, title: values.title.trim() || defaults.title })} className="mt-3 h-10 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-600">{locale === "ja" ? "プレビュー" : "Preview"}</button></article>; })}<button type="button" disabled={inquirySaving || !inquiryFormEditor.simple.title.trim() || !inquiryFormEditor.pr.title.trim()} onClick={() => void saveInquiryForms()} className="h-12 w-full rounded-xl bg-[#29272A] text-sm font-semibold text-white disabled:opacity-40">{inquirySaving ? copy.saving : copy.saveItem}</button></div>
             ) : null}
         </EditorBottomSheet>
+        </div>
       ) : null}
 
-      {showFirstRun ? <FirstRunGuide locale={locale} onStart={() => { setShowFirstRun(false); setSheet("profile"); }} onLater={() => setShowFirstRun(false)} /> : null}
+      {showFirstRun ? <div className="fixed inset-0 z-[60] overflow-hidden bg-[#141414]"><CreatorLinkOnboarding step={onboardingStep} form={form as OnboardingLinkForm} previewData={viewData} slugState={slugCheck} slugMessage={slugMessage} slugError={slugError} uploadingImage={uploadingImage === "avatar"} completing={saving} completionReady={onboardingCompletionReady} publicUrl={publicUrl} socialInputs={socialInputs} savedSocials={items.filter((item) => item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)).map((item) => item.platform as CreatorLinkSocialPlatform)} socialSaving={Boolean(itemSaving)} onStepChange={setOnboardingStep} onChange={(updates) => setForm({ ...form, ...updates })} onSelectAvatar={selectAvatarForCrop} onSocialChange={(platform, value) => setSocialInputs((current) => ({ ...current, [platform]: value }))} onSaveSocial={saveSocial} onAddLink={() => openLinkSheet()} onApplyPreset={applyOnboardingPreset} onComplete={async () => { const saved = await save("published"); if (saved) setOnboardingCompletionReady(true); return saved; }} onCopyPublicUrl={() => void copyPublicUrl()} onFinish={() => { setShowFirstRun(false); setSheet(null); }} /></div> : null}
       {previewInquiry ? <InquiryFormModal key={`${previewInquiry.kind}-${previewInquiry.title}`} formId={null} kind={previewInquiry.kind} title={previewInquiry.title} slug={form.slug} mode="preview" locale={locale} onClose={() => setPreviewInquiry(null)} /> : null}
       {avatarCropFile ? <ProfileImageCropModal file={avatarCropFile} locale={locale} onCancel={() => setAvatarCropFile(null)} onConfirm={async (croppedFile) => { const uploaded = await uploadImage(croppedFile, "avatar"); if (uploaded) setAvatarCropFile(null); return uploaded; }} /> : null}
     </div>

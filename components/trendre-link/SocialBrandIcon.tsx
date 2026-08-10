@@ -10,12 +10,13 @@ export const SOCIAL_BRAND_COLORS: Record<CreatorLinkSocialPlatform, string> = {
   youtube: "#E52D27",
 };
 
-export default function SocialBrandIcon({ platform, brand = false, className = "h-[21px] w-[21px]" }: {
+export default function SocialBrandIcon({ platform, brand = false, color, className = "h-[21px] w-[21px]" }: {
   platform: CreatorLinkSocialPlatform;
   brand?: boolean;
+  color?: string | null;
   className?: string;
 }) {
   const props = { className, "aria-hidden": true } as const;
   const icon = platform === "instagram" ? <FaInstagram {...props} /> : platform === "tiktok" ? <FaTiktok {...props} /> : platform === "x" ? <FaXTwitter {...props} /> : <FaYoutube {...props} />;
-  return <span role="img" aria-label={platform} style={brand ? { color: SOCIAL_BRAND_COLORS[platform] } : undefined}>{icon}</span>;
+  return <span role="img" aria-label={platform} style={color ? { color } : brand ? { color: SOCIAL_BRAND_COLORS[platform] } : undefined}>{icon}</span>;
 }

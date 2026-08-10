@@ -16,6 +16,7 @@ export type CreatorLinkPage = {
   ownerUserId: string;
   slug: string;
   displayName: string;
+  displayNameColor: string | null;
   bio: string | null;
   avatarUrl: string | null;
   coverUrl: string | null;

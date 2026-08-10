@@ -52,14 +52,14 @@ export async function POST(request: NextRequest) {
 
     const { data: rows, error: rowsError } = await supabaseAdmin.from("creator_link_inquiry_types").select("*").eq("page_id", page.id).order("sort_order", { ascending: true });
     if (rowsError) throw new Error("inquiry_types_lookup_failed");
-    const simpleExisting = rows?.find((row) => row.template_key === null && row.is_custom) ?? null;
+    const simpleExisting = rows?.find((row) => row.template_key === null) ?? null;
     const prExisting = rows?.find((row) => row.template_key === "pr_post") ?? null;
     const saved: InquiryTypeRow[] = [];
 
     for (const kind of ["simple", "pr"] as const) {
       const form = parsed.get(kind)!;
       const existing = kind === "simple" ? simpleExisting : prExisting;
-      const payload = { page_id: page.id, template_key: kind === "simple" ? null : "pr_post", title: form.title, description: INQUIRY_FORM_DEFAULTS[kind].description, sort_order: form.sortOrder, is_enabled: form.isEnabled, is_custom: kind === "simple" };
+      const payload = { page_id: page.id, template_key: kind === "simple" ? null : "pr_post", title: form.title, description: INQUIRY_FORM_DEFAULTS[kind].description, sort_order: form.sortOrder, is_enabled: form.isEnabled, is_custom: kind === "simple" ? existing?.is_custom ?? false : false };
       if (existing) {
         const { data, error } = await supabaseAdmin.from("creator_link_inquiry_types").update(payload).eq("id", existing.id).eq("page_id", page.id).select("*").single();
         if (error) throw new Error("inquiry_type_update_failed");

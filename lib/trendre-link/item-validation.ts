@@ -4,6 +4,7 @@ export type CreatorLinkSocialPlatform = (typeof CREATOR_LINK_SOCIAL_PLATFORMS)[n
 export const CREATOR_LINK_ITEM_LAYOUTS = ["wide", "square", "icon"] as const;
 export const CREATOR_LINK_ITEM_SURFACES = ["filled", "outline"] as const;
 export const CREATOR_LINK_ITEM_FINISHES = ["solid", "gradient", "metallic"] as const;
+export const CREATOR_LINK_ITEM_DEPTHS = ["normal", "soft", "raised"] as const;
 export const CREATOR_LINK_ITEM_SOLID_COLORS = [
   "charcoal", "white", "sand", "brown", "rose", "pink", "red", "orange", "green", "blue",
 ] as const;
@@ -18,6 +19,7 @@ export const CREATOR_LINK_ITEM_COLORS = [
 export type CreatorLinkItemLayout = (typeof CREATOR_LINK_ITEM_LAYOUTS)[number];
 export type CreatorLinkItemSurface = (typeof CREATOR_LINK_ITEM_SURFACES)[number];
 export type CreatorLinkItemFinish = (typeof CREATOR_LINK_ITEM_FINISHES)[number];
+export type CreatorLinkItemDepth = (typeof CREATOR_LINK_ITEM_DEPTHS)[number];
 export type CreatorLinkItemColor = (typeof CREATOR_LINK_ITEM_COLORS)[number];
 
 export type CreatorLinkItemAppearance = {
@@ -25,6 +27,8 @@ export type CreatorLinkItemAppearance = {
   surface: CreatorLinkItemSurface;
   finish: CreatorLinkItemFinish;
   color: CreatorLinkItemColor;
+  depth?: CreatorLinkItemDepth;
+  iconColor?: string | null;
 };
 
 export const CREATOR_LINK_ITEM_COLOR_VALUES: Record<CreatorLinkItemColor, string> = {
@@ -56,6 +60,7 @@ export const DEFAULT_CREATOR_LINK_ITEM_APPEARANCE: CreatorLinkItemAppearance = {
   surface: "filled",
   finish: "solid",
   color: "charcoal",
+  depth: "normal",
 };
 
 export function getCreatorLinkItemColors(finish: CreatorLinkItemFinish): readonly CreatorLinkItemColor[] {
@@ -80,12 +85,16 @@ export function normalizeCreatorLinkItemAppearance(value: unknown): CreatorLinkI
   }
   const record = value as Record<string, unknown>;
   const finish = isOneOf(CREATOR_LINK_ITEM_FINISHES, record.finish) ? record.finish : "solid";
+  const depth = isOneOf(CREATOR_LINK_ITEM_DEPTHS, record.depth) ? record.depth : "normal";
   if (!isOneOf(CREATOR_LINK_ITEM_LAYOUTS, record.layout)
     || !isOneOf(CREATOR_LINK_ITEM_SURFACES, record.surface)
     || !isColorForFinish(finish, record.color)) {
     return { ...DEFAULT_CREATOR_LINK_ITEM_APPEARANCE };
   }
-  return { layout: record.layout, surface: record.surface, finish, color: record.color };
+  const iconColor = record.iconColor === null || (typeof record.iconColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.iconColor))
+    ? typeof record.iconColor === "string" ? record.iconColor.toUpperCase() : null
+    : undefined;
+  return { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(iconColor === undefined ? {} : { iconColor }) };
 }
 
 export function validateCreatorLinkItemAppearance(value: unknown): ValidationResult<CreatorLinkItemAppearance> {
@@ -95,12 +104,17 @@ export function validateCreatorLinkItemAppearance(value: unknown): ValidationRes
   }
   const record = value as Record<string, unknown>;
   const finish = isOneOf(CREATOR_LINK_ITEM_FINISHES, record.finish) ? record.finish : "solid";
+  const depth = record.depth === undefined ? "normal" : isOneOf(CREATOR_LINK_ITEM_DEPTHS, record.depth) ? record.depth : null;
   if (!isOneOf(CREATOR_LINK_ITEM_LAYOUTS, record.layout)
     || !isOneOf(CREATOR_LINK_ITEM_SURFACES, record.surface)
-    || !isColorForFinish(finish, record.color)) {
+    || !isColorForFinish(finish, record.color)
+    || depth === null) {
     return { ok: false, error: "カードデザインの指定が正しくありません。" };
   }
-  return { ok: true, value: { layout: record.layout, surface: record.surface, finish, color: record.color } };
+  if (!(record.iconColor === undefined || record.iconColor === null || (typeof record.iconColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.iconColor)))) {
+    return { ok: false, error: "アイコンカラーの形式が正しくありません。" };
+  }
+  return { ok: true, value: { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(record.iconColor === undefined ? {} : { iconColor: typeof record.iconColor === "string" ? record.iconColor.toUpperCase() : null }) } };
 }
 
 const SOCIAL_LABELS: Record<CreatorLinkSocialPlatform, string> = {

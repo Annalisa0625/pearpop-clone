@@ -27,7 +27,7 @@ export function isPublicInquiryFormTarget(args: {
   const kindMatches =
     args.requestedKind === "pr"
       ? args.templateKey === "pr_post"
-      : args.templateKey === null && args.isCustom;
+      : args.templateKey === null;
   return (
     args.pageStatus === "published" &&
     args.isAcceptingInquiries &&

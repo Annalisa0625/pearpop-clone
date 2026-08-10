@@ -562,6 +562,7 @@ export type Database = {
           created_at: string
           creator_id: string
           display_name: string
+          display_name_color: string | null
           font_style: string
           id: string
           is_accepting_inquiries: boolean
@@ -583,6 +584,7 @@ export type Database = {
           created_at?: string
           creator_id: string
           display_name: string
+          display_name_color?: string | null
           font_style?: string
           id?: string
           is_accepting_inquiries?: boolean
@@ -604,6 +606,7 @@ export type Database = {
           created_at?: string
           creator_id?: string
           display_name?: string
+          display_name_color?: string | null
           font_style?: string
           id?: string
           is_accepting_inquiries?: boolean

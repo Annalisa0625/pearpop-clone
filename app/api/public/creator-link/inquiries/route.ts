@@ -322,7 +322,7 @@ export async function POST(request: NextRequest) {
       .eq("page_id", page.id)
       .eq("is_enabled", true);
     typeQuery = body.formKind === "simple"
-      ? typeQuery.is("template_key", null).eq("is_custom", true)
+      ? typeQuery.is("template_key", null)
       : typeQuery.eq("template_key", "pr_post");
     const { data: inquiryType, error: typeError } = await typeQuery.maybeSingle();
     if (typeError) throw typeError;

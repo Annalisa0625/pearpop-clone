@@ -47,6 +47,7 @@ function toCreatorLinkPage(row: LinkPageRow): CreatorLinkPage {
     ownerUserId: row.owner_user_id,
     slug: row.slug,
     displayName: row.display_name,
+    displayNameColor: row.display_name_color && /^#[0-9A-Fa-f]{6}$/.test(row.display_name_color) ? row.display_name_color.toUpperCase() : null,
     bio: row.bio,
     avatarUrl: row.avatar_url,
     coverUrl: row.cover_url,
@@ -90,6 +91,7 @@ export async function PATCH(request: NextRequest) {
   const themeKey = typeof body.themeKey === "string" ? body.themeKey : "";
   const status = typeof body.status === "string" ? body.status : "";
   const isAcceptingInquiries = body.isAcceptingInquiries;
+  const displayNameColor = body.displayNameColor === undefined ? undefined : body.displayNameColor;
   const accentColor = body.accentColor === undefined ? undefined : body.accentColor;
   const buttonStyle = body.buttonStyle === undefined ? undefined : body.buttonStyle;
   const fontStyle = body.fontStyle === undefined ? undefined : body.fontStyle;
@@ -135,6 +137,9 @@ export async function PATCH(request: NextRequest) {
 
   if (typeof isAcceptingInquiries !== "boolean") {
     return errorResponse("仕事相談受付の指定が不正です。", 400);
+  }
+  if (!(displayNameColor === undefined || displayNameColor === null || (typeof displayNameColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(displayNameColor)))) {
+    return errorResponse("表示名カラーの形式が正しくありません。", 400);
   }
   if (!(accentColor === undefined || accentColor === null || (typeof accentColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(accentColor)))) {
     return errorResponse("アクセントカラーが正しくありません。", 400);
@@ -195,6 +200,7 @@ export async function PATCH(request: NextRequest) {
 
   const update: TablesUpdate<"creator_link_pages"> = {
     display_name: displayName,
+    display_name_color: displayNameColor === undefined ? currentPage.display_name_color : displayNameColor?.toUpperCase() ?? null,
     bio,
     slug: slugValidation.normalizedSlug,
     theme_key: themeKey,

@@ -73,6 +73,7 @@ type CreatorLinkPageRow = Pick<
   | "id"
   | "slug"
   | "display_name"
+  | "display_name_color"
   | "bio"
   | "avatar_url"
   | "cover_url"
@@ -230,7 +231,7 @@ const loadTrendreLink = cache(
     const { data: pageData, error: pageError } = await supabase
       .from("creator_link_pages")
       .select(
-        "id, slug, display_name, bio, avatar_url, cover_url, theme_key, accent_color, button_style, font_style, status, is_accepting_inquiries"
+        "id, slug, display_name, display_name_color, bio, avatar_url, cover_url, theme_key, accent_color, button_style, font_style, status, is_accepting_inquiries"
       )
       .eq("slug", normalizedSlug)
       .eq("status", "published")
@@ -290,6 +291,7 @@ const loadTrendreLink = cache(
       page: {
         slug: rawPage.slug,
         displayName: rawPage.display_name,
+        displayNameColor: rawPage.display_name_color && /^#[0-9A-Fa-f]{6}$/.test(rawPage.display_name_color) ? rawPage.display_name_color.toUpperCase() : null,
         bio: rawPage.bio,
         avatarUrl: rawPage.avatar_url,
         coverUrl: rawPage.cover_url,
