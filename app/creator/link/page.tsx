@@ -8,7 +8,6 @@ import TrendreLinkCanvas, {
   type TrendreLinkCanvasData,
   type TrendreLinkEditableField,
   type TrendreLinkCanvasItem,
-  type TrendreLinkCanvasInquiryType,
 } from "@/components/trendre-link/TrendreLinkCanvas";
 import StylePresetGallery from "@/components/trendre-link/StylePresetGallery";
 import SocialBrandIcon from "@/components/trendre-link/SocialBrandIcon";
@@ -51,9 +50,10 @@ import {
   type CreatorLinkSocialShape,
 } from "@/lib/trendre-link/item-validation";
 import { INQUIRY_FORM_DEFAULTS, type CreatorLinkInquiryFormKind } from "@/lib/trendre-link/inquiry-forms";
-import { CREATOR_LINK_ADD_ACTIONS, getCreatorLinkEditorCtaCopy, getCreatorLinkItemCtaCopy, getCreatorLinkSocialColorControls, resolveCreatorLinkPreviewEditTarget, type CreatorLinkSocialColorControl } from "@/lib/trendre-link/editor-controls";
+import { CREATOR_LINK_ADD_ACTIONS, getCreatorLinkEditorCtaCopy, getCreatorLinkSocialColorControls, resolveCreatorLinkPreviewEditTarget, type CreatorLinkSocialColorControl } from "@/lib/trendre-link/editor-controls";
 import { setCreatorLinkWorkEnabled } from "@/lib/trendre-link/work-settings";
-import { areCreatorLinkLayoutOrdersEqual, normalizeCreatorLinkLayoutOrder, parseCreatorLinkLayoutToken, type CreatorLinkLayoutToken } from "@/lib/trendre-link/layout-order";
+import { normalizeCreatorLinkLayoutOrder, parseCreatorLinkLayoutToken, type CreatorLinkLayoutToken } from "@/lib/trendre-link/layout-order";
+import { areCreatorLinkEditorDraftsEqual, canLeaveCreatorLinkEditor, createCreatorLinkTemporaryItemId, reorderCreatorLinkDraftItems, replaceCreatorLinkDraftLayoutItemId, type CreatorLinkEditorDraft, type CreatorLinkUnsavedDecision } from "@/lib/trendre-link/editor-draft";
 import type {
   CreatorLinkBootstrapResponse,
   CreatorLinkInquiryType,
@@ -89,6 +89,7 @@ type SocialInputs = Record<CreatorLinkSocialPlatform, string>;
 type SocialAppearances = Record<CreatorLinkSocialPlatform, CreatorLinkItemAppearance>;
 type LinkEditorState = { id: string | null; title: string; url: string; appearance: CreatorLinkItemAppearance };
 type InquiryFormEditor = Record<CreatorLinkInquiryFormKind, { title: string; isEnabled: boolean }>;
+type EditorDraft = CreatorLinkEditorDraft<LinkFormState, CreatorLinkItem, InquiryFormEditor>;
 
 const INITIAL_LOAD_ERROR = "Linkページを読み込めませんでした。";
 const SLUG_CHECK_ERROR = "slugの利用可否を確認できませんでした。";
@@ -242,10 +243,10 @@ function SocialShapeControl({ value, onChange }: { value: CreatorLinkSocialShape
   return <fieldset className="mt-5"><legend className="text-sm font-semibold text-slate-900">Shape</legend><div className="mt-2 grid grid-cols-3 gap-2">{CREATOR_LINK_SOCIAL_SHAPES.map((shape) => <button key={shape} type="button" aria-pressed={value === shape} onClick={() => onChange(shape)} className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border px-2 text-xs font-semibold capitalize ${value === shape ? "border-rose-300 bg-rose-50/55 text-rose-700 ring-1 ring-rose-200" : "border-slate-200 bg-white text-slate-600"}`}><span className={`flex items-center justify-center ${shape === "pill" ? "h-8 w-14 rounded-full" : "h-9 w-9 rounded-full"} ${shape === "icons" ? "bg-transparent" : "border border-slate-300 bg-slate-100"}`}><span className="h-3.5 w-3.5 rounded-full bg-slate-500" /></span><span>{shape}</span></button>)}</div></fieldset>;
 }
 
-function SocialColorRows({ shape, appearance, onOpen }: { shape: CreatorLinkSocialShape; appearance: CreatorLinkItemAppearance; onOpen: (target: CreatorLinkSocialColorControl) => void }) {
+function SocialColorRows({ shape, appearance, activeTarget, presetColors, onToggle, onSelect }: { shape: CreatorLinkSocialShape; appearance: CreatorLinkItemAppearance; activeTarget: CreatorLinkSocialColorControl | null; presetColors: Partial<Record<CreatorLinkSocialColorControl, string | null>>; onToggle: (target: CreatorLinkSocialColorControl) => void; onSelect: (target: CreatorLinkSocialColorControl, value: string | null) => void }) {
   const labels: Record<CreatorLinkSocialColorControl, string> = { icon: "Icon color", surface: "Background color", border: "Border color" };
   const values = { icon: appearance.iconColor, surface: appearance.surfaceColor, border: appearance.borderColor };
-  return <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">{getCreatorLinkSocialColorControls(shape).map((target, index) => { const value = values[target]; return <button key={target} type="button" onClick={() => onOpen(target)} className={`flex min-h-14 w-full items-center justify-between px-4 text-left text-sm font-medium text-slate-700 ${index ? "border-t border-slate-100" : ""}`}><span>{labels[target]}</span><span className="flex items-center gap-2"><span className="text-xs text-slate-400">{value ?? (target === "icon" ? "Brand" : "Transparent")}</span><span className={`h-8 w-8 rounded-full border border-black/10 ${value === null || value === undefined ? "bg-[linear-gradient(135deg,#e2e8f0_25%,transparent_25%,transparent_50%,#e2e8f0_50%,#e2e8f0_75%,transparent_75%)] bg-[length:10px_10px]" : ""}`} style={typeof value === "string" ? { backgroundColor: value } : undefined} /></span></button>; })}</div>;
+  return <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">{getCreatorLinkSocialColorControls(shape).map((target, index) => { const value = values[target]; return <div key={target} className={index ? "border-t border-slate-100" : ""}><button type="button" aria-expanded={activeTarget === target} onClick={() => onToggle(target)} className="flex min-h-14 w-full items-center justify-between px-4 text-left text-sm font-medium text-slate-700"><span>{labels[target]}</span><span className="flex items-center gap-2"><span className="text-xs text-slate-400">{value ?? (target === "icon" ? "Brand" : "Transparent")}</span><span className={`h-8 w-8 rounded-full border border-black/10 ${value === null || value === undefined ? "bg-[linear-gradient(135deg,#e2e8f0_25%,transparent_25%,transparent_50%,#e2e8f0_50%,#e2e8f0_75%,transparent_75%)] bg-[length:10px_10px]" : ""}`} style={typeof value === "string" ? { backgroundColor: value } : undefined} /></span></button>{activeTarget === target ? <div className="border-t border-slate-100 px-3 pb-3"><SocialColorPicker target={target} value={value} presetColor={presetColors[target] ?? null} onSelect={(next) => onSelect(target, next)} onClose={() => onToggle(target)} /></div> : null}</div>; })}</div>;
 }
 
 function SocialColorPicker({ target, value, presetColor, onSelect, onClose }: { target: CreatorLinkSocialColorControl; value: string | null | undefined; presetColor: string | null; onSelect: (value: string | null) => void; onClose: () => void }) {
@@ -275,7 +276,7 @@ function WorkEditor({ value, busy, locale, onChange, onPreview, onSave }: { valu
   return <div className="mt-5 space-y-4"><button type="button" aria-pressed={active} onClick={toggleMaster} className={`onboarding-press flex min-h-28 w-full items-center gap-4 rounded-2xl border p-4 text-left ${active ? "border-rose-300 bg-rose-50/70 text-rose-950 shadow-sm" : "border-slate-200 bg-white text-slate-600"}`}><span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${active ? "bg-rose-500 text-white" : "bg-slate-100"}`}><MessageSquareText className="h-6 w-6" /></span><span className="min-w-0 flex-1"><strong className="block text-base">{locale === "ja" ? "仕事の依頼を受け付ける" : "Accept work inquiries"}</strong><span className="mt-1 block text-xs opacity-70">{locale === "ja" ? "PR・案件相談をLinkから受付" : "Receive PR and project requests from your Link"}</span></span><span className="text-sm font-bold">{active ? (locale === "ja" ? "受付中" : "Active") : (locale === "ja" ? "停止中" : "Paused")}</span></button><div className="grid grid-cols-2 gap-3">{(["pr", "simple"] as const).map((kind) => { const selected = value[kind].isEnabled; const label = kind === "pr" ? (locale === "ja" ? "PR投稿" : "PR Post") : (locale === "ja" ? "その他の相談" : "Other"); return <article key={kind} className={`rounded-2xl border p-3 transition ${selected ? "border-rose-300 bg-rose-50/60 shadow-sm" : "border-slate-200 bg-white"}`}><button type="button" aria-pressed={selected} onClick={() => onChange({ ...value, [kind]: { ...value[kind], isEnabled: !selected } })} className="flex min-h-16 w-full flex-col items-start justify-between text-left"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${selected ? "bg-rose-500 text-white" : "bg-slate-100 text-slate-500"}`}><BriefcaseBusiness className="h-4 w-4" /></span><strong className="mt-3 text-sm text-slate-900">{label}</strong><span className={`mt-1 text-xs font-semibold ${selected ? "text-rose-600" : "text-slate-400"}`}>{selected ? (locale === "ja" ? "受付中" : "Active") : (locale === "ja" ? "停止中" : "Paused")}</span></button><label className="mt-3 block text-xs font-medium text-slate-500">{locale === "ja" ? "公開タイトル" : "Public title"}<input value={value[kind].title} maxLength={80} onChange={(event) => onChange({ ...value, [kind]: { ...value[kind], title: event.target.value } })} className="mt-1 h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-800 outline-none focus:border-rose-400" /></label><button type="button" onClick={() => onPreview(kind)} className="mt-2 min-h-10 w-full rounded-xl border border-slate-200 text-xs font-semibold text-slate-600">{locale === "ja" ? "フォーム確認" : "Preview form"}</button></article>; })}</div><button type="button" disabled={busy || !value.simple.title.trim() || !value.pr.title.trim()} onClick={onSave} className="min-h-12 w-full rounded-xl bg-[#29272A] text-sm font-semibold text-white disabled:opacity-40">{busy ? (locale === "ja" ? "保存中…" : "Saving…") : getCreatorLinkEditorCtaCopy(locale, "save")}</button></div>;
 }
 
-function WorkEditorV2({ value, busy, locale, onChange, onPreview, onSave }: { value: InquiryFormEditor; busy: boolean; locale: "ja" | "en"; onChange: (value: InquiryFormEditor) => void; onPreview: (kind: CreatorLinkInquiryFormKind) => void; onSave: () => void }) {
+function WorkEditorV2({ value, locale, onChange, onPreview }: { value: InquiryFormEditor; locale: "ja" | "en"; onChange: (value: InquiryFormEditor) => void; onPreview: (kind: CreatorLinkInquiryFormKind) => void }) {
   const [detail, setDetail] = useState<CreatorLinkInquiryFormKind | null>(null);
   const active = value.simple.isEnabled || value.pr.isEnabled;
   const copy = locale === "ja"
@@ -283,7 +284,7 @@ function WorkEditorV2({ value, busy, locale, onChange, onPreview, onSave }: { va
     : { title: "Work inquiries", master: "Accept work inquiries", active: "Active", paused: "Paused", pr: "PR post requests", simple: "Other inquiries", back: "Back", publicTitle: "Public title", preview: "Preview form" };
   if (detail) {
     const values = value[detail];
-    return <div className="mt-4 space-y-4"><button type="button" onClick={() => setDetail(null)} className="onboarding-press flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-600"><ChevronRight className="h-4 w-4 rotate-180" />{copy.back}</button><article className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex min-h-12 items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-slate-950">{detail === "pr" ? copy.pr : copy.simple}</h3><p className={`mt-1 text-xs font-semibold ${values.isEnabled ? "text-emerald-600" : "text-slate-400"}`}>{values.isEnabled ? copy.active : copy.paused}</p></div><button type="button" role="switch" aria-checked={values.isEnabled} onClick={() => onChange({ ...value, [detail]: { ...values, isEnabled: !values.isEnabled } })} className={`relative h-7 w-12 rounded-full transition ${values.isEnabled ? "bg-emerald-500" : "bg-slate-300"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${values.isEnabled ? "left-6" : "left-1"}`} /></button></div><label className="mt-5 block text-sm font-medium text-slate-600">{copy.publicTitle}<input value={values.title} maxLength={80} onChange={(event) => onChange({ ...value, [detail]: { ...values, title: event.target.value } })} className="mt-1.5 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-rose-400" /></label><button type="button" onClick={() => onPreview(detail)} className="mt-3 min-h-11 w-full rounded-xl border border-slate-200 text-sm font-semibold text-slate-600">{copy.preview}</button></article><button type="button" disabled={busy || !value.simple.title.trim() || !value.pr.title.trim()} onClick={onSave} className="min-h-12 w-full rounded-xl bg-[#29272A] text-sm font-semibold text-white disabled:opacity-40">{busy ? (locale === "ja" ? "保存中…" : "Saving…") : getCreatorLinkEditorCtaCopy(locale, "save")}</button></div>;
+    return <div className="mt-4 space-y-4"><button type="button" onClick={() => setDetail(null)} className="onboarding-press flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-600"><ChevronRight className="h-4 w-4 rotate-180" />{copy.back}</button><article className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex min-h-12 items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-slate-950">{detail === "pr" ? copy.pr : copy.simple}</h3><p className={`mt-1 text-xs font-semibold ${values.isEnabled ? "text-emerald-600" : "text-slate-400"}`}>{values.isEnabled ? copy.active : copy.paused}</p></div><button type="button" role="switch" aria-checked={values.isEnabled} onClick={() => onChange({ ...value, [detail]: { ...values, isEnabled: !values.isEnabled } })} className={`relative h-7 w-12 rounded-full transition ${values.isEnabled ? "bg-emerald-500" : "bg-slate-300"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${values.isEnabled ? "left-6" : "left-1"}`} /></button></div><label className="mt-5 block text-sm font-medium text-slate-600">{copy.publicTitle}<input value={values.title} maxLength={80} onChange={(event) => onChange({ ...value, [detail]: { ...values, title: event.target.value } })} className="mt-1.5 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-rose-400" /></label><button type="button" onClick={() => onPreview(detail)} className="mt-3 min-h-11 w-full rounded-xl border border-slate-200 text-sm font-semibold text-slate-600">{copy.preview}</button></article></div>;
   }
   return <div className="mt-4 space-y-3"><button type="button" aria-pressed={active} onClick={() => onChange(setCreatorLinkWorkEnabled(value, !active))} className={`onboarding-press flex min-h-24 w-full items-center gap-4 rounded-2xl border p-4 text-left ${active ? "border-rose-300 bg-rose-50/70 text-rose-950" : "border-slate-200 bg-white text-slate-600"}`}><span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${active ? "bg-rose-500 text-white" : "bg-slate-100"}`}><MessageSquareText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><strong className="block text-[15px]">{copy.master}</strong><span className={`mt-1 block text-xs font-semibold ${active ? "text-emerald-600" : "text-slate-400"}`}>{active ? copy.active : copy.paused}</span></span></button>{(["pr", "simple"] as const).map((kind) => <button key={kind} type="button" onClick={() => setDetail(kind)} className="onboarding-press flex min-h-[72px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600"><BriefcaseBusiness className="h-5 w-5" /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{kind === "pr" ? copy.pr : copy.simple}</strong><span className={`mt-1 block text-xs font-semibold ${value[kind].isEnabled ? "text-emerald-600" : "text-slate-400"}`}>{value[kind].isEnabled ? copy.active : copy.paused}</span></span><ChevronRight className="h-5 w-5 text-slate-400" /></button>)}</div>;
 }
@@ -298,7 +299,6 @@ export default function CreatorLinkBuilderPage() {
   const [draftLayoutOrder, setDraftLayoutOrder] = useState<CreatorLinkLayoutToken[] | null>(null);
   const [inquiryTypes, setInquiryTypes] = useState<CreatorLinkInquiryType[]>([]);
   const [inquiryFormEditor, setInquiryFormEditor] = useState<InquiryFormEditor>(EMPTY_INQUIRY_FORMS);
-  const [inquirySaving, setInquirySaving] = useState(false);
   const [previewInquiry, setPreviewInquiry] = useState<{ kind: CreatorLinkInquiryFormKind; title: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -319,8 +319,13 @@ export default function CreatorLinkBuilderPage() {
   const [showFirstRun, setShowFirstRun] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [onboardingCompletionReady, setOnboardingCompletionReady] = useState(false);
+  const [persistedDraft, setPersistedDraft] = useState<EditorDraft | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const firstRunHandledRef = useRef(false);
   const publicUrlRef = useRef<HTMLInputElement>(null);
+  const knownPersistedItemIdsRef = useRef(new Set<string>());
+  const deletedPersistedItemIdsRef = useRef(new Set<string>());
 
   const copy = useMemo(() => locale === "ja" ? {
     edit: "編集", preview: "プレビュー", draft: "下書き", published: "公開中", private: "非公開",
@@ -376,12 +381,18 @@ export default function CreatorLinkBuilderPage() {
         const data: unknown = await response.json().catch(() => null);
         if (!response.ok || !isBootstrapSuccess(data)) throw new Error(getApiError(data, INITIAL_LOAD_ERROR));
         setPage(data.page);
-        setForm(toFormState(data.page));
+        const loadedForm = toFormState(data.page);
+        setForm(loadedForm);
         const loadedItems = data.items.sort((a, b) => a.sortOrder - b.sortOrder);
         setItems(loadedItems);
-        setDraftLayoutOrder(normalizeCreatorLinkLayoutOrder(data.page.layoutOrder, loadedItems.filter((item) => item.itemType === "link").map((item) => item.id)));
+        const loadedLayoutOrder = normalizeCreatorLinkLayoutOrder(data.page.layoutOrder, loadedItems.filter((item) => item.itemType === "link").map((item) => item.id));
+        setDraftLayoutOrder(loadedLayoutOrder);
         setInquiryTypes(data.inquiryTypes);
-        setInquiryFormEditor(toInquiryFormEditor(data.inquiryTypes));
+        const loadedInquiryForms = toInquiryFormEditor(data.inquiryTypes);
+        setInquiryFormEditor(loadedInquiryForms);
+        setPersistedDraft({ form: loadedForm, items: loadedItems, layoutOrder: loadedLayoutOrder, inquiryForms: loadedInquiryForms });
+        knownPersistedItemIdsRef.current = new Set(loadedItems.map((item) => item.id));
+        deletedPersistedItemIdsRef.current.clear();
         if (data.isNewLink && !firstRunHandledRef.current) {
           firstRunHandledRef.current = true;
           setShowFirstRun(true);
@@ -439,18 +450,45 @@ export default function CreatorLinkBuilderPage() {
     () => items.filter((item) => item.itemType === "link").map((item) => item.id),
     [items],
   );
-  const storedEffectiveLayoutOrder = useMemo(
-    () => normalizeCreatorLinkLayoutOrder(page?.layoutOrder ?? null, currentLinkIds),
-    [page?.layoutOrder, currentLinkIds],
-  );
   const effectiveDraftLayoutOrder = useMemo(
     () => normalizeCreatorLinkLayoutOrder(draftLayoutOrder, currentLinkIds),
     [draftLayoutOrder, currentLinkIds],
   );
-  const isLayoutDirty = draftLayoutOrder !== null && !areCreatorLinkLayoutOrdersEqual(effectiveDraftLayoutOrder, storedEffectiveLayoutOrder);
+  const currentEditorDraft = useMemo<EditorDraft | null>(() => form ? ({
+    form,
+    items,
+    layoutOrder: effectiveDraftLayoutOrder,
+    inquiryForms: inquiryFormEditor,
+  }) : null, [effectiveDraftLayoutOrder, form, inquiryFormEditor, items]);
+  const isDirty = Boolean(currentEditorDraft && persistedDraft && !areCreatorLinkEditorDraftsEqual(currentEditorDraft, persistedDraft));
+
+  useEffect(() => {
+    if (!isDirty || showFirstRun) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty, showFirstRun]);
+
+  useEffect(() => {
+    if (!isDirty || showFirstRun) return;
+    const intercept = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      const destination = new URL(anchor.href, window.location.href);
+      if (destination.origin !== window.location.origin || `${destination.pathname}${destination.search}${destination.hash}` === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+      event.preventDefault();
+      setPendingNavigation(`${destination.pathname}${destination.search}${destination.hash}`);
+    };
+    document.addEventListener("click", intercept, true);
+    return () => document.removeEventListener("click", intercept, true);
+  }, [isDirty, showFirstRun]);
 
   const save = async (nextStatus: CreatorLinkStatus): Promise<boolean> => {
-    if (!form || !page || saving) return false;
+    if (!form || !page || !persistedDraft || saving) return false;
     if (nextStatus === "published" && !form.displayName.trim()) {
       setToast({ tone: "error", message: locale === "ja" ? "公開する前に表示名を設定してください。" : "Set a display name before publishing." });
       setSheet("profile");
@@ -462,24 +500,135 @@ export default function CreatorLinkBuilderPage() {
       return false;
     }
     if (slugCheck !== "available" || slugError) return false;
+    for (const item of items) {
+      if (item.itemType === "link") {
+        const validated = validateGeneralLink({ title: item.title ?? "", url: item.url ?? "" });
+        if (!validated.ok) {
+          setToast({ tone: "error", message: validated.error });
+          openLinkSheet(item);
+          return false;
+        }
+      }
+      if (item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)) {
+        const validated = normalizeSocialProfile(item.platform, item.url ?? "");
+        if (!validated.ok) {
+          setToast({ tone: "error", message: validated.error });
+          openSocialSheet(item.platform);
+          return false;
+        }
+      }
+    }
+    if (!inquiryFormEditor.simple.title.trim() || !inquiryFormEditor.pr.title.trim()) {
+      setToast({ tone: "error", message: locale === "ja" ? "フォーム名を入力してください。" : "Enter a title for each inquiry form." });
+      setSheet("inquiry");
+      return false;
+    }
     setSaving(true);
     setToast(null);
     try {
+      let workingItems = [...items].sort((left, right) => left.sortOrder - right.sortOrder);
+      let workingLayoutOrder = [...effectiveDraftLayoutOrder];
+      const currentIds = new Set(workingItems.map((item) => item.id));
+
+      for (const persistedItem of persistedDraft.items) {
+        if (currentIds.has(persistedItem.id) || deletedPersistedItemIdsRef.current.has(persistedItem.id)) continue;
+        const response = await fetch(`/api/creator/link/items/${persistedItem.id}`, { method: "DELETE", credentials: "include" });
+        if (response.status === 401) { router.replace("/login"); return false; }
+        const data: unknown = await response.json().catch(() => null);
+        if (!response.ok || !isItemDeleteSuccess(data)) throw new Error(getApiError(data, copy.itemError));
+        deletedPersistedItemIdsRef.current.add(persistedItem.id);
+        knownPersistedItemIdsRef.current.delete(persistedItem.id);
+      }
+
+      for (const draftItem of [...workingItems]) {
+        if (knownPersistedItemIdsRef.current.has(draftItem.id)) continue;
+        const response = await fetch("/api/creator/link/items", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pageId: page.id, itemType: draftItem.itemType, platform: draftItem.platform, title: draftItem.title, url: draftItem.url, metadata: draftItem.metadata }),
+        });
+        if (response.status === 401) { router.replace("/login"); return false; }
+        const data: unknown = await response.json().catch(() => null);
+        if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
+        const temporaryId = draftItem.id;
+        knownPersistedItemIdsRef.current.add(data.item.id);
+        workingItems = workingItems.map((item) => item.id === temporaryId ? { ...data.item, sortOrder: item.sortOrder, isVisible: item.isVisible } : item);
+        workingLayoutOrder = replaceCreatorLinkDraftLayoutItemId(workingLayoutOrder, temporaryId, data.item.id);
+        setItems(workingItems);
+        setDraftLayoutOrder(workingLayoutOrder);
+      }
+
+      const savedItems: CreatorLinkItem[] = [];
+      for (const draftItem of workingItems) {
+        const response = await fetch(`/api/creator/link/items/${draftItem.id}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...(draftItem.itemType === "social" ? { platform: draftItem.platform, url: draftItem.url } : { title: draftItem.title, url: draftItem.url }),
+            metadata: draftItem.metadata,
+            isVisible: draftItem.isVisible,
+          }),
+        });
+        if (response.status === 401) { router.replace("/login"); return false; }
+        const data: unknown = await response.json().catch(() => null);
+        if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
+        savedItems.push({ ...data.item, sortOrder: draftItem.sortOrder });
+      }
+
+      const orderedItems = savedItems.sort((left, right) => left.sortOrder - right.sortOrder).map((item, sortOrder) => ({ ...item, sortOrder }));
+      if (orderedItems.length > 0) {
+        const response = await fetch("/api/creator/link/items/reorder", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pageId: page.id, items: orderedItems.map((item) => ({ id: item.id, sortOrder: item.sortOrder })) }),
+        });
+        if (response.status === 401) { router.replace("/login"); return false; }
+        const data: unknown = await response.json().catch(() => null);
+        if (!response.ok || !isReorderSuccess(data)) throw new Error(getApiError(data, copy.reorderError));
+        const reorderedById = new Map(data.items.map((item) => [item.id, item]));
+        workingItems = orderedItems.map((item) => reorderedById.get(item.id) ?? item);
+      } else {
+        workingItems = [];
+      }
+
+      const inquiryResponse = await fetch("/api/creator/link/inquiry-types", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: page.id, forms: (["simple", "pr"] as const).map((kind, sortOrder) => ({ kind, title: inquiryFormEditor[kind].title, isEnabled: inquiryFormEditor[kind].isEnabled, sortOrder })) }),
+      });
+      if (inquiryResponse.status === 401) { router.replace("/login"); return false; }
+      const inquiryData: unknown = await inquiryResponse.json().catch(() => null);
+      if (!inquiryResponse.ok || !isInquiryFormsUpdateSuccess(inquiryData)) throw new Error(getApiError(inquiryData, copy.saveError));
+
+      const realLinkIds = workingItems.filter((item) => item.itemType === "link").map((item) => item.id);
+      const finalLayoutOrder = normalizeCreatorLinkLayoutOrder(workingLayoutOrder, realLinkIds);
       const response = await fetch("/api/creator/link/page", {
         method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id, displayName: form.displayName, displayNameColor: form.displayNameColor, bio: form.bio, slug: form.slug, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, isAcceptingInquiries: form.isAcceptingInquiries, status: nextStatus, layoutOrder: isLayoutDirty ? effectiveDraftLayoutOrder : undefined }),
+        body: JSON.stringify({ pageId: page.id, displayName: form.displayName, displayNameColor: form.displayNameColor, bio: form.bio, slug: form.slug, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, isAcceptingInquiries: inquiryData.isAcceptingInquiries, status: nextStatus, layoutOrder: finalLayoutOrder }),
       });
-      if (response.status === 401) {
-        router.replace("/login");
-        return false;
-      }
+      if (response.status === 401) { router.replace("/login"); return false; }
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok || !isUpdateSuccess(data)) throw new Error(getApiError(data, copy.saveError));
+
+      const savedForm = toFormState(data.page);
+      const savedInquiryForms = toInquiryFormEditor(inquiryData.inquiryTypes);
+      const nextDraft = { form: savedForm, items: workingItems, layoutOrder: finalLayoutOrder, inquiryForms: savedInquiryForms };
+      const nextInquiryTypes = [...inquiryTypes.filter((item) => item.templateKey !== "pr_post" && item.templateKey !== null), ...inquiryData.inquiryTypes];
       setPage(data.page);
-      setForm(toFormState(data.page));
-      setDraftLayoutOrder(normalizeCreatorLinkLayoutOrder(data.page.layoutOrder, currentLinkIds));
+      setForm(savedForm);
+      setItems(workingItems);
+      setDraftLayoutOrder(finalLayoutOrder);
+      setInquiryTypes(nextInquiryTypes);
+      setInquiryFormEditor(savedInquiryForms);
+      setPersistedDraft(nextDraft);
+      knownPersistedItemIdsRef.current = new Set(workingItems.map((item) => item.id));
+      deletedPersistedItemIdsRef.current.clear();
       setSlugCheck("available");
-      setToast({ tone: "success", message: nextStatus === "published" ? copy.publishedMessage : copy.saved });
+      setToast({ tone: "success", message: nextStatus === "published" && persistedDraft.form.status !== "published" ? copy.publishedMessage : copy.saved });
       return true;
     } catch (saveError) {
       setToast({ tone: "error", message: saveError instanceof Error ? saveError.message : copy.saveError });
@@ -508,6 +657,23 @@ export default function CreatorLinkBuilderPage() {
 
   const openAddSheet = () => setSheet("add");
 
+  const updateExistingSocialDraft = (platform: CreatorLinkSocialPlatform, input: string, appearance: CreatorLinkItemAppearance) => {
+    setItems((current) => current.map((item) => item.itemType === "social" && item.platform === platform
+      ? { ...item, url: input, metadata: appearance }
+      : item));
+  };
+
+  const updateExistingLinkDraft = (next: LinkEditorState) => {
+    setLinkEditor(next);
+    if (!next.id) return;
+    setItems((current) => current.map((item) => item.id === next.id ? {
+      ...item,
+      title: next.title,
+      url: next.url,
+      metadata: next.appearance,
+    } : item));
+  };
+
   const openLinkSheet = (item?: CreatorLinkItem | TrendreLinkCanvasItem) => {
     setLinkEditor(item && item.itemType === "link" ? {
       id: item.id ?? null,
@@ -526,50 +692,33 @@ export default function CreatorLinkBuilderPage() {
       return false;
     }
     const existing = items.find((item) => item.itemType === "social" && item.platform === platform);
-    setItemSaving(`social:${platform}`);
-    try {
-      const response = await fetch(existing ? `/api/creator/link/items/${existing.id}` : "/api/creator/link/items", {
-        method: existing ? "PATCH" : "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id, itemType: "social", platform, url: socialInputs[platform], metadata: socialAppearances[platform] }),
-      });
-      if (response.status === 401) { router.replace("/login"); return false; }
-      const data: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
-      setItems((current) => existing ? current.map((item) => item.id === data.item.id ? data.item : item) : [...current, data.item]);
-      setSocialInputs((current) => ({ ...current, [platform]: data.item.url ?? normalized.value.url }));
-      setToast({ tone: "success", message: copy.itemSaved });
-      return true;
-    } catch (error) {
-      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.itemError });
-      return false;
-    } finally {
-      setItemSaving(null);
+    if (existing) {
+      setItems((current) => current.map((item) => item.id === existing.id ? { ...item, url: normalized.value.url, metadata: socialAppearances[platform] } : item));
+    } else {
+      const now = new Date().toISOString();
+      const nextSortOrder = items.reduce((maximum, item) => Math.max(maximum, item.sortOrder), -1) + 1;
+      setItems((current) => [...current, {
+        id: createCreatorLinkTemporaryItemId(), pageId: page.id, itemType: "social", platform,
+        title: null, description: null, url: normalized.value.url, imageUrl: null,
+        metadata: socialAppearances[platform], sortOrder: nextSortOrder, isVisible: true,
+        createdAt: now, updatedAt: now,
+      }]);
     }
+    setSocialInputs((current) => ({ ...current, [platform]: normalized.value.url }));
+    setToast({ tone: "success", message: locale === "ja" ? "下書きに追加しました" : "Added to draft" });
+    return true;
   };
 
   const deleteItem = async (id: string) => {
-    if (itemSaving) return;
-    setItemSaving(id);
-    try {
-      const response = await fetch(`/api/creator/link/items/${id}`, { method: "DELETE", credentials: "include" });
-      if (response.status === 401) { router.replace("/login"); return; }
-      const data: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isItemDeleteSuccess(data)) throw new Error(getApiError(data, copy.itemError));
-      const deleted = items.find((item) => item.id === id);
-      setItems((current) => current.filter((item) => item.id !== id));
-      if (deleted?.itemType === "social" && deleted.platform && isCreatorLinkSocialPlatform(deleted.platform)) {
-        setSocialInputs((current) => ({ ...current, [deleted.platform as CreatorLinkSocialPlatform]: "" }));
-        setSocialAppearances((current) => ({ ...current, [deleted.platform as CreatorLinkSocialPlatform]: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE }));
-      }
-      if (linkEditor.id === id) setLinkEditor(EMPTY_LINK_EDITOR);
-      setToast({ tone: "success", message: copy.itemDeleted });
-    } catch (error) {
-      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.itemError });
-    } finally {
-      setItemSaving(null);
+    const deleted = items.find((item) => item.id === id);
+    setItems((current) => current.filter((item) => item.id !== id));
+    if (deleted?.itemType === "link") setDraftLayoutOrder((current) => current?.filter((token) => token !== `link:${id}`) ?? null);
+    if (deleted?.itemType === "social" && deleted.platform && isCreatorLinkSocialPlatform(deleted.platform)) {
+      setSocialInputs((current) => ({ ...current, [deleted.platform as CreatorLinkSocialPlatform]: "" }));
+      setSocialAppearances((current) => ({ ...current, [deleted.platform as CreatorLinkSocialPlatform]: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE }));
     }
+    if (linkEditor.id === id) setLinkEditor(EMPTY_LINK_EDITOR);
+    setToast({ tone: "success", message: locale === "ja" ? "下書きから削除しました" : "Removed from draft" });
   };
 
   const saveLink = async () => {
@@ -579,35 +728,26 @@ export default function CreatorLinkBuilderPage() {
       setToast({ tone: "error", message: validated.error });
       return;
     }
-    setItemSaving(linkEditor.id ?? "new-link");
-    try {
-      const response = await fetch(linkEditor.id ? `/api/creator/link/items/${linkEditor.id}` : "/api/creator/link/items", {
-        method: linkEditor.id ? "PATCH" : "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id, itemType: "link", title: linkEditor.title, url: linkEditor.url, metadata: linkEditor.appearance }),
-      });
-      if (response.status === 401) { router.replace("/login"); return; }
-      const data: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
-      setItems((current) => linkEditor.id ? current.map((item) => item.id === data.item.id ? data.item : item) : [...current, data.item]);
-      setLinkEditor({ id: data.item.id, title: data.item.title ?? "", url: data.item.url ?? "", appearance: data.item.metadata });
-      setToast({ tone: "success", message: copy.itemSaved });
-      if (showFirstRun && onboardingStep === 4) {
-        setSheet(null);
-        setOnboardingStep(5);
-      }
-    } catch (error) {
-      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.itemError });
-    } finally {
-      setItemSaving(null);
+    if (linkEditor.id) {
+      setItems((current) => current.map((item) => item.id === linkEditor.id ? { ...item, title: linkEditor.title.trim(), url: validated.value.url, metadata: linkEditor.appearance } : item));
+    } else {
+      const id = createCreatorLinkTemporaryItemId();
+      const now = new Date().toISOString();
+      const nextSortOrder = items.reduce((maximum, item) => Math.max(maximum, item.sortOrder), -1) + 1;
+      setItems((current) => [...current, {
+        id, pageId: page.id, itemType: "link", platform: null, title: linkEditor.title.trim(),
+        description: null, url: validated.value.url, imageUrl: null, metadata: linkEditor.appearance,
+        sortOrder: nextSortOrder, isVisible: true, createdAt: now, updatedAt: now,
+      }]);
+      setDraftLayoutOrder((current) => [...(current ?? []), `link:${id}`]);
     }
+    setToast({ tone: "success", message: locale === "ja" ? "下書きに追加しました" : "Added to draft" });
+    setSheet(null);
+    if (showFirstRun && onboardingStep === 4) setOnboardingStep(5);
   };
 
   const applyOnboardingPreset = async (preset: CreatorLinkOnboardingPreset): Promise<boolean> => {
     if (!page || !form || itemSaving || saving) return false;
-    const previousForm = form;
-    const previousItems = items;
     const applied = applyLinkDesignPreset(preset, {
       page: form,
       socials: items.filter((item) => item.itemType === "social"),
@@ -618,144 +758,17 @@ export default function CreatorLinkBuilderPage() {
     const nextItems = items.map((item) => updatedItems.get(item.id) ?? item);
     setForm(nextForm);
     setItems(nextItems);
-    setItemSaving("style-preset");
-    try {
-      const pageRequest = fetch("/api/creator/link/page", {
-        method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id, displayName: nextForm.displayName, displayNameColor: nextForm.displayNameColor, bio: nextForm.bio, slug: nextForm.slug, themeKey: nextForm.themeKey, accentColor: nextForm.accentColor, buttonStyle: nextForm.buttonStyle, fontStyle: nextForm.fontStyle, avatarUrl: nextForm.avatarUrl, coverUrl: nextForm.coverUrl, isAcceptingInquiries: nextForm.isAcceptingInquiries, status: nextForm.status }),
-      }).then(async (response) => ({ response, data: await response.json().catch(() => null) as unknown }));
-      const itemRequests = nextItems.filter((item) => item.itemType === "social" || item.itemType === "link").map(async (item) => {
-        const response = await fetch(`/api/creator/link/items/${item.id}`, {
-          method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...(item.itemType === "social" ? { platform: item.platform, url: item.url } : { title: item.title, url: item.url }), metadata: item.metadata }),
-        });
-        const data: unknown = await response.json().catch(() => null);
-        if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
-        return data.item;
-      });
-      const [{ response, data }, savedItems] = await Promise.all([pageRequest, Promise.all(itemRequests)]);
-      if (!response.ok || !isUpdateSuccess(data)) throw new Error(getApiError(data, copy.saveError));
-      setPage(data.page);
-      setForm(toFormState(data.page));
-      const savedById = new Map(savedItems.map((item) => [item.id, item]));
-      setItems((current) => current.map((item) => savedById.get(item.id) ?? item));
-      return true;
-    } catch (error) {
-      setForm(previousForm);
-      setItems(previousItems);
-      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.saveError });
-      return false;
-    } finally {
-      setItemSaving(null);
-    }
+    return true;
   };
 
   const toggleItemVisibility = async (item: CreatorLinkItem) => {
-    if (itemSaving || (item.itemType !== "social" && item.itemType !== "link")) return;
-    setItemSaving(item.id);
-    try {
-      const response = await fetch(`/api/creator/link/items/${item.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(item.itemType === "social"
-            ? { platform: item.platform, url: item.url }
-            : { title: item.title, url: item.url }),
-          metadata: item.metadata,
-          isVisible: !item.isVisible,
-        }),
-      });
-      if (response.status === 401) {
-        router.replace("/login");
-        return;
-      }
-      const data: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isItemMutationSuccess(data)) throw new Error(getApiError(data, copy.itemError));
-      setItems((current) => current.map((candidate) => candidate.id === data.item.id ? data.item : candidate));
-    } catch (error) {
-      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.itemError });
-    } finally {
-      setItemSaving(null);
-    }
-  };
-
-  const saveInquiryForms = async () => {
-    if (!page || inquirySaving) return;
-    setInquirySaving(true);
-    try {
-      const response = await fetch("/api/creator/link/inquiry-types", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageId: page.id,
-          forms: (["simple", "pr"] as const).map((kind, sortOrder) => ({ kind, title: inquiryFormEditor[kind].title, isEnabled: inquiryFormEditor[kind].isEnabled, sortOrder })),
-        }),
-      });
-      if (response.status === 401) { router.replace("/login"); return; }
-      const data: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isInquiryFormsUpdateSuccess(data)) throw new Error(getApiError(data, "フォーム設定を保存できませんでした。"));
-      setInquiryTypes((current) => {
-        const managedIds = new Set(data.inquiryTypes.map((item) => item.id));
-        return [...current.filter((item) => !managedIds.has(item.id) && item.templateKey !== "pr_post" && item.templateKey !== null), ...data.inquiryTypes];
-      });
-      setInquiryFormEditor(toInquiryFormEditor(data.inquiryTypes));
-      setForm((current) => current ? { ...current, isAcceptingInquiries: data.isAcceptingInquiries } : current);
-      setPage((current) => current ? { ...current, isAcceptingInquiries: data.isAcceptingInquiries } : current);
-      setToast({ tone: "success", message: "フォーム設定を保存しました" });
-      setSheet(null);
-    } catch (error) {
-      setToast({ tone: "error", message: error instanceof Error ? error.message : "フォーム設定を保存できませんでした。" });
-    } finally { setInquirySaving(false); }
-  };
-
-  const reorderInquiryTypes = async (nextTypes: TrendreLinkCanvasInquiryType[]) => {
-    if (!page || inquirySaving) return;
-    const orderedKinds = nextTypes.map((type) => type.templateKey === "pr_post" ? "pr" as const : "simple" as const);
-    if (orderedKinds.length !== 2 || new Set(orderedKinds).size !== 2) return;
-    const previous = inquiryTypes;
-    setInquiryTypes((current) => current.map((item) => { const kind = item.templateKey === "pr_post" ? "pr" : item.templateKey === null ? "simple" : null; return kind ? { ...item, sortOrder: orderedKinds.indexOf(kind) } : item; }));
-    setInquirySaving(true);
-    try {
-      const response = await fetch("/api/creator/link/inquiry-types", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageId: page.id, forms: orderedKinds.map((kind, sortOrder) => ({ kind, title: inquiryFormEditor[kind].title, isEnabled: inquiryFormEditor[kind].isEnabled, sortOrder })) }) });
-      const data: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isInquiryFormsUpdateSuccess(data)) throw new Error(getApiError(data, "フォームの並び順を保存できませんでした。"));
-      setInquiryTypes((current) => [...current.filter((item) => item.templateKey !== "pr_post" && item.templateKey !== null), ...data.inquiryTypes]);
-    } catch (error) {
-      setInquiryTypes(previous);
-      setToast({ tone: "error", message: error instanceof Error ? error.message : "フォームの並び順を保存できませんでした。" });
-    } finally { setInquirySaving(false); }
+    if (item.itemType !== "social" && item.itemType !== "link") return;
+    setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, isVisible: !candidate.isVisible } : candidate));
   };
 
   const reorderItems = async (canvasItems: TrendreLinkCanvasItem[]) => {
-    if (!page || itemSaving) return;
-    const previous = items;
-    const reorderedIds = canvasItems.map((item) => item.id).filter((id): id is string => Boolean(id));
-    const orderSlots = items.filter((item) => reorderedIds.includes(item.id)).map((item) => item.sortOrder).sort((a, b) => a - b);
-    const reorderedVisible = reorderedIds.map((id, index) => {
-      const item = items.find((candidate) => candidate.id === id);
-      return item ? { ...item, sortOrder: orderSlots[index] ?? item.sortOrder } : null;
-    }).filter((item): item is CreatorLinkItem => item !== null);
-    const reorderedById = new Map(reorderedVisible.map((item) => [item.id, item]));
-    const next = items.map((item) => reorderedById.get(item.id) ?? item).sort((a, b) => a.sortOrder - b.sortOrder);
-    setItems(next);
-    setItemSaving("reorder");
-    try {
-      const response = await fetch("/api/creator/link/items/reorder", {
-        method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id, items: reorderedVisible.map((item) => ({ id: item.id, sortOrder: item.sortOrder })) }),
-      });
-      const data: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isReorderSuccess(data)) throw new Error(getApiError(data, copy.reorderError));
-      const savedById = new Map(data.items.map((item) => [item.id, item]));
-      setItems((current) => current.map((item) => savedById.get(item.id) ?? item).sort((a, b) => a.sortOrder - b.sortOrder));
-    } catch (error) {
-      setItems(previous);
-      setToast({ tone: "error", message: error instanceof Error ? error.message : copy.reorderError });
-    } finally {
-      setItemSaving(null);
-    }
+    const orderedItems = canvasItems.filter((item): item is TrendreLinkCanvasItem & { id: string } => Boolean(item.id));
+    setItems((current) => reorderCreatorLinkDraftItems(current, orderedItems));
   };
 
   const selectAvatarForCrop = (file: File) => {
@@ -808,19 +821,6 @@ export default function CreatorLinkBuilderPage() {
     return <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6"><p className="rounded-xl bg-white px-4 py-3 text-sm text-rose-600 shadow-sm">{toast?.message ?? copy.loadError}</p></div>;
   }
 
-  const isDirty =
-    form.displayName !== page.displayName ||
-    form.displayNameColor !== page.displayNameColor ||
-    form.bio !== (page.bio ?? "") ||
-    form.slug !== page.slug ||
-    form.themeKey !== page.themeKey ||
-    form.accentColor !== page.accentColor ||
-    form.buttonStyle !== page.buttonStyle ||
-    form.fontStyle !== page.fontStyle ||
-    form.avatarUrl !== page.avatarUrl ||
-    form.coverUrl !== page.coverUrl ||
-    form.isAcceptingInquiries !== page.isAcceptingInquiries ||
-    isLayoutDirty;
   const publicUrl = `https://trendre.jp/in/${form.slug}`;
   const slugMessage = slugError ? copy.checkFailed : slugCheck === "checking" ? copy.checking : slugCheck === "available" ? copy.available : slugCheck === "unavailable" ? copy.unavailable : copy.invalid;
   const slugTone = !slugError && slugCheck === "available" ? "text-emerald-600" : slugCheck === "checking" ? "text-amber-600" : "text-rose-600";
@@ -829,31 +829,21 @@ export default function CreatorLinkBuilderPage() {
     .filter((item) => item.isVisible)
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((item) => {
-      if (sheet === "social" && item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)) {
-        const normalized = normalizeSocialProfile(item.platform, socialInputs[item.platform]);
-        return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: item.title, description: item.description, url: normalized.ok ? normalized.value.url : item.url, imageUrl: item.imageUrl, metadata: socialAppearances[item.platform] };
-      }
-      if (sheet === "link" && item.itemType === "link" && item.id === linkEditor.id) {
-        return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: linkEditor.title || item.title, description: item.description, url: linkEditor.url || item.url, imageUrl: item.imageUrl, metadata: linkEditor.appearance };
-      }
-      return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: item.title, description: item.description, url: item.url, imageUrl: item.imageUrl, metadata: item.metadata };
+      const normalizedSocial = item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)
+        ? normalizeSocialProfile(item.platform, item.url ?? "")
+        : null;
+      const normalizedLink = item.itemType === "link" ? validateGeneralLink({ title: item.title ?? "", url: item.url ?? "" }) : null;
+      return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: item.title, description: item.description, url: normalizedSocial ? (normalizedSocial.ok ? normalizedSocial.value.url : null) : normalizedLink ? (normalizedLink.ok ? normalizedLink.value.url : null) : item.url, imageUrl: item.imageUrl, metadata: item.metadata };
     });
-  if (sheet === "social") {
-    for (const platform of CREATOR_LINK_SOCIAL_PLATFORMS) {
-      if (optimisticItems.some((item) => item.itemType === "social" && item.platform === platform)) continue;
-      const normalized = normalizeSocialProfile(platform, socialInputs[platform]);
-      if (normalized.ok) optimisticItems.push({ itemType: "social", platform, title: null, description: null, url: normalized.value.url, imageUrl: null, metadata: socialAppearances[platform] });
-    }
-  }
-  const draftLink = validateGeneralLink(linkEditor);
-  if (sheet === "link" && !linkEditor.id && draftLink.ok) {
-    optimisticItems.push({ itemType: "link", platform: null, title: linkEditor.title, description: null, url: draftLink.value.url, imageUrl: null, metadata: linkEditor.appearance });
-  }
+  const draftInquiryTypes = inquiryTypes.map((item) => {
+    const kind = item.templateKey === "pr_post" ? "pr" : item.templateKey === null ? "simple" : null;
+    return kind ? { ...item, title: inquiryFormEditor[kind].title, isEnabled: inquiryFormEditor[kind].isEnabled } : item;
+  });
   const viewData: TrendreLinkCanvasData = {
     page: { slug: form.slug, displayName: form.displayName, displayNameColor: form.displayNameColor, bio: form.bio, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, isAcceptingInquiries: form.isAcceptingInquiries, layoutOrder: effectiveDraftLayoutOrder },
     layoutLinkIds: currentLinkIds,
     items: optimisticItems,
-    inquiryTypes: inquiryTypes.filter((item) => item.isEnabled).map((item) => ({ id: item.id, sortOrder: item.sortOrder, templateKey: item.templateKey, title: item.title, description: item.description, isCustom: item.isCustom })),
+    inquiryTypes: draftInquiryTypes.filter((item) => item.isEnabled).map((item) => ({ id: item.id, sortOrder: item.sortOrder, templateKey: item.templateKey, title: item.title, description: item.description, isCustom: item.isCustom })),
   };
 
   const copyPublicUrl = async () => {
@@ -921,6 +911,26 @@ export default function CreatorLinkBuilderPage() {
       openSocialSheet(platform);
     } else {
       openLinkSheet(item);
+    }
+  };
+
+  const leaveEditor = async (decision: CreatorLinkUnsavedDecision) => {
+    if (!pendingNavigation || !form || !persistedDraft || leaving) return;
+    setLeaving(true);
+    try {
+      const destination = pendingNavigation;
+      const mayLeave = await canLeaveCreatorLinkEditor(isDirty, decision, async () => save(form.status));
+      if (!mayLeave) return;
+      if (decision === "discard") {
+        setForm(persistedDraft.form);
+        setItems(persistedDraft.items);
+        setDraftLayoutOrder(persistedDraft.layoutOrder);
+        setInquiryFormEditor(persistedDraft.inquiryForms);
+      }
+      setPendingNavigation(null);
+      router.push(destination);
+    } finally {
+      setLeaving(false);
     }
   };
 
@@ -1058,7 +1068,7 @@ export default function CreatorLinkBuilderPage() {
                 <label className="flex min-h-14 items-center justify-between rounded-2xl bg-slate-50 px-4 text-sm font-medium text-slate-700">Display name color<span className="flex items-center gap-2"><span className="font-mono text-xs text-slate-500">{form.displayNameColor ?? "Design"}</span><span className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow ring-1 ring-black/10" style={{ backgroundColor: form.displayNameColor ?? "#29272A" }}><input type="color" value={form.displayNameColor ?? "#29272A"} onChange={(event) => setForm({ ...form, displayNameColor: event.target.value.toUpperCase() })} className="absolute inset-[-8px] h-16 w-16 cursor-pointer opacity-0" /></span></span></label>
                 <label className="block text-sm font-medium text-slate-600">slug<div className="mt-1.5 flex h-12 overflow-hidden rounded-xl border border-slate-200 bg-white/80 focus-within:border-rose-400"><span className="flex shrink-0 items-center border-r border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500">trendre.jp/in/</span><input value={form.slug} maxLength={50} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => { setForm({ ...form, slug: event.target.value }); setSlugError(null); }} className="min-w-0 flex-1 select-text bg-transparent px-3 text-base outline-none" /></div></label>
                 <p className={`flex items-center gap-1.5 text-xs font-medium ${slugTone}`}>{!slugError && slugCheck === "available" ? <CheckIcon /> : null}{slugMessage}</p>
-                <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-black/[0.06] bg-[#fffdfa]/95 px-4 pb-2 pt-3 backdrop-blur"><button type="button" onClick={() => setSheet(null)} className="min-h-11 flex-1 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700">{copy.done}</button><button type="button" disabled={!canSave || saving} onClick={() => void save(form.status === "published" ? "private" : "published")} className="min-h-11 flex-1 rounded-full bg-[#242326] px-4 text-sm font-semibold text-white disabled:opacity-35">{form.status === "published" ? copy.unpublish : copy.publish}</button></div>
+                <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-black/[0.06] bg-[#fffdfa]/95 px-4 pb-2 pt-3 backdrop-blur"><button type="button" onClick={() => setSheet(null)} className="min-h-11 flex-1 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700">{copy.done}</button><button type="button" onClick={() => setForm({ ...form, status: form.status === "published" ? "private" : "published" })} className="min-h-11 flex-1 rounded-full bg-[#242326] px-4 text-sm font-semibold text-white">{form.status === "published" ? copy.unpublish : copy.publish}</button></div>
               </div>
             ) : null}
 
@@ -1076,26 +1086,36 @@ export default function CreatorLinkBuilderPage() {
                   const shape: CreatorLinkSocialShape = appearance.socialShape ?? (appearance.socialStyle === "pill" ? "pill" : appearance.socialStyle === "circle" || appearance.socialStyle === "glass" ? "circle" : "icons");
                   const selectColor = (target: CreatorLinkSocialColorControl, value: string | null) => {
                     const colorUpdate = target === "icon" ? { iconColor: value } : target === "surface" ? { surfaceColor: value } : { borderColor: value };
-                    setSocialAppearances({ ...socialAppearances, [activeSocial]: { ...appearance, socialShape: shape, ...colorUpdate } });
+                    const nextAppearance = { ...appearance, socialShape: shape, ...colorUpdate };
+                    setSocialAppearances({ ...socialAppearances, [activeSocial]: nextAppearance });
+                    updateExistingSocialDraft(activeSocial, socialInputs[activeSocial], nextAppearance);
                   };
-                  return <div className="mx-auto mt-5 max-w-lg"><div className="rounded-2xl bg-slate-50/80 p-4"><div className="mb-2 flex items-center justify-between"><label htmlFor="social-editor-input" className="text-sm font-semibold text-slate-800">{label}</label>{existing ? <span className="text-xs font-medium text-emerald-600">Connected</span> : <span className="text-xs text-slate-400">Not set</span>}</div><div className="flex gap-2"><input id="social-editor-input" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={socialInputs[activeSocial]} onChange={(event) => setSocialInputs({ ...socialInputs, [activeSocial]: event.target.value })} placeholder={activeSocial === "youtube" ? "@handle / youtube.com/..." : "@username / URL"} className="h-12 min-w-0 flex-1 select-text rounded-2xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100" />{existing ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(existing.id)} aria-label={copy.deleteItem} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-400 hover:text-rose-600"><TrashIcon /></button> : null}</div></div><SocialShapeControl value={shape} onChange={(socialShape) => { setSocialColorTarget(null); setSocialAppearances({ ...socialAppearances, [activeSocial]: { ...appearance, socialShape } }); }} /><SocialColorRows shape={shape} appearance={appearance} onOpen={setSocialColorTarget} />{socialColorTarget ? <SocialColorPicker target={socialColorTarget} value={socialColorTarget === "icon" ? appearance.iconColor : socialColorTarget === "surface" ? appearance.surfaceColor : appearance.borderColor} presetColor={socialColorTarget === "icon" ? coordinatedPreset?.socialIconColor ?? null : socialColorTarget === "surface" ? coordinatedPreset?.socialSurfaceColor ?? null : coordinatedPreset?.socialBorderColor ?? null} onSelect={(value) => selectColor(socialColorTarget, value)} onClose={() => setSocialColorTarget(null)} /> : null}<div className="sticky bottom-0 -mx-4 mt-5 border-t border-slate-200 bg-[#fffdfa]/95 px-4 pb-2 pt-3"><button type="button" disabled={Boolean(itemSaving) || !socialInputs[activeSocial].trim()} onClick={() => void saveSocial(activeSocial)} className="h-12 w-full rounded-xl bg-[#29272A] text-sm font-semibold text-white disabled:opacity-40">{itemSaving ? copy.saving : getCreatorLinkItemCtaCopy(locale, Boolean(existing))}</button></div></div>;
+                  return <div className="mx-auto mt-5 max-w-lg">
+                    <div className="rounded-2xl bg-slate-50/80 p-4">
+                      <div className="mb-2 flex items-center justify-between"><label htmlFor="social-editor-input" className="text-sm font-semibold text-slate-800">{label}</label>{existing ? <span className="text-xs font-medium text-emerald-600">Connected</span> : <span className="text-xs text-slate-400">Not set</span>}</div>
+                      <div className="flex gap-2"><input id="social-editor-input" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={socialInputs[activeSocial]} onChange={(event) => { const input = event.target.value; setSocialInputs({ ...socialInputs, [activeSocial]: input }); updateExistingSocialDraft(activeSocial, input, appearance); }} placeholder={activeSocial === "youtube" ? "@handle / youtube.com/..." : "@username / URL"} className="h-12 min-w-0 flex-1 select-text rounded-2xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100" />{existing ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(existing.id)} aria-label={copy.deleteItem} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-400 hover:text-rose-600"><TrashIcon /></button> : null}</div>
+                    </div>
+                    <SocialShapeControl value={shape} onChange={(socialShape) => { const nextAppearance = { ...appearance, socialShape }; setSocialColorTarget(null); setSocialAppearances({ ...socialAppearances, [activeSocial]: nextAppearance }); updateExistingSocialDraft(activeSocial, socialInputs[activeSocial], nextAppearance); }} />
+                    <SocialColorRows shape={shape} appearance={appearance} activeTarget={socialColorTarget} presetColors={{ icon: coordinatedPreset?.socialIconColor ?? null, surface: coordinatedPreset?.socialSurfaceColor ?? null, border: coordinatedPreset?.socialBorderColor ?? null }} onToggle={(target) => setSocialColorTarget((current) => current === target ? null : target)} onSelect={selectColor} />
+                    {!existing ? <div className="sticky bottom-0 -mx-4 mt-5 border-t border-slate-200 bg-[#fffdfa]/95 px-4 pb-2 pt-3"><button type="button" disabled={Boolean(itemSaving) || !socialInputs[activeSocial].trim()} onClick={() => void saveSocial(activeSocial)} className="h-12 w-full rounded-xl bg-[#29272A] text-sm font-semibold text-white disabled:opacity-40">{locale === "ja" ? "追加" : "Add"}</button></div> : null}
+                  </div>;
                 })()}
               </div>
             ) : null}
 
             {sheet === "link" ? (
               <div className="mt-5 space-y-4">
-                <label className="block text-sm font-medium text-slate-600">{copy.linkName}<input value={linkEditor.title} maxLength={80} onChange={(event) => setLinkEditor({ ...linkEditor, title: event.target.value })} className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
-                <label className="block text-sm font-medium text-slate-600">{copy.url}<input type="url" value={linkEditor.url} maxLength={500} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => setLinkEditor({ ...linkEditor, url: event.target.value })} placeholder="https://" className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
+                <label className="block text-sm font-medium text-slate-600">{copy.linkName}<input value={linkEditor.title} maxLength={80} onChange={(event) => updateExistingLinkDraft({ ...linkEditor, title: event.target.value })} className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
+                <label className="block text-sm font-medium text-slate-600">{copy.url}<input type="url" value={linkEditor.url} maxLength={500} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => updateExistingLinkDraft({ ...linkEditor, url: event.target.value })} placeholder="https://" className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
                 <details open={Boolean(linkEditor.id)} className="rounded-xl border border-slate-200 bg-white/70 px-4 py-3">
                   <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500">{locale === "ja" ? "詳細デザイン" : "Advanced design"}</summary>
-                  <CardDesignSelector value={linkEditor.appearance} onChange={(appearance) => setLinkEditor({ ...linkEditor, appearance })} locale={locale} pageButtonStyle={form.buttonStyle} />
+                  <CardDesignSelector value={linkEditor.appearance} onChange={(appearance) => updateExistingLinkDraft({ ...linkEditor, appearance })} locale={locale} pageButtonStyle={form.buttonStyle} />
                 </details>
-                <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-slate-200/70 bg-[#fffdfa]/95 px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">{linkEditor.id ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(linkEditor.id!)} aria-label={copy.deleteItem} className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:text-rose-600 disabled:opacity-40"><TrashIcon /></button> : null}<button type="button" disabled={Boolean(itemSaving)} onClick={() => void saveLink()} className="min-h-11 flex-1 rounded-xl bg-[#29272a] text-sm font-medium text-white transition enabled:hover:bg-[#ed5964] disabled:opacity-40">{itemSaving ? copy.saving : getCreatorLinkItemCtaCopy(locale, Boolean(linkEditor.id))}</button></div>
+                <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-slate-200/70 bg-[#fffdfa]/95 px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">{linkEditor.id ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(linkEditor.id!)} aria-label={copy.deleteItem} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-medium text-rose-600"><TrashIcon />{copy.deleteItem}</button> : <button type="button" disabled={Boolean(itemSaving)} onClick={() => void saveLink()} className="min-h-11 flex-1 rounded-xl bg-[#29272a] text-sm font-medium text-white transition enabled:hover:bg-[#ed5964] disabled:opacity-40">{locale === "ja" ? "追加" : "Add"}</button>}</div>
               </div>
             ) : null}
 
-            {sheet === "inquiry" ? <WorkEditorV2 value={inquiryFormEditor} busy={inquirySaving} locale={locale} onChange={setInquiryFormEditor} onPreview={(kind) => setPreviewInquiry({ kind, title: inquiryFormEditor[kind].title.trim() || INQUIRY_FORM_DEFAULTS[kind].title })} onSave={() => void saveInquiryForms()} /> : null}
+            {sheet === "inquiry" ? <WorkEditorV2 value={inquiryFormEditor} locale={locale} onChange={(next) => { setInquiryFormEditor(next); setForm({ ...form, isAcceptingInquiries: next.simple.isEnabled || next.pr.isEnabled }); }} onPreview={(kind) => setPreviewInquiry({ kind, title: inquiryFormEditor[kind].title.trim() || INQUIRY_FORM_DEFAULTS[kind].title })} /> : null}
 
         </EditorBottomSheet>
         </div>
@@ -1104,6 +1124,17 @@ export default function CreatorLinkBuilderPage() {
       {showFirstRun ? <div className="fixed inset-0 z-[60] overflow-hidden bg-[#141414]"><CreatorLinkOnboarding step={onboardingStep} form={form as OnboardingLinkForm} previewData={viewData} slugState={slugCheck} slugMessage={slugMessage} slugError={slugError} uploadingImage={uploadingImage === "avatar"} completing={saving} completionReady={onboardingCompletionReady} publicUrl={publicUrl} socialInputs={socialInputs} savedSocials={items.filter((item) => item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)).map((item) => item.platform as CreatorLinkSocialPlatform)} socialSaving={Boolean(itemSaving)} onStepChange={setOnboardingStep} onChange={(updates) => setForm({ ...form, ...updates })} onSelectAvatar={selectAvatarForCrop} onSocialChange={(platform, value) => setSocialInputs((current) => ({ ...current, [platform]: value }))} onSaveSocial={saveSocial} onAddLink={() => openLinkSheet()} onApplyPreset={applyOnboardingPreset} onComplete={async () => { const saved = await save("published"); if (saved) setOnboardingCompletionReady(true); return saved; }} onCopyPublicUrl={() => void copyPublicUrl()} onFinish={() => { setShowFirstRun(false); setSheet(null); }} /></div> : null}
       {previewInquiry ? <InquiryFormModal key={`${previewInquiry.kind}-${previewInquiry.title}`} formId={null} kind={previewInquiry.kind} title={previewInquiry.title} slug={form.slug} mode="preview" locale={locale} onClose={() => setPreviewInquiry(null)} /> : null}
       {avatarCropFile ? <ProfileImageCropModal file={avatarCropFile} locale={locale} onCancel={() => setAvatarCropFile(null)} onConfirm={async (croppedFile) => { const uploaded = await uploadImage(croppedFile, "avatar"); if (uploaded) setAvatarCropFile(null); return uploaded; }} /> : null}
+      {pendingNavigation ? <div role="dialog" aria-modal="true" aria-labelledby="unsaved-link-title" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 sm:items-center">
+        <div className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
+          <h2 id="unsaved-link-title" className="text-lg font-semibold text-slate-950">{locale === "ja" ? "変更を保存しますか？" : "Save your changes?"}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{locale === "ja" ? "このページを離れる前に、編集内容を保存または破棄してください。" : "Save or discard your draft before leaving this page."}</p>
+          <div className="mt-5 grid gap-2">
+            <button type="button" disabled={leaving || !canSave} onClick={() => void leaveEditor("save")} className="min-h-12 rounded-xl bg-[#242326] px-4 text-sm font-semibold text-white disabled:opacity-40">{leaving ? copy.saving : (locale === "ja" ? "保存して移動" : "Save and leave")}</button>
+            <button type="button" disabled={leaving} onClick={() => void leaveEditor("discard")} className="min-h-12 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-600 disabled:opacity-40">{locale === "ja" ? "破棄して移動" : "Discard and leave"}</button>
+            <button type="button" disabled={leaving} onClick={() => setPendingNavigation(null)} className="min-h-12 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700 disabled:opacity-40">{locale === "ja" ? "編集を続ける" : "Keep editing"}</button>
+          </div>
+        </div>
+      </div> : null}
     </div>
   );
 }
