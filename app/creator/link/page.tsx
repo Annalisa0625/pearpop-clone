@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BriefcaseBusiness, ChevronRight, ExternalLink, Link2, MessageSquareText, Share2, Sparkles, UserRound } from "lucide-react";
+import { BriefcaseBusiness, ChevronRight, Copy, ExternalLink, Link2, MessageSquareText, Share2, Sparkles, UserRound } from "lucide-react";
 import TrendreLinkCanvas, {
   type TrendreLinkCanvasData,
   type TrendreLinkEditableField,
@@ -334,7 +334,7 @@ export default function CreatorLinkBuilderPage() {
   const copy = useMemo(() => locale === "ja" ? {
     edit: "編集", preview: "プレビュー", draft: "下書き", published: "公開中", private: "非公開",
     back: "戻る", accountProfile: "アカウントプロフィール",
-    copyUrl: "URLをコピー", copied: "URLをコピーしました", openPage: "公開ページを開く", profile: "名前", theme: "背景", link: "リンク", sns: "SNS", inquiry: "フォーム",
+    copyUrl: "リンクをコピー", copied: "リンクをコピーしました", copyFailed: "リンクをコピーできませんでした", openPage: "公開ページを開く", profile: "名前", theme: "背景", link: "リンク", sns: "SNS", inquiry: "フォーム",
     urlSettings: "プロフィール", urlHelp: "名前・自己紹介・公開URLを編集します", checking: "確認中", available: "利用可能", unavailable: "使用されています", invalid: "形式が正しくありません", checkFailed: "確認に失敗しました",
     close: "閉じる", done: "完了", themeTitle: "背景を選ぶ", themeHelp: "選択するとページへすぐ反映されます", inquiryTitle: "フォーム設定", inquiryHelp: "仕事相談フォームの公開状態を設定します", accepting: "仕事相談フォームを公開する", paused: "仕事相談フォームを非公開にする",
     socialTitle: "SNSを編集", socialHelp: "ユーザー名または公式プロフィールURLを入力してください", linkTitle: "リンクを追加", editLinkTitle: "リンクを編集", linkName: "リンク名", url: "URL", saveItem: "保存", deleteItem: "削除", itemSaved: "保存しました", itemDeleted: "削除しました", reorderError: "並び順を保存できませんでした。", itemError: "アイテムを保存できませんでした。", formName: "表示名", bio: "自己紹介",
@@ -345,7 +345,7 @@ export default function CreatorLinkBuilderPage() {
   } : {
     edit: "Edit", preview: "Preview", draft: "Draft", published: "Published", private: "Private",
     back: "Back", accountProfile: "Account profile",
-    copyUrl: "Copy URL", copied: "URL copied", openPage: "Open public page", profile: "Name", theme: "Background", link: "Link", sns: "Social", inquiry: "Form",
+    copyUrl: "Copy link", copied: "Link copied", copyFailed: "Could not copy the link", openPage: "Open public page", profile: "Name", theme: "Background", link: "Link", sns: "Social", inquiry: "Form",
     urlSettings: "Profile", urlHelp: "Edit your name, bio, and public URL", checking: "Checking", available: "Available", unavailable: "Already in use", invalid: "Invalid format", checkFailed: "Check failed",
     close: "Close", done: "Done", themeTitle: "Choose a background", themeHelp: "Your selection appears on the page immediately", inquiryTitle: "Form settings", inquiryHelp: "Control whether your work inquiry form is public", accepting: "Publish work inquiry form", paused: "Hide work inquiry form",
     socialTitle: "Edit social links", socialHelp: "Enter a username or official profile URL", linkTitle: "Add link", editLinkTitle: "Edit link", linkName: "Link name", url: "URL", saveItem: "Save", deleteItem: "Delete", itemSaved: "Saved", itemDeleted: "Deleted", reorderError: "Could not save the new order.", itemError: "Could not save the item.", formName: "Display name", bio: "Bio",
@@ -837,7 +837,8 @@ export default function CreatorLinkBuilderPage() {
     return <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6"><p className="rounded-xl bg-white px-4 py-3 text-sm text-rose-600 shadow-sm">{toast?.message ?? copy.loadError}</p></div>;
   }
 
-  const publicUrl = `https://trendre.jp/in/${form.slug}`;
+  const publicPath = `/in/${form.slug}`;
+  const publicUrl = typeof window === "undefined" ? publicPath : new URL(publicPath, window.location.origin).toString();
   const slugMessage = slugError ? copy.checkFailed : slugCheck === "checking" ? copy.checking : slugCheck === "available" ? copy.available : slugCheck === "unavailable" ? copy.unavailable : copy.invalid;
   const slugTone = !slugError && slugCheck === "available" ? "text-emerald-600" : slugCheck === "checking" ? "text-amber-600" : "text-rose-600";
   const canSave = !saving && !slugError && slugCheck === "available" && form.displayName.trim().length > 0 && form.displayName.length <= 80 && form.bio.length <= 500;
@@ -885,7 +886,7 @@ export default function CreatorLinkBuilderPage() {
       textarea.remove();
     }
     if (copied) setToast({ tone: "success", message: copy.copied });
-    else { publicUrlRef.current?.focus(); publicUrlRef.current?.select(); setToast({ tone: "error", message: locale === "ja" ? "URLを選択してください" : "Select the URL to copy" }); }
+    else { publicUrlRef.current?.focus(); publicUrlRef.current?.select(); setToast({ tone: "error", message: copy.copyFailed }); }
   };
 
   const sheetTitle = sheet === "links" ? (locale === "ja" ? "リンク" : "Links")
@@ -991,9 +992,9 @@ export default function CreatorLinkBuilderPage() {
         <div className="mx-auto grid h-[60px] max-w-3xl grid-cols-[48px_1fr_auto] items-center px-2">
           <Link href="/creator/dashboard" aria-label={copy.back} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"><BackIcon /></Link>
           <h1 className="text-center text-[16px] font-semibold tracking-[-0.025em]">Link</h1>
-          <div className="flex min-w-[92px] justify-end gap-0.5">
-            <button type="button" onClick={() => void copyPublicUrl()} aria-label={copy.copyUrl} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><Share2 className="h-[19px] w-[19px]" /></button>
-            {isDirty ? <button type="button" disabled={!canSave} onClick={() => void save(form.status)} className="onboarding-press min-h-10 rounded-full bg-[#242326] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{saving ? copy.saving : getCreatorLinkEditorCtaCopy(locale, "saveChanges")}</button> : <Link href={`/in/${form.slug}`} target="_blank" rel="noopener noreferrer" aria-label={copy.openPage} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><ExternalLink className="h-[19px] w-[19px]" /></Link>}
+          <div className="flex min-w-0 justify-end gap-1">
+            <button type="button" onClick={() => void copyPublicUrl()} className="flex min-h-10 items-center justify-center gap-1 rounded-full px-3 text-[13px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><Copy className="h-4 w-4" aria-hidden="true" />{copy.copyUrl}</button>
+            {isDirty ? <button type="button" disabled={!canSave} onClick={() => void save(form.status)} className="onboarding-press min-h-10 rounded-full bg-[#242326] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{saving ? copy.saving : getCreatorLinkEditorCtaCopy(locale, "saveChanges")}</button> : <Link href={publicPath} target="_blank" rel="noopener noreferrer" aria-label={copy.openPage} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><ExternalLink className="h-[19px] w-[19px]" /></Link>}
           </div>
         </div>
       </header>
