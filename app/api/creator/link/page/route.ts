@@ -8,7 +8,9 @@ import {
   isCreatorLinkFontStyle,
 } from "@/lib/trendre-link/constants";
 import { getCreatorImageBucket, getOwnedCreatorLinkStoragePath } from "@/lib/trendre-link/storage";
+import { isCreatorLinkBackgroundReference } from "@/lib/trendre-link/background-selection";
 import { validateCreatorLinkSlug } from "@/lib/trendre-link/slug";
+import { normalizeCreatorLinkLayoutOrder, parseCreatorLinkLayoutOrder } from "@/lib/trendre-link/layout-order";
 import type {
   CreatorLinkPage,
   CreatorLinkPageUpdateResponse,
@@ -57,6 +59,7 @@ function toCreatorLinkPage(row: LinkPageRow): CreatorLinkPage {
     fontStyle: row.font_style,
     status: row.status,
     isAcceptingInquiries: row.is_accepting_inquiries,
+    layoutOrder: parseCreatorLinkLayoutOrder(row.layout_order),
     setupStep: row.setup_step,
     setupCompletedAt: row.setup_completed_at,
     publishedAt: row.published_at,
@@ -97,6 +100,7 @@ export async function PATCH(request: NextRequest) {
   const fontStyle = body.fontStyle === undefined ? undefined : body.fontStyle;
   const avatarUrl = body.avatarUrl === undefined ? undefined : body.avatarUrl;
   const coverUrl = body.coverUrl === undefined ? undefined : body.coverUrl;
+  const layoutOrder = body.layoutOrder;
 
   if (!UUID_PATTERN.test(pageId)) {
     return errorResponse("ページIDが不正です。", 400);
@@ -154,6 +158,9 @@ export async function PATCH(request: NextRequest) {
       !(coverUrl === undefined || coverUrl === null || typeof coverUrl === "string")) {
     return errorResponse("画像URLが正しくありません。", 400);
   }
+  if (!(layoutOrder === undefined || Array.isArray(layoutOrder))) {
+    return errorResponse("並び順の形式が正しくありません。", 400);
+  }
 
   const { data: currentPage, error: pageError } = await supabaseAdmin
     .from("creator_link_pages")
@@ -171,12 +178,42 @@ export async function PATCH(request: NextRequest) {
     return errorResponse("更新できるLinkページが見つかりません。", 404);
   }
 
+  let normalizedLayoutOrder = currentPage.layout_order;
+  if (layoutOrder !== undefined) {
+    const { data: creatorIdentity, error: creatorError } = await supabaseAdmin
+      .from("creators")
+      .select("id")
+      .eq("id", currentPage.creator_id)
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+    if (creatorError) {
+      console.error("trendre link layout creator identity lookup failed");
+      return errorResponse("Creator情報を確認できませんでした。", 500);
+    }
+    if (!creatorIdentity) {
+      return errorResponse("並び順を更新できるCreatorが見つかりません。", 404);
+    }
+    const { data: currentLinks, error: linksError } = await supabaseAdmin
+      .from("creator_link_items")
+      .select("id")
+      .eq("page_id", currentPage.id)
+      .eq("item_type", "link");
+    if (linksError) {
+      console.error("trendre link layout ownership lookup failed");
+      return errorResponse("並び順を確認できませんでした。", 500);
+    }
+    normalizedLayoutOrder = normalizeCreatorLinkLayoutOrder(
+      layoutOrder,
+      (currentLinks ?? []).map((item) => item.id),
+    );
+  }
+
   const nextAvatarUrl = avatarUrl === undefined ? currentPage.avatar_url : avatarUrl;
   const nextCoverUrl = coverUrl === undefined ? currentPage.cover_url : coverUrl;
   if (nextAvatarUrl && nextAvatarUrl !== currentPage.avatar_url && !getOwnedCreatorLinkStoragePath(nextAvatarUrl, auth.user.id)) {
     return errorResponse("許可されていないアバターURLです。", 400);
   }
-  if (nextCoverUrl && nextCoverUrl !== currentPage.cover_url && !getOwnedCreatorLinkStoragePath(nextCoverUrl, auth.user.id)) {
+  if (nextCoverUrl && nextCoverUrl !== currentPage.cover_url && !isCreatorLinkBackgroundReference(nextCoverUrl) && !getOwnedCreatorLinkStoragePath(nextCoverUrl, auth.user.id)) {
     return errorResponse("許可されていない背景画像URLです。", 400);
   }
 
@@ -211,6 +248,7 @@ export async function PATCH(request: NextRequest) {
     font_style: fontStyle === undefined ? currentPage.font_style : fontStyle,
     avatar_url: nextAvatarUrl,
     cover_url: nextCoverUrl,
+    layout_order: normalizedLayoutOrder,
   };
 
   if (status === "published") {

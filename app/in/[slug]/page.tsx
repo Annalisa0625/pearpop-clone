@@ -18,6 +18,7 @@ import {
 } from "@/lib/trendre-link/constants";
 import { normalizeCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
 import { mapPublicCreatorLinkInquiryTypes } from "@/lib/trendre-link/public-inquiry-types";
+import { normalizeCreatorLinkLayoutOrder } from "@/lib/trendre-link/layout-order";
 import type { Database } from "@/types/database.types";
 import RequestForm from "./RequestForm";
 import TrendreLinkPublicView, {
@@ -83,17 +84,20 @@ type CreatorLinkPageRow = Pick<
   | "font_style"
   | "status"
   | "is_accepting_inquiries"
+  | "layout_order"
 >;
 
 type CreatorLinkItemRow = Pick<
   Database["public"]["Tables"]["creator_link_items"]["Row"],
   | "item_type"
+  | "id"
   | "platform"
   | "title"
   | "description"
   | "url"
   | "image_url"
   | "metadata"
+  | "sort_order"
 >;
 
 const requestButtons = [
@@ -209,13 +213,15 @@ function isCreatorLinkItemRow(
 ): value is CreatorLinkItemRow & { item_type: CreatorLinkItemType } {
   return (
     isRecord(value) &&
+    typeof value.id === "string" &&
     typeof value.item_type === "string" &&
     isCreatorLinkItemType(value.item_type) &&
     isNullableString(value.platform) &&
     isNullableString(value.title) &&
     isNullableString(value.description) &&
     isNullableString(value.url) &&
-    isNullableString(value.image_url)
+    isNullableString(value.image_url) &&
+    typeof value.sort_order === "number"
   );
 }
 
@@ -231,7 +237,7 @@ const loadTrendreLink = cache(
     const { data: pageData, error: pageError } = await supabase
       .from("creator_link_pages")
       .select(
-        "id, slug, display_name, display_name_color, bio, avatar_url, cover_url, theme_key, accent_color, button_style, font_style, status, is_accepting_inquiries"
+        "id, slug, display_name, display_name_color, bio, avatar_url, cover_url, theme_key, accent_color, button_style, font_style, status, is_accepting_inquiries, layout_order"
       )
       .eq("slug", normalizedSlug)
       .eq("status", "published")
@@ -250,7 +256,7 @@ const loadTrendreLink = cache(
     const [itemsResult, inquiryTypesResult] = await Promise.all([
       supabase
         .from("creator_link_items")
-        .select("item_type, platform, title, description, url, image_url, metadata")
+        .select("id, item_type, platform, title, description, url, image_url, metadata, sort_order")
         .eq("page_id", rawPage.id)
         .eq("is_visible", true)
         .order("sort_order", { ascending: true }),
@@ -277,6 +283,8 @@ const loadTrendreLink = cache(
       : [];
 
     const items = rawItems.filter(isCreatorLinkItemRow).map((item) => ({
+      id: item.id,
+      sortOrder: item.sort_order,
       itemType: item.item_type,
       platform: item.platform,
       title: item.title,
@@ -300,6 +308,7 @@ const loadTrendreLink = cache(
         buttonStyle: rawPage.button_style,
         fontStyle: rawPage.font_style,
         isAcceptingInquiries: rawPage.is_accepting_inquiries,
+        layoutOrder: normalizeCreatorLinkLayoutOrder(rawPage.layout_order, items.map((item) => item.id)),
       },
       items,
       inquiryTypes,

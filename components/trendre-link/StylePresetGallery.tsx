@@ -4,22 +4,28 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import TrendreLinkCanvas, { TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT, TRENDRE_LINK_LOGICAL_CANVAS_WIDTH, type TrendreLinkCanvasData, type TrendreLinkCanvasItem } from "./TrendreLinkCanvas";
 import { getLinkDesignPresets, type CreatorLinkOnboardingPreset, type LinkDesignPresetCategory } from "@/lib/trendre-link/link-design-presets";
+import { createCreatorLinkBackgroundReference } from "@/lib/trendre-link/background-selection";
 
 type Props = {
   data: TrendreLinkCanvasData;
   selectedPresetId: string | null;
   onSelect: (preset: CreatorLinkOnboardingPreset) => void;
   category?: LinkDesignPresetCategory | null;
+  application?: "full" | "background";
+  onUpload?: (file: File) => void;
+  uploading?: boolean;
+  uploadSelected?: boolean;
 };
 
 const SAMPLE_SOCIALS = ["instagram", "tiktok", "youtube"] as const;
 const SAMPLE_LINKS = ["Latest post", "Work with me"] as const;
 
 function recipeItems(items: TrendreLinkCanvasItem[], preset: CreatorLinkOnboardingPreset) {
-  const socials = items.filter((item) => item.itemType === "social").map((item) => ({ ...item, metadata: { ...item.metadata, iconColor: preset.socialIconColor } }));
+  const socialAppearance = { iconColor: preset.socialIconColor, socialStyle: preset.socialStyle, socialSurface: undefined, socialShape: preset.socialShape, surfaceColor: preset.socialSurfaceColor, borderColor: preset.socialBorderColor };
+  const socials = items.filter((item) => item.itemType === "social").map((item) => ({ ...item, metadata: { ...item.metadata, ...socialAppearance } }));
   const links = items.filter((item) => item.itemType !== "social").map((item) => item.itemType === "link" ? { ...item, metadata: { ...preset.linkAppearance } } : item);
   if (!socials.length) {
-    socials.push(...SAMPLE_SOCIALS.map((platform, index) => ({ id: `guest-sample-social-${platform}`, sortOrder: index, itemType: "social" as const, platform, title: null, description: null, url: "https://example.com/", imageUrl: null, metadata: { ...preset.linkAppearance, iconColor: preset.socialIconColor } })));
+    socials.push(...SAMPLE_SOCIALS.map((platform, index) => ({ id: `guest-sample-social-${platform}`, sortOrder: index, itemType: "social" as const, platform, title: null, description: null, url: "https://example.com/", imageUrl: null, metadata: { ...preset.linkAppearance, ...socialAppearance } })));
   }
   if (!links.some((item) => item.itemType === "link")) {
     links.push(...SAMPLE_LINKS.map((title, index) => ({ id: `guest-preset-sample-${index}`, sortOrder: index, itemType: "link" as const, platform: null, title, description: null, url: "https://example.com/", imageUrl: null, metadata: { ...preset.linkAppearance } })));
@@ -59,22 +65,26 @@ const PresetCard = memo(function PresetCard({ preset, preview, selected, onSelec
   </article>;
 }, (previous, next) => previous.preset === next.preset && previous.selected === next.selected && previous.contentKey === next.contentKey && previous.onSelect === next.onSelect);
 
-export default function StylePresetGallery({ data, selectedPresetId, onSelect, category = null }: Props) {
+export default function StylePresetGallery({ data, selectedPresetId, onSelect, category = null, application = "full", onUpload, uploading = false, uploadSelected = false }: Props) {
   const contentKey = JSON.stringify({
     page: { avatarUrl: data.page.avatarUrl, bio: data.page.bio, displayName: data.page.displayName, slug: data.page.slug },
     items: data.items.map(({ id, itemType, platform, title, description, url, imageUrl, sortOrder }) => ({ id, itemType, platform, title, description, url, imageUrl, sortOrder })),
   });
   const previews = useMemo(() => getLinkDesignPresets(category).map((preset) => ({
     preset,
-    data: {
+    data: application === "background" ? {
+      ...data,
+      page: { ...data.page, coverUrl: createCreatorLinkBackgroundReference(preset.backgroundId) },
+    } satisfies TrendreLinkCanvasData : {
       ...data,
       page: { ...data.page, ...preset.page, coverUrl: null },
       items: recipeItems(data.items, preset),
       inquiryTypes: [],
     } satisfies TrendreLinkCanvasData,
-  })), [category, data]);
+  })), [application, category, data]);
 
   return <div className="grid grid-cols-2 gap-x-2 gap-y-2.5 px-1 pb-2 min-[390px]:gap-x-2.5 min-[390px]:gap-y-3" role="radiogroup" aria-label="Linkのスタイル">
+    {onUpload ? <label className="onboarding-press relative flex aspect-[3/5] min-w-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[20px] border border-dashed border-slate-300 bg-white/80 px-3 text-center shadow-[0_8px_24px_rgba(42,35,31,.06)] focus-within:ring-4 focus-within:ring-rose-200"><input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} /><span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#242326] text-2xl font-light text-white">+</span><strong className="mt-3 text-sm text-slate-900">{uploading ? "Uploading…" : "Upload"}</strong><span className="mt-1 text-[11px] leading-4 text-slate-500">Photo or illustration</span></label> : null}
     {previews.map(({ preset, data: preview }) => <PresetCard key={preset.id} preset={preset} preview={preview} selected={selectedPresetId === preset.id} contentKey={contentKey} onSelect={onSelect} />)}
   </div>;
 }

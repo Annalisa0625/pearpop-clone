@@ -1,3 +1,5 @@
+import type { CreatorLinkButtonStyle } from "./constants";
+
 export const CREATOR_LINK_SOCIAL_PLATFORMS = ["instagram", "tiktok", "x", "youtube"] as const;
 export type CreatorLinkSocialPlatform = (typeof CREATOR_LINK_SOCIAL_PLATFORMS)[number];
 
@@ -5,6 +7,11 @@ export const CREATOR_LINK_ITEM_LAYOUTS = ["wide", "square", "icon"] as const;
 export const CREATOR_LINK_ITEM_SURFACES = ["filled", "outline"] as const;
 export const CREATOR_LINK_ITEM_FINISHES = ["solid", "gradient", "metallic"] as const;
 export const CREATOR_LINK_ITEM_DEPTHS = ["normal", "soft", "raised"] as const;
+export const CREATOR_LINK_ITEM_SHAPES = ["rounded", "pill", "soft-square", "square"] as const;
+export const CREATOR_LINK_ITEM_STYLES = ["solid", "outline", "glass", "soft", "shadow"] as const;
+export const CREATOR_LINK_SOCIAL_STYLES = ["icons", "circle", "glass", "pill"] as const;
+export const CREATOR_LINK_SOCIAL_SURFACES = ["none", "solid", "glass"] as const;
+export const CREATOR_LINK_SOCIAL_SHAPES = ["icons", "circle", "pill"] as const;
 export const CREATOR_LINK_ITEM_SOLID_COLORS = [
   "charcoal", "white", "sand", "brown", "rose", "pink", "red", "orange", "green", "blue",
 ] as const;
@@ -20,6 +27,11 @@ export type CreatorLinkItemLayout = (typeof CREATOR_LINK_ITEM_LAYOUTS)[number];
 export type CreatorLinkItemSurface = (typeof CREATOR_LINK_ITEM_SURFACES)[number];
 export type CreatorLinkItemFinish = (typeof CREATOR_LINK_ITEM_FINISHES)[number];
 export type CreatorLinkItemDepth = (typeof CREATOR_LINK_ITEM_DEPTHS)[number];
+export type CreatorLinkItemShape = (typeof CREATOR_LINK_ITEM_SHAPES)[number];
+export type CreatorLinkItemStyle = (typeof CREATOR_LINK_ITEM_STYLES)[number];
+export type CreatorLinkSocialStyle = (typeof CREATOR_LINK_SOCIAL_STYLES)[number];
+export type CreatorLinkSocialSurface = (typeof CREATOR_LINK_SOCIAL_SURFACES)[number];
+export type CreatorLinkSocialShape = (typeof CREATOR_LINK_SOCIAL_SHAPES)[number];
 export type CreatorLinkItemColor = (typeof CREATOR_LINK_ITEM_COLORS)[number];
 
 export type CreatorLinkItemAppearance = {
@@ -29,6 +41,13 @@ export type CreatorLinkItemAppearance = {
   color: CreatorLinkItemColor;
   depth?: CreatorLinkItemDepth;
   iconColor?: string | null;
+  shape?: CreatorLinkItemShape;
+  style?: CreatorLinkItemStyle;
+  socialStyle?: CreatorLinkSocialStyle;
+  socialSurface?: CreatorLinkSocialSurface;
+  socialShape?: CreatorLinkSocialShape;
+  surfaceColor?: string | null;
+  borderColor?: string | null;
 };
 
 export const CREATOR_LINK_ITEM_COLOR_VALUES: Record<CreatorLinkItemColor, string> = {
@@ -69,6 +88,35 @@ export function getCreatorLinkItemColors(finish: CreatorLinkItemFinish): readonl
   return CREATOR_LINK_ITEM_SOLID_COLORS;
 }
 
+export function getCreatorLinkItemFinishForColor(color: CreatorLinkItemColor): CreatorLinkItemFinish {
+  if ((CREATOR_LINK_ITEM_GRADIENT_COLORS as readonly string[]).includes(color)) return "gradient";
+  if ((CREATOR_LINK_ITEM_METALLIC_COLORS as readonly string[]).includes(color)) return "metallic";
+  return "solid";
+}
+
+export function applyCreatorLinkItemStyle(value: CreatorLinkItemAppearance, style: CreatorLinkItemStyle): CreatorLinkItemAppearance {
+  if (style === "outline") return { ...value, style, surface: "outline", depth: "normal" };
+  if (style === "soft") return { ...value, style, surface: "filled", depth: "soft" };
+  if (style === "shadow") return { ...value, style, surface: "filled", depth: "raised" };
+  return { ...value, style, surface: "filled", depth: "normal" };
+}
+
+export function resolveCreatorLinkItemShape(value: CreatorLinkItemAppearance, pageButtonStyle: CreatorLinkButtonStyle): CreatorLinkItemShape {
+  if (value.shape) return value.shape;
+  if (pageButtonStyle === "pill") return "pill";
+  if (pageButtonStyle === "square") return "soft-square";
+  return "rounded";
+}
+
+export function resolveCreatorLinkItemStyle(value: CreatorLinkItemAppearance, pageButtonStyle: CreatorLinkButtonStyle): CreatorLinkItemStyle {
+  if (value.style) return value.style;
+  if (pageButtonStyle === "glass") return "glass";
+  if (value.surface === "outline") return "outline";
+  if ((value.depth ?? "normal") === "raised") return "shadow";
+  if ((value.depth ?? "normal") === "soft") return "soft";
+  return "solid";
+}
+
 function isColorForFinish(finish: CreatorLinkItemFinish, color: unknown): color is CreatorLinkItemColor {
   return isOneOf(getCreatorLinkItemColors(finish), color);
 }
@@ -86,6 +134,11 @@ export function normalizeCreatorLinkItemAppearance(value: unknown): CreatorLinkI
   const record = value as Record<string, unknown>;
   const finish = isOneOf(CREATOR_LINK_ITEM_FINISHES, record.finish) ? record.finish : "solid";
   const depth = isOneOf(CREATOR_LINK_ITEM_DEPTHS, record.depth) ? record.depth : "normal";
+  const shape = isOneOf(CREATOR_LINK_ITEM_SHAPES, record.shape) ? record.shape : undefined;
+  const style = isOneOf(CREATOR_LINK_ITEM_STYLES, record.style) ? record.style : undefined;
+  const socialStyle = isOneOf(CREATOR_LINK_SOCIAL_STYLES, record.socialStyle) ? record.socialStyle : undefined;
+  const socialSurface = isOneOf(CREATOR_LINK_SOCIAL_SURFACES, record.socialSurface) ? record.socialSurface : undefined;
+  const socialShape = isOneOf(CREATOR_LINK_SOCIAL_SHAPES, record.socialShape) ? record.socialShape : undefined;
   if (!isOneOf(CREATOR_LINK_ITEM_LAYOUTS, record.layout)
     || !isOneOf(CREATOR_LINK_ITEM_SURFACES, record.surface)
     || !isColorForFinish(finish, record.color)) {
@@ -94,7 +147,9 @@ export function normalizeCreatorLinkItemAppearance(value: unknown): CreatorLinkI
   const iconColor = record.iconColor === null || (typeof record.iconColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.iconColor))
     ? typeof record.iconColor === "string" ? record.iconColor.toUpperCase() : null
     : undefined;
-  return { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(iconColor === undefined ? {} : { iconColor }) };
+  const surfaceColor = record.surfaceColor === null ? null : typeof record.surfaceColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.surfaceColor) ? record.surfaceColor.toUpperCase() : undefined;
+  const borderColor = record.borderColor === null ? null : typeof record.borderColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.borderColor) ? record.borderColor.toUpperCase() : undefined;
+  return { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(iconColor === undefined ? {} : { iconColor }), ...(shape ? { shape } : {}), ...(style ? { style } : {}), ...(socialStyle ? { socialStyle } : {}), ...(socialSurface ? { socialSurface } : {}), ...(socialShape ? { socialShape } : {}), ...(surfaceColor === undefined ? {} : { surfaceColor }), ...(borderColor === undefined ? {} : { borderColor }) };
 }
 
 export function validateCreatorLinkItemAppearance(value: unknown): ValidationResult<CreatorLinkItemAppearance> {
@@ -105,16 +160,70 @@ export function validateCreatorLinkItemAppearance(value: unknown): ValidationRes
   const record = value as Record<string, unknown>;
   const finish = isOneOf(CREATOR_LINK_ITEM_FINISHES, record.finish) ? record.finish : "solid";
   const depth = record.depth === undefined ? "normal" : isOneOf(CREATOR_LINK_ITEM_DEPTHS, record.depth) ? record.depth : null;
+  const shape = record.shape === undefined ? undefined : isOneOf(CREATOR_LINK_ITEM_SHAPES, record.shape) ? record.shape : null;
+  const style = record.style === undefined ? undefined : isOneOf(CREATOR_LINK_ITEM_STYLES, record.style) ? record.style : null;
+  const socialStyle = record.socialStyle === undefined ? undefined : isOneOf(CREATOR_LINK_SOCIAL_STYLES, record.socialStyle) ? record.socialStyle : null;
+  const socialSurface = record.socialSurface === undefined ? undefined : isOneOf(CREATOR_LINK_SOCIAL_SURFACES, record.socialSurface) ? record.socialSurface : null;
+  const socialShape = record.socialShape === undefined ? undefined : isOneOf(CREATOR_LINK_SOCIAL_SHAPES, record.socialShape) ? record.socialShape : null;
   if (!isOneOf(CREATOR_LINK_ITEM_LAYOUTS, record.layout)
     || !isOneOf(CREATOR_LINK_ITEM_SURFACES, record.surface)
     || !isColorForFinish(finish, record.color)
-    || depth === null) {
+    || depth === null
+    || shape === null
+    || style === null
+    || socialStyle === null
+    || socialSurface === null
+    || socialShape === null) {
     return { ok: false, error: "カードデザインの指定が正しくありません。" };
   }
   if (!(record.iconColor === undefined || record.iconColor === null || (typeof record.iconColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.iconColor)))) {
     return { ok: false, error: "アイコンカラーの形式が正しくありません。" };
   }
-  return { ok: true, value: { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(record.iconColor === undefined ? {} : { iconColor: typeof record.iconColor === "string" ? record.iconColor.toUpperCase() : null }) } };
+  if (!(record.surfaceColor === undefined || record.surfaceColor === null || (typeof record.surfaceColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.surfaceColor)))) {
+    return { ok: false, error: "Social surface color must be a six-digit hex color." };
+  }
+  if (!(record.borderColor === undefined || record.borderColor === null || (typeof record.borderColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.borderColor)))) {
+    return { ok: false, error: "Social border color must be a six-digit hex color." };
+  }
+  return { ok: true, value: { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(record.iconColor === undefined ? {} : { iconColor: typeof record.iconColor === "string" ? record.iconColor.toUpperCase() : null }), ...(shape ? { shape } : {}), ...(style ? { style } : {}), ...(socialStyle ? { socialStyle } : {}), ...(socialSurface ? { socialSurface } : {}), ...(socialShape ? { socialShape } : {}), ...(record.surfaceColor === undefined ? {} : { surfaceColor: typeof record.surfaceColor === "string" ? record.surfaceColor.toUpperCase() : null }), ...(record.borderColor === undefined ? {} : { borderColor: typeof record.borderColor === "string" ? record.borderColor.toUpperCase() : null }) } };
+}
+
+export type CreatorLinkResolvedSocialAppearance = {
+  shape: CreatorLinkSocialShape;
+  iconColor: string | null | undefined;
+  surfaceColor: string | null;
+  borderColor: string | null;
+};
+
+export function resolveCreatorLinkSocialAppearance(value: CreatorLinkItemAppearance): CreatorLinkResolvedSocialAppearance | null {
+  const appearance = normalizeCreatorLinkItemAppearance(value);
+  if (!appearance.socialShape) return null;
+  if (appearance.socialShape === "icons") return { shape: "icons", iconColor: appearance.iconColor, surfaceColor: null, borderColor: null };
+  return {
+    shape: appearance.socialShape,
+    iconColor: appearance.iconColor,
+    surfaceColor: appearance.surfaceColor ?? null,
+    borderColor: appearance.borderColor ?? null,
+  };
+}
+
+export type CreatorLinkSocialRenderStyle = {
+  color?: string;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderStyle?: "solid";
+  borderWidth?: "0px" | "1px";
+};
+
+export function getCreatorLinkSocialRenderStyle(value: CreatorLinkResolvedSocialAppearance): CreatorLinkSocialRenderStyle {
+  if (value.shape === "icons") return { color: value.iconColor ?? undefined };
+  return {
+    color: value.iconColor ?? undefined,
+    backgroundColor: value.surfaceColor ?? "transparent",
+    borderColor: value.borderColor ?? "transparent",
+    borderStyle: "solid",
+    borderWidth: value.borderColor === null ? "0px" : "1px",
+  };
 }
 
 const SOCIAL_LABELS: Record<CreatorLinkSocialPlatform, string> = {

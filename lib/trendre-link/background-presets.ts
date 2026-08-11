@@ -18,6 +18,24 @@ export type CreatorLinkBackgroundPreset = {
   foreground: "light" | "dark";
 };
 
+export type CreatorLinkBackgroundPreviewDefinition = {
+  background: string;
+  foreground: "light" | "dark";
+  imageUrl: string | null;
+  imagePosition: string;
+  imageFilter?: string;
+  imageScale?: number;
+  overlay?: string;
+};
+
+function imageBackground(id: string, name: string, group: CreatorLinkBackgroundPreset["group"], themeKey: CreatorLinkTheme, accentColor: string, buttonStyle: CreatorLinkButtonStyle, fontStyle: CreatorLinkFontStyle, foreground: CreatorLinkBackgroundPreset["foreground"], backgroundImage: string, backgroundOverlay?: string, backgroundPosition = "center"): CreatorLinkBackgroundPreset {
+  return { id, name, group, themeKey, accentColor, buttonStyle, fontStyle, background: accentColor, backgroundImage, backgroundPosition, backgroundOverlay, foreground };
+}
+
+function cssBackground(id: string, name: string, accentColor: string, background: string): CreatorLinkBackgroundPreset {
+  return { id, name, group: "pattern", themeKey: "soft-ivory", accentColor, buttonStyle: "rounded", fontStyle: "soft", background, foreground: "dark" };
+}
+
 const BACKGROUND_PRESET_DEFINITIONS = [
   { name: "Snow", group: "solid", themeKey: "soft-ivory", accentColor: "#F4F5F7", buttonStyle: "rounded", fontStyle: "modern", background: "#F4F5F7", foreground: "dark" },
   { name: "Ivory", group: "solid", themeKey: "soft-ivory", accentColor: "#F7EFE1", buttonStyle: "pill", fontStyle: "soft", background: "#F7EFE1", foreground: "dark" },
@@ -77,6 +95,52 @@ const BACKGROUND_PRESET_DEFINITIONS = [
   { name: "Micro Dots", group: "pattern", themeKey: "natural-beige", accentColor: "#D5C9A8", buttonStyle: "rounded", fontStyle: "modern", background: "radial-gradient(circle,rgba(64,55,42,.22) 0 .8px,transparent 1px),linear-gradient(145deg,#E9E1CB,#D5C9A8)", foreground: "dark" },
   { name: "Large Dots", group: "pattern", themeKey: "soft-ivory", accentColor: "#E8A8B3", buttonStyle: "pill", fontStyle: "bold", background: "radial-gradient(circle at 18% 20%,rgba(113,55,98,.24) 0 8%,transparent 8.5%),radial-gradient(circle at 75% 62%,rgba(255,255,255,.35) 0 11%,transparent 11.5%),radial-gradient(circle at 30% 88%,rgba(140,67,112,.18) 0 6%,transparent 6.5%),linear-gradient(145deg,#F3CBD1,#E8A8B3)", foreground: "dark" },
   { name: "Abstract Geometry", group: "pattern", themeKey: "night-purple", accentColor: "#7871A8", buttonStyle: "square", fontStyle: "bold", background: "linear-gradient(135deg,transparent 0 44%,rgba(255,255,255,.12) 44% 52%,transparent 52%),linear-gradient(45deg,rgba(39,31,76,.24) 0 18%,transparent 18% 72%,rgba(234,180,255,.13) 72%),linear-gradient(145deg,#514A80,#8A79B8)", foreground: "light" },
+  imageBackground("animal-python-noir", "Python Noir", "pattern", "minimal-black", "#17151A", "pill", "serif", "light", "/trendre-link/backgrounds/animal-python-noir.jpg", "linear-gradient(rgba(8,7,10,.08),rgba(8,7,10,.12))"),
+  imageBackground("animal-zebra-mono", "Zebra Mono", "pattern", "soft-ivory", "#D7D7D5", "square", "bold", "dark", "/trendre-link/backgrounds/animal-zebra-mono.jpg", "linear-gradient(rgba(255,255,255,.02),rgba(255,255,255,.02))"),
+  imageBackground("animal-zebra-midnight", "Zebra Midnight", "pattern", "minimal-black", "#17223F", "glass", "bold", "light", "/trendre-link/backgrounds/animal-zebra-midnight.jpg", "linear-gradient(rgba(4,8,18,.06),rgba(4,8,18,.12))"),
+  imageBackground("animal-zebra-pink", "Zebra Pink", "pattern", "soft-ivory", "#E7A8C0", "pill", "soft", "dark", "/trendre-link/backgrounds/animal-zebra-pink.jpg"),
+  imageBackground("animal-leopard-classic", "Leopard Classic", "pattern", "natural-beige", "#B88B5A", "pill", "serif", "dark", "/trendre-link/backgrounds/animal-leopard-classic.jpg", "linear-gradient(rgba(255,250,240,.03),rgba(255,250,240,.03))"),
+  imageBackground("animal-leopard-mono", "Leopard Mono", "pattern", "minimal-black", "#77797D", "square", "modern", "light", "/trendre-link/backgrounds/animal-leopard-mono.jpg", "linear-gradient(rgba(10,10,12,.06),rgba(10,10,12,.1))"),
+  imageBackground("animal-leopard-pink", "Leopard Pink", "pattern", "soft-ivory", "#D987A4", "rounded", "soft", "dark", "/trendre-link/backgrounds/animal-leopard-pink.jpg"),
+  imageBackground("animal-leopard-ice", "Leopard Ice", "pattern", "soft-ivory", "#9DC9DD", "rounded", "modern", "dark", "/trendre-link/backgrounds/animal-leopard-ice.jpg"),
+  imageBackground("pattern-midnight-ornament", "Midnight Ornament", "pattern", "minimal-black", "#201B27", "pill", "serif", "light", "/trendre-link/backgrounds/pattern-midnight-ornament.jpg", "linear-gradient(rgba(8,7,10,.07),rgba(8,7,10,.12))"),
+  imageBackground("pattern-brick", "Brick", "texture", "natural-beige", "#9B5145", "square", "bold", "light", "/trendre-link/backgrounds/pattern-brick.jpg", "linear-gradient(rgba(35,12,10,.04),rgba(35,12,10,.1))"),
+  imageBackground("pattern-vintage-wood", "Vintage Wood", "texture", "natural-beige", "#76523D", "rounded", "serif", "light", "/trendre-link/backgrounds/pattern-vintage-wood.jpg", "linear-gradient(rgba(24,13,7,.03),rgba(24,13,7,.1))"),
+  imageBackground("pattern-navy-plaid", "Navy Plaid", "pattern", "minimal-black", "#263556", "square", "serif", "light", "/trendre-link/backgrounds/pattern-navy-plaid.jpg", "linear-gradient(rgba(5,10,24,.04),rgba(5,10,24,.1))"),
+  imageBackground("pattern-white-marble", "White Marble", "texture", "soft-ivory", "#E5E2DE", "rounded", "serif", "dark", "/trendre-link/backgrounds/pattern-white-marble.jpg"),
+  imageBackground("pattern-liquid-gold", "Liquid Gold", "texture", "minimal-black", "#AD8A48", "glass", "serif", "light", "/trendre-link/backgrounds/pattern-liquid-gold.jpg", "linear-gradient(rgba(10,8,4,.05),rgba(10,8,4,.1))"),
+  imageBackground("pattern-paisley-noir", "Paisley Noir", "pattern", "minimal-black", "#2A292D", "square", "bold", "light", "/trendre-link/backgrounds/pattern-paisley-noir.jpg", "linear-gradient(rgba(7,7,8,.04),rgba(7,7,8,.1))"),
+  imageBackground("pattern-paisley-blue", "Paisley Blue", "pattern", "natural-beige", "#587799", "rounded", "serif", "dark", "/trendre-link/backgrounds/pattern-paisley-blue.jpg", "linear-gradient(rgba(250,247,238,.03),rgba(250,247,238,.03))"),
+  imageBackground("pattern-aqua-silk", "Aqua Silk", "texture", "soft-ivory", "#75BFC0", "pill", "soft", "dark", "/trendre-link/backgrounds/pattern-aqua-silk.jpg"),
+  imageBackground("pattern-silver-marble", "Silver Marble", "texture", "soft-ivory", "#A7ACB2", "square", "modern", "dark", "/trendre-link/backgrounds/pattern-silver-marble.jpg"),
+  imageBackground("pattern-retro-daisy", "Retro Daisy", "pattern", "natural-beige", "#A37B58", "pill", "soft", "dark", "/trendre-link/backgrounds/pattern-retro-daisy.jpg", "linear-gradient(rgba(255,249,237,.02),rgba(255,249,237,.02))"),
+  imageBackground("pattern-bandana-black", "Bandana Black", "pattern", "minimal-black", "#19191C", "square", "bold", "light", "/trendre-link/backgrounds/pattern-bandana-black.jpg", "linear-gradient(rgba(4,4,5,.04),rgba(4,4,5,.1))"),
+  imageBackground("emotion-blue-hour", "Blue Hour", "texture", "night-purple", "#556B99", "glass", "soft", "light", "/trendre-link/backgrounds/emotion-blue-hour.jpg", "linear-gradient(rgba(15,18,42,.04),rgba(15,18,42,.1))"),
+  imageBackground("emotion-dreamy-coast", "Dreamy Coast", "texture", "soft-ivory", "#D7A8B8", "pill", "soft", "dark", "/trendre-link/backgrounds/emotion-dreamy-coast.jpg"),
+  imageBackground("emotion-burning-sunset", "Burning Sunset", "texture", "night-purple", "#B95D45", "glass", "bold", "light", "/trendre-link/backgrounds/emotion-burning-sunset.jpg", "linear-gradient(rgba(34,10,26,.04),rgba(34,10,26,.11))"),
+  cssBackground("pretty-tiny-hearts", "Tiny Hearts", "#F5F4F0", "#F5F4F0 url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cpath d='M22 29s-8-4.8-8-10.2c0-4.2 5.3-5.8 8-2.3 2.7-3.5 8-1.9 8 2.3C30 24.2 22 29 22 29Z' fill='none' stroke='%23504B4D' stroke-width='1.15'/%3E%3C/svg%3E\") repeat"),
+  cssBackground("pretty-baby-argyle", "Baby Argyle", "#AFC8E8", "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='64' viewBox='0 0 96 64'%3E%3Cpath d='M24 2 47 32 24 62 1 32Z' fill='%23dceaff'/%3E%3Cpath d='M72 2 95 32 72 62 49 32Z' fill='%23a8c5ea'/%3E%3Cpath d='M48 38s-6-3.6-6-7.4c0-3 4-4.2 6-1.5 2-2.7 6-1.5 6 1.5 0 3.8-6 7.4-6 7.4Z' fill='%23fff'/%3E%3C/svg%3E\") repeat, #C9DCF4"),
+  cssBackground("pretty-mint-gingham", "Mint Gingham", "#B8DBCD", "#B8DBCD url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M0 0h24v48H0z' fill='%23fff' fill-opacity='.28'/%3E%3Cpath d='M0 0h48v24H0z' fill='%23fff' fill-opacity='.28'/%3E%3Cpath d='M0 0h24v24H0z' fill='%23508973' fill-opacity='.1'/%3E%3C/svg%3E\") repeat"),
+  imageBackground("pretty-cloudy-wish", "Cloudy Wish", "texture", "soft-ivory", "#DDE4ED", "pill", "soft", "dark", "/trendre-link/backgrounds/pretty-cloudy-wish.jpg"),
+  cssBackground("pretty-blush-hearts", "Blush Hearts", "#E9B4C2", "#F3CAD4 url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='52' viewBox='0 0 52 52'%3E%3Cpath d='M26 34s-9-5.2-9-11.2c0-4.7 6-6.4 9-2.5 3-3.9 9-2.2 9 2.5C35 28.8 26 34 26 34Z' fill='%23fff4f6'/%3E%3C/svg%3E\") repeat"),
+  imageBackground("pretty-bubble-love", "Bubble Love", "texture", "soft-ivory", "#8DBACF", "rounded", "soft", "dark", "/trendre-link/backgrounds/pretty-bubble-love.jpg"),
+  imageBackground("nature-pastel-shore", "Pastel Shore", "texture", "soft-ivory", "#A3D4D1", "pill", "soft", "dark", "/trendre-link/backgrounds/nature-pastel-shore.jpg"),
+  imageBackground("nature-deep-blue-wave", "Deep Blue Wave", "texture", "minimal-black", "#145C8D", "glass", "bold", "light", "/trendre-link/backgrounds/nature-deep-blue-wave.jpg", "linear-gradient(rgba(2,18,35,.03),rgba(2,18,35,.1))"),
+  imageBackground("nature-aqua-water", "Aqua Water", "texture", "soft-ivory", "#63C8CF", "rounded", "modern", "dark", "/trendre-link/backgrounds/nature-aqua-water.jpg"),
+  imageBackground("nature-forest-light", "Forest Light", "texture", "minimal-black", "#315D42", "rounded", "serif", "light", "/trendre-link/backgrounds/nature-forest-light.jpg", "linear-gradient(rgba(4,20,10,.03),rgba(4,20,10,.11))"),
+  imageBackground("nature-bamboo-breeze", "Bamboo Breeze", "texture", "natural-beige", "#7FA06A", "pill", "soft", "dark", "/trendre-link/backgrounds/nature-bamboo-breeze.jpg"),
+  imageBackground("nature-snow-glow", "Snow Glow", "texture", "soft-ivory", "#C7DCE9", "rounded", "soft", "dark", "/trendre-link/backgrounds/nature-snow-glow.jpg"),
+  imageBackground("nature-sunset-shore", "Sunset Shore", "texture", "night-purple", "#D88A91", "glass", "soft", "light", "/trendre-link/backgrounds/nature-sunset-shore.jpg", "linear-gradient(rgba(38,16,35,.02),rgba(38,16,35,.09))"),
+  imageBackground("city-neon-palms", "Neon Palms", "texture", "night-purple", "#A93B84", "glass", "bold", "light", "/trendre-link/backgrounds/city-neon-palms.jpg", "linear-gradient(rgba(20,4,24,.03),rgba(20,4,24,.1))"),
+  imageBackground("city-sunset-downtown", "Sunset Downtown", "texture", "natural-beige", "#C96B44", "rounded", "bold", "dark", "/trendre-link/backgrounds/city-sunset-downtown.jpg", "linear-gradient(rgba(255,242,224,.02),rgba(255,242,224,.02))"),
+  imageBackground("city-neon-crossing", "Neon Crossing", "texture", "night-purple", "#5C3E8E", "glass", "modern", "light", "/trendre-link/backgrounds/city-neon-crossing.jpg", "linear-gradient(rgba(10,4,25,.03),rgba(10,4,25,.1))"),
+  imageBackground("city-autumn-avenue", "Autumn Avenue", "texture", "natural-beige", "#9A6A44", "pill", "serif", "dark", "/trendre-link/backgrounds/city-autumn-avenue.jpg", "linear-gradient(rgba(255,248,232,.03),rgba(255,248,232,.03))"),
+  imageBackground("city-sunset-boulevard", "Sunset Boulevard", "texture", "night-purple", "#E17755", "rounded", "bold", "light", "/trendre-link/backgrounds/city-sunset-boulevard.jpg", "linear-gradient(rgba(40,8,25,.02),rgba(40,8,25,.09))"),
+  imageBackground("city-retro-block", "Retro Block", "texture", "soft-ivory", "#4D7190", "square", "bold", "light", "/trendre-link/backgrounds/city-retro-block.jpg", "linear-gradient(rgba(8,18,28,.02),rgba(8,18,28,.09))"),
+  imageBackground("city-coastal-town", "Coastal Town", "texture", "soft-ivory", "#4E9EA0", "pill", "soft", "dark", "/trendre-link/backgrounds/city-coastal-town.jpg"),
+  imageBackground("city-cafe-lane", "Café Lane", "texture", "natural-beige", "#9B725A", "rounded", "serif", "dark", "/trendre-link/backgrounds/city-cafe-lane.jpg", "linear-gradient(rgba(255,250,240,.02),rgba(255,250,240,.02))"),
+  imageBackground("city-tokyo-sakura", "Tokyo Sakura", "texture", "soft-ivory", "#D97E9D", "pill", "soft", "dark", "/trendre-link/backgrounds/city-tokyo-sakura.jpg"),
+  imageBackground("city-tokyo-neon", "Tokyo Neon", "texture", "night-purple", "#3E2D75", "glass", "modern", "light", "/trendre-link/backgrounds/city-tokyo-neon.jpg", "linear-gradient(rgba(6,3,18,.03),rgba(6,3,18,.1))"),
 ] as const;
 
 function backgroundPresetId(name: string) {
@@ -85,8 +149,20 @@ function backgroundPresetId(name: string) {
 
 export const CREATOR_LINK_BACKGROUND_PRESETS: readonly CreatorLinkBackgroundPreset[] = BACKGROUND_PRESET_DEFINITIONS.map((preset) => ({
   ...preset,
-  id: backgroundPresetId(preset.name),
+  id: "id" in preset ? preset.id : backgroundPresetId(preset.name),
 }));
+
+export function getCreatorLinkBackgroundPreviewDefinition(preset: CreatorLinkBackgroundPreset): CreatorLinkBackgroundPreviewDefinition {
+  return {
+    background: preset.background,
+    foreground: preset.foreground,
+    imageUrl: preset.backgroundImage ?? null,
+    imagePosition: preset.backgroundPosition ?? "center",
+    ...(preset.backgroundFilter ? { imageFilter: preset.backgroundFilter } : {}),
+    ...(preset.backgroundScale ? { imageScale: preset.backgroundScale } : {}),
+    ...(preset.backgroundOverlay ? { overlay: preset.backgroundOverlay } : {}),
+  };
+}
 
 export function findCreatorLinkBackgroundPreset(values: {
   themeKey: CreatorLinkTheme;

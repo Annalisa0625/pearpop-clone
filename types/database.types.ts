@@ -566,6 +566,7 @@ export type Database = {
           font_style: string
           id: string
           is_accepting_inquiries: boolean
+          layout_order: Json | null
           owner_user_id: string
           published_at: string | null
           setup_completed_at: string | null
@@ -588,6 +589,7 @@ export type Database = {
           font_style?: string
           id?: string
           is_accepting_inquiries?: boolean
+          layout_order?: Json | null
           owner_user_id: string
           published_at?: string | null
           setup_completed_at?: string | null
@@ -610,6 +612,7 @@ export type Database = {
           font_style?: string
           id?: string
           is_accepting_inquiries?: boolean
+          layout_order?: Json | null
           owner_user_id?: string
           published_at?: string | null
           setup_completed_at?: string | null

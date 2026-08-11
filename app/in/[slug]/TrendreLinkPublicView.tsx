@@ -22,11 +22,12 @@ type PublicLinkPage = Pick<
   | "buttonStyle"
   | "fontStyle"
   | "isAcceptingInquiries"
+  | "layoutOrder"
 >;
 
 type PublicLinkItem = Pick<
   CreatorLinkItem,
-  "itemType" | "platform" | "title" | "description" | "url" | "imageUrl" | "metadata"
+  "id" | "sortOrder" | "itemType" | "platform" | "title" | "description" | "url" | "imageUrl" | "metadata"
 >;
 
 type PublicInquiryType = Pick<

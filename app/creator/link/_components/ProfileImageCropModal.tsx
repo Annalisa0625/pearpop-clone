@@ -6,6 +6,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { getCreatorLinkEditorCtaCopy } from "@/lib/trendre-link/editor-controls";
 
 type Point = { x: number; y: number };
 
@@ -322,9 +323,7 @@ export default function ProfileImageCropModal({
                 ? locale === "ja"
                   ? "保存中…"
                   : "Saving…"
-                : locale === "ja"
-                  ? "完了"
-                  : "Done"}
+                : getCreatorLinkEditorCtaCopy(locale, "save")}
             </button>
           </header>
         </div>

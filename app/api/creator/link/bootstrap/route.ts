@@ -13,6 +13,7 @@ import {
 } from "@/lib/trendre-link/constants";
 import { normalizeCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
 import { INQUIRY_FORM_DEFAULTS } from "@/lib/trendre-link/inquiry-forms";
+import { parseCreatorLinkLayoutOrder } from "@/lib/trendre-link/layout-order";
 import {
   normalizeCreatorLinkSlug,
   validateCreatorLinkSlug,
@@ -144,6 +145,7 @@ function toPage(row: LinkPageRow): CreatorLinkPage {
     fontStyle: row.font_style,
     status: row.status,
     isAcceptingInquiries: row.is_accepting_inquiries,
+    layoutOrder: parseCreatorLinkLayoutOrder(row.layout_order),
     setupStep: row.setup_step,
     setupCompletedAt: row.setup_completed_at,
     publishedAt: row.published_at,

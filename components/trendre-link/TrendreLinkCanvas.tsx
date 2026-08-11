@@ -1,28 +1,33 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable } from "@dnd-kit/sortable";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { closestCenter, DndContext, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, horizontalListSortingStrategy, rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BriefcaseBusiness, ChevronRight, Link as LinkGlyph } from "lucide-react";
 import InquiryFormModal from "@/components/trendre-link/InquiryFormModal";
 import SocialBrandIcon from "@/components/trendre-link/SocialBrandIcon";
 import { findLinkDesignBackgroundPreset } from "@/lib/trendre-link/link-design-presets";
 import type { CreatorLinkButtonStyle, CreatorLinkFontStyle, CreatorLinkItemType, CreatorLinkTheme } from "@/lib/trendre-link/constants";
-import { CREATOR_LINK_ITEM_COLOR_VALUES, isCreatorLinkSocialPlatform, normalizeCreatorLinkItemAppearance, type CreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
+import { CREATOR_LINK_ITEM_COLOR_VALUES, getCreatorLinkSocialRenderStyle, isCreatorLinkSocialPlatform, normalizeCreatorLinkItemAppearance, resolveCreatorLinkItemShape, resolveCreatorLinkSocialAppearance, type CreatorLinkItemAppearance, type CreatorLinkItemStyle } from "@/lib/trendre-link/item-validation";
 import type { CreatorLinkInquiryFormKind } from "@/lib/trendre-link/inquiry-forms";
 import { inquiryDraftStorageKey, parseInquiryDraft, safeSessionStorageGet } from "@/lib/trendre-link/inquiry-return";
 import { createCreatorLinkInquiryFormSelection } from "@/lib/trendre-link/public-inquiry-types";
+import { parseCreatorLinkBackgroundReference } from "@/lib/trendre-link/background-selection";
+import { normalizeCreatorLinkLayoutOrder, reorderVisibleCreatorLinkLayoutOrder, type CreatorLinkLayoutToken } from "@/lib/trendre-link/layout-order";
+import { reorderCreatorLinkSocialItems } from "@/lib/trendre-link/social-order";
 
 export const TRENDRE_LINK_LOGICAL_CANVAS_WIDTH = 480;
 export const TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT = 1040;
 
 export type TrendreLinkCanvasMode = "edit" | "preview" | "public";
 export type TrendreLinkEditableField = "displayName" | "bio" | null;
+export type TrendreLinkCanvasSelection = { kind: "profile" | "social" | "link" | "work"; itemId?: string } | null;
 export type TrendreLinkCanvasItem = { id?: string; sortOrder?: number; itemType: CreatorLinkItemType; platform: string | null; title: string | null; description: string | null; url: string | null; imageUrl: string | null; metadata: CreatorLinkItemAppearance };
 export type TrendreLinkCanvasInquiryType = { id?: string; sortOrder?: number; templateKey: string | null; title: string; description: string | null; isCustom?: boolean };
 export type TrendreLinkCanvasData = {
-  page: { slug: string; displayName: string; displayNameColor: string | null; bio: string | null; avatarUrl: string | null; coverUrl: string | null; themeKey: CreatorLinkTheme; accentColor: string | null; buttonStyle: CreatorLinkButtonStyle; fontStyle: CreatorLinkFontStyle; isAcceptingInquiries: boolean };
+  page: { slug: string; displayName: string; displayNameColor: string | null; bio: string | null; avatarUrl: string | null; coverUrl: string | null; themeKey: CreatorLinkTheme; accentColor: string | null; buttonStyle: CreatorLinkButtonStyle; fontStyle: CreatorLinkFontStyle; isAcceptingInquiries: boolean; layoutOrder?: CreatorLinkLayoutToken[] | null };
+  layoutLinkIds?: string[];
   items: TrendreLinkCanvasItem[];
   inquiryTypes: TrendreLinkCanvasInquiryType[];
 };
@@ -41,6 +46,9 @@ type CanvasProps = {
   onEditItem?: (item: TrendreLinkCanvasItem) => void;
   onReorderItems?: (items: TrendreLinkCanvasItem[]) => void;
   onReorderInquiryTypes?: (types: TrendreLinkCanvasInquiryType[]) => void;
+  onReorderLayoutOrder?: (order: CreatorLinkLayoutToken[]) => void;
+  onReorderSocialItems?: (items: TrendreLinkCanvasItem[]) => void;
+  selectedTarget?: TrendreLinkCanvasSelection;
 };
 
 const THEMES = {
@@ -79,11 +87,22 @@ function appearanceStyle(appearance: CreatorLinkItemAppearance): CSSProperties {
   if (appearance.surface === "filled") return { background: paint, borderColor: "transparent", color: text, boxShadow: depthShadow };
   return { background: `linear-gradient(rgba(255,255,255,.10), rgba(255,255,255,.10)) padding-box, ${paint} border-box`, borderColor: "transparent", color: text, boxShadow: depthShadow };
 }
+function explicitItemStyle(appearance: CreatorLinkItemAppearance, style: CreatorLinkItemStyle): CSSProperties {
+  if (style === "glass") return { background: "rgba(255,255,255,.18)", borderColor: "rgba(255,255,255,.5)", color: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,.22), 0 10px 26px rgba(20,18,24,.12)", backdropFilter: "blur(14px)" };
+  if (style === "outline") return appearanceStyle({ ...appearance, surface: "outline", depth: "normal" });
+  if (style === "soft") return { ...appearanceStyle({ ...appearance, surface: "filled", depth: "soft" }), opacity: 0.88 };
+  if (style === "shadow") return appearanceStyle({ ...appearance, surface: "filled", depth: "raised" });
+  return appearanceStyle({ ...appearance, surface: "filled", depth: "normal" });
+}
+function itemShapeClass(appearance: CreatorLinkItemAppearance, buttonStyle: CreatorLinkButtonStyle) {
+  const shape = resolveCreatorLinkItemShape(appearance, buttonStyle);
+  return shape === "pill" ? "rounded-full" : shape === "rounded" ? "rounded-2xl" : shape === "soft-square" ? "rounded-lg" : "rounded-none";
+}
 function itemLabel(item: TrendreLinkCanvasItem) { if (item.itemType === "social") return item.platform === "instagram" ? "Instagram" : item.platform === "tiktok" ? "TikTok" : item.platform === "x" ? "X" : item.platform === "youtube" ? "YouTube" : "Social"; return item.title ?? "Link"; }
 function itemWidth(appearance: CreatorLinkItemAppearance) { return appearance.layout === "wide" ? "w-full" : appearance.layout === "square" ? "w-[calc(50%-0.25rem)] max-w-[calc(50%-0.25rem)]" : "w-12"; }
 const reorderStyles: CSSProperties = { userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none", touchAction: "none" };
 
-function CanvasItem({ item, mode, buttonStyle, fontStyle, onEdit }: { item: TrendreLinkCanvasItem; mode: TrendreLinkCanvasMode; buttonStyle: CreatorLinkButtonStyle; fontStyle: CreatorLinkFontStyle; onEdit?: () => void }) {
+function CanvasItem({ item, mode, buttonStyle, fontStyle, onEdit, selected = false }: { item: TrendreLinkCanvasItem; mode: TrendreLinkCanvasMode; buttonStyle: CreatorLinkButtonStyle; fontStyle: CreatorLinkFontStyle; onEdit?: () => void; selected?: boolean }) {
   const url = safeUrl(item.url);
   const imageUrl = safeUrl(item.imageUrl);
   if (item.itemType === "heading") return item.title ? <h2 className="w-full px-1 pt-2 text-base font-semibold">{item.title}</h2> : null;
@@ -96,60 +115,71 @@ function CanvasItem({ item, mode, buttonStyle, fontStyle, onEdit }: { item: Tren
   if ((item.itemType !== "social" && item.itemType !== "link") || !url) return null;
   const appearance = normalizeCreatorLinkItemAppearance(item.metadata);
   const appearanceBaseStyle = appearanceStyle(appearance);
-  const style: CSSProperties = buttonStyle === "glass"
-    ? { background: "rgba(255,255,255,.16)", borderColor: "rgba(255,255,255,.48)", color: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,.18)", backdropFilter: "blur(14px)" }
-    : buttonStyle === "pill"
-      ? { ...appearanceBaseStyle, opacity: 0.88, boxShadow: "0 8px 22px rgba(24,20,28,.10)" }
-      : appearanceBaseStyle;
+  const style: CSSProperties = appearance.style
+    ? explicitItemStyle(appearance, appearance.style)
+    : buttonStyle === "glass"
+      ? { background: "rgba(255,255,255,.16)", borderColor: "rgba(255,255,255,.48)", color: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,.18)", backdropFilter: "blur(14px)" }
+      : buttonStyle === "pill"
+        ? { ...appearanceBaseStyle, opacity: 0.88, boxShadow: "0 8px 22px rgba(24,20,28,.10)" }
+        : appearanceBaseStyle;
   const label = itemLabel(item);
   const platform = item.platform && isCreatorLinkSocialPlatform(item.platform) ? item.platform : null;
   const icon = platform ? <SocialBrandIcon platform={platform} color={appearance.iconColor} /> : <LinkGlyph className="h-5 w-5" strokeWidth={1.9} aria-hidden="true" />;
-  const shapeClass = buttonStyle === "pill" ? "rounded-full" : buttonStyle === "square" ? "rounded-lg" : buttonStyle === "glass" ? "rounded-2xl backdrop-blur-md" : "rounded-xl";
+  const shapeClass = appearance.shape ? itemShapeClass(appearance, buttonStyle) : buttonStyle === "pill" ? "rounded-full" : buttonStyle === "square" ? "rounded-lg" : buttonStyle === "glass" ? "rounded-2xl" : "rounded-xl";
+  const compactShapeClass = appearance.shape ? itemShapeClass(appearance, buttonStyle) : appearance.layout === "icon" ? "rounded-[14px]" : "rounded-2xl";
   const labelFontClass = fontStyle === "bold" ? "!font-black tracking-[-0.025em]" : fontStyle === "soft" ? "tracking-[0.045em]" : fontStyle === "serif" ? "font-serif" : "tracking-[-0.01em]";
   const content = appearance.layout === "icon"
-    ? <div style={style} aria-label={label} className="flex h-[48px] w-[48px] items-center justify-center rounded-[14px] border"><span aria-hidden="true">{icon}</span><span className="sr-only">{label}</span></div>
+    ? <div style={style} aria-label={label} className={`flex h-[48px] w-[48px] items-center justify-center border ${compactShapeClass}`}><span aria-hidden="true">{icon}</span><span className="sr-only">{label}</span></div>
     : appearance.layout === "square"
-      ? <div style={style} className="flex h-[120px] w-full flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center"><span>{icon}</span><span className="line-clamp-2 text-sm font-medium">{label}</span></div>
+      ? <div style={style} className={`flex h-[120px] w-full flex-col items-center justify-center gap-2 border p-3 text-center ${compactShapeClass}`}><span>{icon}</span><span className="line-clamp-2 text-sm font-medium">{label}</span></div>
       : <div style={style} className={`flex min-h-[60px] w-full items-center gap-3 border px-4 py-2 transition-[background-color,border-color,border-radius,box-shadow,opacity] duration-300 motion-reduce:transition-none ${shapeClass}`}><span className="flex w-6 shrink-0 items-center justify-center">{icon}</span><span className={`min-w-0 flex-1 truncate text-center text-[15px] font-semibold ${labelFontClass}`}>{label}</span><span className="w-6 shrink-0" aria-hidden="true" /></div>;
-  return mode === "edit" ? <button type="button" onClick={onEdit} className="block h-full w-full">{content}</button> : <a href={url} target="_blank" rel="noopener noreferrer" aria-label={label} className="block h-full w-full">{content}</a>;
+  return mode === "edit" ? <button type="button" onClick={onEdit} className={`block h-full w-full rounded-[inherit] transition-shadow ${selected ? "ring-2 ring-current ring-offset-2 ring-offset-transparent" : ""}`}>{content}</button> : <a href={url} target="_blank" rel="noopener noreferrer" aria-label={label} className="block h-full w-full">{content}</a>;
 }
 
-function SortableShell({ id, width, children }: { id: string; width: string; children: ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  return <div ref={setNodeRef} style={{ ...reorderStyles, transform: CSS.Transform.toString(transform), transition }} {...attributes} {...listeners} onContextMenu={(event) => event.preventDefault()} className={`${width} relative cursor-grab outline outline-1 outline-current/15 active:cursor-grabbing ${isDragging ? "z-20 -translate-y-px opacity-90 drop-shadow-sm" : "opacity-[0.96]"}`}>
-    {children}<span className="pointer-events-none absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-current/50" aria-hidden="true"><DragIcon /></span>
+function SortableShell({ id, width, children, label, handleOnly = false }: { id: string; width: string; children: ReactNode; label?: string; handleOnly?: boolean }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const shellListeners = handleOnly ? {} : listeners;
+  const shellAttributes = handleOnly ? {} : attributes;
+  return <div ref={setNodeRef} style={{ ...reorderStyles, transform: CSS.Transform.toString(transform), transition }} {...shellAttributes} {...shellListeners} aria-label={handleOnly ? undefined : label} onContextMenu={(event) => event.preventDefault()} className={`${width} relative rounded-[inherit] outline outline-1 outline-current/15 transition-[opacity,filter] ${handleOnly ? "" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "z-20 -translate-y-px opacity-90 drop-shadow-sm" : "opacity-[0.96]"}`}>
+    {children}{handleOnly ? <button ref={setActivatorNodeRef} type="button" {...attributes} {...listeners} aria-label={label} className="absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 touch-none items-center justify-center rounded-full text-current/55 outline-none hover:bg-current/10 focus-visible:ring-2 focus-visible:ring-current/40"><DragIcon /></button> : <span className="pointer-events-none absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-current/50" aria-hidden="true"><DragIcon /></span>}
   </div>;
 }
 
-function FormCard({ type, theme, onClick, reorder }: { type: TrendreLinkCanvasInquiryType; theme: (typeof THEMES)[CreatorLinkTheme]; onClick?: () => void; reorder?: boolean }) {
-  return <button type="button" disabled={reorder} onClick={onClick} className={`flex min-h-[56px] w-full items-center justify-between rounded-2xl border px-4 text-left ${theme.panel} ${reorder ? "pr-12" : ""}`}><span className="truncate text-[15px] font-medium">{type.title}</span>{!reorder ? <span aria-hidden="true" className={theme.subtle}>›</span> : null}</button>;
+function SortableSocialCanvasItem({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, touchAction: "pan-y" }} {...attributes} {...listeners} aria-label={`${label}を並び替え`} onContextMenu={(event) => event.preventDefault()} className={`relative cursor-grab rounded-[inherit] active:cursor-grabbing ${isDragging ? "z-30 -translate-y-px scale-[1.03] opacity-90 drop-shadow-md" : "transition-[opacity,filter]"}`}>{children}</div>;
 }
 
-export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingField = null, onEditingFieldChange, onDisplayNameChange, onBioChange, onEditProfile, onEditInquirySettings, onAddFirstLink, onEditItem, onReorderItems, onReorderInquiryTypes }: CanvasProps) {
+export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingField = null, onEditingFieldChange, onDisplayNameChange, onEditProfile, onEditInquirySettings, onAddFirstLink, onEditItem, onReorderLayoutOrder, onReorderSocialItems, selectedTarget = null }: CanvasProps) {
   const { page, items } = data;
-  const [reorderMode, setReorderMode] = useState(false);
   const [selectedForm, setSelectedForm] = useState<{ id: string; kind: CreatorLinkInquiryFormKind; title: string } | null>(null);
   const [showFormChoices, setShowFormChoices] = useState(false);
-  useEffect(() => { if (mode !== "edit") setReorderMode(false); }, [mode]);
-  const preset = findLinkDesignBackgroundPreset(page);
+  const suppressEditRef = useRef(false);
+  const referencedBackground = parseCreatorLinkBackgroundReference(page.coverUrl);
+  const preset = referencedBackground ?? findLinkDesignBackgroundPreset(page);
+  const isEdit = mode === "edit";
+  const avatarUrl = safeMediaUrl(page.avatarUrl, mode !== "public");
+  const coverUrl = referencedBackground ? null : safeMediaUrl(page.coverUrl, mode !== "public");
   const baseTheme = THEMES[page.themeKey];
   const accentForeground = page.accentColor ? contrast(page.accentColor) : null;
-  const theme = page.coverUrl
+  const theme = coverUrl
     ? baseTheme
     : preset
       ? (preset.foreground === "light" ? THEMES["minimal-black"] : THEMES["soft-ivory"])
       : accentForeground
         ? (accentForeground === "#29272A" ? THEMES["soft-ivory"] : THEMES["minimal-black"])
         : baseTheme;
-  const isEdit = mode === "edit";
-  const avatarUrl = safeMediaUrl(page.avatarUrl, mode !== "public");
-  const coverUrl = safeMediaUrl(page.coverUrl, mode !== "public");
   const fontClass = page.fontStyle === "serif" ? "font-serif" : page.fontStyle === "bold" ? "font-sans font-bold tracking-[-0.025em]" : page.fontStyle === "soft" ? "font-sans tracking-[0.035em]" : "font-sans tracking-[-0.01em]";
   const headingFontClass = page.fontStyle === "bold" ? "!font-black tracking-[-0.045em]" : page.fontStyle === "soft" ? "tracking-[0.035em]" : page.fontStyle === "serif" ? "font-serif" : "tracking-[-0.02em]";
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 10 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const displayNameStyle: CSSProperties = {
+    ...(page.displayNameColor ? { color: page.displayNameColor } : {}),
+    ...((coverUrl || preset?.backgroundImage) ? { textShadow: theme === THEMES["minimal-black"] ? "0 2px 12px rgba(0,0,0,.52)" : "0 2px 12px rgba(255,255,255,.62)" } : {}),
+  };
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 240, tolerance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const socialSensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 240, tolerance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const socialItems = items.filter((item) => item.itemType === "social" && item.platform && safeUrl(item.url));
-  const contentItems = items.filter((item) => item.itemType !== "social");
-  const canSortItems = reorderMode && contentItems.length > 0 && contentItems.every((item) => Boolean(item.id));
+  const linkItems = items.filter((item) => item.itemType === "link" && item.id);
+  const unmanagedContentItems = items.filter((item) => item.itemType !== "social" && item.itemType !== "link");
   const enabledForms = data.inquiryTypes.filter((type) => type.templateKey === null || type.templateKey === "pr_post").sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   useEffect(() => {
     if (mode !== "public" || typeof window === "undefined") return;
@@ -171,7 +201,6 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
       }
     }
   }, [data.inquiryTypes, mode, page.slug]);
-  const canSortForms = reorderMode && enabledForms.length > 1 && enabledForms.every((type) => Boolean(type.id));
   const copy = locale === "ja" ? { editName: "表示名を編集", editPhoto: "プロフィール写真を編集", addPhoto: "写真を追加", addName: "名前を追加", addBio: "自己紹介を追加", firstLinkTitle: "リンクを追加", firstLinkHelp: "あなたの活動が伝わるリンクを追加しましょう", inquiries: "仕事の依頼・相談", inquiryHelp: "PR・UGC制作などのご相談はこちら", chooseInquiry: "相談内容を選択", reorder: "並び替え", reordering: "並び替え中", done: "完了" } : { editName: "Edit display name", editPhoto: "Edit profile photo", addPhoto: "Add photo", addName: "Add name", addBio: "Add a bio", firstLinkTitle: "Add a link", firstLinkHelp: "Add a link that shows what you create", inquiries: "Work with me", inquiryHelp: "PR, UGC, and collaboration inquiries", chooseInquiry: "Choose an inquiry type", reorder: "Reorder", reordering: "Reordering", done: "Done" };
   const usesLogicalCanvas = mode === "preview" || mode === "public";
   const profileTopPadding = usesLogicalCanvas ? "pt-[5.5rem]" : "pt-12";
@@ -191,6 +220,59 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
       if (selection) setSelectedForm(selection);
     }
   };
+  const effectiveLayoutOrder = normalizeCreatorLinkLayoutOrder(
+    page.layoutOrder,
+    data.layoutLinkIds ?? linkItems.map((item) => item.id!).filter(Boolean),
+  );
+  const linkItemsByToken = new Map(linkItems.map((item) => [`link:${item.id}` as const, item]));
+  const visibleLayoutOrder = effectiveLayoutOrder.filter((token) => {
+    if (token === "social") return socialItems.length > 0;
+    if (token === "work") return page.isAcceptingInquiries && enabledForms.length > 0;
+    return linkItemsByToken.has(token);
+  });
+  const finishTopLevelDrag = () => {
+    window.setTimeout(() => { suppressEditRef.current = false; }, 80);
+  };
+  const renderSocialItem = (item: TrendreLinkCanvasItem, index: number) => {
+    const platform = item.platform && isCreatorLinkSocialPlatform(item.platform) ? item.platform : null;
+    const url = safeUrl(item.url);
+    if (!platform || !url) return null;
+    const label = itemLabel(item);
+    const sample = item.id?.startsWith("guest-sample-social-") ?? false;
+    const appearance = normalizeCreatorLinkItemAppearance(item.metadata);
+    const resolvedSocial = resolveCreatorLinkSocialAppearance(appearance);
+    const legacyStyle = appearance.socialStyle ?? "icons";
+    const presentation = resolvedSocial?.shape ?? (legacyStyle === "glass" ? "circle" : legacyStyle);
+    const iconColor = resolvedSocial?.iconColor ?? appearance.iconColor;
+    const configuredSurface = appearance.socialSurface;
+    const surfaceKind = configuredSurface ?? (legacyStyle === "glass" ? "glass" : null);
+    const legacySurfaceColor = appearance.surfaceColor ?? CREATOR_LINK_ITEM_COLOR_VALUES[appearance.color];
+    const surface = resolvedSocial ? "" : surfaceKind === "glass" ? "border border-white/45 shadow-sm backdrop-blur-md" : surfaceKind === "solid" ? "border border-transparent shadow-sm" : configuredSurface === "none" ? "border border-transparent" : legacyStyle === "circle" || legacyStyle === "pill" ? "border border-current/15 bg-current/10" : "";
+    const surfaceStyle: CSSProperties | undefined = resolvedSocial ? getCreatorLinkSocialRenderStyle(resolvedSocial) : surfaceKind === "glass" ? { background: "rgba(255,255,255,.2)" } : surfaceKind === "solid" ? { background: legacySurfaceColor, color: appearance.iconColor ?? finishTextColor(appearance) } : undefined;
+    const size = presentation === "pill" ? "min-h-11 rounded-full px-3" : presentation === "circle" ? "h-11 w-11 rounded-full" : "min-h-11 min-w-11";
+    const selected = isEdit && selectedTarget?.kind === "social" && selectedTarget.itemId === item.id;
+    const content = <><SocialBrandIcon platform={platform} brand={!iconColor} color={iconColor} className="h-[21px] w-[21px]" />{presentation === "pill" ? <span className="ml-2 text-xs font-semibold">{label}</span> : null}</>;
+    const selectedClass = selected ? "relative after:pointer-events-none after:absolute after:-right-0.5 after:-top-0.5 after:h-2 after:w-2 after:rounded-full after:bg-[#ED5964] after:ring-2 after:ring-white after:content-['']" : "";
+    const className = `flex items-center justify-center transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ED5964] ${size} ${surface} ${selectedClass} ${sample ? "opacity-35 grayscale" : ""}`;
+    return isEdit ? <button key={item.id ?? `${platform}-${index}`} type="button" onClick={() => { if (!suppressEditRef.current) onEditItem?.(item); }} aria-label={`${label}を編集`} className={className} style={surfaceStyle}>{content}</button> : <a key={item.id ?? `${platform}-${index}`} href={url} target="_blank" rel="noopener noreferrer" aria-label={label} className={className} style={surfaceStyle}>{content}</a>;
+  };
+  const canReorderSocialItems = isEdit && Boolean(onReorderSocialItems) && socialItems.length > 1 && socialItems.every((item) => Boolean(item.id));
+  const socialBlock = canReorderSocialItems
+    ? <DndContext sensors={socialSensors} collisionDetection={closestCenter} onDragStart={() => { suppressEditRef.current = true; clearSelection(); }} onDragCancel={finishTopLevelDrag} onDragEnd={(event: DragEndEvent) => { const { active, over } = event; if (over && active.id !== over.id) onReorderSocialItems?.(reorderCreatorLinkSocialItems(socialItems, String(active.id), String(over.id))); finishTopLevelDrag(); }}><SortableContext items={socialItems.map((item) => item.id!)} strategy={horizontalListSortingStrategy}><div className="flex min-h-11 w-full flex-wrap items-center justify-center gap-2 px-10">{socialItems.map((item, index) => <SortableSocialCanvasItem key={item.id} id={item.id!} label={itemLabel(item)}>{renderSocialItem(item, index)}</SortableSocialCanvasItem>)}</div></SortableContext></DndContext>
+    : <div className="flex min-h-11 w-full flex-wrap items-center justify-center gap-2 px-10">{socialItems.map(renderSocialItem)}</div>;
+  const workBlock = isEdit
+    ? <button type="button" onClick={() => { if (!suppressEditRef.current) onEditInquirySettings?.(); }} className={`flex min-h-[64px] w-full items-center gap-3 border px-4 pr-12 text-left transition ${theme.button} ${page.buttonStyle === "pill" ? "rounded-full" : page.buttonStyle === "square" ? "rounded-lg" : "rounded-2xl"}`}><BriefcaseBusiness className="h-5 w-5 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1"><strong className="block text-[15px] font-semibold">{copy.inquiries}</strong><span className="mt-0.5 block truncate text-xs opacity-70">{copy.inquiryHelp}</span></span></button>
+    : <div><button type="button" onClick={() => enabledForms.length === 1 ? openForm(enabledForms[0]) : setShowFormChoices((value) => !value)} aria-expanded={enabledForms.length > 1 ? showFormChoices : undefined} className={`flex min-h-[64px] w-full items-center gap-3 border px-4 text-left transition active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${theme.button} ${page.buttonStyle === "pill" ? "rounded-full" : page.buttonStyle === "square" ? "rounded-lg" : "rounded-2xl"}`}><BriefcaseBusiness className="h-5 w-5 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1"><strong className="block text-[15px] font-semibold">{copy.inquiries}</strong><span className="mt-0.5 block truncate text-xs opacity-70">{copy.inquiryHelp}</span></span><ChevronRight className={`h-5 w-5 shrink-0 transition ${showFormChoices ? "rotate-90" : ""}`} aria-hidden="true" /></button>{showFormChoices && enabledForms.length > 1 ? <div className="mt-2 space-y-2" aria-label={copy.chooseInquiry}>{enabledForms.map((type, index) => <button key={type.id ?? `${type.templateKey ?? "simple"}-${index}`} type="button" onClick={() => openForm(type)} className={`flex min-h-[52px] w-full items-center justify-between rounded-xl border px-4 text-left text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${theme.panel}`}><span className="truncate">{type.title}</span><ChevronRight className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" /></button>)}</div> : null}</div>;
+  const renderLayoutToken = (token: CreatorLinkLayoutToken) => {
+    if (token === "social") return socialBlock;
+    if (token === "work") return workBlock;
+    const item = linkItemsByToken.get(token);
+    return item ? <CanvasItem item={item} mode={mode} buttonStyle={page.buttonStyle} fontStyle={page.fontStyle} onEdit={() => { if (!suppressEditRef.current) onEditItem?.(item); }} selected={selectedTarget?.kind === "link" && selectedTarget.itemId === item.id} /> : null;
+  };
+  const tokenWidth = (token: CreatorLinkLayoutToken) => token.startsWith("link:") ? itemWidth(normalizeCreatorLinkItemAppearance(linkItemsByToken.get(token as `link:${string}`)?.metadata)) : "w-full";
+  const topLevelBlocks = isEdit && onReorderLayoutOrder && visibleLayoutOrder.length > 0
+    ? <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={() => { suppressEditRef.current = true; clearSelection(); }} onDragCancel={finishTopLevelDrag} onDragEnd={(event: DragEndEvent) => { const { active, over } = event; if (over && active.id !== over.id) { const from = visibleLayoutOrder.indexOf(active.id as CreatorLinkLayoutToken); const to = visibleLayoutOrder.indexOf(over.id as CreatorLinkLayoutToken); if (from >= 0 && to >= 0) onReorderLayoutOrder(reorderVisibleCreatorLinkLayoutOrder(effectiveLayoutOrder, arrayMove(visibleLayoutOrder, from, to))); } finishTopLevelDrag(); }}><SortableContext items={visibleLayoutOrder} strategy={rectSortingStrategy}><div className="flex flex-wrap gap-3">{visibleLayoutOrder.map((token) => <SortableShell key={token} id={token} width={tokenWidth(token)} label={`${token}を並び替え`} handleOnly={token === "social"}>{renderLayoutToken(token)}</SortableShell>)}</div></SortableContext></DndContext>
+    : <div className={`flex flex-wrap gap-3 ${isEdit ? "opacity-[0.96]" : ""}`}>{visibleLayoutOrder.map((token) => <div key={token} className={tokenWidth(token)}>{renderLayoutToken(token)}</div>)}</div>;
 
   return <div style={{ ...backgroundStyle, ...(usesLogicalCanvas ? { minHeight: `${TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT}px`, width: `${TRENDRE_LINK_LOGICAL_CANVAS_WIDTH}px` } : {}) }} className={`relative min-h-[100dvh] w-full overflow-x-hidden ${theme.shell} ${fontClass}`}>
     {!coverUrl && preset?.backgroundImage ? <div className={`pointer-events-none absolute inset-x-0 top-0 overflow-hidden ${usesLogicalCanvas ? "h-[1040px]" : "bottom-0"}`} aria-hidden="true"><img src={preset.backgroundImage} alt="" loading="lazy" decoding="async" draggable={false} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: preset.backgroundPosition ?? "center", filter: preset.backgroundFilter, transform: preset.backgroundScale ? `scale(${preset.backgroundScale})` : undefined }} />{preset.backgroundOverlay ? <div className="absolute inset-0" style={{ background: preset.backgroundOverlay }} /> : null}</div> : null}
@@ -198,19 +280,14 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
     <div className={`relative z-[1] mx-auto flex min-h-[100dvh] w-full max-w-[480px] flex-col ${usesLogicalCanvas ? "min-h-[1040px]" : ""} ${canvasBottomPadding}`}>
       <section className={`${profileTopPadding} px-[18px] text-center transition-[padding] duration-300 motion-reduce:transition-none ${isEdit && !editingField ? "opacity-[0.94] saturate-[0.94]" : ""}`}><div className="relative mx-auto w-fit"><div className={`flex h-[86px] w-[86px] items-center justify-center overflow-hidden rounded-full text-[29px] font-medium shadow-sm ring-1 ring-white/25 ${avatarUrl ? "" : theme.button}`}>{avatarUrl ? <img src={avatarUrl} alt={page.displayName || "Creator profile"} draggable={false} className="h-full w-full object-cover" /> : getInitial(page.displayName)}</div>{isEdit ? <button type="button" onClick={onEditProfile} className={`absolute -bottom-1 -right-1 flex h-11 w-11 items-center justify-center rounded-full ${theme.subtle}`} aria-label={copy.editPhoto}><span className={`flex h-7 w-7 items-center justify-center rounded-full border shadow-sm ${theme.edit}`}><PencilIcon /></span></button> : null}</div>
         {isEdit && !avatarUrl ? <button type="button" onClick={onEditProfile} className={`mt-1 min-h-11 px-3 text-xs font-medium ${theme.subtle}`}>{copy.addPhoto}</button> : null}
-        <div className={`relative mx-auto max-w-sm ${isEdit && !avatarUrl ? "mt-0" : page.themeKey === "night-purple" ? "mt-5" : "mt-4"}`}>{isEdit && editingField === "displayName" ? <input autoFocus value={page.displayName} maxLength={80} onChange={(e) => onDisplayNameChange?.(e.target.value)} onBlur={() => onEditingFieldChange?.(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") onEditingFieldChange?.(null); }} style={page.displayNameColor ? { color: page.displayNameColor } : undefined} className={`w-full rounded-xl border px-3 py-2 text-center text-[23px] font-medium outline-none ${theme.edit}`} /> : isEdit ? <button type="button" onClick={() => onEditingFieldChange?.("displayName")} style={page.displayNameColor ? { color: page.displayNameColor } : undefined} className={`inline-flex min-h-11 max-w-full items-center gap-1.5 font-medium ${headingFontClass} ${page.themeKey === "minimal-black" ? "text-[27px] uppercase" : page.themeKey === "night-purple" ? "text-[25px]" : "text-[23px]"}`}><span className="truncate">{page.displayName || copy.addName}</span><span className={theme.subtle}><PencilIcon /></span></button> : <h1 style={page.displayNameColor ? { color: page.displayNameColor } : undefined} className={`font-medium ${headingFontClass} ${page.themeKey === "minimal-black" ? "text-[27px] uppercase" : page.themeKey === "night-purple" ? "text-[25px]" : "text-[23px]"}`}>{page.displayName}</h1>}</div>
-        <div className="relative mx-auto mt-2.5 max-w-sm">{isEdit && editingField === "bio" ? <textarea autoFocus value={page.bio ?? ""} maxLength={500} rows={3} onChange={(e) => onBioChange?.(e.target.value)} onBlur={() => onEditingFieldChange?.(null)} className={`w-full resize-none rounded-xl border px-3 py-2 text-center text-sm leading-6 outline-none ${theme.edit}`} /> : isEdit && !page.bio ? <button type="button" onClick={() => onEditingFieldChange?.("bio")} className={`min-h-10 rounded-xl border border-dashed px-4 text-sm ${theme.edit}`}>{copy.addBio}</button> : page.bio ? <button type="button" disabled={!isEdit} onClick={() => onEditingFieldChange?.("bio")} className={`inline-flex items-start gap-1.5 whitespace-pre-line text-sm leading-6 ${theme.muted}`}>{page.bio}{isEdit ? <span className="mt-1.5"><PencilIcon /></span> : null}</button> : null}</div>
-        {socialItems.length ? <div className="mx-auto mt-4 flex max-w-sm flex-wrap items-center justify-center gap-1">{socialItems.map((item, index) => { const platform = item.platform && isCreatorLinkSocialPlatform(item.platform) ? item.platform : null; const url = safeUrl(item.url); if (!platform || !url) return null; const label = itemLabel(item); const sample = item.id?.startsWith("guest-sample-social-") ?? false; const iconColor = normalizeCreatorLinkItemAppearance(item.metadata).iconColor; return isEdit ? <button key={item.id ?? `${platform}-${index}`} type="button" onClick={() => onEditItem?.(item)} aria-label={`${label}を編集`} className={`flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${sample ? "opacity-35 grayscale" : ""}`}><SocialBrandIcon platform={platform} brand={!iconColor} color={iconColor} className="h-[21px] w-[21px]" /></button> : <a key={item.id ?? `${platform}-${index}`} href={url} target="_blank" rel="noopener noreferrer" aria-label={label} className={`flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${sample ? "opacity-35 grayscale" : ""}`}><SocialBrandIcon platform={platform} brand={!iconColor} color={iconColor} className="h-[21px] w-[21px]" /></a>; })}</div> : null}
+        <div className={`relative mx-auto max-w-sm ${isEdit && !avatarUrl ? "mt-0" : page.themeKey === "night-purple" ? "mt-5" : "mt-4"}`}>{isEdit && editingField === "displayName" ? <input autoFocus value={page.displayName} maxLength={80} onChange={(e) => onDisplayNameChange?.(e.target.value)} onBlur={() => onEditingFieldChange?.(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") onEditingFieldChange?.(null); }} style={displayNameStyle} className={`w-full rounded-xl border px-3 py-2 text-center text-[23px] font-medium outline-none ${theme.edit}`} /> : isEdit ? <button type="button" onClick={() => onEditingFieldChange?.("displayName")} style={displayNameStyle} className={`inline-flex min-h-11 max-w-full items-center gap-1.5 font-medium ${headingFontClass} ${page.themeKey === "minimal-black" ? "text-[27px] uppercase" : page.themeKey === "night-purple" ? "text-[25px]" : "text-[23px]"}`}><span className="truncate">{page.displayName || copy.addName}</span><span className={theme.subtle}><PencilIcon /></span></button> : <h1 style={displayNameStyle} className={`font-medium ${headingFontClass} ${page.themeKey === "minimal-black" ? "text-[27px] uppercase" : page.themeKey === "night-purple" ? "text-[25px]" : "text-[23px]"}`}>{page.displayName}</h1>}</div>
       </section>
 
-      {(contentItems.length > 0 || isEdit) ? <section className="px-[18px] pt-7">{isEdit && (contentItems.length > 0 || enabledForms.length > 1) ? <div className="mb-2 flex h-9 items-center justify-end gap-2"><span className={`text-xs ${theme.subtle}`}>{reorderMode ? copy.reordering : ""}</span><button type="button" onClick={() => setReorderMode((value) => !value)} className={`flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-medium ${theme.subtle}`}>{reorderMode ? copy.done : <><DragIcon />{copy.reorder}</>}</button></div> : null}
-        {contentItems.length > 0 ? canSortItems ? <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={clearSelection} onDragEnd={(event: DragEndEvent) => { clearSelection(); const { active, over } = event; if (!over || active.id === over.id) return; const from = contentItems.findIndex((item) => item.id === active.id); const to = contentItems.findIndex((item) => item.id === over.id); if (from >= 0 && to >= 0) onReorderItems?.(arrayMove(contentItems, from, to)); }}><SortableContext items={contentItems.map((item) => item.id ?? "")} strategy={rectSortingStrategy}><div className="flex flex-wrap gap-3">{contentItems.map((item) => <SortableShell key={item.id} id={item.id!} width={itemWidth(normalizeCreatorLinkItemAppearance(item.metadata))}><CanvasItem item={item} mode="edit" buttonStyle={page.buttonStyle} fontStyle={page.fontStyle} /></SortableShell>)}</div></SortableContext></DndContext> : <div className={`flex flex-wrap gap-3 ${isEdit ? "opacity-[0.94] saturate-[0.94]" : ""}`}>{contentItems.map((item, index) => <div key={item.id ?? `${item.itemType}-${index}`} className={itemWidth(normalizeCreatorLinkItemAppearance(item.metadata))}><CanvasItem item={item} mode={mode} buttonStyle={page.buttonStyle} fontStyle={page.fontStyle} onEdit={() => onEditItem?.(item)} /></div>)}</div> : isEdit ? <button type="button" onClick={onAddFirstLink} className={`flex min-h-[72px] w-full items-center gap-3 rounded-2xl border border-dashed px-4 py-3 text-left ${theme.edit}`}><span className="text-xl" aria-hidden="true">＋</span><span><strong className="block text-sm font-medium">{copy.firstLinkTitle}</strong><span className={`mt-0.5 block text-xs ${theme.subtle}`}>{copy.firstLinkHelp}</span></span></button> : null}
+      {(visibleLayoutOrder.length > 0 || unmanagedContentItems.length > 0 || isEdit) ? <section className="px-[18px] pt-7">
+        {topLevelBlocks}
+        {unmanagedContentItems.length > 0 ? <div className="mt-3 flex flex-wrap gap-3">{unmanagedContentItems.map((item, index) => <div key={item.id ?? `${item.itemType}-${index}`} className={itemWidth(normalizeCreatorLinkItemAppearance(item.metadata))}><CanvasItem item={item} mode={mode} buttonStyle={page.buttonStyle} fontStyle={page.fontStyle} onEdit={() => { if (!suppressEditRef.current) onEditItem?.(item); }} /></div>)}</div> : null}
+        {isEdit && linkItems.length === 0 ? <button type="button" onClick={onAddFirstLink} className={`mt-3 flex min-h-[72px] w-full items-center gap-3 rounded-2xl border border-dashed px-4 py-3 text-left ${theme.edit}`}><span className="text-xl" aria-hidden="true">＋</span><span><strong className="block text-sm font-medium">{copy.firstLinkTitle}</strong><span className={`mt-0.5 block text-xs ${theme.subtle}`}>{copy.firstLinkHelp}</span></span></button> : null}
       </section> : null}
-
-      {page.isAcceptingInquiries && enabledForms.length ? <section className="px-[18px] pt-7">{isEdit ? <><h2 className="mb-2 px-1 text-base font-medium">{copy.inquiries}</h2>{canSortForms ? <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={clearSelection} onDragEnd={(event: DragEndEvent) => { clearSelection(); const { active, over } = event; if (!over || active.id === over.id) return; const from = enabledForms.findIndex((type) => type.id === active.id); const to = enabledForms.findIndex((type) => type.id === over.id); if (from >= 0 && to >= 0) onReorderInquiryTypes?.(arrayMove(enabledForms, from, to)); }}><SortableContext items={enabledForms.map((type) => type.id!)} strategy={rectSortingStrategy}><div className="space-y-2">{enabledForms.map((type) => <SortableShell key={type.id} id={type.id!} width="w-full"><FormCard type={type} theme={theme} reorder /></SortableShell>)}</div></SortableContext></DndContext> : <div className="space-y-2 opacity-[0.94] saturate-[0.94]">{enabledForms.map((type, index) => <FormCard key={type.id ?? `${type.templateKey ?? "simple"}-${index}`} type={type} theme={theme} onClick={() => openForm(type)} />)}</div>}</> : <div>
-        <button type="button" onClick={() => enabledForms.length === 1 ? openForm(enabledForms[0]) : setShowFormChoices((value) => !value)} aria-expanded={enabledForms.length > 1 ? showFormChoices : undefined} className={`flex min-h-[64px] w-full items-center gap-3 border px-4 text-left transition active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${theme.button} ${page.buttonStyle === "pill" ? "rounded-full" : page.buttonStyle === "square" ? "rounded-lg" : "rounded-2xl"}`}><BriefcaseBusiness className="h-5 w-5 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1"><strong className="block text-[15px] font-semibold">{copy.inquiries}</strong><span className="mt-0.5 block truncate text-xs opacity-70">{copy.inquiryHelp}</span></span><ChevronRight className={`h-5 w-5 shrink-0 transition ${showFormChoices ? "rotate-90" : ""}`} aria-hidden="true" /></button>
-        {showFormChoices && enabledForms.length > 1 ? <div className="mt-2 space-y-2" aria-label={copy.chooseInquiry}>{enabledForms.map((type, index) => <button key={type.id ?? `${type.templateKey ?? "simple"}-${index}`} type="button" onClick={() => openForm(type)} className={`flex min-h-[52px] w-full items-center justify-between rounded-xl border px-4 text-left text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${theme.panel}`}><span className="truncate">{type.title}</span><ChevronRight className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" /></button>)}</div> : null}
-      </div>}</section> : null}
       <footer className={`mt-auto px-5 pb-1 pt-10 text-center text-xs font-medium ${theme.subtle}`}>Powered by Trendre</footer>
     </div>
     {selectedForm ? <InquiryFormModal key={`${selectedForm.id}-${selectedForm.kind}`} formId={selectedForm.id} kind={selectedForm.kind} title={selectedForm.title} slug={page.slug} mode={mode === "public" ? "public" : "preview"} locale={locale} onClose={() => setSelectedForm(null)} /> : null}

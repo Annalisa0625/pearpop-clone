@@ -9,6 +9,7 @@ import type {
 import type { CreatorLinkSlugValidationReason } from "./slug";
 import type { CreatorLinkItemAppearance } from "./item-validation";
 import type { CreatorLinkInquiryFormKind } from "./inquiry-forms";
+import type { CreatorLinkLayoutToken } from "./layout-order";
 
 export type CreatorLinkPage = {
   id: string;
@@ -26,6 +27,7 @@ export type CreatorLinkPage = {
   fontStyle: CreatorLinkFontStyle;
   status: CreatorLinkStatus;
   isAcceptingInquiries: boolean;
+  layoutOrder: CreatorLinkLayoutToken[] | null;
   setupStep: number;
   setupCompletedAt: string | null;
   publishedAt: string | null;
