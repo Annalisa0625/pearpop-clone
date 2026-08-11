@@ -39,6 +39,8 @@ export default function SignupLinkClient() {
   const [slugMessage, setSlugMessage] = useState("公開URLを入力してください");
   const [authOpen, setAuthOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const emailSignupInFlightRef = useRef(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
@@ -165,12 +167,13 @@ export default function SignupLinkClient() {
     if (error) { setBusy(false); setAuthError("Googleログインを開始できませんでした。"); }
   };
   const startEmail = async (email: string, password: string) => {
-    if (!draft || busy) return;
+    if (!draft || busy || emailSignupInFlightRef.current) return;
     const normalizedEmail = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) { setAuthError("メールアドレスを確認してください。"); return; }
     if (password.length < 8) { setAuthError("パスワードは8文字以上で入力してください。"); return; }
     saveAnonymousLinkDraft({ ...draft, migration: { ...draft.migration, phase: "auth" } });
-    setBusy(true); setAuthError(null);
+    emailSignupInFlightRef.current = true;
+    setEmailSubmitting(true); setBusy(true); setAuthError(null);
     try {
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
@@ -190,10 +193,11 @@ export default function SignupLinkClient() {
     } catch (error) {
       setAuthError(emailSignupErrorMessage(error));
     } finally {
-      setBusy(false);
+      emailSignupInFlightRef.current = false;
+      setEmailSubmitting(false); setBusy(false);
     }
   };
 
   if (!draft) return <main className="grid min-h-dvh place-items-center bg-[#141414] text-sm text-white/60">読み込み中…</main>;
-  return <><DeferredLinkOnboarding draft={draft} avatarPreviewUrl={avatarUrl} slugState={slugState} slugMessage={slugMessage} publishedSlug={publishedSlug} onChange={updateDraft} onAvatar={selectAvatar} onRequireAuth={() => { setAuthError(null); setAuthOpen(true); }} />{notice ? <div className="fixed inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-[110] mx-auto max-w-md rounded-2xl bg-[#242326] px-4 py-3 text-sm text-white shadow-xl" role="status">{notice}</div> : null}<DeferredLinkAuthSheet open={authOpen} busy={busy} error={authError} onClose={() => setAuthOpen(false)} onGoogle={() => void startGoogle()} onEmail={(email, password) => void startEmail(email, password)} />{cropFile ? <ProfileImageCropModal file={cropFile} locale="ja" onCancel={() => setCropFile(null)} onConfirm={async (file) => { const saved = await persistAvatar(file); if (saved) setCropFile(null); return saved; }} /> : null}</>;
+  return <><DeferredLinkOnboarding draft={draft} avatarPreviewUrl={avatarUrl} slugState={slugState} slugMessage={slugMessage} publishedSlug={publishedSlug} onChange={updateDraft} onAvatar={selectAvatar} onRequireAuth={() => { setAuthError(null); setAuthOpen(true); }} />{notice ? <div className="fixed inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-[110] mx-auto max-w-md rounded-2xl bg-[#242326] px-4 py-3 text-sm text-white shadow-xl" role="status">{notice}</div> : null}<DeferredLinkAuthSheet open={authOpen} busy={busy} emailSubmitting={emailSubmitting} error={authError} onClose={() => setAuthOpen(false)} onGoogle={() => void startGoogle()} onEmail={(email, password) => void startEmail(email, password)} />{cropFile ? <ProfileImageCropModal file={cropFile} locale="ja" onCancel={() => setCropFile(null)} onConfirm={async (file) => { const saved = await persistAvatar(file); if (saved) setCropFile(null); return saved; }} /> : null}</>;
 }
