@@ -1,7 +1,15 @@
 import type { CreatorLinkButtonStyle } from "./constants";
+import {
+  CREATOR_LINK_SOCIAL_SERVICES,
+  getCreatorLinkService,
+  isCreatorLinkServiceKey,
+  normalizeCreatorLinkServiceInput,
+  type CreatorLinkServiceKey,
+  type CreatorLinkSocialServiceKey,
+} from "./service-registry";
 
-export const CREATOR_LINK_SOCIAL_PLATFORMS = ["instagram", "tiktok", "x", "youtube"] as const;
-export type CreatorLinkSocialPlatform = (typeof CREATOR_LINK_SOCIAL_PLATFORMS)[number];
+export const CREATOR_LINK_SOCIAL_PLATFORMS = CREATOR_LINK_SOCIAL_SERVICES;
+export type CreatorLinkSocialPlatform = CreatorLinkSocialServiceKey;
 
 export const CREATOR_LINK_ITEM_LAYOUTS = ["wide", "square", "icon"] as const;
 export const CREATOR_LINK_ITEM_SURFACES = ["filled", "outline"] as const;
@@ -48,6 +56,7 @@ export type CreatorLinkItemAppearance = {
   socialShape?: CreatorLinkSocialShape;
   surfaceColor?: string | null;
   borderColor?: string | null;
+  serviceKey?: CreatorLinkServiceKey;
 };
 
 export const CREATOR_LINK_ITEM_COLOR_VALUES: Record<CreatorLinkItemColor, string> = {
@@ -149,7 +158,8 @@ export function normalizeCreatorLinkItemAppearance(value: unknown): CreatorLinkI
     : undefined;
   const surfaceColor = record.surfaceColor === null ? null : typeof record.surfaceColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.surfaceColor) ? record.surfaceColor.toUpperCase() : undefined;
   const borderColor = record.borderColor === null ? null : typeof record.borderColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.borderColor) ? record.borderColor.toUpperCase() : undefined;
-  return { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(iconColor === undefined ? {} : { iconColor }), ...(shape ? { shape } : {}), ...(style ? { style } : {}), ...(socialStyle ? { socialStyle } : {}), ...(socialSurface ? { socialSurface } : {}), ...(socialShape ? { socialShape } : {}), ...(surfaceColor === undefined ? {} : { surfaceColor }), ...(borderColor === undefined ? {} : { borderColor }) };
+  const serviceKey = isCreatorLinkServiceKey(record.serviceKey) ? record.serviceKey : undefined;
+  return { ...record, layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(iconColor === undefined ? {} : { iconColor }), ...(shape ? { shape } : {}), ...(style ? { style } : {}), ...(socialStyle ? { socialStyle } : {}), ...(socialSurface ? { socialSurface } : {}), ...(socialShape ? { socialShape } : {}), ...(surfaceColor === undefined ? {} : { surfaceColor }), ...(borderColor === undefined ? {} : { borderColor }), ...(serviceKey ? { serviceKey } : {}) } as CreatorLinkItemAppearance;
 }
 
 export function validateCreatorLinkItemAppearance(value: unknown): ValidationResult<CreatorLinkItemAppearance> {
@@ -185,7 +195,10 @@ export function validateCreatorLinkItemAppearance(value: unknown): ValidationRes
   if (!(record.borderColor === undefined || record.borderColor === null || (typeof record.borderColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(record.borderColor)))) {
     return { ok: false, error: "Social border color must be a six-digit hex color." };
   }
-  return { ok: true, value: { layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(record.iconColor === undefined ? {} : { iconColor: typeof record.iconColor === "string" ? record.iconColor.toUpperCase() : null }), ...(shape ? { shape } : {}), ...(style ? { style } : {}), ...(socialStyle ? { socialStyle } : {}), ...(socialSurface ? { socialSurface } : {}), ...(socialShape ? { socialShape } : {}), ...(record.surfaceColor === undefined ? {} : { surfaceColor: typeof record.surfaceColor === "string" ? record.surfaceColor.toUpperCase() : null }), ...(record.borderColor === undefined ? {} : { borderColor: typeof record.borderColor === "string" ? record.borderColor.toUpperCase() : null }) } };
+  if (!(record.serviceKey === undefined || isCreatorLinkServiceKey(record.serviceKey))) {
+    return { ok: false, error: "Link service is not supported." };
+  }
+  return { ok: true, value: { ...record, layout: record.layout, surface: record.surface, finish, color: record.color, depth, ...(record.iconColor === undefined ? {} : { iconColor: typeof record.iconColor === "string" ? record.iconColor.toUpperCase() : null }), ...(shape ? { shape } : {}), ...(style ? { style } : {}), ...(socialStyle ? { socialStyle } : {}), ...(socialSurface ? { socialSurface } : {}), ...(socialShape ? { socialShape } : {}), ...(record.surfaceColor === undefined ? {} : { surfaceColor: typeof record.surfaceColor === "string" ? record.surfaceColor.toUpperCase() : null }), ...(record.borderColor === undefined ? {} : { borderColor: typeof record.borderColor === "string" ? record.borderColor.toUpperCase() : null }), ...(isCreatorLinkServiceKey(record.serviceKey) ? { serviceKey: record.serviceKey } : {}) } as CreatorLinkItemAppearance };
 }
 
 export type CreatorLinkResolvedSocialAppearance = {
@@ -226,13 +239,6 @@ export function getCreatorLinkSocialRenderStyle(value: CreatorLinkResolvedSocial
   };
 }
 
-const SOCIAL_LABELS: Record<CreatorLinkSocialPlatform, string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
-  x: "X",
-  youtube: "YouTube",
-};
-
 export function isCreatorLinkSocialPlatform(value: string): value is CreatorLinkSocialPlatform {
   return (CREATOR_LINK_SOCIAL_PLATFORMS as readonly string[]).includes(value);
 }
@@ -246,60 +252,10 @@ function parseHttpUrl(input: string): URL | null {
   }
 }
 
-function cleanUsername(value: string): string {
-  return value.trim().replace(/^@/, "").replace(/^\/+|\/+$/g, "");
-}
-
-function firstPathPart(url: URL): string {
-  const value = url.pathname.split("/").filter(Boolean)[0] ?? "";
-  try { return decodeURIComponent(value); } catch { return ""; }
-}
-
 export function normalizeSocialProfile(platform: CreatorLinkSocialPlatform, rawInput: string): ValidationResult<{ url: string; title: string }> {
-  const input = rawInput.trim();
-  if (!input || input.length > 500) return { ok: false, error: "SNSアカウントを入力してください。" };
-
-  const parsed = parseHttpUrl(input);
-  let username = "";
-  if (parsed) {
-    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-    if (platform === "instagram") {
-      if (host !== "instagram.com") return { ok: false, error: "InstagramのURLを入力してください。" };
-      username = firstPathPart(parsed);
-    } else if (platform === "tiktok") {
-      if (host !== "tiktok.com") return { ok: false, error: "TikTokのURLを入力してください。" };
-      username = cleanUsername(firstPathPart(parsed));
-    } else if (platform === "x") {
-      if (host !== "x.com" && host !== "twitter.com") return { ok: false, error: "XのURLを入力してください。" };
-      username = firstPathPart(parsed);
-    } else {
-      if (host !== "youtube.com" && host !== "m.youtube.com") return { ok: false, error: "YouTubeのURLを入力してください。" };
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      const first = parts[0] ?? "";
-      if (first.startsWith("@")) username = cleanUsername(first);
-      else if (["channel", "c", "user"].includes(first) && parts[1]) {
-        return { ok: true, value: { url: `https://www.youtube.com/${first}/${encodeURIComponent(parts[1])}`, title: SOCIAL_LABELS[platform] } };
-      } else return { ok: false, error: "YouTubeのチャンネルURLまたはhandleを入力してください。" };
-    }
-  } else username = cleanUsername(input);
-
-  const patterns: Record<CreatorLinkSocialPlatform, RegExp> = {
-    instagram: /^[A-Za-z0-9._]{1,30}$/,
-    tiktok: /^[A-Za-z0-9._]{2,50}$/,
-    x: /^[A-Za-z0-9_]{1,15}$/,
-    youtube: /^[A-Za-z0-9._-]{3,100}$/,
-  };
-  if (!patterns[platform].test(username)) return { ok: false, error: `${SOCIAL_LABELS[platform]}のユーザー名が正しくありません。` };
-
-  const encoded = encodeURIComponent(username);
-  const url = platform === "instagram"
-    ? `https://www.instagram.com/${encoded}/`
-    : platform === "tiktok"
-      ? `https://www.tiktok.com/@${encoded}`
-      : platform === "x"
-        ? `https://x.com/${encoded}`
-        : `https://www.youtube.com/@${encoded}`;
-  return { ok: true, value: { url, title: SOCIAL_LABELS[platform] } };
+  const serviceResult = normalizeCreatorLinkServiceInput(platform, rawInput);
+  if (!serviceResult.ok) return serviceResult;
+  return { ok: true, value: { url: serviceResult.value.url, title: getCreatorLinkService(platform).labelEn } };
 }
 
 export function validateGeneralLink(values: { title: string; url: string }): ValidationResult<{ title: string; url: string; description: null }> {

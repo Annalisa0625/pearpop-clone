@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTrendreLinkAuthenticatedUser } from "@/lib/trendre-link/server-auth";
 import { isCreatorLinkButtonStyle, isCreatorLinkFontStyle, isCreatorLinkTheme } from "@/lib/trendre-link/constants";
-import { isCreatorLinkSocialPlatform, normalizeSocialProfile, validateCreatorLinkItemAppearance, validateGeneralLink } from "@/lib/trendre-link/item-validation";
+import { isCreatorLinkSocialPlatform, normalizeSocialProfile, validateCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
 import { validateCreatorLinkSlug } from "@/lib/trendre-link/slug";
 import { UUID_PATTERN } from "@/lib/trendre-link/items-server";
+import { validateCreatorLinkServiceLink } from "@/lib/trendre-link/service-registry";
 
 type RawDraft = {
   version?: unknown; draftId?: unknown;
@@ -51,9 +52,9 @@ export async function POST(request: NextRequest) {
     if (typeof raw !== "object" || raw === null) return fail("リンクの内容を確認してください。", 400);
     const link = raw as Record<string, unknown>;
     if (typeof link.title !== "string" || typeof link.url !== "string" || typeof link.isVisible !== "boolean" || !Number.isInteger(link.sortOrder)) return fail("リンクの内容を確認してください。", 400);
-    const validated = validateGeneralLink({ title: link.title, url: link.url });
     const appearance = validateCreatorLinkItemAppearance(link.metadata);
-    if (!validated.ok || !appearance.ok) return fail("リンクの内容を確認してください。", 400);
+    const validated = appearance.ok ? validateCreatorLinkServiceLink({ serviceKey: appearance.value.serviceKey ?? "custom", title: link.title, input: link.url }) : null;
+    if (!validated?.ok || !appearance.ok) return fail("リンクの内容を確認してください。", 400);
     parsedLinks.push({ title: validated.value.title, url: validated.value.url, metadata: appearance.value, isVisible: link.isVisible, sortOrder: Number(link.sortOrder) });
   }
 

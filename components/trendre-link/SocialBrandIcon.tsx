@@ -1,6 +1,6 @@
 "use client";
 
-import { FaInstagram, FaTiktok, FaXTwitter, FaYoutube } from "react-icons/fa6";
+import { FaInstagram, FaThreads, FaTiktok, FaXTwitter, FaYoutube } from "react-icons/fa6";
 import type { CreatorLinkSocialPlatform } from "@/lib/trendre-link/item-validation";
 
 export const SOCIAL_BRAND_COLORS: Record<CreatorLinkSocialPlatform, string> = {
@@ -8,6 +8,7 @@ export const SOCIAL_BRAND_COLORS: Record<CreatorLinkSocialPlatform, string> = {
   tiktok: "#111111",
   x: "#111111",
   youtube: "#E52D27",
+  threads: "#111111",
 };
 
 export default function SocialBrandIcon({ platform, brand = false, color, className = "h-[21px] w-[21px]" }: {
@@ -17,6 +18,6 @@ export default function SocialBrandIcon({ platform, brand = false, color, classN
   className?: string;
 }) {
   const props = { className, "aria-hidden": true } as const;
-  const icon = platform === "instagram" ? <FaInstagram {...props} /> : platform === "tiktok" ? <FaTiktok {...props} /> : platform === "x" ? <FaXTwitter {...props} /> : <FaYoutube {...props} />;
+  const icon = platform === "instagram" ? <FaInstagram {...props} /> : platform === "tiktok" ? <FaTiktok {...props} /> : platform === "x" ? <FaXTwitter {...props} /> : platform === "threads" ? <FaThreads {...props} /> : <FaYoutube {...props} />;
   return <span role="img" aria-label={platform} style={color ? { color } : brand ? { color: SOCIAL_BRAND_COLORS[platform] } : undefined}>{icon}</span>;
 }

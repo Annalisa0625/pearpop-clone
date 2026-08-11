@@ -21,7 +21,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Link as LinkIcon, Pencil, Plus } from "lucide-react";
 
 import SocialBrandIcon from "@/components/trendre-link/SocialBrandIcon";
+import ServiceIcon from "@/components/trendre-link/ServiceIcon";
 import { isCreatorLinkSocialPlatform } from "@/lib/trendre-link/item-validation";
+import { getCreatorLinkServiceKeyFromMetadata } from "@/lib/trendre-link/service-registry";
 import type { CreatorLinkItem } from "@/lib/trendre-link/types";
 
 type Props = {
@@ -51,6 +53,7 @@ function SortableItem({ item, busy, onEdit, onToggle }: {
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const platform = item.platform && isCreatorLinkSocialPlatform(item.platform) ? item.platform : null;
+  const serviceKey = item.itemType === "link" ? getCreatorLinkServiceKeyFromMetadata(item.metadata) : null;
   const title = item.itemType === "social" ? (platform === "x" ? "X" : platform ? `${platform.slice(0, 1).toUpperCase()}${platform.slice(1)}` : "SNS") : item.title || "無題のリンク";
   const editable = item.itemType === "social" || item.itemType === "link";
 
@@ -59,7 +62,7 @@ function SortableItem({ item, busy, onEdit, onToggle }: {
       <button type="button" aria-label={`${title}を並べ替え`} {...attributes} {...listeners} className="flex h-11 w-11 touch-none items-center justify-center rounded-xl text-slate-400 outline-none hover:bg-slate-50 hover:text-slate-700 focus-visible:ring-4 focus-visible:ring-slate-200"><GripVertical className="h-5 w-5" aria-hidden="true" /></button>
       <button type="button" onClick={onEdit} disabled={!editable} className="min-w-0 py-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-slate-200 disabled:cursor-default">
         <span className="flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">{platform ? <SocialBrandIcon platform={platform} brand className="h-[18px] w-[18px]" /> : <LinkIcon className="h-[17px] w-[17px]" aria-hidden="true" />}</span>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">{platform ? <SocialBrandIcon platform={platform} brand className="h-[18px] w-[18px]" /> : serviceKey && serviceKey !== "custom" ? <ServiceIcon serviceKey={serviceKey} brand className="h-[18px] w-[18px]" /> : <LinkIcon className="h-[17px] w-[17px]" aria-hidden="true" />}</span>
           <span className="min-w-0">
             <strong className="block truncate text-sm font-semibold text-slate-900">{title}</strong>
             <span className="mt-0.5 block truncate text-xs text-slate-400">{displayUrl(item.url)}</span>

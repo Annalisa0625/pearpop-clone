@@ -151,7 +151,7 @@ export function applyLinkDesignPreset<TPage extends LinkDesignPage, TSocial exte
   return {
     page,
     socials: state.socials.map((item) => ({ ...item, metadata: { ...item.metadata, iconColor: preset.socialIconColor, socialStyle: preset.socialStyle, socialSurface: undefined, socialShape: preset.socialShape, surfaceColor: preset.socialSurfaceColor, borderColor: preset.socialBorderColor } })),
-    links: state.links.map((item) => ({ ...item, metadata: { ...preset.linkAppearance } })),
+    links: state.links.map((item) => ({ ...item, metadata: { ...item.metadata, ...preset.linkAppearance } })),
   };
 }
 

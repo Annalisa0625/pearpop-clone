@@ -11,6 +11,7 @@ import TrendreLinkCanvas, {
 } from "@/components/trendre-link/TrendreLinkCanvas";
 import StylePresetGallery from "@/components/trendre-link/StylePresetGallery";
 import SocialBrandIcon from "@/components/trendre-link/SocialBrandIcon";
+import ServiceIcon from "@/components/trendre-link/ServiceIcon";
 import InquiryFormModal from "@/components/trendre-link/InquiryFormModal";
 import CardDesignSelector from "./_components/CardDesignSelector";
 import EditorBottomSheet from "./_components/EditorBottomSheet";
@@ -37,7 +38,6 @@ import {
   CREATOR_LINK_SOCIAL_PLATFORMS,
   isCreatorLinkSocialPlatform,
   normalizeSocialProfile,
-  validateGeneralLink,
   DEFAULT_CREATOR_LINK_ITEM_APPEARANCE,
   normalizeCreatorLinkItemAppearance,
   CREATOR_LINK_SOCIAL_STYLES,
@@ -49,6 +49,15 @@ import {
   type CreatorLinkSocialSurface,
   type CreatorLinkSocialShape,
 } from "@/lib/trendre-link/item-validation";
+import {
+  CREATOR_LINK_STANDARD_SERVICES,
+  extractCreatorLinkServiceEditableValue,
+  getCreatorLinkService,
+  getCreatorLinkServiceKeyFromMetadata,
+  normalizeCreatorLinkServiceInput,
+  validateCreatorLinkServiceLink,
+  type CreatorLinkServiceKey,
+} from "@/lib/trendre-link/service-registry";
 import { INQUIRY_FORM_DEFAULTS, type CreatorLinkInquiryFormKind } from "@/lib/trendre-link/inquiry-forms";
 import { CREATOR_LINK_ADD_ACTIONS, getCreatorLinkEditorCtaCopy, getCreatorLinkSocialColorControls, resolveCreatorLinkPreviewEditTarget, type CreatorLinkSocialColorControl } from "@/lib/trendre-link/editor-controls";
 import { setCreatorLinkWorkEnabled } from "@/lib/trendre-link/work-settings";
@@ -83,11 +92,11 @@ type LinkFormState = {
 };
 
 type SlugCheckState = "idle" | "checking" | "available" | "unavailable" | "invalid";
-type Sheet = "links" | "add" | "profile" | "preset" | "social" | "link" | "inquiry" | null;
+type Sheet = "links" | "add" | "service" | "profile" | "preset" | "social" | "link" | "inquiry" | null;
 type Toast = { tone: "success" | "error" | "info"; message: string } | null;
 type SocialInputs = Record<CreatorLinkSocialPlatform, string>;
 type SocialAppearances = Record<CreatorLinkSocialPlatform, CreatorLinkItemAppearance>;
-type LinkEditorState = { id: string | null; title: string; url: string; appearance: CreatorLinkItemAppearance };
+type LinkEditorState = { id: string | null; title: string; url: string; serviceKey: CreatorLinkServiceKey; appearance: CreatorLinkItemAppearance };
 type InquiryFormEditor = Record<CreatorLinkInquiryFormKind, { title: string; isEnabled: boolean }>;
 type EditorDraft = CreatorLinkEditorDraft<LinkFormState, CreatorLinkItem, InquiryFormEditor>;
 
@@ -150,14 +159,9 @@ function isImageUploadSuccess(value: unknown): value is { ok: true; url: string 
   return isRecord(value) && value.ok === true && typeof value.url === "string";
 }
 
-const EMPTY_SOCIAL_INPUTS: SocialInputs = { instagram: "", tiktok: "", x: "", youtube: "" };
-const EMPTY_LINK_EDITOR: LinkEditorState = { id: null, title: "", url: "", appearance: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE };
-const EMPTY_SOCIAL_APPEARANCES: SocialAppearances = {
-  instagram: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE,
-  tiktok: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE,
-  x: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE,
-  youtube: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE,
-};
+const EMPTY_SOCIAL_INPUTS = Object.fromEntries(CREATOR_LINK_SOCIAL_PLATFORMS.map((platform) => [platform, ""])) as SocialInputs;
+const EMPTY_LINK_EDITOR: LinkEditorState = { id: null, title: "", url: "", serviceKey: "custom", appearance: DEFAULT_CREATOR_LINK_ITEM_APPEARANCE };
+const EMPTY_SOCIAL_APPEARANCES = Object.fromEntries(CREATOR_LINK_SOCIAL_PLATFORMS.map((platform) => [platform, DEFAULT_CREATOR_LINK_ITEM_APPEARANCE])) as SocialAppearances;
 const SOCIAL_ICON_COLOR_PALETTE = ["#111111", "#FFFFFF", "#ED5964", "#F97316", "#22C55E", "#14B8A6", "#3B82F6", "#8B5CF6", "#EC4899"] as const;
 
 const EMPTY_INQUIRY_FORMS: InquiryFormEditor = {
@@ -502,7 +506,11 @@ export default function CreatorLinkBuilderPage() {
     if (slugCheck !== "available" || slugError) return false;
     for (const item of items) {
       if (item.itemType === "link") {
-        const validated = validateGeneralLink({ title: item.title ?? "", url: item.url ?? "" });
+        const validated = validateCreatorLinkServiceLink({
+          serviceKey: getCreatorLinkServiceKeyFromMetadata(item.metadata) ?? "custom",
+          title: item.title ?? "",
+          input: item.url ?? "",
+        });
         if (!validated.ok) {
           setToast({ tone: "error", message: validated.error });
           openLinkSheet(item);
@@ -644,7 +652,7 @@ export default function CreatorLinkBuilderPage() {
     const nextAppearances = Object.fromEntries(CREATOR_LINK_SOCIAL_PLATFORMS.map((platform) => [platform, { ...inherited }])) as SocialAppearances;
     for (const item of items) {
       if (item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)) {
-        next[item.platform] = item.url ?? "";
+        next[item.platform] = extractCreatorLinkServiceEditableValue(item.platform, item.url);
         nextAppearances[item.platform] = normalizeCreatorLinkItemAppearance(item.metadata);
       }
     }
@@ -670,17 +678,25 @@ export default function CreatorLinkBuilderPage() {
       ...item,
       title: next.title,
       url: next.url,
-      metadata: next.appearance,
+      metadata: { ...next.appearance, serviceKey: next.serviceKey },
     } : item));
   };
 
-  const openLinkSheet = (item?: CreatorLinkItem | TrendreLinkCanvasItem) => {
+  const openLinkSheet = (item?: CreatorLinkItem | TrendreLinkCanvasItem, selectedService: CreatorLinkServiceKey = "custom") => {
+    const itemService = item ? getCreatorLinkServiceKeyFromMetadata(item.metadata) ?? "custom" : selectedService;
+    const appearance = item ? normalizeCreatorLinkItemAppearance(item.metadata) : form ? currentLinkAppearance(form, items) : { ...DEFAULT_CREATOR_LINK_ITEM_APPEARANCE };
     setLinkEditor(item && item.itemType === "link" ? {
       id: item.id ?? null,
       title: item.title ?? "",
-      url: item.url ?? "",
-      appearance: normalizeCreatorLinkItemAppearance(item.metadata),
-    } : { ...EMPTY_LINK_EDITOR, appearance: form ? currentLinkAppearance(form, items) : { ...DEFAULT_CREATOR_LINK_ITEM_APPEARANCE } });
+      url: extractCreatorLinkServiceEditableValue(itemService, item.url),
+      serviceKey: itemService,
+      appearance: { ...appearance, serviceKey: itemService },
+    } : {
+      ...EMPTY_LINK_EDITOR,
+      title: locale === "ja" ? getCreatorLinkService(selectedService).labelJa : getCreatorLinkService(selectedService).labelEn,
+      serviceKey: selectedService,
+      appearance: { ...appearance, serviceKey: selectedService },
+    });
     setSheet("link");
   };
 
@@ -704,7 +720,7 @@ export default function CreatorLinkBuilderPage() {
         createdAt: now, updatedAt: now,
       }]);
     }
-    setSocialInputs((current) => ({ ...current, [platform]: normalized.value.url }));
+    setSocialInputs((current) => ({ ...current, [platform]: extractCreatorLinkServiceEditableValue(platform, normalized.value.url) }));
     setToast({ tone: "success", message: locale === "ja" ? "下書きに追加しました" : "Added to draft" });
     return true;
   };
@@ -723,20 +739,20 @@ export default function CreatorLinkBuilderPage() {
 
   const saveLink = async () => {
     if (!page || itemSaving) return;
-    const validated = validateGeneralLink(linkEditor);
+    const validated = validateCreatorLinkServiceLink({ serviceKey: linkEditor.serviceKey, title: linkEditor.title, input: linkEditor.url });
     if (!validated.ok) {
       setToast({ tone: "error", message: validated.error });
       return;
     }
     if (linkEditor.id) {
-      setItems((current) => current.map((item) => item.id === linkEditor.id ? { ...item, title: linkEditor.title.trim(), url: validated.value.url, metadata: linkEditor.appearance } : item));
+      setItems((current) => current.map((item) => item.id === linkEditor.id ? { ...item, title: validated.value.title, url: validated.value.url, metadata: { ...linkEditor.appearance, serviceKey: linkEditor.serviceKey } } : item));
     } else {
       const id = createCreatorLinkTemporaryItemId();
       const now = new Date().toISOString();
       const nextSortOrder = items.reduce((maximum, item) => Math.max(maximum, item.sortOrder), -1) + 1;
       setItems((current) => [...current, {
-        id, pageId: page.id, itemType: "link", platform: null, title: linkEditor.title.trim(),
-        description: null, url: validated.value.url, imageUrl: null, metadata: linkEditor.appearance,
+        id, pageId: page.id, itemType: "link", platform: null, title: validated.value.title,
+        description: null, url: validated.value.url, imageUrl: null, metadata: { ...linkEditor.appearance, serviceKey: linkEditor.serviceKey },
         sortOrder: nextSortOrder, isVisible: true, createdAt: now, updatedAt: now,
       }]);
       setDraftLayoutOrder((current) => [...(current ?? []), `link:${id}`]);
@@ -832,7 +848,11 @@ export default function CreatorLinkBuilderPage() {
       const normalizedSocial = item.itemType === "social" && item.platform && isCreatorLinkSocialPlatform(item.platform)
         ? normalizeSocialProfile(item.platform, item.url ?? "")
         : null;
-      const normalizedLink = item.itemType === "link" ? validateGeneralLink({ title: item.title ?? "", url: item.url ?? "" }) : null;
+      const normalizedLink = item.itemType === "link" ? validateCreatorLinkServiceLink({
+        serviceKey: getCreatorLinkServiceKeyFromMetadata(item.metadata) ?? "custom",
+        title: item.title ?? "",
+        input: item.url ?? "",
+      }) : null;
       return { id: item.id, sortOrder: item.sortOrder, itemType: item.itemType, platform: item.platform, title: item.title, description: item.description, url: normalizedSocial ? (normalizedSocial.ok ? normalizedSocial.value.url : null) : normalizedLink ? (normalizedLink.ok ? normalizedLink.value.url : null) : item.url, imageUrl: item.imageUrl, metadata: item.metadata };
     });
   const draftInquiryTypes = inquiryTypes.map((item) => {
@@ -871,6 +891,7 @@ export default function CreatorLinkBuilderPage() {
   const sheetTitle = sheet === "links" ? (locale === "ja" ? "リンク" : "Links")
     : sheet === "add" ? (locale === "ja" ? "追加" : "Add")
     : sheet === "preset" ? (locale === "ja" ? "デザイン" : "Design")
+    : sheet === "service" ? (locale === "ja" ? "サービスを選択" : "Choose a service")
     : sheet === "profile" ? copy.urlSettings
     : sheet === "social" ? copy.socialTitle
     : sheet === "link" ? (linkEditor.id ? copy.editLinkTitle : copy.linkTitle)
@@ -982,7 +1003,7 @@ export default function CreatorLinkBuilderPage() {
       <main className={`relative mx-auto flex h-[calc(100%_-_60px_-_env(safe-area-inset-top))] min-h-0 w-full max-w-[720px] items-center justify-center overflow-hidden transition-[padding] duration-300 motion-reduce:transition-none ${sheet && !showFirstRun ? "pb-[min(48dvh,380px)]" : "pb-[74px]"}`}>
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-8 top-6 h-24 rounded-full bg-white/65 blur-3xl" />
         <div className={`trendre-editor-preview relative overflow-hidden rounded-[32px] border-[5px] border-[#242326] bg-[#242326] shadow-[0_22px_60px_rgba(34,31,38,.17)] ${sheet && !showFirstRun ? "is-editing" : ""}`} aria-label="公開ページのライブプレビュー">
-          <div className="origin-top-left transition-transform duration-300 motion-reduce:transition-none"><TrendreLinkCanvas data={viewData} mode="edit" locale={locale} editingField={editingField} onEditingFieldChange={setEditingField} onDisplayNameChange={(displayName) => setForm({ ...form, displayName })} onEditProfile={() => setSheet("profile")} onEditInquirySettings={() => setSheet("inquiry")} onAddFirstLink={() => openLinkSheet()} onEditItem={openPreviewItem} onReorderLayoutOrder={setDraftLayoutOrder} onReorderSocialItems={(nextItems) => { void reorderItems(nextItems); }} selectedTarget={selectedPreviewTarget} /></div>
+          <div className="origin-top-left transition-transform duration-300 motion-reduce:transition-none"><TrendreLinkCanvas data={viewData} mode="edit" locale={locale} editingField={editingField} onEditingFieldChange={setEditingField} onDisplayNameChange={(displayName) => setForm({ ...form, displayName })} onEditProfile={() => setSheet("profile")} onEditInquirySettings={() => setSheet("inquiry")} onAddFirstLink={() => setSheet("service")} onEditItem={openPreviewItem} onReorderLayoutOrder={setDraftLayoutOrder} onReorderSocialItems={(nextItems) => { void reorderItems(nextItems); }} selectedTarget={selectedPreviewTarget} /></div>
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[27px] ring-1 ring-inset ring-white/20" />
         </div>
         {!sheet ? <div className="absolute bottom-[86px] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-medium text-slate-600 shadow-sm backdrop-blur"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Live Preview</div> : null}
@@ -1001,7 +1022,12 @@ export default function CreatorLinkBuilderPage() {
 
             {sheet === "links" ? <CreatorLinkItemsEditor items={items} busyItemId={itemSaving} onAdd={openAddSheet} onEdit={openLinkSheet} onToggle={(item) => void toggleItemVisibility(item)} onReorder={(nextItems) => void reorderItems(nextItems)} /> : null}
 
-            {sheet === "add" ? <div className="grid grid-cols-2 gap-3 pt-5">{CREATOR_LINK_ADD_ACTIONS.map((action) => { const Icon = action.id === "link" ? Link2 : Share2; return <button key={action.id} type="button" onClick={() => action.sheet === "link" ? openLinkSheet() : openSocialSheet()} className="onboarding-press flex min-h-28 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 outline-none focus-visible:ring-4 focus-visible:ring-rose-200"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white"><Icon className="h-5 w-5" /></span>{action.label}</button>; })}</div> : null}
+            {sheet === "add" ? <div className="grid grid-cols-2 gap-3 pt-5">{CREATOR_LINK_ADD_ACTIONS.map((action) => { const Icon = action.id === "link" ? Link2 : Share2; return <button key={action.id} type="button" onClick={() => action.sheet === "link" ? setSheet("service") : openSocialSheet()} className="onboarding-press flex min-h-28 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 outline-none focus-visible:ring-4 focus-visible:ring-rose-200"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white"><Icon className="h-5 w-5" /></span>{action.label}</button>; })}</div> : null}
+
+            {sheet === "service" ? <div className="space-y-2 py-4">
+              {CREATOR_LINK_STANDARD_SERVICES.map((serviceKey) => { const service = getCreatorLinkService(serviceKey); return <button key={serviceKey} type="button" onClick={() => openLinkSheet(undefined, serviceKey)} className="onboarding-press flex min-h-16 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left outline-none focus-visible:ring-4 focus-visible:ring-rose-200"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50"><ServiceIcon serviceKey={serviceKey} brand className="h-5 w-5" /></span><span className="min-w-0"><span className="block text-sm font-semibold text-slate-900">{locale === "ja" ? service.labelJa : service.labelEn}</span><span className="block truncate text-xs text-slate-500">{locale === "ja" ? service.descriptionJa : service.descriptionEn}</span></span><ChevronRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" /></button>; })}
+              <button type="button" onClick={() => openLinkSheet(undefined, "custom")} className="onboarding-press flex min-h-16 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left outline-none focus-visible:ring-4 focus-visible:ring-rose-200"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50"><ServiceIcon serviceKey="custom" className="h-5 w-5" /></span><span><span className="block text-sm font-semibold text-slate-900">{locale === "ja" ? getCreatorLinkService("custom").labelJa : getCreatorLinkService("custom").labelEn}</span><span className="block text-xs text-slate-500">{locale === "ja" ? getCreatorLinkService("custom").descriptionJa : getCreatorLinkService("custom").descriptionEn}</span></span><ChevronRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" /></button>
+            </div> : null}
 
             {sheet === "preset" ? <div className="mt-3 pb-3"><div role="tablist" aria-label={locale === "ja" ? "スタイルカテゴリ" : "Style categories"} className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{availablePresetCategories.map((category) => <button key={category} type="button" role="tab" aria-selected={presetCategory === category} onClick={() => setPresetCategory(category)} className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-semibold capitalize outline-none focus-visible:ring-4 focus-visible:ring-rose-200 ${presetCategory === category ? "bg-[#242326] text-white" : "bg-slate-100 text-slate-600"}`}>{category}</button>)}</div><StylePresetGallery data={viewData} selectedPresetId={selectedPresetId} category={presetCategory} application="background" uploading={uploadingImage === "background"} onUpload={(file) => void uploadImage(file, "background")} onSelect={(preset) => setForm(withCreatorLinkBackground(form, createCreatorLinkBackgroundReference(preset.backgroundId)))} /></div> : null}
 
@@ -1081,7 +1107,8 @@ export default function CreatorLinkBuilderPage() {
                 <CreatorLinkSocialOrderEditor items={items} onReorder={(nextItems) => void reorderItems(nextItems)} />
                 {(() => {
                   const existing = items.find((item) => item.itemType === "social" && item.platform === activeSocial);
-                  const label = activeSocial === "instagram" ? "Instagram" : activeSocial === "tiktok" ? "TikTok" : activeSocial === "x" ? "X" : "YouTube";
+                  const socialService = getCreatorLinkService(activeSocial);
+                  const label = locale === "ja" ? socialService.labelJa : socialService.labelEn;
                   const appearance = socialAppearances[activeSocial];
                   const shape: CreatorLinkSocialShape = appearance.socialShape ?? (appearance.socialStyle === "pill" ? "pill" : appearance.socialStyle === "circle" || appearance.socialStyle === "glass" ? "circle" : "icons");
                   const selectColor = (target: CreatorLinkSocialColorControl, value: string | null) => {
@@ -1093,7 +1120,7 @@ export default function CreatorLinkBuilderPage() {
                   return <div className="mx-auto mt-5 max-w-lg">
                     <div className="rounded-2xl bg-slate-50/80 p-4">
                       <div className="mb-2 flex items-center justify-between"><label htmlFor="social-editor-input" className="text-sm font-semibold text-slate-800">{label}</label>{existing ? <span className="text-xs font-medium text-emerald-600">Connected</span> : <span className="text-xs text-slate-400">Not set</span>}</div>
-                      <div className="flex gap-2"><input id="social-editor-input" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={socialInputs[activeSocial]} onChange={(event) => { const input = event.target.value; setSocialInputs({ ...socialInputs, [activeSocial]: input }); updateExistingSocialDraft(activeSocial, input, appearance); }} placeholder={activeSocial === "youtube" ? "@handle / youtube.com/..." : "@username / URL"} className="h-12 min-w-0 flex-1 select-text rounded-2xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100" />{existing ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(existing.id)} aria-label={copy.deleteItem} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-400 hover:text-rose-600"><TrashIcon /></button> : null}</div>
+                      <div className="flex gap-2"><div className="flex h-12 min-w-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-slate-500 focus-within:ring-4 focus-within:ring-slate-100"><span className="flex shrink-0 items-center border-r border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500">{socialService.displayPrefix}</span><input id="social-editor-input" type="text" inputMode="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={socialInputs[activeSocial]} onChange={(event) => { const raw = event.target.value; const normalized = normalizeCreatorLinkServiceInput(activeSocial, raw); const input = normalized.ok ? normalized.value.editableValue : raw.replace(/^@+/, ""); setSocialInputs({ ...socialInputs, [activeSocial]: input }); updateExistingSocialDraft(activeSocial, input, appearance); }} placeholder={socialService.placeholder} className="min-w-0 flex-1 select-text bg-transparent px-3 text-base outline-none" /></div>{existing ? <button type="button" disabled={Boolean(itemSaving)} onClick={() => void deleteItem(existing.id)} aria-label={copy.deleteItem} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-400 hover:text-rose-600"><TrashIcon /></button> : null}</div>
                     </div>
                     <SocialShapeControl value={shape} onChange={(socialShape) => { const nextAppearance = { ...appearance, socialShape }; setSocialColorTarget(null); setSocialAppearances({ ...socialAppearances, [activeSocial]: nextAppearance }); updateExistingSocialDraft(activeSocial, socialInputs[activeSocial], nextAppearance); }} />
                     <SocialColorRows shape={shape} appearance={appearance} activeTarget={socialColorTarget} presetColors={{ icon: coordinatedPreset?.socialIconColor ?? null, surface: coordinatedPreset?.socialSurfaceColor ?? null, border: coordinatedPreset?.socialBorderColor ?? null }} onToggle={(target) => setSocialColorTarget((current) => current === target ? null : target)} onSelect={selectColor} />
@@ -1105,8 +1132,9 @@ export default function CreatorLinkBuilderPage() {
 
             {sheet === "link" ? (
               <div className="mt-5 space-y-4">
+                {linkEditor.serviceKey !== "custom" ? <div className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white"><ServiceIcon serviceKey={linkEditor.serviceKey} brand className="h-5 w-5" /></span><span><span className="block text-sm font-semibold text-slate-900">{locale === "ja" ? getCreatorLinkService(linkEditor.serviceKey).labelJa : getCreatorLinkService(linkEditor.serviceKey).labelEn}</span><span className="block text-xs text-slate-500">{locale === "ja" ? getCreatorLinkService(linkEditor.serviceKey).descriptionJa : getCreatorLinkService(linkEditor.serviceKey).descriptionEn}</span></span></div> : null}
                 <label className="block text-sm font-medium text-slate-600">{copy.linkName}<input value={linkEditor.title} maxLength={80} onChange={(event) => updateExistingLinkDraft({ ...linkEditor, title: event.target.value })} className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
-                <label className="block text-sm font-medium text-slate-600">{copy.url}<input type="url" value={linkEditor.url} maxLength={500} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => updateExistingLinkDraft({ ...linkEditor, url: event.target.value })} placeholder="https://" className="mt-1.5 h-12 w-full select-text rounded-xl border border-slate-200 bg-white/80 px-3 text-base outline-none focus:border-rose-400" /></label>
+                <label className="block text-sm font-medium text-slate-600">{getCreatorLinkService(linkEditor.serviceKey).inputMode === "handle" ? (locale === "ja" ? "ID" : "Handle") : copy.url}<span className="mt-1.5 flex h-12 overflow-hidden rounded-xl border border-slate-200 bg-white/80 focus-within:border-rose-400">{getCreatorLinkService(linkEditor.serviceKey).displayPrefix ? <span className="flex shrink-0 items-center border-r border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500">{getCreatorLinkService(linkEditor.serviceKey).displayPrefix}</span> : null}<input type={getCreatorLinkService(linkEditor.serviceKey).inputMode === "url" ? "url" : "text"} value={linkEditor.url} maxLength={500} inputMode={getCreatorLinkService(linkEditor.serviceKey).inputMode === "url" ? "url" : "text"} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => { const raw = event.target.value; const normalized = normalizeCreatorLinkServiceInput(linkEditor.serviceKey, raw); updateExistingLinkDraft({ ...linkEditor, url: normalized.ok ? normalized.value.editableValue : raw.replace(/^@+/, "") }); }} placeholder={getCreatorLinkService(linkEditor.serviceKey).placeholder} className="min-w-0 flex-1 select-text bg-transparent px-3 text-base outline-none" /></span></label>
                 <details open={Boolean(linkEditor.id)} className="rounded-xl border border-slate-200 bg-white/70 px-4 py-3">
                   <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500">{locale === "ja" ? "詳細デザイン" : "Advanced design"}</summary>
                   <CardDesignSelector value={linkEditor.appearance} onChange={(appearance) => updateExistingLinkDraft({ ...linkEditor, appearance })} locale={locale} pageButtonStyle={form.buttonStyle} />

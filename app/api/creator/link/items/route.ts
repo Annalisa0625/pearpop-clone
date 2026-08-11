@@ -6,7 +6,6 @@ import {
   isCreatorLinkSocialPlatform,
   normalizeSocialProfile,
   validateCreatorLinkItemAppearance,
-  validateGeneralLink,
 } from "@/lib/trendre-link/item-validation";
 import {
   findOwnedPage,
@@ -14,6 +13,7 @@ import {
   UUID_PATTERN,
 } from "@/lib/trendre-link/items-server";
 import type { CreatorLinkItemMutationResponse } from "@/lib/trendre-link/types";
+import { validateCreatorLinkServiceLink } from "@/lib/trendre-link/service-registry";
 
 type RequestBody = {
   pageId?: unknown;
@@ -92,9 +92,10 @@ export async function POST(request: NextRequest) {
       if (typeof body.title !== "string" || typeof body.url !== "string") {
         return errorResponse("リンクの入力内容を確認してください。", 400);
       }
-      const validated = validateGeneralLink({ title: body.title, url: body.url });
+      const serviceKey = appearance.value.serviceKey ?? "custom";
+      const validated = validateCreatorLinkServiceLink({ serviceKey, title: body.title, input: body.url });
       if (!validated.ok) return errorResponse(validated.error, 400);
-      values = { platform: null, ...validated.value };
+      values = { platform: null, title: validated.value.title, description: null, url: validated.value.url };
     }
 
     const { data: lastItem, error: sortError } = await supabaseAdmin
