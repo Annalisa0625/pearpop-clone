@@ -44,21 +44,8 @@ export default function RootPage() {
         .maybeSingle();
 
       if (role === "creator") {
-        if (!userState) {
-          router.replace("/creator/profile");
-          return;
-        }
-
-        if (!userState.creator_profile_completed) {
-          router.replace("/creator/profile");
-          return;
-        }
-
-        if (!userState.onboarding_completed) {
-          router.replace("/creator/onboarding");
-          return;
-        }
-
+        // A Creator account may be Link-only. Marketplace profile completion is
+        // intentionally progressive, so it must not block the Creator home.
         router.replace("/creator/dashboard");
         return;
       }

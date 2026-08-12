@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { Clapperboard, Circle, MapPin } from "lucide-react";
+import { FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
@@ -189,26 +191,20 @@ function formatPrice(value: string, locale: Locale) {
 }
 
 function platformBadgeClass(platform: string, selected = false) {
+  void platform;
   if (selected) {
-    return "border-slate-950 bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)]";
+    return "border-rose-300 bg-rose-50 text-slate-950";
   }
-
-  if (platform === "Instagram") return "border-violet-200 bg-violet-50 text-violet-700";
-  if (platform === "TikTok") return "border-slate-200 bg-white text-slate-900";
-  if (platform === "YouTube") return "border-red-100 bg-red-50 text-red-700";
-  if (platform === "UGC") return "border-indigo-100 bg-indigo-50 text-indigo-700";
-  if (platform === "Visit") return "border-emerald-100 bg-emerald-50 text-emerald-700";
-
   return "border-slate-200 bg-white text-slate-700";
 }
 
 function platformIcon(platform: string) {
-  if (platform === "Instagram") return "◎";
-  if (platform === "TikTok") return "♪";
-  if (platform === "YouTube") return "▶";
-  if (platform === "UGC") return "UGC";
-  if (platform === "Visit") return "✓";
-  return "•";
+  if (platform === "Instagram") return <FaInstagram className="h-[19px] w-[19px]" aria-hidden="true" />;
+  if (platform === "TikTok") return <FaTiktok className="h-[18px] w-[18px]" aria-hidden="true" />;
+  if (platform === "YouTube") return <FaYoutube className="h-[19px] w-[19px]" aria-hidden="true" />;
+  if (platform === "UGC") return <Clapperboard className="h-[19px] w-[19px]" aria-hidden="true" />;
+  if (platform === "Visit") return <MapPin className="h-[19px] w-[19px]" aria-hidden="true" />;
+  return <Circle className="h-[16px] w-[16px]" aria-hidden="true" />;
 }
 
 function PlatformBadge({
@@ -220,12 +216,12 @@ function PlatformBadge({
 }) {
   return (
     <span
-      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold ${platformBadgeClass(
+      className={`inline-flex h-7 items-center gap-1.5 rounded-[9px] border px-2.5 text-[11px] font-semibold ${platformBadgeClass(
         platform,
         selected,
       )}`}
     >
-      <span className={platform === "UGC" ? "text-[9px]" : "text-[12px]"}>
+      <span className="flex h-5 w-5 items-center justify-center">
         {platformIcon(platform)}
       </span>
       {platform}
@@ -245,18 +241,17 @@ function Header({
   onBack: () => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-[30px] bg-white ring-1 ring-slate-100">
-      <div className="relative p-5">
-        <div className="pointer-events-none absolute -right-14 -top-14 h-36 w-36 rounded-full bg-gradient-to-br from-rose-100 via-violet-100 to-transparent blur-2xl" />
+    <section className="px-1 pb-2 pt-2 sm:px-2 sm:pb-4">
+      <div className="relative">
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               Menu setup
             </p>
-            <h1 className="mt-1 text-[24px] font-semibold tracking-[-0.055em] text-slate-950">
+            <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.055em] text-slate-950 sm:text-[34px]">
               {title}
             </h1>
-            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            <p className="mt-2 max-w-lg text-[14px] font-normal leading-6 text-slate-600">
               {subtitle}
             </p>
           </div>
@@ -264,7 +259,7 @@ function Header({
           <button
             type="button"
             onClick={onBack}
-            className="shrink-0 rounded-full bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-100 backdrop-blur transition active:scale-[0.98]"
+            className="min-h-11 shrink-0 rounded-[13px] bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-200 outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.98]"
           >
             {backLabel}
           </button>
@@ -286,11 +281,9 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[26px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
-      <div className="mb-4 flex items-start gap-3">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-950 text-[12px] font-semibold text-white">
-          {step}
-        </span>
+    <section className="border-t border-slate-200/80 py-7 sm:py-9">
+      <div className="mb-4">
+        <p className="mb-1 text-[11px] font-semibold tracking-[0.14em] text-[#d92f50]">{step}</p>
         <div className="min-w-0">
           <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-slate-950">
             {title}
@@ -321,7 +314,7 @@ function MenuChoiceGrid({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {MENU_OPTIONS.map((option) => {
           const active = value === option.value;
           const platform = derivePlatform(option.value);
@@ -331,10 +324,11 @@ function MenuChoiceGrid({
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`min-h-[60px] rounded-[20px] px-3 py-2.5 text-left ring-1 transition active:scale-[0.99] ${
+              aria-pressed={active}
+              className={`min-h-[76px] rounded-[14px] px-4 py-3 text-left outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.99] motion-reduce:transition-none ${
                 active
-                  ? "bg-slate-950 text-white ring-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.14)]"
-                  : "bg-white text-slate-800 ring-slate-100 hover:ring-slate-200"
+                  ? "bg-rose-50 text-slate-950 ring-2 ring-[#ed3155]"
+                  : "bg-white text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50"
               }`}
             >
               <div className="flex h-full flex-col justify-between gap-2">
@@ -342,7 +336,7 @@ function MenuChoiceGrid({
                   <span
                     className={`inline-flex h-6 items-center rounded-full border px-2 text-[10px] font-semibold ${
                       active
-                        ? "border-white/10 bg-white/10 text-white"
+                        ? "border-slate-200 bg-white text-slate-700"
                         : platformBadgeClass(platform, false)
                     }`}
                   >
@@ -350,7 +344,7 @@ function MenuChoiceGrid({
                   </span>
 
                   {active ? (
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] font-black text-slate-950">
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-[#ed3155] text-[11px] font-semibold text-white">
                       ✓
                     </span>
                   ) : null}
@@ -366,7 +360,7 @@ function MenuChoiceGrid({
       </div>
 
       {selectedMenu ? (
-        <div className="mt-3 rounded-[20px] bg-[#f8f9fb] px-3 py-3 ring-1 ring-slate-100">
+        <div className="mt-4 border-l-2 border-rose-400 pl-4">
           <div className="flex items-start gap-2">
             <PlatformBadge platform={derivePlatform(selectedMenu.value)} />
             <p className="min-w-0 flex-1 text-[12px] font-medium leading-5 text-slate-600">
@@ -398,7 +392,7 @@ function PreviewCard({
   const isMaterial = selectedMenu ? isMaterialOnlyMenu(selectedMenu.value) : false;
 
   return (
-    <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100">
+    <section className="rounded-[22px] bg-white p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
@@ -420,7 +414,7 @@ function PreviewCard({
         </span>
       </div>
 
-      <div className="mt-4 rounded-[22px] bg-[#f8f9fb] px-4 py-4 ring-1 ring-slate-100">
+      <div className="mt-5 border-t border-slate-200/80 pt-5">
         <div className="flex items-end justify-between gap-4">
           <div className="min-w-0">
             <PlatformBadge platform={platform} />

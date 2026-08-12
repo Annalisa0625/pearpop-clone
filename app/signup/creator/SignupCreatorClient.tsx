@@ -1270,6 +1270,21 @@ export default function SignupCreatorClient() {
         .maybeSingle();
 
       if (existingCreator) {
+        const { data: userState } = await supabase
+          .from("user_states")
+          .select("creator_profile_completed")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        // Link signup creates the shared Creator row before Marketplace setup.
+        // Reuse that account by taking Link-only Creators to the progressive
+        // Marketplace profile flow instead of treating the row as a completed
+        // Marketplace signup.
+        if (!userState?.creator_profile_completed) {
+          router.replace("/creator/profile?start=trend-mart");
+          return;
+        }
+
         const { data: payoutProfile } = await supabase
           .from("creator_payout_profiles")
           .select("id, status")

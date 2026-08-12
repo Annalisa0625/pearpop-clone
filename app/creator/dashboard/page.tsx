@@ -52,7 +52,7 @@ const EMPTY_ANALYTICS: AnalyticsState = {
 function ArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -115,11 +115,11 @@ function LineChart({
   const gradientId = `analytics-${metric}-${period}`;
 
   return (
-    <div className="relative mt-5 overflow-hidden rounded-2xl bg-[#fafafd] ring-1 ring-slate-100">
-      <svg viewBox={`0 0 ${width} ${height}`} className="block h-[168px] w-full" role="img" aria-label={emptyText}>
+    <div className="relative mt-6 overflow-hidden rounded-[18px] bg-[#f3f2ef]">
+      <svg viewBox={`0 0 ${width} ${height}`} className="block h-[164px] w-full sm:h-[176px]" role="img" aria-label={emptyText}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#b65cff" stopOpacity="0.25" />
+            <stop offset="0%" stopColor="#b65cff" stopOpacity="0.16" />
             <stop offset="100%" stopColor="#ff5aa5" stopOpacity="0" />
           </linearGradient>
           <linearGradient id={`${gradientId}-line`} x1="0" y1="0" x2="1" y2="0">
@@ -135,7 +135,7 @@ function LineChart({
             x2={width - paddingX}
             y1={paddingTop + plotHeight * ratio}
             y2={paddingTop + plotHeight * ratio}
-            stroke="#e8eaf0"
+            stroke="#e5e2dc"
             strokeWidth="1"
           />
         ))}
@@ -144,7 +144,7 @@ function LineChart({
           x2={width - paddingX}
           y1={height - paddingBottom}
           y2={height - paddingBottom}
-          stroke="#dfe2e9"
+          stroke="#ddd9d2"
           strokeWidth="1"
         />
 
@@ -154,7 +154,7 @@ function LineChart({
             d={linePath}
             fill="none"
             stroke={`url(#${gradientId}-line)`}
-            strokeWidth="3"
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -191,10 +191,10 @@ function LineChart({
       {!hasData ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-8 pb-5 text-center">
           <div>
-            <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-100">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/80 bg-white text-slate-400">
               <TrendIcon />
             </span>
-            <p className="mt-3 text-xs font-medium leading-5 text-slate-400">{emptyText}</p>
+            <p className="mx-auto mt-3 max-w-[240px] text-[12px] font-medium leading-5 text-slate-500">{emptyText}</p>
           </div>
         </div>
       ) : null}
@@ -216,16 +216,19 @@ function AttentionRow({
   notify?: boolean;
 }) {
   return (
-    <Link href={href} className="group flex min-h-[72px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 active:bg-slate-50">
-      <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-600">
+    <Link
+      href={href}
+      className="group flex min-h-[84px] items-center gap-4 border-b border-slate-200/70 px-1 py-4 outline-none transition duration-150 last:border-b-0 hover:pl-2 focus-visible:bg-rose-50/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ff3860]/35 active:bg-white/70 motion-reduce:transition-none sm:px-2"
+    >
+      <span className="relative flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-white px-2 text-sm font-semibold tabular-nums text-slate-800">
         {count}
-        {notify && count > 0 ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff385c] ring-2 ring-white" /> : null}
+        {notify && count > 0 ? <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff3860] ring-2 ring-white" /> : null}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold tracking-[-0.025em] text-slate-900">{title}</span>
-        <span className="mt-0.5 block truncate text-xs font-medium text-slate-400">{description}</span>
+        <span className="block text-[15px] font-semibold leading-6 tracking-[-0.02em] text-slate-950">{title}</span>
+        <span className="mt-0.5 block truncate text-[12px] font-medium leading-5 text-slate-500">{description}</span>
       </span>
-      <span className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500"><ArrowIcon /></span>
+      <span className="text-slate-300 transition duration-150 group-hover:translate-x-0.5 group-hover:text-slate-500"><ArrowIcon className="h-[17px] w-[17px]" /></span>
     </Link>
   );
 }
@@ -242,13 +245,12 @@ function Promotion({
   cta: string;
 }) {
   return (
-    <Link href={href} className="group relative block overflow-hidden rounded-2xl bg-[#17131f] p-5 text-white shadow-[0_18px_55px_rgba(40,24,69,0.2)] active:scale-[0.99]">
-      <div className="absolute -right-12 -top-20 h-48 w-48 rounded-full bg-fuchsia-500/40 blur-3xl" />
-      <div className="absolute -bottom-24 left-8 h-44 w-44 rounded-full bg-violet-500/35 blur-3xl" />
+    <Link href={href} className="group relative block overflow-hidden rounded-[24px] border border-slate-800 bg-slate-950 p-5 text-white shadow-[0_10px_28px_rgba(15,23,42,0.12)] outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-[#ff3860]/25 active:scale-[0.99] motion-reduce:transition-none sm:p-6">
+      <div className="absolute inset-y-0 left-0 w-1 bg-[#ff3860]" />
       <div className="relative z-10">
-        <h2 className="max-w-md text-[23px] font-semibold leading-tight tracking-[-0.045em]">{title}</h2>
-        <p className="mt-3 max-w-lg text-sm font-medium leading-7 text-white/65">{body}</p>
-        <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition group-hover:gap-3">
+        <h2 className="max-w-md text-[21px] font-semibold leading-[1.3] tracking-[-0.035em]">{title}</h2>
+        <p className="mt-2.5 max-w-lg text-[13px] font-medium leading-6 text-slate-300">{body}</p>
+        <span className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-slate-950 transition duration-150 group-hover:bg-slate-100 group-hover:gap-2.5">
           {cta}
           <ArrowIcon />
         </span>
@@ -422,29 +424,31 @@ export default function CreatorDashboardPage() {
   const activeTotal = analytics.totals[metric] ?? 0;
 
   return (
-    <div className="mx-auto w-full max-w-4xl pb-5 pt-3">
-      <section className="px-1 pb-5 pt-2">
-        <h1 className="text-[29px] font-semibold tracking-[-0.055em] text-slate-950">{copy.greeting}、{state.displayName}</h1>
-        <p className="mt-1.5 text-sm font-medium text-slate-500">{copy.overview}</p>
+    <div className="mx-auto w-full max-w-4xl pb-6 pt-1 sm:pb-8 sm:pt-2">
+      <section className="px-0.5 pb-5 pt-2 sm:pb-6 sm:pt-3">
+        <h1 className="text-[28px] font-semibold leading-[1.2] tracking-[-0.05em] text-slate-950 sm:text-[31px]">{copy.greeting}、{state.displayName}</h1>
+        <p className="mt-2 text-[13px] font-medium leading-6 text-slate-500 sm:text-sm">{copy.overview}</p>
       </section>
 
-      <section className="rounded-2xl bg-white p-4 shadow-[0_16px_45px_rgba(31,24,48,0.055)] ring-1 ring-slate-200/70">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col">
+      <section className="order-3 mt-7 rounded-[28px] bg-white p-5 sm:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4 sm:gap-6">
           <div>
-            <p className="text-sm font-semibold text-slate-500">{copy.access}</p>
-            <p className="mt-1 flex items-baseline gap-1.5 text-[36px] font-semibold tracking-[-0.065em] text-slate-950">
+            <p className="text-[12px] font-semibold leading-5 text-slate-500">{copy.access}</p>
+            <p className="mt-0.5 flex items-baseline gap-1.5 text-[42px] font-semibold leading-none tracking-[-0.065em] tabular-nums text-slate-950 sm:text-[44px]">
               {activeTotal.toLocaleString(safeLocale === "ja" ? "ja-JP" : "en-US")}
-              <span className="text-sm font-medium tracking-normal text-slate-400">{copy.opens}</span>
+              <span className="text-[13px] font-medium tracking-normal text-slate-500">{copy.opens}</span>
             </p>
           </div>
 
-          <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold text-slate-500">
+          <div className="flex min-h-10 rounded-[13px] bg-[#f3f2ef] p-1 text-[12px] font-semibold text-slate-500" role="group" aria-label={safeLocale === "ja" ? "集計期間" : "Analytics period"}>
             {([7, 30, 90] as Period[]).map((value) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setPeriod(value)}
-                className={`min-h-8 rounded-lg px-3 transition ${period === value ? "bg-white text-slate-950 shadow-sm" : "text-slate-400"}`}
+                aria-pressed={period === value}
+                className={`min-h-8 min-w-[48px] rounded-[9px] px-3 outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-[#ff3860]/40 motion-reduce:transition-none ${period === value ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800 active:bg-white/60"}`}
               >
                 {value === 7 ? copy.seven : value === 30 ? copy.thirty : copy.ninety}
               </button>
@@ -452,16 +456,18 @@ export default function CreatorDashboardPage() {
           </div>
         </div>
 
-        <div className="mt-4 flex gap-6 border-b border-slate-100">
+        <div className="mt-5 flex gap-7 border-b border-slate-200/70" role="tablist" aria-label={safeLocale === "ja" ? "アクセス種別" : "Traffic type"}>
           {(["link", "profile"] as Metric[]).map((value) => (
             <button
               key={value}
               type="button"
+              role="tab"
+              aria-selected={metric === value}
               onClick={() => setMetric(value)}
-              className={`relative pb-3 text-sm font-semibold transition ${metric === value ? "text-slate-950" : "text-slate-400"}`}
+              className={`relative min-h-11 rounded-t-md px-0.5 pb-3 pt-1 text-[13px] font-semibold outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ff3860]/35 motion-reduce:transition-none ${metric === value ? "text-slate-950" : "text-slate-400 hover:text-slate-700"}`}
             >
               {value === "link" ? copy.link : copy.profile}
-              {metric === value ? <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-violet-500 to-pink-500" /> : null}
+              {metric === value ? <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[#ff3860]" /> : null}
             </button>
           ))}
         </div>
@@ -475,9 +481,9 @@ export default function CreatorDashboardPage() {
         />
       </section>
 
-      <section className="mt-6">
-        <h2 className="px-1 text-[17px] font-semibold tracking-[-0.035em] text-slate-950">{copy.attention}</h2>
-        <div className="mt-3 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/70">
+      <section className="order-1">
+        <h2 className="px-0.5 text-[17px] font-semibold leading-6 tracking-[-0.03em] text-slate-950">{copy.attention}</h2>
+        <div className="mt-2 border-y border-slate-200/80">
           <AttentionRow
             href="/creator/orders"
             title={copy.orders}
@@ -495,10 +501,11 @@ export default function CreatorDashboardPage() {
       </section>
 
       {promotion ? (
-        <section className="mt-6">
+        <section className="order-2 mt-6 sm:mt-7">
           <Promotion {...promotion} />
         </section>
       ) : null}
+      </div>
     </div>
   );
 }

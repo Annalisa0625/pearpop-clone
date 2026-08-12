@@ -57,7 +57,7 @@ function ChevronIcon() {
 
 function OrderIcon({ kind }: { kind: OrderItem["kind"] }) {
   return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-white to-slate-100 text-slate-700 shadow-[0_5px_14px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center text-slate-500">
       {kind === "order" ? (
         <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
           <path d="M7 4.5h10a2 2 0 0 1 2 2v13l-3-1.7-2.7 1.7-2.6-1.7L8 19.5l-3-1.7V6.5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -167,18 +167,12 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
   return (
     <Link
       href={item.href}
-      className="group relative flex min-h-[116px] items-start gap-3.5 px-4 py-4 transition duration-200 active:scale-[0.985] active:bg-slate-50/80"
+      className="group relative flex min-h-[132px] items-start gap-3 px-1 py-5 outline-none transition duration-150 hover:pl-2 focus-visible:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:bg-white/70 motion-reduce:transition-none sm:px-2"
     >
-      <div className="relative">
-        <OrderIcon kind={item.kind} />
-        {isNew ? (
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff304f] ring-[3px] ring-white" aria-label={locale === "ja" ? "新着" : "New"} />
-        ) : null}
-      </div>
-
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-medium text-slate-400">
+          <p className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+            {isNew ? <span className="h-2 w-2 rounded-full bg-[#ed3155]" aria-label={locale === "ja" ? "新着" : "New"} /> : null}
             {item.kind === "order"
               ? locale === "ja" ? "注文" : "Order"
               : locale === "ja" ? "見積もり依頼" : "Quote request"}
@@ -190,7 +184,7 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
 
         <div className="mt-1 flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[16px] font-semibold tracking-[-0.025em] text-slate-950">
+            <h2 className="truncate text-[17px] font-semibold tracking-[-0.03em] text-slate-950">
               {item.title}
             </h2>
             <p className="mt-1 line-clamp-1 text-[13px] leading-5 text-slate-500">
@@ -203,7 +197,7 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-[13px] font-semibold text-slate-800">
+          <p className="text-[16px] font-semibold tabular-nums tracking-[-0.02em] text-slate-950">
             {item.kind === "order"
               ? formatMoney(item.amount, item.currency, locale)
               : item.quoteAmount != null
@@ -338,13 +332,13 @@ export default function CreatorOrdersPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-5 pt-3">
-      <header className="flex items-end justify-between px-1 pb-3 pt-2">
-        <h1 className="text-[27px] font-semibold tracking-[-0.05em] text-slate-950">{copy.title}</h1>
-        <p className="pb-1 text-xs font-medium text-slate-400">{counts.all}</p>
+    <div className="mx-auto w-full max-w-3xl pb-6 pt-1 sm:pb-8 sm:pt-2">
+      <header className="flex items-end justify-between px-0.5 pb-4 pt-2 sm:pt-3">
+        <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.05em] text-slate-950">{copy.title}</h1>
+        <p className="pb-1 text-xs font-medium tabular-nums text-slate-500">{counts.all}</p>
       </header>
 
-      <nav className="creator-scrollbar-none flex overflow-x-auto border-b border-slate-200/80" aria-label={copy.title}>
+      <nav className="creator-scrollbar-none flex min-h-11 overflow-x-auto border-b border-slate-200/80" aria-label={copy.title}>
         {tabs.map((tab) => {
           const active = filter === tab.key;
           return (
@@ -352,17 +346,18 @@ export default function CreatorOrdersPage() {
               key={tab.key}
               type="button"
               onClick={() => setFilter(tab.key)}
-              className={`relative min-h-11 shrink-0 px-4 text-[13px] font-medium transition duration-200 active:opacity-60 ${active ? "text-slate-950" : "text-slate-400"}`}
+              aria-pressed={active}
+              className={`relative min-h-11 shrink-0 rounded-t-md px-4 text-[13px] font-medium outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:opacity-60 motion-reduce:transition-none ${active ? "text-slate-950" : "text-slate-500 hover:text-slate-800"}`}
             >
               {tab.label}
               <span className="ml-1.5 text-[11px] text-slate-400">{tab.count}</span>
-              {active ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-slate-950" /> : null}
+              {active ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#ff3860]" /> : null}
             </button>
           );
         })}
       </nav>
 
-      <section className="mt-3 overflow-hidden rounded-[20px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.045)] ring-1 ring-slate-200/70" aria-busy={loading}>
+      <section className="mt-4 border-y border-slate-200/80" aria-busy={loading}>
         {loading ? (
           <div className="divide-y divide-slate-100">
             {[0, 1, 2].map((item) => (

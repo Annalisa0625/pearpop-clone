@@ -4,6 +4,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Clapperboard, Circle, MapPin } from "lucide-react";
+import { FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import {
@@ -115,46 +117,27 @@ function menuFormatLabel(menu: CreatorMenu, locale: Locale) {
 }
 
 function platformBadgeClass(platform: string) {
-  if (platform === "Instagram") {
-    return "border-violet-200 bg-violet-50 text-violet-700";
-  }
-
-  if (platform === "TikTok") {
-    return "border-slate-300 bg-slate-950 text-white";
-  }
-
-  if (platform === "YouTube") {
-    return "border-red-100 bg-red-50 text-red-700";
-  }
-
-  if (platform === "UGC") {
-    return "border-indigo-100 bg-indigo-50 text-indigo-700";
-  }
-
-  if (platform === "Visit") {
-    return "border-emerald-100 bg-emerald-50 text-emerald-700";
-  }
-
-  return "border-slate-200 bg-slate-50 text-slate-600";
+  void platform;
+  return "text-slate-600";
 }
 
 function platformIcon(platform: string) {
-  if (platform === "Instagram") return "◎";
-  if (platform === "TikTok") return "♪";
-  if (platform === "YouTube") return "▶";
-  if (platform === "UGC") return "UGC";
-  if (platform === "Visit") return "✓";
-  return "•";
+  if (platform === "Instagram") return <FaInstagram className="h-[19px] w-[19px]" aria-hidden="true" />;
+  if (platform === "TikTok") return <FaTiktok className="h-[18px] w-[18px]" aria-hidden="true" />;
+  if (platform === "YouTube") return <FaYoutube className="h-[19px] w-[19px]" aria-hidden="true" />;
+  if (platform === "UGC") return <Clapperboard className="h-[19px] w-[19px]" aria-hidden="true" />;
+  if (platform === "Visit") return <MapPin className="h-[19px] w-[19px]" aria-hidden="true" />;
+  return <Circle className="h-[16px] w-[16px]" aria-hidden="true" />;
 }
 
 function PlatformBadge({ platform }: { platform: string }) {
   return (
     <span
-      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold ${platformBadgeClass(
+      className={`inline-flex h-7 items-center gap-1.5 text-[11px] font-semibold ${platformBadgeClass(
         platform,
       )}`}
     >
-      <span className={platform === "UGC" ? "text-[9px]" : "text-[12px]"}>
+      <span className="flex h-5 w-5 items-center justify-center">
         {platformIcon(platform)}
       </span>
       {platform}
@@ -216,60 +199,35 @@ function Header({
   const publicCount = menus.filter((menu) => !!menu.is_active).length;
 
   return (
-    <section className="overflow-hidden rounded-[30px] bg-white ring-1 ring-slate-100">
-      <div className="relative p-5">
-        <div className="pointer-events-none absolute -right-14 -top-14 h-36 w-36 rounded-full bg-gradient-to-br from-rose-100 via-violet-100 to-transparent blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-gradient-to-tr from-emerald-100 to-transparent blur-2xl" />
+    <section className="px-1 pb-2 pt-2 sm:px-2 sm:pb-4">
+      <div className="relative">
 
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               Creator menu
             </p>
-            <h1 className="mt-1 text-[24px] font-semibold tracking-[-0.055em] text-slate-950">
+            <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.055em] text-slate-950 sm:text-[34px]">
               {title}
             </h1>
-            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            <p className="mt-2 max-w-lg text-[14px] font-normal leading-6 text-slate-600">
               {subtitle}
             </p>
           </div>
 
           <Link
             href="/creator/menus/new"
-            className="shrink-0 rounded-full bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.14)] transition active:scale-[0.98]"
+            className="min-h-11 shrink-0 rounded-[13px] bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.98] motion-reduce:transition-none"
           >
             + {createLabel}
           </Link>
         </div>
 
-        <div className="relative mt-5 grid grid-cols-3 gap-2">
-          <div className="rounded-[20px] bg-white/80 px-3 py-3 ring-1 ring-white/90 backdrop-blur">
-            <p className="text-[10px] font-medium text-slate-500">
-              {locale === "ja" ? "合計" : "Total"}
-            </p>
-            <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.05em] text-slate-950">
-              {menus.length}
-            </p>
-          </div>
-
-          <div className="rounded-[20px] bg-white/80 px-3 py-3 ring-1 ring-white/90 backdrop-blur">
-            <p className="text-[10px] font-medium text-slate-500">
-              {locale === "ja" ? "公開中" : "Public"}
-            </p>
-            <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.05em] text-emerald-700">
-              {publicCount}
-            </p>
-          </div>
-
-          <div className="rounded-[20px] bg-white/80 px-3 py-3 ring-1 ring-white/90 backdrop-blur">
-            <p className="text-[10px] font-medium text-slate-500">
-              {locale === "ja" ? "非公開" : "Private"}
-            </p>
-            <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.05em] text-slate-700">
-              {menus.length - publicCount}
-            </p>
-          </div>
-        </div>
+        <p className="mt-5 text-[13px] font-medium text-slate-500">
+          {locale === "ja"
+            ? `${menus.length}件のサービス · ${publicCount}件を公開中`
+            : `${menus.length} offerings · ${publicCount} live`}
+        </p>
       </div>
     </section>
   );
@@ -310,43 +268,21 @@ function MenuCard({
   const deniedSecondaryUse = menu.allow_secondary_use === false;
 
   return (
-    <article className="group rounded-[24px] bg-white p-4 ring-1 ring-slate-100 transition hover:ring-slate-200">
-      <div className="flex items-start gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[18px] bg-slate-50 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100">
-          {platformIcon(platform)}
-        </div>
-
+    <article className="group flex min-h-[268px] flex-col rounded-[22px] bg-white p-5 transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(15,23,42,0.08)] motion-reduce:transition-none">
+      <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap gap-1.5">
             <PlatformBadge platform={platform} />
-            <span
-              className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
-                isPublic
-                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                  : "border-slate-200 bg-slate-50 text-slate-500"
-              }`}
-            >
-              {isPublic
-                ? locale === "ja"
-                  ? "公開中"
-                  : "Public"
-                : locale === "ja"
-                  ? "非公開"
-                  : "Private"}
-            </span>
-            <span className="inline-flex h-7 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-slate-600">
-              {menuFormatLabel(menu, locale)}
-            </span>
           </div>
 
-          <div className="mt-2 flex items-start justify-between gap-3">
+          <div className="mt-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="line-clamp-1 text-[16px] font-semibold leading-6 tracking-[-0.035em] text-slate-950">
+              <h2 className="line-clamp-2 text-[19px] font-semibold leading-7 tracking-[-0.04em] text-slate-950">
                 {menu.title}
               </h2>
 
               {menu.description?.trim() ? (
-                <p className="mt-0.5 line-clamp-1 text-[12px] font-medium leading-5 text-slate-500">
+                <p className="mt-1 line-clamp-2 text-[13px] font-normal leading-6 text-slate-600">
                   {menu.description.trim()}
                 </p>
               ) : null}
@@ -354,7 +290,7 @@ function MenuCard({
 
             <Link
               href={`/creator/menus/${menu.id}/edit`}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100 transition active:scale-95"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-slate-50 text-slate-400 ring-1 ring-slate-200/70 outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-95"
               aria-label={copy.edit}
             >
               <ChevronIcon />
@@ -363,10 +299,10 @@ function MenuCard({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3 rounded-[18px] bg-[#f8f9fb] px-3 py-2.5 ring-1 ring-slate-100">
+      <div className="mt-auto flex items-end justify-between gap-3 pb-5 pt-7">
         <div className="min-w-0">
           <p className="text-[10px] font-medium text-slate-500">{copy.price}</p>
-          <p className="mt-0.5 whitespace-nowrap text-[21px] font-semibold tracking-[-0.055em] text-slate-950">
+          <p className="mt-1 whitespace-nowrap text-[28px] font-semibold tracking-[-0.06em] tabular-nums text-slate-950">
             {formatPrice(
               menu.price,
               menu.currency,
@@ -377,14 +313,27 @@ function MenuCard({
         </div>
 
         {deniedSecondaryUse ? (
-          <span className="shrink-0 rounded-full border border-amber-100 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
+          <span className="shrink-0 text-[11px] font-medium text-amber-700">
             {copy.secondaryUseDenied}
           </span>
         ) : null}
       </div>
 
-      {(accountUrl || hasLegacyReferenceOnly) && (
-        <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mb-3 flex items-center gap-2 text-[12px] font-medium text-slate-500">
+        <span className={`h-1.5 w-1.5 rounded-full ${isPublic ? "bg-emerald-500" : "bg-slate-300"}`} aria-hidden="true" />
+        <span>{isPublic ? locale === "ja" ? "公開中" : "Live" : locale === "ja" ? "非公開" : "Private"}</span>
+        <span className="text-slate-300">·</span>
+        <span>{menuFormatLabel(menu, locale)}</span>
+      </div>
+
+      <details className="group/manage border-t border-slate-100 pt-3">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between text-[12px] font-medium text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
+          <span>{locale === "ja" ? "管理" : "Manage"}</span>
+          <span className="text-lg leading-none tracking-[0.12em] text-slate-400" aria-hidden="true">•••</span>
+        </summary>
+
+        {(accountUrl || hasLegacyReferenceOnly) && (
+          <div className="mb-3 flex flex-wrap gap-2">
           {accountUrl ? (
             <a
               href={accountUrl}
@@ -401,17 +350,17 @@ function MenuCard({
               {copy.legacyPriceNotice}
             </span>
           ) : null}
-        </div>
-      )}
+          </div>
+        )}
 
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_86px] gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_86px] gap-2 border-t border-slate-100 pt-3">
         <button
           type="button"
           onClick={onToggle}
           disabled={isLoading}
-          className={`h-10 rounded-full text-[12px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`h-11 rounded-[12px] text-[12px] font-semibold outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none ${
             isPublic
-              ? "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
+              ? "bg-slate-50 text-slate-700"
               : "bg-slate-950 text-white shadow-[0_12px_22px_rgba(15,23,42,0.12)]"
           }`}
         >
@@ -426,11 +375,12 @@ function MenuCard({
           type="button"
           onClick={onDelete}
           disabled={isLoading}
-          className="h-10 rounded-full bg-white text-[12px] font-semibold text-slate-500 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-11 rounded-[12px] text-[12px] font-medium text-slate-400 outline-none transition duration-150 hover:bg-rose-50 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
         >
           {isLoading ? copy.deleting : copy.delete}
         </button>
-      </div>
+        </div>
+      </details>
     </article>
   );
 }
@@ -445,7 +395,7 @@ function EmptyState({
   createLabel: string;
 }) {
   return (
-    <section className="rounded-[28px] bg-white px-5 py-10 text-center ring-1 ring-slate-100">
+    <section className="rounded-[24px] border border-slate-200/70 bg-white px-5 py-10 text-center shadow-[0_2px_12px_rgba(15,23,42,0.03)]">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-50 text-slate-300 ring-1 ring-slate-100">
         <EmptyMenuIcon />
       </div>
@@ -460,7 +410,7 @@ function EmptyState({
 
       <Link
         href="/creator/menus/new"
-        className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.14)]"
+        className="mt-6 inline-flex h-11 items-center justify-center rounded-[13px] bg-slate-950 px-5 text-[13px] font-semibold text-white outline-none focus-visible:ring-4 focus-visible:ring-slate-200"
       >
         + {createLabel}
       </Link>

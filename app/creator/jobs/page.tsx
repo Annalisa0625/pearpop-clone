@@ -82,7 +82,7 @@ function ChevronIcon() {
 
 function WorkIcon({ message = false }: { message?: boolean }) {
   return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-white to-slate-100 text-slate-700 shadow-[0_5px_14px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center text-slate-500">
       {message ? (
         <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
           <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -220,8 +220,8 @@ function getNextAction(order: ActiveOrder, locale: "ja" | "en") {
   }
 
   return {
-    title: ja ? "進行中" : "In progress",
-    body: ja ? "案件詳細から次の作業を確認できます" : "Open the job to see the next step",
+    title: ja ? "次の作業を確認してください" : "Check your next step",
+    body: ja ? "案件を開くと、今必要な作業を確認できます" : "Open the job to see what to do next",
     urgent: false,
   };
 }
@@ -229,20 +229,16 @@ function getNextAction(order: ActiveOrder, locale: "ja" | "en") {
 function JobRow({ order, locale }: { order: ActiveOrder; locale: "ja" | "en" }) {
   const action = getNextAction(order, locale);
   return (
-    <Link href={`/creator/orders/${order.id}`} className="group flex min-h-[112px] items-start gap-3.5 px-4 py-4 transition duration-200 active:scale-[0.985] active:bg-slate-50/80">
-      <div className="relative">
-        <WorkIcon />
-        {action.urgent ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff304f] ring-[3px] ring-white" /> : null}
-      </div>
+    <Link href={`/creator/orders/${order.id}`} className="group flex min-h-[126px] items-start gap-3 px-1 py-5 outline-none transition duration-150 hover:pl-2 focus-visible:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:bg-white/70 motion-reduce:transition-none sm:px-2">
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-medium text-slate-400">{locale === "ja" ? "進行中" : "Active"}</p>
+          <span aria-hidden="true" />
           <time className="text-[11px] font-medium text-slate-400">{formatDate(order.updatedAt || order.createdAt, locale)}</time>
         </div>
         <div className="mt-1 flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[16px] font-semibold tracking-[-0.025em] text-slate-950">{order.title}</h2>
-            <p className={`mt-1 line-clamp-1 text-[13px] leading-5 ${action.urgent ? "font-medium text-slate-800" : "text-slate-500"}`}>{action.title}</p>
+            <h2 className="truncate text-[17px] font-semibold tracking-[-0.03em] text-slate-950">{order.title}</h2>
+            <p className={`mt-1 line-clamp-1 text-[14px] leading-6 ${action.urgent ? "font-semibold text-[#d92f50]" : "font-medium text-slate-700"}`}>{action.title}</p>
             <p className="mt-1 line-clamp-1 text-[11px] text-slate-400">{action.body}</p>
           </div>
           <span className="mt-1 shrink-0 text-slate-300 transition duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"><ChevronIcon /></span>
@@ -255,14 +251,13 @@ function JobRow({ order, locale }: { order: ActiveOrder; locale: "ja" | "en" }) 
 function ChatRowItem({ item, locale, fallback }: { item: ChatItem; locale: "ja" | "en"; fallback: string }) {
   const unread = item.unreadCount > 0;
   return (
-    <Link href={`/creator/chats/${item.order.id}`} className="group flex min-h-[94px] items-center gap-3.5 px-4 py-3.5 transition duration-200 active:scale-[0.985] active:bg-slate-50/80">
-      <div className="relative">
-        <WorkIcon message />
-        {unread ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff304f] ring-[3px] ring-white" /> : null}
-      </div>
+    <Link href={`/creator/chats/${item.order.id}`} className="group flex min-h-[104px] items-center gap-3 px-1 py-4 outline-none transition duration-150 hover:pl-2 focus-visible:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:bg-white/70 motion-reduce:transition-none sm:px-2">
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <h2 className={`truncate text-[15px] tracking-[-0.02em] text-slate-950 ${unread ? "font-semibold" : "font-medium"}`}>{item.order.title}</h2>
+          <h2 className={`flex min-w-0 items-center gap-2 truncate text-[15px] tracking-[-0.02em] text-slate-950 ${unread ? "font-semibold" : "font-medium"}`}>
+            {unread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[#ed3155]" aria-hidden="true" /> : null}
+            <span className="truncate">{item.order.title}</span>
+          </h2>
           <time className="shrink-0 text-[11px] font-medium text-slate-400">{formatChatTimestamp(item.latestAt, locale)}</time>
         </div>
         <div className="mt-1 flex items-center gap-2">
@@ -452,28 +447,28 @@ export default function CreatorJobsPage() {
   const unreadTotal = chatItems.reduce((sum, item) => sum + item.unreadCount, 0);
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-5 pt-3">
-      <header className="flex items-end justify-between px-1 pb-3 pt-2">
-        <h1 className="text-[27px] font-semibold tracking-[-0.05em] text-slate-950">{copy.title}</h1>
-        <p className="pb-1 text-xs font-medium text-slate-400">{orders.length}</p>
+    <div className="mx-auto w-full max-w-3xl pb-6 pt-1 sm:pb-8 sm:pt-2">
+      <header className="flex items-end justify-between px-0.5 pb-4 pt-2 sm:pt-3">
+        <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.05em] text-slate-950">{copy.title}</h1>
+        <p className="pb-1 text-xs font-medium tabular-nums text-slate-500">{orders.length}</p>
       </header>
 
-      <nav className="flex border-b border-slate-200/80" aria-label={copy.title}>
-        <button type="button" onClick={() => setTab("jobs")} className={`relative min-h-11 flex-1 px-4 text-[13px] font-medium transition duration-200 active:opacity-60 ${tab === "jobs" ? "text-slate-950" : "text-slate-400"}`}>
+      <nav className="flex min-h-11 border-b border-slate-200/80" aria-label={copy.title}>
+        <button type="button" onClick={() => setTab("jobs")} aria-pressed={tab === "jobs"} className={`relative min-h-11 flex-1 rounded-t-md px-4 text-[13px] font-medium outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:opacity-60 motion-reduce:transition-none ${tab === "jobs" ? "text-slate-950" : "text-slate-500 hover:text-slate-800"}`}>
           {copy.jobs}<span className="ml-1.5 text-[11px] text-slate-400">{orders.length}</span>
-          {tab === "jobs" ? <span className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-slate-950" /> : null}
+          {tab === "jobs" ? <span className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-[#ff3860]" /> : null}
         </button>
-        <button type="button" onClick={() => setTab("messages")} className={`relative min-h-11 flex-1 px-4 text-[13px] font-medium transition duration-200 active:opacity-60 ${tab === "messages" ? "text-slate-950" : "text-slate-400"}`}>
+        <button type="button" onClick={() => setTab("messages")} aria-pressed={tab === "messages"} className={`relative min-h-11 flex-1 rounded-t-md px-4 text-[13px] font-medium outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:opacity-60 motion-reduce:transition-none ${tab === "messages" ? "text-slate-950" : "text-slate-500 hover:text-slate-800"}`}>
           <span className="relative inline-flex items-center">
             {copy.messages}
             {unreadTotal > 0 ? <span className="absolute -right-3 -top-1 h-2 w-2 rounded-full bg-[#ff304f]" /> : null}
           </span>
           {unreadTotal > 0 ? <span className="ml-1.5 text-[11px] text-slate-400">{unreadTotal}</span> : null}
-          {tab === "messages" ? <span className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-slate-950" /> : null}
+          {tab === "messages" ? <span className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-[#ff3860]" /> : null}
         </button>
       </nav>
 
-      <section className="mt-3 overflow-hidden rounded-[20px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.045)] ring-1 ring-slate-200/70" aria-busy={loading}>
+      <section className="mt-4 border-y border-slate-200/80" aria-busy={loading}>
         {loading ? (
           <div className="divide-y divide-slate-100">
             {[0, 1, 2].map((item) => (
