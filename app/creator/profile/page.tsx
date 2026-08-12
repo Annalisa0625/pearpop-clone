@@ -906,7 +906,7 @@ function LineConnectionCard({
   onTest: () => void;
 }) {
   return (
-    <section className={`order-5 my-3 rounded-[28px] px-5 py-6 sm:px-7 sm:py-7 ${linked ? "border border-slate-200/70 bg-white" : "creator-line-prompt relative overflow-hidden bg-[#ecfff3] shadow-[0_18px_55px_rgba(6,199,85,0.10)]"}`}>
+    <section className={`order-4 my-3 rounded-[28px] px-5 py-6 sm:px-7 sm:py-7 ${linked ? "border border-slate-200/70 bg-white" : "creator-line-prompt relative overflow-hidden bg-[#ecfff3] shadow-[0_18px_55px_rgba(6,199,85,0.10)]"}`}>
       <div className="relative flex items-start gap-4">
         <div
           className={`grid h-12 w-12 shrink-0 place-items-center rounded-[16px] ${
@@ -1056,6 +1056,38 @@ function QuickLink({
   );
 }
 
+function OfferingLink({
+  href,
+  title,
+  body,
+}: {
+  href: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-h-[88px] items-center gap-4 rounded-[20px] border border-[#e4e1db] bg-[#fffefa] px-5 py-4 text-slate-950 shadow-[0_8px_24px_rgba(40,35,30,0.045)] outline-none transition duration-200 hover:border-[#d8d4cd] hover:bg-white hover:shadow-[0_10px_28px_rgba(40,35,30,0.065)] focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.995] motion-reduce:transform-none motion-reduce:transition-none"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[16px] font-semibold tracking-[-0.035em]">
+          {title}
+        </span>
+        <span className="mt-1 block text-[12px] font-normal leading-5 text-slate-500">
+          {body}
+        </span>
+      </span>
+      <span
+        className="shrink-0 text-[20px] text-slate-400 transition duration-200 group-hover:translate-x-0.5 group-hover:text-slate-600 motion-reduce:transition-none"
+        aria-hidden="true"
+      >
+        ›
+      </span>
+    </Link>
+  );
+}
+
 export default function CreatorProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -1125,8 +1157,8 @@ export default function CreatorProfilePage() {
             saveError: "保存中にエラーが発生しました。",
             uploadFailed: "画像アップロードに失敗しました。",
             settings: "関連設定",
-            menusTitle: "メニュー・価格",
-            menusBody: "企業が購入できるメニューを管理",
+            menusTitle: "メニューの追加・編集",
+            menusBody: "提供するサービスと料金を設定",
             payoutsTitle: "報酬受け取り",
             payoutsBody: "受取設定と報酬履歴を確認",
             statusPrefix: "表示状態",
@@ -1220,8 +1252,8 @@ export default function CreatorProfilePage() {
             saveError: "An error occurred while saving.",
             uploadFailed: "Failed to upload image.",
             settings: "Related settings",
-            menusTitle: "Menus & rates",
-            menusBody: "Manage menus brands can order.",
+            menusTitle: "Add or edit menus",
+            menusBody: "Set the services and rates you offer.",
             payoutsTitle: "Payouts",
             payoutsBody: "Check payout setup and history.",
             statusPrefix: "Status",
@@ -2099,13 +2131,16 @@ export default function CreatorProfilePage() {
 
       <section className="order-2 border-t border-slate-200/80 py-7 sm:py-9">
         <div className="mb-4">
-          <p className="text-[12px] font-medium text-slate-500">{safeLocale === "ja" ? "販売中のサービス" : "Your offerings"}</p>
-          <h2 className="mt-1 text-[22px] font-semibold tracking-[-0.045em] text-slate-950">{copy.menusTitle}</h2>
+          <h2 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">{safeLocale === "ja" ? "販売サービス" : "Services"}</h2>
         </div>
-        <QuickLink href="/creator/menus" icon={<MenuIcon />} title={copy.menusTitle} body={copy.menusBody} />
+        <OfferingLink
+          href="/creator/menus"
+          title={copy.menusTitle}
+          body={copy.menusBody}
+        />
       </section>
 
-      <SectionCard className="order-6" title={copy.categoryTitle} description={copy.categoryBody}>
+      <SectionCard className="order-5" title={copy.categoryTitle} description={copy.categoryBody}>
         {selectedCategories.length > 0 ? (
           <div className="mb-4 flex flex-wrap gap-1.5">
             {selectedCategories.map((item) => (
@@ -2187,7 +2222,7 @@ export default function CreatorProfilePage() {
         </details>
       </SectionCard>
 
-      <SectionCard className="order-7" title={copy.areaTitle} description={copy.areaBody}>
+      <SectionCard className="order-6" title={copy.areaTitle} description={copy.areaBody}>
         <div className="grid gap-4">
           <CreatorField label={copy.username} help={copy.usernameHelp}>
             <CreatorInput
@@ -2459,7 +2494,7 @@ export default function CreatorProfilePage() {
       </SectionCard>
 
       <SectionCard
-        className="order-4"
+        className="order-8"
         id="portfolio"
         title={copy.portfolioTitle}
         description={copy.portfolioBody}
@@ -2529,7 +2564,7 @@ export default function CreatorProfilePage() {
         onTest={() => void sendLineTestNotification()}
       />
 
-      <SectionCard className="order-8" title={copy.settings}>
+      <SectionCard className="order-7" title={safeLocale === "ja" ? "報酬の受け取り" : copy.settings}>
         <section className="grid gap-2">
           <QuickLink
             href="/creator/payouts"

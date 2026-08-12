@@ -68,6 +68,22 @@ type FormState = {
   creator_menu_id: string;
 };
 
+const POST_ABOUT_TEMPLATE = `商品の販売価格：
+
+商品の特徴やアピールポイント：
+
+リーチしたいターゲット層：`;
+
+function normalizePostAboutValue(value: string | null | undefined) {
+  const normalized = (value ?? "").replace(/\r\n/g, "\n").trim();
+
+  if (!normalized || normalized === POST_ABOUT_TEMPLATE) {
+    return "";
+  }
+
+  return normalized;
+}
+
 type ReferenceFileType = "image" | "pdf";
 
 type ReferenceAssetDraft = {
@@ -1041,7 +1057,7 @@ export default function CreatorRequestClient() {
     free_offer_detail: "",
     product_url: "",
     deadline: "",
-    note: "",
+    note: POST_ABOUT_TEMPLATE,
     pr_account: "",
     pr_hashtags: ["", "", ""],
     creator_menu_id: "",
@@ -1432,7 +1448,8 @@ export default function CreatorRequestClient() {
   const displayTiming =
     timingOptions.find((option) => option.value === form.deadline)?.title ||
     copy.skipped;
-  const displayPostNotes = form.note.trim() || copy.skipped;
+  const normalizedPostNotes = normalizePostAboutValue(form.note);
+  const displayPostNotes = normalizedPostNotes || copy.skipped;
   const cleanHashtags = getCleanHashtags(form.pr_hashtags);
   const prCopyText = buildPrCopyText(form.pr_account, form.pr_hashtags);
 
@@ -1460,8 +1477,8 @@ export default function CreatorRequestClient() {
         ? `\n\n【素材提供について】\n${copy.providedAssetsOnlyNote}`
         : "";
 
-    const postNotesBlock = form.note.trim()
-      ? `\n\n【投稿について】\n${form.note.trim()}`
+    const postNotesBlock = normalizedPostNotes
+      ? `\n\n【投稿について】\n${normalizedPostNotes}`
       : "";
 
     return `【案件タイプ】
@@ -1874,7 +1891,7 @@ ${usageNote}${deliveryNote}${freeOfferBlock}${providedAssetsNote}${postNotesBloc
             requirements: buildFinalRequirements(),
             pr_account: form.pr_account,
             pr_hashtags: cleanHashtags,
-            post_notes: form.note.trim() || null,
+            post_notes: normalizedPostNotes || null,
             reference_assets: referenceAssets.map((asset, index) => ({
               storage_path: asset.storage_path,
               file_name: asset.file_name,

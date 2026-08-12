@@ -701,6 +701,68 @@ function extractRequirementSection(
   return (nextSection >= 0 ? rest.slice(0, nextSection) : rest).trim();
 }
 
+type ParsedPostAbout = {
+  salesPrice: string;
+  highlights: string;
+  targetAudience: string;
+  freeText: string;
+};
+
+const POST_ABOUT_LABELS = [
+  { key: "salesPrice", label: "商品の販売価格" },
+  { key: "highlights", label: "商品の特徴やアピールポイント" },
+  { key: "targetAudience", label: "リーチしたいターゲット層" },
+] as const;
+
+function parsePostAbout(value: string | null | undefined): ParsedPostAbout {
+  const text = (value ?? "").replace(/\r\n/g, "\n").trim();
+  const empty: ParsedPostAbout = {
+    salesPrice: "",
+    highlights: "",
+    targetAudience: "",
+    freeText: "",
+  };
+
+  if (!text) return empty;
+
+  const labelPattern = POST_ABOUT_LABELS.map(({ label }) => label).join("|");
+  const matches = Array.from(
+    text.matchAll(new RegExp(`(?:^|\\n)(${labelPattern})[：:]`, "g"))
+  );
+
+  if (matches.length === 0) {
+    return { ...empty, freeText: text };
+  }
+
+  const parsed = { ...empty };
+
+  matches.forEach((match, index) => {
+    const label = match[1];
+    const contentStart = (match.index ?? 0) + match[0].length;
+    const contentEnd = matches[index + 1]?.index ?? text.length;
+    const content = text.slice(contentStart, contentEnd).trim();
+    const config = POST_ABOUT_LABELS.find((item) => item.label === label);
+
+    if (config) parsed[config.key] = content;
+  });
+
+  const firstMatchIndex = matches[0]?.index ?? 0;
+  const leadingText = text.slice(0, firstMatchIndex).trim();
+  parsed.freeText = leadingText;
+
+  return parsed;
+}
+
+function formatProductSalesPrice(value: string, locale: "ja" | "en") {
+  const normalized = value.normalize("NFKC").trim();
+  const yenMatch = normalized.match(/^(?:¥|￥)?\s*([\d,]+)\s*円?$/);
+
+  if (!yenMatch) return value;
+
+  const amount = Number(yenMatch[1].replace(/,/g, ""));
+  return Number.isFinite(amount) ? formatPrice(amount, "JPY", locale) : value;
+}
+
 function firstLine(value: string | null | undefined) {
   return (
     (value ?? "")
@@ -1243,11 +1305,17 @@ function CreatorOrderHeader({
   locale,
   copy,
   backHref,
+  actionLoading,
+  onAccept,
+  onDecline,
 }: {
   order: OrderDetail;
   locale: "ja" | "en";
   copy: any;
   backHref: string;
+  actionLoading: ActionLoading;
+  onAccept: () => void;
+  onDecline: () => void;
 }) {
   const title = order.product_name || order.menu_title_snapshot || copy.titleFallback;
   const deadline = isWaitingForCreator(order)
@@ -1263,11 +1331,18 @@ function CreatorOrderHeader({
 
   return (
     <Surface className="!bg-transparent">
-      <div className="px-1 pb-4 pt-2 sm:px-2 sm:pb-5">
-        <div className="flex items-start justify-between gap-3">
+      <div className="px-1 pb-4 pt-1 sm:px-2 sm:pb-5">
+        <Link
+          href={backHref}
+          aria-label={copy.back}
+          className="mb-4 inline-grid h-11 w-11 place-items-center rounded-full bg-white text-[20px] text-slate-700 shadow-sm ring-1 ring-slate-200 outline-none transition focus-visible:ring-4 focus-visible:ring-rose-100 active:scale-[0.97]"
+        >
+          ←
+        </Link>
+
+        <div className={`grid items-start gap-4 ${isWaitingForCreator(order) ? "min-[430px]:grid-cols-[minmax(0,1fr)_148px]" : ""}`}>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-medium text-slate-500">{locale === "ja" ? "案件の詳細" : "Job details"}</p>
-            <h1 className="mt-2 line-clamp-2 break-words text-[29px] font-semibold leading-[1.16] tracking-[-0.055em] text-slate-950 sm:text-[34px]">
+            <h1 className="line-clamp-3 break-words text-[29px] font-semibold leading-[1.16] tracking-[-0.055em] text-slate-950 sm:text-[34px]">
               {title}
             </h1>
 
@@ -1286,14 +1361,127 @@ function CreatorOrderHeader({
             </div>
           </div>
 
-          <Link
-            href={backHref}
-            className="min-h-10 shrink-0 rounded-[12px] bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-200 outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.98]"
-          >
-            {copy.back}
-          </Link>
+          {isWaitingForCreator(order) ? (
+            <div className="creator-response-pearl relative isolate overflow-hidden rounded-[19px] p-[1px] shadow-[0_14px_38px_rgba(35,30,38,0.08)]">
+              <div className="relative z-10 rounded-[18px] bg-white p-2.5">
+                <p className="px-1 pb-2 text-[11px] font-semibold leading-4 text-slate-600">
+                  {locale === "ja" ? "この依頼に回答" : "Respond to this request"}
+                </p>
+                <button
+                  type="button"
+                  onClick={onAccept}
+                  disabled={actionLoading !== null}
+                  className="creator-response-primary relative min-h-11 w-full overflow-hidden rounded-[12px] bg-slate-950 px-3 py-2 text-[12px] font-semibold text-white outline-none transition focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.98] disabled:opacity-50"
+                >
+                  {actionLoading === "accept" ? copy.accepting : copy.accept}
+                </button>
+                <button
+                  type="button"
+                  onClick={onDecline}
+                  disabled={actionLoading !== null}
+                  className="mt-1 min-h-11 w-full rounded-[12px] px-3 py-2 text-[11px] font-semibold text-slate-500 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-200 active:scale-[0.98] disabled:opacity-50"
+                >
+                  {actionLoading === "decline" ? copy.declining : copy.decline}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
+      <style jsx>{`
+        .creator-response-pearl {
+          animation:
+            creatorResponseEntrance 1.15s cubic-bezier(0.22, 0.8, 0.26, 1) both,
+            creatorResponseBreathe 3.6s ease-in-out 1.15s infinite;
+          transform-origin: center;
+          will-change: transform, box-shadow;
+        }
+
+        .creator-response-pearl::before {
+          position: absolute;
+          inset: -85%;
+          content: "";
+          background: conic-gradient(
+            from 0deg,
+            transparent 0deg 274deg,
+            rgba(218, 222, 229, 0.1) 284deg,
+            rgba(255, 255, 255, 1) 303deg,
+            rgba(180, 188, 201, 0.92) 319deg,
+            rgba(255, 255, 255, 0.78) 334deg,
+            rgba(210, 216, 226, 0.18) 348deg,
+            transparent 360deg
+          );
+          animation: creatorResponsePearl 4.8s linear infinite;
+          will-change: transform;
+        }
+
+        .creator-response-primary::after {
+          position: absolute;
+          inset: -30% auto -30% -45%;
+          width: 34%;
+          content: "";
+          pointer-events: none;
+          background: linear-gradient(
+            100deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            rgba(225, 230, 238, 0.3),
+            transparent
+          );
+          transform: translateX(-220%) skewX(-16deg);
+          animation: creatorResponseSheen 4.8s ease-in-out 1.4s infinite;
+        }
+
+        @keyframes creatorResponseEntrance {
+          0% {
+            transform: translateY(0) scale(1);
+            box-shadow: 0 14px 38px rgba(35, 30, 38, 0.08);
+          }
+          58% {
+            transform: translateY(-3px) scale(1.055);
+            box-shadow: 0 22px 50px rgba(35, 30, 38, 0.15);
+          }
+          82% {
+            transform: translateY(1px) scale(0.99);
+            box-shadow: 0 12px 32px rgba(35, 30, 38, 0.07);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+            box-shadow: 0 14px 38px rgba(35, 30, 38, 0.08);
+          }
+        }
+
+        @keyframes creatorResponseBreathe {
+          0%, 100% {
+            transform: translateY(0) scale(1);
+            box-shadow: 0 14px 38px rgba(35, 30, 38, 0.08);
+          }
+          50% {
+            transform: translateY(-2.5px) scale(1.045);
+            box-shadow: 0 22px 52px rgba(35, 30, 38, 0.15);
+          }
+        }
+
+        @keyframes creatorResponsePearl {
+          to { transform: rotate(360deg); }
+        }
+
+        @keyframes creatorResponseSheen {
+          0%, 66% { transform: translateX(-220%) skewX(-16deg); opacity: 0; }
+          72% { opacity: 0.85; }
+          88% { opacity: 0.35; }
+          100% { transform: translateX(520%) skewX(-16deg); opacity: 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .creator-response-pearl,
+          .creator-response-pearl::before,
+          .creator-response-primary::after {
+            animation: none;
+            will-change: auto;
+          }
+        }
+      `}</style>
     </Surface>
   );
 }
@@ -1347,6 +1535,13 @@ function InstructionFocusCard({
 
   const freeOfferDetail = getFreeOfferDetail(order);
   const freeOfferTitle = getFreeOfferDetailTitle(order, locale);
+  const parsedPostAbout = parsePostAbout(postNotes);
+  const productSalesPrice =
+    parsedPostAbout.salesPrice ||
+    extractRequirementSection(order.requirements, "商品の販売価格");
+  const targetAudience =
+    parsedPostAbout.targetAudience ||
+    extractRequirementSection(order.requirements, "リーチしたいターゲット層");
   const freeOfferHelp =
     locale === "ja"
       ? "注文を受ける前に、提供内容・数量・利用条件を確認してください。"
@@ -1354,53 +1549,72 @@ function InstructionFocusCard({
 
   return (
     <Surface>
-      <div className="px-4 py-3.5 sm:px-5">
-        <div className="min-w-0">
-          <h2 className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
-            {locale === "ja" ? "案件について" : "About this order"}
-          </h2>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
-            {locale === "ja"
-              ? "進め方と利用範囲を先に確認できます。"
-              : "Review the flow and usage scope first."}
-          </p>
-        </div>
+      <div className="px-4 py-5 sm:px-6 sm:py-6">
+        <div>
+        {hasMaterialAssets ? (
+          <div>
+            <div>
+              <ReferenceGallery
+                assets={assets}
+                loading={assetsLoading}
+                selectedIndex={selectedIndex}
+                onSelect={onSelect}
+                openLabel={copy.referenceOpen}
+                fileLabel={copy.referenceFile}
+              />
+            </div>
+          </div>
+        ) : null}
 
-        <details className="group mt-4">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between border-y border-slate-100 py-3 text-[13px] font-semibold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
-            <span>{locale === "ja" ? "条件・投稿参考情報を確認" : "View terms and posting details"}</span>
-            <span className="text-slate-400 transition group-open:rotate-180" aria-hidden="true">⌄</span>
-          </summary>
-          <div className="pt-1">
-        <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
-          <CompactInfoLine
-            label={copy.projectType}
-            value={fulfillmentLabel(order.fulfillment_type, locale)}
-          />
-          <CompactInfoLine
-            label={copy.timing}
-            value={timingText || copy.notSet}
-          />
-          <CompactInfoLine
-            label={copy.secondaryUse}
-            value={secondaryUseText}
-          />
-        </div>
+        {order.product_url ? (
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
+              {copy.productUrl}
+            </p>
+            <a
+              href={order.product_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 block line-clamp-2 break-all text-[13px] font-semibold leading-6 text-[#e6425d] underline underline-offset-4"
+            >
+              {order.product_url}
+            </a>
+          </div>
+        ) : null}
 
-        <div
-          className={`mt-3 rounded-[14px] px-3 py-2.5 ${
-            order.wants_secondary_use
-              ? "bg-rose-50/70 ring-1 ring-rose-100"
-              : "bg-slate-50/70 ring-1 ring-slate-100"
-          }`}
-        >
-          <p className="text-[12px] font-semibold text-slate-800">
-            {locale === "ja" ? "利用範囲" : "Usage scope"}
-          </p>
-          <p className="mt-1 text-[12px] font-medium leading-6 text-slate-700">
-            {usageNoteBody}
-          </p>
-        </div>
+        {parsedPostAbout.freeText ? (
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
+              {locale === "ja" ? "商品・サービスの説明" : "Description"}
+            </p>
+            <div className="mt-2">
+              <PlainTextBox value={parsedPostAbout.freeText} emptyLabel={copy.notSet} />
+            </div>
+          </div>
+        ) : null}
+
+        {productSalesPrice || parsedPostAbout.highlights || targetAudience ? (
+          <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
+            {productSalesPrice ? (
+              <CompactInfoLine
+                label={locale === "ja" ? "商品の販売価格" : "Product price"}
+                value={formatProductSalesPrice(productSalesPrice, locale)}
+              />
+            ) : null}
+            {parsedPostAbout.highlights ? (
+              <CompactInfoLine
+                label={locale === "ja" ? "特徴・アピールポイント" : "Highlights"}
+                value={parsedPostAbout.highlights}
+              />
+            ) : null}
+            {targetAudience ? (
+              <CompactInfoLine
+                label={locale === "ja" ? "リーチしたいターゲット層" : "Target audience"}
+                value={targetAudience}
+              />
+            ) : null}
+          </div>
+        ) : null}
 
         {freeOfferDetail ? (
           <div className="mt-3 rounded-[14px] bg-emerald-50/70 px-3 py-2.5 ring-1 ring-emerald-100">
@@ -1460,67 +1674,37 @@ function InstructionFocusCard({
           </div>
         ) : null}
 
-        {postNotes ? (
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
-              {copy.postNotes}
-            </p>
-            <p className="mt-0.5 text-[11px] font-medium leading-5 text-slate-500">
-              {locale === "ja"
-                ? "投稿作成の参考となる、商品・サービスの特徴や訴求ポイントです。"
-                : "Points to mention and expressions to avoid."}
-            </p>
-            <div className="mt-2">
-              <PlainTextBox value={postNotes} emptyLabel={copy.notSet} />
-            </div>
-          </div>
-        ) : null}
+        <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
+          <CompactInfoLine
+            label={copy.projectType}
+            value={fulfillmentLabel(order.fulfillment_type, locale)}
+          />
+          <CompactInfoLine
+            label={copy.timing}
+            value={timingText || copy.notSet}
+          />
+          <CompactInfoLine
+            label={copy.secondaryUse}
+            value={secondaryUseText}
+          />
+        </div>
 
-        {order.product_url ? (
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
-              {copy.productUrl}
-            </p>
-            <a
-              href={order.product_url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 block line-clamp-2 break-all text-[13px] font-semibold leading-6 text-[#e6425d] underline underline-offset-4"
-            >
-              {order.product_url}
-            </a>
-          </div>
-        ) : null}
+        <div
+          className={`mt-3 rounded-[14px] px-3 py-2.5 ${
+            order.wants_secondary_use
+              ? "bg-rose-50/70 ring-1 ring-rose-100"
+              : "bg-slate-50/70 ring-1 ring-slate-100"
+          }`}
+        >
+          <p className="text-[12px] font-semibold text-slate-800">
+            {locale === "ja" ? "利用範囲" : "Usage scope"}
+          </p>
+          <p className="mt-1 text-[12px] font-medium leading-6 text-slate-700">
+            {usageNoteBody}
+          </p>
+        </div>
 
-        {hasMaterialAssets ? (
-          <details className="group mt-4 border-t border-slate-100 pt-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
-                  {locale === "ja" ? "参考資料" : "Reference files"}
-                </p>
-                <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-5 text-slate-500">
-                  {locale === "ja"
-                    ? `見本・確認用の資料です。投稿に必ず含める素材ではありません。${assets.length > 0 ? ` ${assets.length}件` : ""}`
-                    : `Files for reference and review. They are not necessarily assets to include in the post.${assets.length > 0 ? ` ${assets.length} files` : ""}`}
-                </p>
-              </div>
-              <ChevronIcon open={false} />
-            </summary>
-            <div className="mt-3">
-              <ReferenceGallery
-                assets={assets}
-                loading={assetsLoading}
-                selectedIndex={selectedIndex}
-                onSelect={onSelect}
-                openLabel={copy.referenceOpen}
-                fileLabel={copy.referenceFile}
-              />
-            </div>
-          </details>
-        ) : null}
-          </div>
-        </details>
+        </div>
       </div>
     </Surface>
   );
@@ -1667,48 +1851,6 @@ function CreatorPayoutSummaryCard({
         </Link>
       </div>
     </Surface>
-  );
-}
-
-function ResponseActionBox({
-  order,
-  copy,
-  actionLoading,
-  onAccept,
-  onDecline,
-}: {
-  order: OrderDetail;
-  copy: any;
-  actionLoading: ActionLoading;
-  onAccept: () => void;
-  onDecline: () => void;
-}) {
-  if (!isWaitingForCreator(order)) return null;
-
-  return (
-    <section className="relative rounded-[26px] bg-white px-5 py-6 shadow-[0_20px_60px_rgba(35,30,38,0.09)] ring-1 ring-black/[0.045] sm:px-7 sm:py-7">
-      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#ed3155]/60 to-transparent" />
-        <p className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
-          {copy.responseTitle}
-        </p>
-        <p className="mt-1.5 text-[14px] font-normal leading-6 text-slate-600">
-          {copy.responseBody}
-        </p>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <PrimaryButton onClick={onAccept} disabled={actionLoading !== null}>
-            {actionLoading === "accept" ? copy.accepting : copy.accept}
-          </PrimaryButton>
-
-          <PrimaryButton
-            onClick={onDecline}
-            disabled={actionLoading !== null}
-            variant="soft"
-          >
-            {actionLoading === "decline" ? copy.declining : copy.decline}
-          </PrimaryButton>
-        </div>
-    </section>
   );
 }
 
@@ -2385,7 +2527,7 @@ function PreparationGuidanceBox({
   }
 
   return (
-    <Surface className="border-l-[3px] border-rose-400">
+    <Surface className="shadow-[0_14px_38px_rgba(15,23,42,0.06)]">
       <div className="px-5 py-4 sm:px-6 sm:py-5">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[13px] bg-rose-50 text-[#ff5f67] ring-1 ring-rose-100">
@@ -3679,6 +3821,9 @@ export default function CreatorOrderDetailPage() {
         locale={safeLocale}
         copy={copy}
         backHref={backHref}
+        actionLoading={actionLoading}
+        onAccept={() => void runAction("accept")}
+        onDecline={() => void runAction("decline")}
       />
 
       {error ? (
@@ -3688,14 +3833,6 @@ export default function CreatorOrderDetailPage() {
           </p>
         </Surface>
       ) : null}
-
-      <ResponseActionBox
-        order={order}
-        copy={copy}
-        actionLoading={actionLoading}
-        onAccept={() => void runAction("accept")}
-        onDecline={() => void runAction("decline")}
-      />
 
       {fulfillmentType === "product_shipping" &&
       !isWaitingForCreator(order) &&
@@ -3726,7 +3863,7 @@ export default function CreatorOrderDetailPage() {
         />
       ) : null}
 
-      {shouldShowPreparation ? (
+      {shouldShowPreparation && !isWaitingForCreator(order) ? (
         <PreparationGuidanceBox
           order={order}
           locale={safeLocale}
@@ -3736,7 +3873,17 @@ export default function CreatorOrderDetailPage() {
         />
       ) : null}
 
-      <CreatorPayoutSummaryCard order={order} locale={safeLocale} copy={copy} />
+      {canDeliver ? (
+        <DeliveryActionBox
+          order={order}
+          copy={copy}
+          deliveryUrl={deliveryUrl}
+          setDeliveryUrl={setDeliveryUrl}
+          actionLoading={actionLoading}
+          onDeliver={() => void runDeliver()}
+          isRevisionRequested={isRevisionRequested}
+        />
+      ) : null}
 
       <InstructionFocusCard
         order={order}
@@ -3754,17 +3901,7 @@ export default function CreatorOrderDetailPage() {
         onCopy={() => void handleCopyPostText()}
       />
 
-      {canDeliver ? (
-        <DeliveryActionBox
-          order={order}
-          copy={copy}
-          deliveryUrl={deliveryUrl}
-          setDeliveryUrl={setDeliveryUrl}
-          actionLoading={actionLoading}
-          onDeliver={() => void runDeliver()}
-          isRevisionRequested={isRevisionRequested}
-        />
-      ) : null}
+      <CreatorPayoutSummaryCard order={order} locale={safeLocale} copy={copy} />
 
       {!isWaitingForCreator(order) && !canDeliver && !shouldShowPreparation ? (
         <PassiveNoticeBox title={passiveNotice.title} body={passiveNotice.body} />
