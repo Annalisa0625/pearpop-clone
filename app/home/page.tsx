@@ -1,21 +1,22 @@
-// File: app/home/page.tsx
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
-import PublicFooter from "@/components/PublicFooter";
-import PublicHeader from "@/components/PublicHeader";
 
 type Locale = "ja" | "en";
 
 type SocialAccountRow = {
   platform?: string | null;
-  url?: string | null;
   handle?: string | null;
   follower_range?: string | null;
-  audience_country?: string | null;
 };
 
 type CreatorRow = {
@@ -24,8 +25,6 @@ type CreatorRow = {
   avatar_url?: string | null;
   category?: string | null;
   prefecture?: string | null;
-  rating?: number | null;
-  total_orders?: number | null;
   creator_social_accounts?: SocialAccountRow[] | SocialAccountRow | null;
 };
 
@@ -35,17 +34,11 @@ type MenuRow = {
   title: string | null;
   price: number | null;
   currency: string | null;
-  is_active: boolean | null;
 };
 
 type PortfolioAssetRow = {
-  id: string;
   creator_id: string;
   asset_url: string;
-  asset_type: string;
-  sort_order: number | null;
-  is_public: boolean | null;
-  created_at: string | null;
 };
 
 type CreatorPreview = {
@@ -55,1487 +48,407 @@ type CreatorPreview = {
   prefecture: string;
   imageUrl: string | null;
   avatarUrl: string | null;
-  platforms: string[];
+  platform: string;
   followerRange: string | null;
   startingPrice: number | null;
-  startingCurrency: string | null;
-  menuCount: number;
-  tag: string;
-  gradient: string;
+  currency: string;
+  menuTitle: string;
 };
 
 type WorkflowStep = {
   number: string;
   title: string;
-  eyebrow: string;
   headline: string;
   body: string;
-  bullets: string[];
-  metricLabel: string;
-  metricValue: string;
-  previewTitle: string;
-  previewBadge: string;
-  previewRows: string[];
-  previewCta: string;
-};
-
-type UseCaseCardProps = {
-  title: string;
-  body: string;
-  cta: string;
-  tone: "rose" | "blue" | "violet" | "orange";
-};
-
-type ToolOrbitService = {
-  key: "instagram" | "tiktok" | "youtube" | "x" | "chatgpt" | "sheets" | "gmail" | "drive" | "stripe";
-  name: string;
-  x: string;
-  y: string;
-  mx: string;
-  my: string;
-  rot: string;
-};
-
-type OrbitIconStyle = CSSProperties & {
-  "--x": string;
-  "--y": string;
-  "--mx": string;
-  "--my": string;
-  "--rot": string;
 };
 
 const CREATOR_LIST_PATH = "/b/creators";
+const PINK = "#f04f6d";
 
-const PLATFORM_OPTIONS = ["Instagram", "TikTok", "YouTube", "X"] as const;
-
-const CARD_GRADIENTS = [
-  "from-rose-200 via-orange-100 to-emerald-200",
-  "from-blue-200 via-sky-100 to-slate-200",
-  "from-emerald-200 via-lime-100 to-yellow-100",
-  "from-slate-300 via-zinc-200 to-stone-100",
-];
-
-const MAIN_CATEGORY_LABELS = ["美容", "健康", "グルメ", "旅行", "暮らし", "制作"];
-
-const DETAIL_CATEGORY_LABELS = [
-  "すべて",
-  "美容サロン",
-  "美容室",
-  "美容整形",
-  "美容医療",
-  "スキンケア",
-  "コスメ",
-  "韓国コスメ",
-  "ヘアケア",
-  "ネイル",
-  "まつ毛・眉毛",
-  "香水",
-  "メンズ美容",
-];
-
-const TREND_MARQUEE_ITEMS = [
-  "Hack the trend",
-  "Trendre",
-  "Ignite the trend again",
-];
-
-function normalizePlatform(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase();
-}
-
-function getPlatformIcon(value: string | null | undefined, className = "h-4 w-4") {
-  const normalized = normalizePlatform(value);
-
-  if (normalized.includes("instagram")) {
-    return (
-      <img
-        src="/brand/social/instagram.png"
-        alt=""
-        className={`${className} object-contain`}
-        aria-hidden="true"
-      />
-    );
-  }
-
-  if (normalized.includes("tiktok")) {
-    return (
-      <img
-        src="/brand/social/tiktok.png"
-        alt=""
-        className={`${className} object-contain`}
-        aria-hidden="true"
-      />
-    );
-  }
-
-  if (normalized.includes("youtube")) {
-    return (
-      <img
-        src="/brand/social/youtube.png"
-        alt=""
-        className={`${className} object-contain`}
-        aria-hidden="true"
-      />
-    );
-  }
-
-  if (normalized === "x" || normalized.includes("twitter")) {
-    return (
-      <img
-        src="/brand/social/x.png"
-        alt=""
-        className={`${className} object-contain`}
-        aria-hidden="true"
-      />
-    );
-  }
-
-  return <span className="text-xs">●</span>;
-}
-
-function formatPrice(value: number | null, currency: string | null | undefined) {
-  if (value == null) return "-";
-
-  const safeCurrency = currency || "JPY";
-
-  try {
-    return new Intl.NumberFormat("ja-JP", {
-      style: "currency",
-      currency: safeCurrency,
-      maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
-    }).format(value);
-  } catch {
-    return safeCurrency === "USD"
-      ? `$${value.toLocaleString()}`
-      : `¥${value.toLocaleString()}`;
-  }
-}
-
-function formatStartingPrice(value: number | null, currency: string | null | undefined) {
-  if (value == null) return "価格未設定";
-  return `${formatPrice(value, currency)}〜`;
-}
-
-function getSocialAccountName(social: SocialAccountRow | null | undefined) {
-  if (!social) return null;
-
-  const handle = social.handle?.trim();
-  if (handle) return handle.replace(/^@/, "");
-
-  const url = social.url?.trim();
-  if (!url) return null;
-
-  try {
-    const parsed = new URL(url);
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    const last = parts[0] ?? parts.at(-1) ?? "";
-    return last.replace(/^@/, "") || null;
-  } catch {
-    return url.replace(/^@/, "") || null;
-  }
-}
-
-function useTypingPlaceholder(words: string[]) {
-  const [wordIndex, setWordIndex] = useState(0);
-  const [letterCount, setLetterCount] = useState(0);
-  const [deleting, setDeleting] = useState(false);
-  const [blankPause, setBlankPause] = useState(true);
-
-  useEffect(() => {
-    const currentWord = words[wordIndex] ?? "";
-
-    if (blankPause) {
-      const timer = window.setTimeout(() => {
-        setBlankPause(false);
-      }, 520);
-
-      return () => window.clearTimeout(timer);
-    }
-
-    let delay = deleting ? 42 : 88;
-
-    if (!deleting && letterCount >= currentWord.length) {
-      delay = 1180;
-    }
-
-    const timer = window.setTimeout(() => {
-      if (!deleting && letterCount < currentWord.length) {
-        setLetterCount((value) => value + 1);
-        return;
-      }
-
-      if (!deleting && letterCount >= currentWord.length) {
-        setDeleting(true);
-        return;
-      }
-
-      if (deleting && letterCount > 0) {
-        setLetterCount((value) => value - 1);
-        return;
-      }
-
-      setDeleting(false);
-      setBlankPause(true);
-      setWordIndex((value) => (value + 1) % words.length);
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [blankPause, deleting, letterCount, wordIndex, words]);
-
-  if (blankPause) return "";
-  return words[wordIndex]?.slice(0, letterCount) ?? "";
-}
-
-function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
+function ArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" className={className} fill="none" aria-hidden="true">
-      <path
-        d="m14.5 14.5 3 3M16 8.5A7.5 7.5 0 1 1 1 8.5a7.5 7.5 0 0 1 15 0Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <path d="M4 10h11M11 5l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function ArrowIcon() {
+function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="M4 10h11M11 5l5 5-5 5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path
-        d="m4 10.5 3.6 3.6L16 6"
-        stroke="currentColor"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
+      <path d="m4.5 10 3.4 3.4 7.6-7.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function PlatformLink({ platform }: { platform: string }) {
-  return (
-    <Link
-      href={CREATOR_LIST_PATH}
-      className="inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 text-sm font-black text-white/82 transition hover:border-white/25 hover:bg-white hover:text-slate-950"
-    >
-      {getPlatformIcon(platform)}
-      {platform}
-    </Link>
-  );
+function PlatformIcon({ platform, size = 20 }: { platform: string; size?: number }) {
+  const normalized = platform.toLowerCase();
+  const source = normalized.includes("tiktok")
+    ? "/brand/social/tiktok.png"
+    : normalized.includes("youtube")
+      ? "/brand/social/youtube.png"
+      : normalized === "x" || normalized.includes("twitter")
+        ? "/brand/social/x.png"
+        : "/brand/social/instagram.png";
+
+  return <Image src={source} alt="" width={size} height={size} className="object-contain" aria-hidden="true" />;
 }
 
-function CreatorImage({
-  creator,
-  index,
-}: {
-  creator: CreatorPreview;
-  index: number;
-}) {
-  const src = creator.imageUrl || creator.avatarUrl;
-
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={creator.displayName}
-        className="h-full w-full object-cover object-center transition duration-500 ease-out group-hover/card:scale-105"
-        loading={index < 4 ? "eager" : "lazy"}
-        decoding="async"
-      />
-    );
+function formatPrice(value: number | null, currency = "JPY") {
+  if (value == null) return "料金を確認";
+  try {
+    return new Intl.NumberFormat("ja-JP", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: currency === "JPY" ? 0 : 2,
+    }).format(value);
+  } catch {
+    return `¥${value.toLocaleString()}`;
   }
-
-  return (
-    <div
-      className={`h-full w-full bg-gradient-to-br ${
-        creator.gradient || CARD_GRADIENTS[index % CARD_GRADIENTS.length]
-      }`}
-    />
-  );
 }
 
-function CreatorHeroCard({
-  creator,
-  index,
-}: {
-  creator: CreatorPreview;
-  index: number;
-}) {
-  const primaryPlatform = creator.platforms[0] ?? "Instagram";
+function LocaleMenu() {
+  const { locale, setLocale } = useAppLocale();
+  const [open, setOpen] = useState(false);
 
   return (
-    <Link href={CREATOR_LIST_PATH} className="group/card block">
-      <article className="relative aspect-[1.12/1] overflow-hidden rounded-[22px] bg-slate-200 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-300 group-hover/card:-translate-y-1">
-        <CreatorImage creator={creator} index={index} />
-
-        <div className="absolute inset-0 bg-gradient-to-t from-black/58 via-black/14 to-black/8" />
-
-        <div className="absolute left-4 top-4 max-w-[62%]">
-          <p className="truncate text-base font-black leading-tight text-white">
-            {creator.displayName}
-          </p>
-        </div>
-
-        <div className="absolute right-3 top-3 rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-sm ring-1 ring-black/5">
-          {formatStartingPrice(creator.startingPrice, creator.startingCurrency)}
-        </div>
-
-        <div className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-2xl font-light text-white backdrop-blur-md ring-1 ring-white/20 transition group-hover/card:bg-white group-hover/card:text-slate-900">
-          ♡
-        </div>
-
-        <div className="absolute bottom-4 left-4">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-sm font-black text-slate-950 shadow-sm ring-1 ring-black/5">
-            {getPlatformIcon(primaryPlatform, "h-5 w-5")}
-            {primaryPlatform}
-          </span>
-        </div>
-      </article>
-    </Link>
-  );
-}
-
-function SearchCategoryPanel({ show }: { show: boolean }) {
-  if (!show) return null;
-
-  return (
-    <div className="absolute left-0 right-0 top-[calc(100%+12px)] z-30 overflow-hidden rounded-[26px] border border-slate-100 bg-white p-4 text-left shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
-      <div className="rounded-[24px] bg-slate-50 p-4">
-        <p className="mb-3 px-1 text-xs font-black text-slate-400">大カテゴリ</p>
-
-        <div className="flex flex-wrap gap-2">
-          {MAIN_CATEGORY_LABELS.map((label, index) => (
-            <Link
-              key={label}
-              href={CREATOR_LIST_PATH}
-              className={`rounded-full px-5 py-2.5 text-sm font-black transition ${
-                index === 0
-                  ? "bg-slate-950 text-white"
-                  : "bg-white text-slate-700 shadow-sm ring-1 ring-slate-100 hover:bg-slate-950 hover:text-white"
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-[24px] bg-white p-4 ring-1 ring-slate-100">
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <p className="px-1 text-xs font-black text-slate-400">詳細カテゴリ</p>
-          <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-500">
-            美容
-          </span>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {DETAIL_CATEGORY_LABELS.map((label, index) => (
-            <Link
-              key={label}
-              href={CREATOR_LIST_PATH}
-              className={`rounded-full px-4 py-2.5 text-sm font-black transition ${
-                index === 0
-                  ? "bg-rose-500 text-white shadow-[0_10px_25px_rgba(244,63,94,0.22)]"
-                  : "bg-slate-50 text-slate-700 ring-1 ring-slate-100 hover:bg-slate-950 hover:text-white"
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HeroSearch({
-  copy,
-  suggestions,
-}: {
-  copy: Record<string, string>;
-  suggestions: string[];
-}) {
-  const typingText = useTypingPlaceholder(suggestions);
-  const [query, setQuery] = useState("");
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    window.location.href = CREATOR_LIST_PATH;
-  };
-
-  return (
-    <div className="relative mx-auto mt-4 w-full max-w-[900px]">
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-full overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.24)] ring-1 ring-white/10"
+    <div className="relative hidden lg:block">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="tm-focus min-h-11 rounded-full px-3 text-[13px] font-medium text-neutral-600 transition hover:text-neutral-950"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
-        <div className="hidden min-w-[165px] items-center gap-3 border-r border-slate-200 px-5 text-sm font-black text-slate-800 sm:flex">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100">
-            <SearchIcon className="h-4 w-4" />
-          </span>
-          Search
-        </div>
-
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => setSuggestionsOpen(true)}
-          onBlur={() => {
-            window.setTimeout(() => setSuggestionsOpen(false), 150);
-          }}
-          placeholder={typingText ? `${typingText}|` : ""}
-          className="min-h-[56px] flex-1 bg-white px-5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-        />
-
-        <button
-          type="submit"
-          className="inline-flex min-w-[128px] items-center justify-center gap-2 bg-[#f85b8f] px-5 text-sm font-black text-white transition hover:bg-[#f0447c] sm:min-w-[148px]"
-        >
-          <SearchIcon />
-          {copy.searchButton}
-        </button>
-      </form>
-
-      <SearchCategoryPanel show={suggestionsOpen} />
-    </div>
-  );
-}
-
-function HeroSection({
-  copy,
-  creators,
-  suggestions,
-}: {
-  copy: Record<string, string>;
-  creators: CreatorPreview[];
-  suggestions: string[];
-}) {
-  const chips = [
-    copy.chip1,
-    copy.chip2,
-    copy.chip3,
-    copy.chip4,
-    copy.chip5,
-    copy.chip6,
-  ];
-
-  return (
-    <section className="bg-white pb-6 pt-1">
-      <div className="mx-auto max-w-[calc(100%-28px)] overflow-hidden rounded-[34px] bg-[#2b2b2b] px-5 pb-8 pt-6 shadow-[0_30px_100px_rgba(0,0,0,0.18)] sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-6xl text-center">
-          <h1 className="text-[29px] font-black leading-[1.04] tracking-[-0.055em] text-white md:text-[42px] lg:text-[50px] xl:text-[56px]">
-            {copy.heroLine1}
-            <br className="hidden md:block" />
-            <span className="text-[#f85b8f]">{copy.heroAccent}</span>
-            {copy.heroLine2}
-            <span className="italic">{copy.heroItalic}</span>
-          </h1>
-
-          <p className="mx-auto mt-3 max-w-6xl text-sm font-semibold leading-7 text-white/72 md:whitespace-nowrap md:text-base">
-            {copy.heroBody}
-          </p>
-
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            {PLATFORM_OPTIONS.map((platform) => (
-              <PlatformLink key={platform} platform={platform} />
-            ))}
-          </div>
-
-          <HeroSearch copy={copy} suggestions={suggestions} />
-
-          <div className="mx-auto mt-3 flex max-w-[920px] flex-wrap justify-center gap-3">
-            {chips.map((chip) => (
-              <Link
-                key={chip}
-                href={CREATOR_LIST_PATH}
-                className="rounded-full border border-white/18 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/82 transition hover:border-white/25 hover:bg-white hover:text-slate-950"
-              >
-                {chip}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <div className="mx-auto mt-5 grid max-w-[1260px] gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {creators.map((creator, index) => (
-            <CreatorHeroCard
-              key={`${creator.displayName}-${index}`}
-              creator={creator}
-              index={index}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TrendMarqueeSection() {
-  const repeated = Array.from({ length: 10 }).flatMap(() => TREND_MARQUEE_ITEMS);
-
-  return (
-    <section className="overflow-hidden bg-white py-8 md:py-12">
-      <div className="pointer-events-none overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <div className="trendre-trend-marquee flex w-max items-center gap-10 whitespace-nowrap">
-          {repeated.map((item, index) => (
-            <span
-              key={`${item}-${index}`}
-              className="text-[24px] font-black tracking-[-0.035em] text-slate-200 md:text-[38px] lg:text-[46px]"
+        {locale === "ja" ? "日本語" : "English"} <span aria-hidden="true">⌄</span>
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-full z-50 mt-2 w-36 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-xl shadow-neutral-950/10" role="menu">
+          {(["ja", "en"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setLocale(option);
+                setOpen(false);
+              }}
+              className={`tm-focus block min-h-10 w-full rounded-xl px-3 text-left text-sm transition ${locale === option ? "bg-neutral-950 text-white" : "text-neutral-700 hover:bg-neutral-50"}`}
             >
-              {item}
-            </span>
+              {option === "ja" ? "日本語" : "English"}
+            </button>
           ))}
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+function HomeHeader({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  return (
+    <header className="sticky top-0 z-50 border-b border-neutral-200/70 bg-[#fbfaf7]/90 backdrop-blur-md">
+      <div className="mx-auto flex h-[68px] max-w-[1320px] items-center justify-between gap-5 px-4 sm:px-6 lg:h-[76px] lg:px-8">
+        <Link href="/home" aria-label="Trend Mart home" className="tm-focus shrink-0 rounded-md">
+          <Image src="/brand/trend-mart-logo.png" alt="Trend Mart" width={174} height={34} priority className="h-[21px] w-auto sm:h-[23px]" />
+        </Link>
+        <nav className="hidden items-center gap-7 text-[13px] font-medium text-neutral-600 md:flex" aria-label={ja ? "メインナビゲーション" : "Main navigation"}>
+          <a href="#service-overview" className="tm-focus rounded-md transition hover:text-neutral-950">{ja ? "サービス概要" : "Overview"}</a>
+          <Link href={CREATOR_LIST_PATH} className="tm-focus rounded-md transition hover:text-neutral-950">{ja ? "インフルエンサーを探す" : "Find creators"}</Link>
+          <Link href="/b/billing" className="tm-focus rounded-md transition hover:text-neutral-950">{ja ? "料金プラン" : "Pricing"}</Link>
+        </nav>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Link href="/login" className="tm-focus inline-flex min-h-11 items-center rounded-full px-3 text-[12px] font-semibold text-neutral-700 transition hover:bg-white sm:px-4 sm:text-[13px]">
+            {ja ? "ログイン" : "Log in"}
+          </Link>
+          <Link href="/signup/company" className="tm-focus inline-flex min-h-11 items-center rounded-full bg-[#f04f6d] px-4 text-[12px] font-semibold text-white shadow-[0_8px_24px_rgba(240,79,109,0.22)] transition hover:-translate-y-0.5 hover:bg-[#e74362] active:translate-y-0 sm:px-5 sm:text-[13px]">
+            <span className="hidden sm:inline">{ja ? "無料で企業登録" : "Join free"}</span>
+            <span className="sm:hidden">{ja ? "無料登録" : "Join"}</span>
+          </Link>
+          <LocaleMenu />
+        </div>
       </div>
+    </header>
+  );
+}
 
-      <style jsx global>{`
-        @keyframes trendre-trend-marquee-left {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
+function CreatorPortrait({ creator, className = "" }: { creator: CreatorPreview; className?: string }) {
+  if (creator.imageUrl || creator.avatarUrl) {
+    return <img src={creator.imageUrl || creator.avatarUrl || ""} alt="" className={`h-full w-full object-cover ${className}`} />;
+  }
+  return (
+    <div className={`grid h-full w-full place-items-center bg-[linear-gradient(145deg,#eadfd7,#dfe7e4)] text-3xl font-semibold text-neutral-700 ${className}`} aria-hidden="true">
+      {creator.displayName.slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
 
-        .trendre-trend-marquee {
-          animation: trendre-trend-marquee-left 38s linear infinite;
-        }
-      `}</style>
+function HeroStage({ creators, locale }: { creators: CreatorPreview[]; locale: Locale }) {
+  const ja = locale === "ja";
+  const primary = creators[0];
+  const secondary = creators[1];
+
+  return (
+    <div className="tm-stage relative mx-auto w-full max-w-[620px] lg:mx-0">
+      <div className="absolute -inset-8 -z-10 rounded-[48px] bg-[radial-gradient(circle_at_60%_40%,rgba(240,79,109,0.13),transparent_58%)] blur-2xl" aria-hidden="true" />
+      <div className="overflow-hidden rounded-[26px] border border-neutral-200/90 bg-white shadow-[0_30px_90px_rgba(35,30,27,0.13)] sm:rounded-[32px]">
+        <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-2 text-[12px] font-semibold text-neutral-800 sm:text-[13px]"><SearchIcon className="h-4 w-4 text-neutral-400" />{ja ? "インフルエンサー検索" : "Creator search"}</div>
+          <Image src="/brand/trend-mart-logo.png" alt="Trend Mart" width={96} height={19} className="h-[15px] w-auto object-contain" />
+        </div>
+        <div className="p-3 sm:p-5">
+          <div className="flex min-h-12 items-center gap-3 rounded-2xl bg-[#f7f6f3] px-4 text-[12px] text-neutral-500 sm:text-[13px]">
+            <SearchIcon className="h-4 w-4" />
+            <span className="truncate">{ja ? "美容・東京・Instagram" : "Beauty · Tokyo · Instagram"}</span>
+            <span className="ml-auto shrink-0 rounded-full bg-neutral-950 px-3 py-1.5 text-[10px] font-semibold text-white">{ja ? "検索" : "Search"}</span>
+          </div>
+          <div className="mt-3 grid grid-cols-[1.12fr_0.88fr] gap-3">
+            <Link href={CREATOR_LIST_PATH} className="tm-focus group overflow-hidden rounded-[20px] bg-neutral-950 text-white sm:rounded-[24px]">
+              <div className="relative aspect-[1.08/1] overflow-hidden">
+                <CreatorPortrait creator={primary} className="transition duration-700 group-hover:scale-[1.025]" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-5">
+                  <div className="flex items-center gap-2"><PlatformIcon platform={primary.platform} size={18} /><span className="text-[11px] text-white/75">{primary.platform}</span></div>
+                  <p className="mt-1.5 truncate text-base font-semibold sm:text-xl">{primary.displayName}</p>
+                  <p className="mt-1 text-[10px] text-white/70 sm:text-xs">{primary.category} · {primary.prefecture}</p>
+                </div>
+              </div>
+            </Link>
+            <div className="grid gap-3">
+              <Link href={CREATOR_LIST_PATH} className="tm-focus group grid grid-cols-[68px_1fr] items-center gap-3 rounded-[18px] border border-neutral-200 bg-white p-2 sm:grid-cols-[92px_1fr] sm:rounded-[22px] sm:p-3">
+                <div className="aspect-square overflow-hidden rounded-[13px] bg-neutral-100 sm:rounded-[16px]"><CreatorPortrait creator={secondary} className="transition duration-700 group-hover:scale-[1.03]" /></div>
+                <div className="min-w-0"><p className="truncate text-[12px] font-semibold text-neutral-900 sm:text-sm">{secondary.displayName}</p><p className="mt-1 truncate text-[9px] text-neutral-500 sm:text-[11px]">{secondary.menuTitle}</p><p className="mt-2 text-[10px] font-semibold text-neutral-900 sm:text-xs">{formatPrice(secondary.startingPrice, secondary.currency)}〜</p></div>
+              </Link>
+              <div className="rounded-[18px] bg-[#f3f0ec] p-3.5 sm:rounded-[22px] sm:p-5">
+                <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-neutral-400">Match details</p>
+                <div className="mt-3 space-y-2.5 text-[10px] font-medium text-neutral-700 sm:text-xs">
+                  {[ja ? "価格を比較" : "Compare rates", ja ? "メニューを確認" : "Review services", ja ? "そのまま依頼" : "Send a request"].map((item) => <div key={item} className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[#f04f6d]"><CheckIcon /></span>{item}</div>)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="tm-float absolute -bottom-5 left-5 hidden min-h-14 items-center gap-3 rounded-2xl border border-white/80 bg-white/95 px-4 shadow-[0_16px_44px_rgba(35,30,27,0.14)] sm:flex">
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-[#fff0f3] text-[#f04f6d]"><CheckIcon /></span>
+        <div><p className="text-[10px] text-neutral-400">{ja ? "表示価格から" : "From visible rates"}</p><p className="text-xs font-semibold text-neutral-900">{ja ? "迷わず依頼へ" : "Request with confidence"}</p></div>
+      </div>
+    </div>
+  );
+}
+
+function Hero({ creators, locale }: { creators: CreatorPreview[]; locale: Locale }) {
+  const ja = locale === "ja";
+  return (
+    <section className="relative overflow-hidden border-b border-neutral-200/70 bg-[#fbfaf7]">
+      <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(41,37,36,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(41,37,36,0.035)_1px,transparent_1px)] [background-size:52px_52px]" aria-hidden="true" />
+      <div className="relative mx-auto grid max-w-[1320px] items-center gap-12 px-4 pb-20 pt-14 sm:px-6 sm:pb-24 sm:pt-20 lg:grid-cols-[0.86fr_1.14fr] lg:gap-16 lg:px-8 lg:pb-28 lg:pt-24">
+        <div className="max-w-[610px]">
+          <p className="tm-reveal text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">CREATOR MARKETPLACE</p>
+          <h1 className="tm-reveal tm-delay-1 mt-5 text-[38px] font-semibold leading-[1.08] tracking-[-0.06em] text-neutral-950 sm:text-[48px] lg:text-[56px]">
+            {ja ? <><span className="block">インフルエンサー</span><span className="block">マーケティングを、</span><span className="block"><span className="text-[#e94866]">1件から。</span></span></> : <><span className="block">Creator marketing,</span><span className="block"><span className="text-[#e94866]">one request</span> at a time.</span></>}
+          </h1>
+          <p className="tm-reveal tm-delay-2 mt-6 max-w-[560px] text-[15px] leading-7 text-neutral-600 sm:text-[17px] sm:leading-8">
+            {ja ? "必要なときに、必要な分だけ。Creatorの価格と得意分野を比べて自分で選び、依頼からチャット、納品確認、支払いまでひとつにつながります。" : "Use creator marketing only when you need it. Compare creators and visible rates, then keep requests, chat, delivery, and payment connected."}
+          </p>
+          <div className="tm-reveal tm-delay-3 mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href={CREATOR_LIST_PATH} className="tm-focus inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#f04f6d] px-6 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(240,79,109,0.25)] transition hover:-translate-y-0.5 hover:bg-[#e74362] active:translate-y-0">
+              <SearchIcon className="h-4 w-4" />{ja ? "インフルエンサーを探す" : "Explore creators"}
+            </Link>
+            <Link href="/signup/company" className="tm-focus inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-neutral-300 bg-white px-6 text-sm font-semibold text-neutral-900 transition hover:border-neutral-400 hover:bg-neutral-50">
+              {ja ? "無料で企業登録" : "Join as a brand"}<ArrowIcon />
+            </Link>
+          </div>
+          <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-medium text-neutral-500 sm:text-xs">
+            {[ja ? "1件から依頼" : "Start with one request", ja ? "月額契約なしでも開始" : "Start without a monthly contract", ja ? "価格を見て選べる" : "Compare visible rates"].map((item) => <span key={item} className="flex items-center gap-1.5"><span className="text-[#e94866]">●</span>{item}</span>)}
+          </div>
+        </div>
+        <div className="tm-reveal tm-delay-2"><HeroStage creators={creators} locale={locale} /></div>
+      </div>
     </section>
   );
 }
 
-function WorkflowInfoPill({ label }: { label: string }) {
+function MarketTension({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  const points = ja ? [
+    ["予算を決める前に、価格が分からない。", "Trend Martなら、プロフィールに表示されたメニューと料金から検討を始められます。"],
+    ["まず小さく試したいのに、契約が大きい。", "月額契約なしでも、1人への1件の依頼からスタートできます。"],
+    ["ブランドに合う人を、自分の目で選びたい。", "ジャンル、活動地域、SNS、フォロワー帯を見比べて直接選べます。"],
+  ] : [
+    ["Pricing is unclear before planning begins.", "Start with visible services and rates on each creator profile."],
+    ["You want to test before making a large commitment.", "Begin with one creator and one request, without a monthly contract."],
+    ["You want to choose the right voice yourself.", "Compare category, area, platform, and audience before requesting."],
+  ];
   return (
-    <span className="inline-flex h-8 items-center rounded-full bg-white px-3 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100">
-      {label}
-    </span>
-  );
-}
-
-function WorkflowMiniCard({
-  tone,
-  title,
-  subtitle,
-}: {
-  tone: string;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <div className={`rounded-[20px] bg-gradient-to-br ${tone} p-3 shadow-sm ring-1 ring-slate-100`}>
-      <div className="h-24 rounded-[16px] bg-white/78 shadow-inner" />
-      <p className="mt-3 truncate text-sm font-black text-slate-950">{title}</p>
-      <p className="mt-1 truncate text-xs font-bold text-slate-500">{subtitle}</p>
-    </div>
-  );
-}
-
-function SearchWorkflowPreview() {
-  return (
-    <div className="rounded-[30px] bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.11)] ring-1 ring-white/80">
-      <div className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100">
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-[20px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-            <p className="text-xs font-black text-slate-400">SNSタイプ</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <WorkflowInfoPill label="Instagram" />
-              <WorkflowInfoPill label="TikTok" />
-              <WorkflowInfoPill label="YouTube" />
-            </div>
+    <section className="bg-neutral-950 py-20 text-white sm:py-28">
+      <div className="mx-auto max-w-[1220px] px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+          <div className="tm-reveal lg:sticky lg:top-28 lg:self-start">
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-[#ff8ca1]">WHY MARKETPLACE</p>
+            <h2 className="mt-4 text-[clamp(2rem,5vw,3.7rem)] font-semibold leading-[1.12] tracking-[-0.055em]">{ja ? <>施策のたびに、<br />大きく構えなくていい。</> : <>Every campaign<br />doesn&apos;t need a big commitment.</>}</h2>
           </div>
-
-          <div className="rounded-[20px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-            <p className="text-xs font-black text-slate-400">絞り込み</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="inline-flex h-8 items-center rounded-full bg-emerald-50 px-3 text-xs font-black text-emerald-700">
-                東京・大阪
-              </span>
-              <span className="inline-flex h-8 items-center rounded-full bg-blue-50 px-3 text-xs font-black text-blue-700">
-                ¥10,000〜¥50,000
-              </span>
-              <span className="inline-flex h-8 items-center rounded-full bg-violet-50 px-3 text-xs font-black text-violet-700">
-                体験案件
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-sm font-black text-slate-950">検索結果</p>
-            <p className="text-xs font-bold text-slate-400">条件に合う候補を比較</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <WorkflowMiniCard
-              tone="from-rose-50 to-orange-50"
-              title="美容レビュー"
-              subtitle="¥30,000〜 / 東京"
-            />
-            <WorkflowMiniCard
-              tone="from-sky-50 to-indigo-50"
-              title="店舗PR"
-              subtitle="¥50,000〜 / 大阪"
-            />
+          <div className="border-t border-white/20">
+            {points.map(([title, body], index) => <article key={title} className="tm-reveal grid gap-3 border-b border-white/20 py-8 sm:grid-cols-[52px_1fr] sm:gap-5 sm:py-10"><span className="pt-1 text-[11px] font-semibold text-white/35">0{index + 1}</span><div><h3 className="text-xl font-semibold leading-8 tracking-[-0.03em] sm:text-2xl">{title}</h3><p className="mt-3 max-w-xl text-sm leading-7 text-white/58 sm:text-[15px]">{body}</p></div></article>)}
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-function RequestWorkflowPreview() {
+function UgcSection({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  const uses = ja ? ["商品レビュー", "使用シーン", "縦型ショート動画", "TikTok・Reels", "店舗・体験紹介", "広告クリエイティブ用UGC"] : ["Product reviews", "In-use scenes", "Vertical short video", "TikTok & Reels", "Store experiences", "UGC for ad creative"];
   return (
-    <div className="rounded-[30px] bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.11)] ring-1 ring-white/80">
-      <div className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100">
-        <div className="flex items-center justify-between gap-4 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-500">Brief</p>
-            <p className="mt-1 text-lg font-black text-slate-950">新作スキンケアPR</p>
+    <section className="overflow-hidden bg-[#ece7e1] py-20 sm:py-28 lg:py-32">
+      <div className="mx-auto grid max-w-[1220px] items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1.03fr_0.97fr] lg:gap-20 lg:px-8">
+        <div className="relative mx-auto w-full max-w-[580px]">
+          <div className="grid grid-cols-[0.94fr_1.06fr] items-end gap-3 sm:gap-5">
+            <div className="tm-reveal overflow-hidden rounded-[24px] bg-white p-2 shadow-[0_22px_60px_rgba(55,45,38,0.12)] sm:rounded-[30px] sm:p-3"><div className="relative aspect-[0.76] overflow-hidden rounded-[18px] sm:rounded-[23px]"><img src="/brand/work-link/beauty-lifestyle.webp" alt="" className="h-full w-full object-cover" /><div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-4 pt-16 text-white"><p className="text-xs font-semibold">Skincare review</p><p className="mt-1 text-[10px] text-white/70">Vertical video</p></div></div></div>
+            <div className="space-y-3 sm:space-y-5"><div className="tm-reveal tm-delay-1 overflow-hidden rounded-[22px] bg-white p-2 shadow-[0_18px_50px_rgba(55,45,38,0.1)] sm:rounded-[28px] sm:p-3"><img src="/brand/work-link/gourmet-travel.webp" alt="" className="aspect-[1.18] w-full rounded-[16px] object-cover sm:rounded-[21px]" /><div className="px-2 pb-2 pt-3"><p className="text-xs font-semibold text-neutral-900">Cafe experience</p><p className="mt-1 text-[10px] text-neutral-500">Photo &amp; social post</p></div></div><div className="tm-reveal tm-delay-2 rounded-[22px] bg-neutral-950 p-5 text-white sm:rounded-[28px] sm:p-7"><p className="text-[10px] font-semibold tracking-[0.16em] text-white/45">CREATOR CONTENT</p><p className="mt-3 text-xl font-semibold leading-7 tracking-[-0.03em] sm:text-2xl">{ja ? "使う人の視点が、商品の魅力になる。" : "Real perspective makes products relatable."}</p></div></div>
           </div>
-          <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700">
-            ¥30,000
-          </span>
         </div>
-
-        <div className="mt-3 space-y-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-          {["商品URL", "提供内容", "投稿で触れてほしいこと"].map((label, index) => (
-            <div key={label} className="rounded-2xl bg-slate-50 p-3">
-              <p className="text-xs font-black text-slate-400">{label}</p>
-              <div className={`mt-2 h-3 rounded-full bg-slate-200 ${index === 0 ? "w-11/12" : index === 1 ? "w-8/12" : "w-10/12"}`} />
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          {['内容整理', '素材添付', '確認して依頼'].map((item) => (
-            <div key={item} className="rounded-2xl bg-white p-3 text-center text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100">
-              {item}
-            </div>
-          ))}
+        <div className="tm-reveal">
+          <p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">UGC &amp; SOCIAL CONTENT</p>
+          <h2 className="mt-4 text-[clamp(2rem,5vw,3.65rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? <>発信だけでなく、<br />伝わる素材づくりにも。</> : <>Content people trust,<br />made for social.</>}</h2>
+          <p className="mt-5 max-w-xl text-[15px] leading-7 text-neutral-600 sm:text-base sm:leading-8">{ja ? "Creator本人のSNS投稿はもちろん、商品やサービスの使用感を生活者の視点で伝えるUGC制作も相談できます。利用範囲や納品方法は、各メニューと依頼条件を確認して進めます。" : "Request social posts or UGC that shows products through a real customer perspective. Usage rights and delivery methods are agreed per service and request."}</p>
+          <div className="mt-8 grid grid-cols-2 border-y border-neutral-400/30 sm:grid-cols-3">{uses.map((item, index) => <div key={item} className={`flex min-h-[72px] items-center border-neutral-400/25 pr-3 text-[12px] font-medium leading-5 text-neutral-700 sm:text-[13px] ${index < 3 ? "border-b" : ""} ${index % 3 !== 2 ? "sm:border-r" : ""} ${index % 2 === 0 ? "max-sm:border-r" : ""} ${index < 4 ? "max-sm:border-b" : ""}`}>{item}</div>)}</div>
+          <Link href={CREATOR_LIST_PATH} className="tm-focus mt-8 inline-flex min-h-12 items-center gap-2 text-sm font-semibold text-neutral-950">{ja ? "UGCを相談できるCreatorを探す" : "Find creators for UGC"}<ArrowIcon /></Link>
         </div>
       </div>
+    </section>
+  );
+}
+
+function TestAndScale({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  const stages = ja ? [["01", "まず1件", "商品やターゲットに合うCreatorへ、小さく依頼。"], ["02", "反応を見る", "届いたクリエイティブや投稿後の反応を確認。"], ["03", "次を広げる", "相性を踏まえ、別のCreatorや地域、表現へ展開。"]] : [["01", "Start with one", "Make a focused request to a creator who fits."], ["02", "Learn from it", "Review the content and audience response."], ["03", "Expand", "Scale to new creators, regions, or formats."]];
+  return <section className="bg-[#fbfaf7] py-20 sm:py-28 lg:py-32"><div className="mx-auto max-w-[1220px] px-4 sm:px-6 lg:px-8"><div className="grid gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-end"><div className="tm-reveal"><p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">TEST, LEARN, EXPAND</p><h2 className="mt-4 text-[clamp(2rem,5vw,3.65rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? <>大きな施策も、<br />最初は1件から。</> : <>Even ambitious programs<br />can begin with one.</>}</h2></div><p className="tm-reveal max-w-xl text-[15px] leading-7 text-neutral-600 sm:text-base lg:pb-2">{ja ? "新規チャネルの検証、地域限定の施策、UGCの試作。企業規模にかかわらず、必要な範囲から始めて次の判断につなげられます。" : "Test a new channel, region, or content direction at a useful scale—then use what you learn for the next decision."}</p></div><div className="mt-12 grid gap-px overflow-hidden rounded-[26px] bg-neutral-200 md:grid-cols-3">{stages.map(([number,title,body]) => <article key={number} className="tm-reveal bg-white p-6 sm:p-8"><span className="text-[11px] font-semibold text-[#e94866]">{number}</span><h3 className="mt-12 text-xl font-semibold tracking-[-0.03em] text-neutral-950">{title}</h3><p className="mt-3 text-sm leading-6 text-neutral-600">{body}</p></article>)}</div></div></section>;
+}
+
+function WorkflowPreview({ index, locale }: { index: number; locale: Locale }) {
+  const ja = locale === "ja";
+  const content: Array<{ title: string; meta: string; body: ReactNode }> = [
+    { title: ja ? "インフルエンサー検索" : "Creator search", meta: ja ? "条件に合う候補" : "Matching creators", body: <div className="grid grid-cols-2 gap-3">{["Instagram", "TikTok"].map((platform, i) => <div key={platform} className="rounded-2xl border border-neutral-200 bg-white p-3"><div className={`aspect-[1.4] rounded-xl ${i ? "bg-[#e8e2dc]" : "bg-[#e7e9e6]"}`} /><div className="mt-3 flex items-center gap-2 text-xs font-semibold"><PlatformIcon platform={platform} size={16} />{platform}</div><p className="mt-1 text-[10px] text-neutral-500">{i ? "¥50,000〜" : "¥30,000〜"}</p></div>)}</div> },
+    { title: ja ? "依頼内容" : "Campaign brief", meta: ja ? "必要な情報を整理" : "Everything in one brief", body: <div className="space-y-3">{[ja ? "商品・サービス" : "Product", ja ? "投稿について" : "Posting details", ja ? "希望時期" : "Preferred timing"].map((row, i) => <div key={row} className="flex items-center justify-between border-b border-neutral-100 pb-3 text-xs"><span className="text-neutral-500">{row}</span><span className="font-semibold text-neutral-900">{i === 2 ? (ja ? "日程を相談" : "Discuss") : (ja ? "入力済み" : "Ready")}</span></div>)}</div> },
+    { title: ja ? "依頼の回答" : "Request response", meta: ja ? "72時間以内に確認" : "Within 72 hours", body: <div className="rounded-2xl bg-[#f7f6f3] p-5"><p className="text-xs text-neutral-500">{ja ? "Creatorが内容を確認しています" : "The creator is reviewing your request"}</p><div className="mt-4 h-2 overflow-hidden rounded-full bg-neutral-200"><div className="tm-progress h-full w-[72%] rounded-full bg-[#f04f6d]" /></div><p className="mt-3 text-sm font-semibold text-neutral-950">{ja ? "回答期限まで 48時間" : "48 hours remaining"}</p></div> },
+    { title: ja ? "案件内チャット" : "Campaign chat", meta: ja ? "条件をすり合わせ" : "Keep details aligned", body: <div className="space-y-3"><div className="mr-10 rounded-2xl rounded-bl-md bg-neutral-100 p-3 text-xs text-neutral-700">{ja ? "投稿内容について確認させてください。" : "Could I confirm the posting details?"}</div><div className="ml-10 rounded-2xl rounded-br-md bg-neutral-950 p-3 text-xs text-white">{ja ? "もちろんです。こちらでお願いします。" : "Of course. Please use these details."}</div></div> },
+    { title: ja ? "納品を確認" : "Review delivery", meta: ja ? "URLからすぐ確認" : "Open the delivered URL", body: <div className="rounded-2xl border border-neutral-200 bg-white p-4"><p className="text-[10px] text-neutral-400">{ja ? "納品URL" : "Delivery URL"}</p><p className="mt-2 truncate text-xs font-medium text-neutral-800">https://instagram.com/p/...</p><div className="mt-4 flex gap-2"><span className="rounded-full bg-neutral-950 px-4 py-2 text-[10px] font-semibold text-white">{ja ? "内容を確認" : "Open"}</span><span className="rounded-full border border-neutral-200 px-4 py-2 text-[10px] text-neutral-600">{ja ? "修正を依頼" : "Request revision"}</span></div></div> },
+    { title: ja ? "支払いまで管理" : "Managed payment", meta: "Stripe", body: <div><p className="text-[10px] font-medium text-neutral-400">{ja ? "お支払い合計" : "Payment total"}</p><p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-neutral-950">¥55,000</p><div className="mt-5 flex items-center justify-between border-t border-neutral-100 pt-4 text-xs"><span className="text-neutral-500">{ja ? "納品確認後に完了" : "Complete after review"}</span><span className="flex items-center gap-1 font-semibold text-emerald-700"><CheckIcon />{ja ? "安全に決済" : "Secure"}</span></div></div> },
+  ];
+  const item = content[index];
+
+  return (
+    <div className="tm-preview-enter overflow-hidden rounded-[26px] border border-neutral-200 bg-white shadow-[0_24px_70px_rgba(35,30,27,0.1)]" key={index}>
+      <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4"><div><p className="text-sm font-semibold text-neutral-950">{item.title}</p><p className="mt-0.5 text-[10px] text-neutral-400">{item.meta}</p></div><Image src="/brand/trend-mart-logo.png" alt="Trend Mart" width={112} height={22} className="h-[18px] w-auto object-contain" /></div>
+      <div className="min-h-[235px] bg-[#faf9f7] p-5 sm:min-h-[270px] sm:p-7">{item.body}</div>
     </div>
   );
 }
 
-function ApprovalWorkflowPreview() {
+function Workflow({ steps, locale }: { steps: WorkflowStep[]; locale: Locale }) {
+  const [active, setActive] = useState(0);
+  const ja = locale === "ja";
   return (
-    <div className="rounded-[30px] bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.11)] ring-1 ring-white/80">
-      <div className="grid gap-4 rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100 md:grid-cols-[190px_1fr] md:items-center">
-        <div className="mx-auto flex h-[178px] w-[178px] flex-col items-center justify-center rounded-full border-[14px] border-rose-100 bg-white shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Limit</p>
-          <p className="mt-2 text-5xl font-black tracking-tight text-slate-950">72h</p>
-          <p className="mt-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-500">
-            自動管理
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {[
-            ["依頼送信", "インフルエンサーへ依頼が届きます。"],
-            ["72時間以内に承認", "受ける場合は期限内に承認されます。"],
-            ["無応答は自動キャンセル", "待ちっぱなしを防ぐ安心設計です。"],
-          ].map(([title, body], index) => (
-            <div key={title} className="flex gap-3 rounded-[20px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${index === 1 ? "bg-rose-500 text-white" : "bg-slate-100 text-slate-500"}`}>
-                {index + 1}
-              </span>
-              <div>
-                <p className="text-sm font-black text-slate-950">{title}</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChatWorkflowPreview() {
-  return (
-    <div className="rounded-[30px] bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.11)] ring-1 ring-white/80">
-      <div className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100">
-        <div className="rounded-[24px] bg-white shadow-sm ring-1 ring-slate-100">
-          <div className="flex items-center gap-3 border-b border-slate-100 p-4">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-rose-200 to-orange-100" />
-            <div>
-              <p className="text-sm font-black text-slate-950">インフルエンサーと確認</p>
-              <p className="text-xs font-bold text-slate-400">条件のすり合わせ</p>
-            </div>
-          </div>
-
-          <div className="space-y-3 p-4">
-            <div className="max-w-[78%] rounded-[18px] rounded-bl-md bg-slate-100 px-4 py-3 text-sm font-semibold leading-6 text-slate-700">
-              来店可能日時と撮影条件を確認できますか？
-            </div>
-            <div className="ml-auto max-w-[78%] rounded-[18px] rounded-br-md bg-slate-950 px-4 py-3 text-sm font-semibold leading-6 text-white">
-              はい、平日午後で調整できます。
-            </div>
-            <div className="max-w-[80%] rounded-[18px] rounded-bl-md bg-slate-100 px-4 py-3 text-sm font-semibold leading-6 text-slate-700">
-              投稿で触れてほしい内容も共有します。
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DeliveryWorkflowPreview() {
-  return (
-    <div className="rounded-[30px] bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.11)] ring-1 ring-white/80">
-      <div className="rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100">
-        <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-500">Delivery</p>
-              <p className="mt-1 text-xl font-black text-slate-950">納品URLが届きました</p>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                投稿内容を確認し、必要なら修正依頼できます。
-              </p>
-            </div>
-            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700">
-              確認待ち
-            </span>
-          </div>
-
-          <div className="mt-5 rounded-[20px] bg-slate-50 p-4 ring-1 ring-slate-100">
-            <p className="text-xs font-black text-slate-400">納品URL</p>
-            <div className="mt-2 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 ring-1 ring-slate-100">
-              <span className="text-rose-500">↗</span>
-              https://example.com/delivery-post
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
-              URLを開く
-            </div>
-            <div className="rounded-2xl bg-rose-500 px-4 py-3 text-center text-sm font-black text-white">
-              修正依頼
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PaymentWorkflowPreview() {
-  return (
-    <div className="rounded-[30px] bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.11)] ring-1 ring-white/80">
-      <div className="grid gap-4 rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100 md:grid-cols-[1fr_190px]">
-        <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Payment</p>
-              <p className="mt-1 text-xl font-black text-slate-950">安全な決済管理</p>
-            </div>
-            <span className="rounded-full bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-700">
-              Stripe
-            </span>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            {["注文時に決済を安全に確認", "インフルエンサー承認後に決済確定", "完了承認後に報酬支払いへ"].map((item) => (
-              <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                  <CheckIcon />
-                </span>
-                <p className="text-sm font-black text-slate-700">{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[24px] bg-slate-950 p-5 text-white shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">Secure</p>
-          <p className="mt-3 text-3xl font-black tracking-tight">¥33,000</p>
-          <p className="mt-3 text-sm font-semibold leading-6 text-white/70">
-            納品確認と修正依頼の流れまで含めて管理できます。
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function WorkflowPreview({ step }: { step: WorkflowStep }) {
-  if (step.number === "02") return <RequestWorkflowPreview />;
-  if (step.number === "03") return <ApprovalWorkflowPreview />;
-  if (step.number === "04") return <ChatWorkflowPreview />;
-  if (step.number === "05") return <DeliveryWorkflowPreview />;
-  if (step.number === "06") return <PaymentWorkflowPreview />;
-  return <SearchWorkflowPreview />;
-}
-
-function WorkflowSection({
-  copy,
-  steps,
-}: {
-  copy: Record<string, string>;
-  steps: WorkflowStep[];
-}) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [pullingIndex, setPullingIndex] = useState(0);
-  const activeStep = steps[activeIndex] ?? steps[0];
-
-  const handleStepClick = (index: number) => {
-    setActiveIndex(index);
-    setPullingIndex(index);
-    window.setTimeout(() => {
-      setPullingIndex((current) => (current === index ? -1 : current));
-    }, 700);
-  };
-
-  return (
-    <section className="bg-white px-4 py-12 md:px-6 lg:py-16">
-      <div className="mx-auto max-w-7xl">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-[34px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[48px]">
-            {copy.workflowTitle}
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-500">
-            {copy.workflowLead}
-          </p>
-        </div>
-
-        <div className="mx-auto mt-8 max-w-6xl overflow-hidden rounded-[999px] bg-[#23242a] p-2 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <div className="grid grid-cols-2 gap-1 md:grid-cols-6">
-            {steps.map((step, index) => {
-              const isActive = index === activeIndex;
-              const isPulling = index === pullingIndex;
-
-              return (
-                <button
-                  key={step.number}
-                  type="button"
-                  onClick={() => handleStepClick(index)}
-                  className={`relative min-h-[74px] w-full overflow-hidden rounded-full px-4 text-center transition duration-300 ${
-                    isActive
-                      ? "bg-[radial-gradient(circle_at_top,rgba(255,189,96,0.2),rgba(255,255,255,0.04)_52%,rgba(255,255,255,0.02)_100%)] text-white shadow-[inset_0_0_0_1px_rgba(255,194,110,0.16)]"
-                      : "text-white/76 hover:bg-white/6 hover:text-white"
-                  }`}
-                >
-                  <span className="absolute left-1/2 top-0 h-4 w-px -translate-x-1/2 bg-white/14" />
-                  <span
-                    className={`absolute left-1/2 top-2 h-4 w-px -translate-x-1/2 bg-white/22 ${
-                      isPulling ? "trendre-step-string-pull" : ""
-                    }`}
-                  />
-                  <span
-                    className={`absolute left-1/2 top-[28px] h-2 w-2 -translate-x-1/2 rounded-full ${
-                      isActive
-                        ? "bg-[#ffe3b2] shadow-[0_0_0_3px_rgba(255,184,77,0.18),0_0_18px_rgba(255,173,59,0.9),0_0_32px_rgba(255,173,59,0.45)]"
-                        : "bg-white/24"
-                    } ${isPulling ? "trendre-step-knob-pull" : ""}`}
-                  />
-                  <span
-                    className={`absolute left-1/2 top-[18px] h-3.5 w-3.5 -translate-x-1/2 rounded-full border ${
-                      isActive
-                        ? "border-[#ffd58f] bg-[#ffb556] shadow-[0_0_0_4px_rgba(255,170,55,0.16),0_0_28px_rgba(255,172,56,0.85),0_0_54px_rgba(255,172,56,0.38)]"
-                        : "border-white/18 bg-white/10"
-                    } ${isActive ? "trendre-step-bulb-glow" : ""}`}
-                  />
-
-                  <span className="relative z-10 flex h-full min-h-[58px] items-center justify-center pt-5 text-sm font-black leading-none md:text-[15px]">
-                    {step.title}
-                  </span>
+    <section id="service-overview" className="scroll-mt-20 bg-white py-20 sm:py-28 lg:py-32">
+      <div className="mx-auto max-w-[1220px] px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl tm-reveal"><p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">ONE WORKFLOW</p><h2 className="mt-4 text-[clamp(2rem,5vw,3.7rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? "PR案件の流れを、ひとつに。" : "One clear workflow for every campaign."}</h2><p className="mt-5 text-[15px] leading-7 text-neutral-600 sm:text-base">{ja ? "探す、依頼する、進める、確認する。分散しがちな業務を、同じ場所で迷わず進められます。" : "Search, request, collaborate, and review — without losing the thread across tools."}</p></div>
+        <div className="mt-12 grid items-start gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16">
+          <div className="order-2 lg:order-1">
+            <div className="flex snap-x gap-2 overflow-x-auto pb-3 [scrollbar-width:none] lg:grid lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
+              {steps.map((step, index) => (
+                <button key={step.number} type="button" onClick={() => setActive(index)} className={`tm-focus group min-w-[148px] snap-start rounded-2xl border px-4 py-4 text-left transition duration-300 lg:min-w-0 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:px-1 lg:py-5 ${active === index ? "border-[#f04f6d] bg-[#fff7f8] lg:bg-transparent" : "border-neutral-200 bg-white hover:border-neutral-300"}`} aria-pressed={active === index}>
+                  <div className="flex items-center gap-3"><span className={`text-[11px] font-semibold ${active === index ? "text-[#e94866]" : "text-neutral-400"}`}>{step.number}</span><span className="text-sm font-semibold text-neutral-950">{step.title}</span><ArrowIcon className={`ml-auto h-4 w-4 transition ${active === index ? "translate-x-0 text-[#e94866] opacity-100" : "-translate-x-1 text-neutral-400 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"}`} /></div>
+                  <p className="mt-2 hidden text-[11px] leading-5 text-neutral-500 lg:block">{step.headline}</p>
                 </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mx-auto mt-8 grid max-w-6xl gap-7 rounded-[34px] bg-[#eeecff] p-5 md:p-7 lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
-          <div className="px-1 md:px-2">
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#7b6fb0]">
-              {activeStep.eyebrow}
-            </p>
-
-            <h3 className="mt-3 text-[27px] font-black leading-[1.13] tracking-[-0.055em] text-slate-950 md:text-[34px] lg:text-[38px]">
-              {activeStep.headline}
-            </h3>
-
-            <p className="mt-4 text-[15px] font-semibold leading-8 text-slate-600 md:text-base">
-              {activeStep.body}
-            </p>
-
-            <div className="mt-6 grid gap-3">
-              {activeStep.bullets.map((bullet) => (
-                <div
-                  key={bullet}
-                  className="flex items-center gap-3 rounded-2xl bg-white/86 px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-white/70"
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                    <CheckIcon />
-                  </span>
-                  {bullet}
-                </div>
               ))}
             </div>
           </div>
-
-          <WorkflowPreview step={activeStep} />
+          <div className="order-1 lg:order-2 lg:sticky lg:top-28"><div className="mb-5 lg:hidden"><p className="text-[11px] font-semibold text-[#e94866]">{steps[active].number} · {steps[active].title}</p><h3 className="mt-2 text-xl font-semibold leading-7 tracking-[-0.035em] text-neutral-950">{steps[active].headline}</h3><p className="mt-2 text-sm leading-6 text-neutral-600">{steps[active].body}</p></div><WorkflowPreview index={active} locale={locale} /></div>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes trendre-step-bulb-glow {
-          0%,
-          100% {
-            transform: translateX(-50%) scale(1);
-          }
-          50% {
-            transform: translateX(-50%) scale(1.07);
-          }
-        }
-
-        @keyframes trendre-step-string-pull {
-          0% {
-            transform: translateX(-50%) translateY(0);
-          }
-          35% {
-            transform: translateX(-50%) translateY(8px);
-          }
-          60% {
-            transform: translateX(-50%) translateY(2px);
-          }
-          100% {
-            transform: translateX(-50%) translateY(0);
-          }
-        }
-
-        @keyframes trendre-step-knob-pull {
-          0% {
-            transform: translateX(-50%) translateY(0);
-          }
-          35% {
-            transform: translateX(-50%) translateY(8px) scale(1.04);
-          }
-          60% {
-            transform: translateX(-50%) translateY(2px);
-          }
-          100% {
-            transform: translateX(-50%) translateY(0);
-          }
-        }
-
-        .trendre-step-bulb-glow {
-          animation: trendre-step-bulb-glow 2.2s ease-in-out infinite;
-        }
-
-        .trendre-step-string-pull {
-          animation: trendre-step-string-pull 0.65s ease-out 1;
-        }
-
-        .trendre-step-knob-pull {
-          animation: trendre-step-knob-pull 0.65s ease-out 1;
-        }
-      `}</style>
     </section>
   );
 }
 
-function IllustrationSection({ copy }: { copy: Record<string, string> }) {
+function Discovery({ creators, locale }: { creators: CreatorPreview[]; locale: Locale }) {
+  const ja = locale === "ja";
   return (
-    <section className="bg-white px-4 py-12 md:px-6 lg:py-16">
-      <div className="mx-auto max-w-7xl overflow-hidden rounded-[42px] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
-        <div className="relative grid min-h-[430px] items-center gap-10 overflow-hidden bg-[radial-gradient(circle_at_12%_18%,rgba(255,102,115,0.08),transparent_28%),radial-gradient(circle_at_86%_20%,rgba(255,102,115,0.14),transparent_30%)] px-8 py-12 md:px-12 lg:grid-cols-[0.92fr_1.08fr] lg:px-14 lg:py-16">
-          <div className="pointer-events-none absolute inset-0 opacity-[0.28] [background-image:radial-gradient(#ff6673_1px,transparent_1px)] [background-size:18px_18px]" />
-          <div className="relative z-10">
-            <p className="text-sm font-black tracking-[0.08em] text-[#ff6673]">
-              {copy.illustrationEyebrow}
-            </p>
-            <h2 className="mt-4 max-w-2xl text-[34px] font-black leading-[1.12] tracking-[-0.055em] text-slate-950 md:text-[48px]">
-              {copy.illustrationTitle}
-            </h2>
-            <p className="mt-6 max-w-xl text-base font-semibold leading-8 text-slate-600">
-              {copy.illustrationBody}
-            </p>
-            <Link
-              href={CREATOR_LIST_PATH}
-              className="mt-8 inline-flex items-center justify-center gap-3 rounded-full bg-[#ff6673] px-7 py-4 text-sm font-black text-white shadow-[0_18px_40px_rgba(255,102,115,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff5363]"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#ff6673]">
-                <ArrowIcon />
-              </span>
-              {copy.illustrationCta}
+    <section className="overflow-hidden bg-[#f1efeb] py-20 sm:py-28">
+      <div className="mx-auto max-w-[1220px] px-4 sm:px-6 lg:px-8">
+        <div className="grid items-end gap-6 md:grid-cols-[1fr_auto]"><div className="max-w-2xl tm-reveal"><p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">CHOOSE YOUR CREATOR</p><h2 className="mt-4 text-[clamp(2rem,5vw,3.55rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? "価格を見て、自分で選ぶ。" : "See the rate. Choose for yourself."}</h2><p className="mt-5 text-[15px] leading-7 text-neutral-600 sm:text-base">{ja ? "美容、ファッション、グルメ、旅行。ジャンルや活動地域、フォロワー帯、表示価格を比べて依頼先を選べます。" : "Compare category, area, audience size, and visible rates across creator profiles."}</p></div><Link href={CREATOR_LIST_PATH} className="tm-focus inline-flex min-h-12 items-center gap-2 text-sm font-semibold text-neutral-950">{ja ? "実際のCreatorを探す" : "Explore real creators"}<ArrowIcon /></Link></div>
+        <div className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
+          {creators.slice(0, 4).map((creator, index) => (
+            <Link href={CREATOR_LIST_PATH} key={`${creator.id}-${index}`} className="tm-focus group min-w-0">
+              <article>
+                <div className="relative aspect-[0.82] overflow-hidden rounded-[18px] bg-white sm:rounded-[24px]"><CreatorPortrait creator={creator} className="transition duration-700 group-hover:scale-[1.025]" /><div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" /><div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-[9px] font-medium text-white/90 sm:bottom-4 sm:left-4 sm:text-[10px]"><PlatformIcon platform={creator.platform} size={16} /><span>{creator.platform}</span></div></div>
+                <div className="px-1 pt-3 sm:pt-4"><div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><h3 className="truncate text-sm font-semibold text-neutral-950 sm:text-base">{creator.displayName}</h3><p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500 sm:text-xs">{creator.category}</p></div><ArrowIcon className="mt-0.5 hidden h-4 w-4 shrink-0 text-neutral-400 transition group-hover:translate-x-0.5 sm:block" /></div><div className="mt-2 space-y-1 text-[10px] text-neutral-500 sm:text-[11px]"><p>{creator.followerRange} · {creator.prefecture}</p><p className="font-semibold text-neutral-900">{formatPrice(creator.startingPrice, creator.currency)}〜</p></div></div>
+              </article>
             </Link>
-          </div>
-
-          <div className="relative z-10 flex min-h-[350px] items-center justify-center lg:justify-end">
-            <div className="absolute right-2 top-8 hidden h-[330px] w-[420px] rounded-[46px] bg-gradient-to-br from-[#ffe1e4] via-white to-white lg:block" />
-            <div className="absolute right-24 top-6 hidden h-[260px] w-[260px] rounded-full bg-[#ffdadd]/70 blur-2xl lg:block" />
-
-            <div className="relative w-full max-w-[520px] overflow-hidden rounded-[34px] bg-white/82 p-3 shadow-[0_24px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80">
-              <img
-                src="/brand/trendre-home-hero.png"
-                alt="SNS投稿を確認するインフルエンサー"
-                className="h-[390px] w-full object-contain"
-              />
-            </div>
-          </div>
+          ))}
         </div>
-
-        <div className="bg-[#f4f7fb] px-5 pb-7 md:px-8 md:pb-10">
-          <div className="-mt-8 grid gap-8 rounded-[32px] bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-slate-100 md:p-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-center">
-            <div>
-              <div className="inline-flex rounded-full border border-[#ff6673] px-4 py-2 text-sm font-black text-slate-950">
-                {copy.illustrationFeatureBadge}
-              </div>
-              <h3 className="mt-6 max-w-lg text-[28px] font-black leading-[1.16] tracking-[-0.05em] text-slate-950 md:text-[38px]">
-                {copy.illustrationFeatureTitle}
-              </h3>
-              <p className="mt-5 max-w-xl text-sm font-semibold leading-7 text-slate-600 md:text-base md:leading-8">
-                {copy.illustrationFeatureBody}
-              </p>
-            </div>
-
-            <div className="relative">
-              <div className="absolute -inset-5 rounded-full border border-dashed border-[#ffb2b8] opacity-70" />
-              <div className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.12)] ring-1 ring-slate-100">
-                <img
-                  src="/brand/trendre-search-preview.jpg"
-                  alt="Trend Martのインフルエンサー検索画面"
-                  className="w-full object-cover"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <p className="mt-6 text-[10px] leading-5 text-neutral-400">{ja ? "※プロフィール・料金は掲載イメージです。" : "Profiles and rates shown are illustrative."}</p>
       </div>
     </section>
   );
 }
 
-function ChatGptIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
-      <circle cx="24" cy="24" r="21" fill="#10A37F" />
-      <g fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.98">
-        <path d="M24 10.5c5.2 0 8.1 3 8.1 7.2v4.8" />
-        <path d="M32.1 17.7c4.5 2.6 5.5 6.6 3.4 10.2l-2.4 4.2" />
-        <path d="M35.5 27.9c0 5.2-3 8.1-7.2 8.1h-4.8" />
-        <path d="M28.3 36c-4.5 2.6-8.5 1.6-10.6-2l-2.4-4.2" />
-        <path d="M15.3 29.8c-4.5-2.6-5.5-6.6-3.4-10.2l2.4-4.2" />
-        <path d="M11.9 19.6c0-5.2 3-8.1 7.2-8.1h4.8" />
-        <path d="M18 18.4 24 15l6 3.4v6.9l-6 3.4-6-3.4z" opacity="0.9" />
-      </g>
-    </svg>
-  );
-}
-
-function SheetsIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
-      <rect x="10" y="6" width="28" height="36" rx="7" fill="#16A765" />
-      <path d="M30 6v10h8" fill="#8FE3B6" />
-      <rect x="15" y="20" width="18" height="15" rx="2.5" fill="white" opacity="0.96" />
-      <path d="M21 20v15M27 20v15M15 25h18M15 30h18" stroke="#16A765" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function GmailIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
-      <rect x="7" y="11" width="34" height="26" rx="6" fill="white" />
-      <path d="M10 16.5 24 27.5 38 16.5" fill="none" stroke="#EA4335" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10 18v16M38 18v16" stroke="#FBBC04" strokeWidth="5" strokeLinecap="round" />
-      <path d="M10 34h28" stroke="#34A853" strokeWidth="5" strokeLinecap="round" />
-      <rect x="7" y="11" width="34" height="26" rx="6" fill="none" stroke="#E5E7EB" strokeWidth="1" />
-    </svg>
-  );
-}
-
-function DriveIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
-      <path d="M19.5 7h9l14 24h-9z" fill="#0F9D58" />
-      <path d="M19.5 7 5.5 31h9l14-24z" fill="#F4B400" />
-      <path d="M14.5 31h28L38 39H10z" fill="#4285F4" />
-      <path d="M19.5 7h9l14 24H33.5z" fill="white" opacity="0.12" />
-    </svg>
-  );
-}
-
-function StripeIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden="true">
-      <rect x="5" y="5" width="38" height="38" rx="12" fill="#635BFF" />
-      <path
-        d="M25.4 21.1c-3.6-.9-4.6-1.5-4.6-2.7 0-1.1.9-1.8 2.8-1.8 2.3 0 4.6.7 6.7 1.9v-5.1c-1.8-.9-4-1.4-6.6-1.4-5.4 0-8.9 2.8-8.9 7 0 4.5 3.4 6.1 8.3 7.2 3.4.8 4.3 1.4 4.3 2.6s-1 1.9-3.1 1.9c-2.7 0-5.5-.9-7.9-2.3v5.2c2.2 1.2 4.9 1.8 7.9 1.8 5.7 0 9.2-2.7 9.2-7.1 0-4.1-2.9-5.9-8.1-7.2z"
-        fill="white"
-      />
-    </svg>
-  );
-}
-
-function ToolOrbitIcon({
-  tool,
-  index,
-}: {
-  tool: ToolOrbitService;
-  index: number;
-}) {
-  const style: OrbitIconStyle = {
-    "--x": tool.x,
-    "--y": tool.y,
-    "--mx": tool.mx,
-    "--my": tool.my,
-    "--rot": tool.rot,
-    animationDelay: `${index * 0.12}s`,
-  };
-
-  const brandFrame = (() => {
-    if (tool.key === "instagram") return "from-[#fff7fb] via-white to-[#fff0f7]";
-    if (tool.key === "tiktok") return "from-[#f9fbff] via-white to-[#f2f6ff]";
-    if (tool.key === "youtube") return "from-[#fff5f5] via-white to-[#fff0f0]";
-    if (tool.key === "x") return "from-[#f8fafc] via-white to-[#f1f5f9]";
-    if (tool.key === "chatgpt") return "from-[#ecfdf5] via-white to-[#eafff5]";
-    if (tool.key === "sheets") return "from-[#effdf6] via-white to-[#e8fff1]";
-    if (tool.key === "gmail") return "from-[#fff7ed] via-white to-[#fff1f2]";
-    if (tool.key === "drive") return "from-[#f0f9ff] via-white to-[#fff7ed]";
-    return "from-[#f5f3ff] via-white to-[#eef2ff]";
-  })();
-
-  const icon = (() => {
-    if (tool.key === "instagram") {
-      return <img src="/brand/social/instagram.png" alt="" className="h-9 w-9 object-contain drop-shadow-sm" />;
-    }
-
-    if (tool.key === "tiktok") {
-      return <img src="/brand/social/tiktok.png" alt="" className="h-9 w-9 object-contain drop-shadow-sm" />;
-    }
-
-    if (tool.key === "youtube") {
-      return <img src="/brand/social/youtube.png" alt="" className="h-9 w-9 object-contain drop-shadow-sm" />;
-    }
-
-    if (tool.key === "x") {
-      return <img src="/brand/social/x.png" alt="" className="h-8 w-8 object-contain drop-shadow-sm" />;
-    }
-
-    if (tool.key === "chatgpt") return <ChatGptIcon />;
-    if (tool.key === "sheets") return <SheetsIcon />;
-    if (tool.key === "gmail") return <GmailIcon />;
-    if (tool.key === "drive") return <DriveIcon />;
-    return <StripeIcon />;
-  })();
-
-  return (
-    <div
-      className={`trendre-tool-orbit-icon absolute left-1/2 top-1/2 flex h-[78px] w-[78px] items-center justify-center rounded-[24px] bg-gradient-to-br ${brandFrame} shadow-[0_18px_55px_rgba(15,23,42,0.13)] ring-1 ring-white/90`}
-      style={style}
-      title={tool.name}
-      aria-label={tool.name}
-    >
-      <span className="absolute inset-0 rounded-[24px] bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.9),transparent_46%)]" />
-      <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/72 shadow-inner ring-1 ring-slate-100/80">
-        {icon}
-      </span>
-    </div>
-  );
-}
-
-function ToolsSection({ copy }: { copy: Record<string, string> }) {
-  const tools: ToolOrbitService[] = [
-    { key: "instagram", name: "Instagram", x: "-250px", y: "-70px", mx: "-115px", my: "-35px", rot: "-10deg" },
-    { key: "tiktok", name: "TikTok", x: "236px", y: "-76px", mx: "114px", my: "-38px", rot: "12deg" },
-    { key: "chatgpt", name: "ChatGPT", x: "-38px", y: "-148px", mx: "-18px", my: "-76px", rot: "8deg" },
-    { key: "sheets", name: "Google Sheets", x: "156px", y: "-18px", mx: "72px", my: "-12px", rot: "-8deg" },
-    { key: "gmail", name: "Gmail", x: "-190px", y: "86px", mx: "-92px", my: "44px", rot: "10deg" },
-    { key: "drive", name: "Google Drive", x: "72px", y: "134px", mx: "36px", my: "66px", rot: "-14deg" },
-    { key: "stripe", name: "Stripe", x: "238px", y: "84px", mx: "116px", my: "42px", rot: "14deg" },
-    { key: "youtube", name: "YouTube", x: "-266px", y: "22px", mx: "-132px", my: "10px", rot: "-12deg" },
-    { key: "x", name: "X", x: "-24px", y: "160px", mx: "-12px", my: "78px", rot: "16deg" },
+function Comparison({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  const options = ja ? [
+    {
+      title: "Trend Mart",
+      lead: "必要なときだけ、1件から",
+      items: ["初期費用 0円", "月額固定費 0円から", "Creatorを自分で選ぶ", "表示価格を見て依頼"],
+      fit: "単発・小規模から柔軟に試したい企業",
+      featured: true,
+    },
+    {
+      title: "月額制サービス",
+      lead: "継続的な募集・運用に",
+      items: ["月額契約", "月額5〜6万円程度のサービス例", "継続利用を前提", "募集型の運用に向く"],
+      fit: "毎月コンスタントに施策を行う企業",
+      featured: false,
+    },
+    {
+      title: "代理店・キャスティング型",
+      lead: "企画から任せる大規模施策に",
+      items: ["個別見積もり", "候補選定を依頼", "運用代行にも対応", "大規模案件に向く"],
+      fit: "企画・進行をまとめて任せたい企業",
+      featured: false,
+    },
+  ] : [
+    { title: "Trend Mart", lead: "One request, whenever you need", items: ["No setup fee", "Start without a monthly contract", "Choose creators yourself", "Request at visible rates"], fit: "For flexible, project-by-project campaigns", featured: true },
+    { title: "Subscription services", lead: "For ongoing creator programs", items: ["Monthly contract", "Recurring service cost", "Designed for continuous use", "Often recruitment-led"], fit: "For teams running campaigns every month", featured: false },
+    { title: "Agency & casting", lead: "For managed, larger campaigns", items: ["Custom quotation", "Delegated casting", "Managed operations", "Suited to larger programs"], fit: "For teams delegating planning and operations", featured: false },
   ];
 
   return (
-    <section className="bg-white px-4 py-14 md:px-6 lg:py-20">
-      <div className="mx-auto grid max-w-7xl gap-10 rounded-[42px] bg-slate-50 p-8 md:p-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-        <div>
-          <h2 className="max-w-xl text-[34px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[48px]">
-            {copy.toolsTitle}
-          </h2>
-          <p className="mt-7 max-w-lg text-base font-semibold leading-8 text-slate-600">
-            {copy.toolsBody}
-          </p>
-
-          <Link
-            href={CREATOR_LIST_PATH}
-            className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#2b2b2b] px-8 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-slate-950"
-          >
-            {copy.toolsCta}
-            <ArrowIcon />
-          </Link>
-        </div>
-
-        <div className="relative min-h-[420px] overflow-hidden rounded-[34px] bg-white shadow-[0_20px_70px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(248,91,143,0.14),transparent_54%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.035)_1px,transparent_1px)] bg-[size:54px_54px] opacity-50" />
-
-          <div className="absolute left-1/2 top-1/2 h-[320px] w-[560px] -translate-x-1/2 -translate-y-1/2">
-            <div className="trendre-tool-core absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(248,91,143,0.24),rgba(248,91,143,0.10)_42%,transparent_70%)] blur-2xl" />
-
-            {tools.map((tool, index) => (
-              <ToolOrbitIcon key={tool.key} tool={tool} index={index} />
-            ))}
-
-            <div className="trendre-tool-center-logo absolute left-1/2 top-1/2 flex h-[132px] w-[260px] -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-              <img
-                src="/brand/trend-mart-logo.png"
-                alt="Trendre"
-                className="max-h-20 w-full object-contain drop-shadow-[0_18px_38px_rgba(15,23,42,0.18)]"
-              />
-            </div>
-          </div>
-
-          <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/80 px-4 py-2 text-xs font-black text-slate-500 shadow-sm ring-1 ring-slate-100">
-            9 tools collapse into one workflow
-          </div>
-        </div>
-      </div>
-
-      <style jsx global>{`
-        @keyframes trendre-tool-swirl {
-          0%,
-          20% {
-            opacity: 1;
-            transform: translate(var(--x), var(--y)) rotate(var(--rot)) scale(1);
-          }
-          38% {
-            opacity: 1;
-            transform: translate(var(--mx), var(--my)) rotate(120deg) scale(0.94);
-          }
-          58% {
-            opacity: 0;
-            transform: translate(0, 0) rotate(320deg) scale(0.28);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(0, 0) rotate(360deg) scale(0.2);
-          }
-        }
-
-        @keyframes trendre-logo-reveal {
-          0%,
-          54% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.72);
-            filter: blur(8px);
-          }
-          68%,
-          90% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            filter: blur(0);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.94);
-            filter: blur(4px);
-          }
-        }
-
-        @keyframes trendre-core-pulse {
-          0%,
-          40% {
-            opacity: 0.5;
-            transform: translate(-50%, -50%) scale(1.05);
-          }
-          56%,
-          88% {
-            opacity: 0.16;
-            transform: translate(-50%, -50%) scale(0.72);
-          }
-          100% {
-            opacity: 0.5;
-            transform: translate(-50%, -50%) scale(1.05);
-          }
-        }
-
-        .trendre-tool-orbit-icon {
-          animation: trendre-tool-swirl 7.8s cubic-bezier(0.68, 0, 0.2, 1) infinite;
-          will-change: transform, opacity;
-        }
-
-        .trendre-tool-center-logo {
-          animation: trendre-logo-reveal 7.8s cubic-bezier(0.68, 0, 0.2, 1) infinite;
-          will-change: transform, opacity, filter;
-        }
-
-        .trendre-tool-core {
-          animation: trendre-core-pulse 7.8s ease-in-out infinite;
-          will-change: transform, opacity;
-        }
-      `}</style>
-    </section>
-  );
-}
-
-function UseCaseIllustration({ tone }: { tone: UseCaseCardProps["tone"] }) {
-  const commonClass = "h-[138px] w-full text-slate-950";
-
-  if (tone === "rose") {
-    return (
-      <div className="flex h-[148px] items-center justify-center">
-        <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
-          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M62 91h29l55-29v62L91 96H62a18 18 0 0 1 0-36h29" strokeWidth="8" />
-            <path d="M91 96l13 30" strokeWidth="8" />
-            <path d="M161 78c16 5 27 19 27 36" strokeWidth="7" opacity="0.65" />
-            <path d="M175 58c27 10 45 31 45 59" strokeWidth="7" opacity="0.35" />
-            <path d="M45 33l8 10 13-22" strokeWidth="7" opacity="0.8" />
-            <path d="M204 35h30" strokeWidth="7" opacity="0.55" />
-            <path d="M219 20v30" strokeWidth="7" opacity="0.55" />
-          </g>
-          <g fill="currentColor" opacity="0.18">
-            <circle cx="73" cy="78" r="18" />
-            <circle cx="220" cy="104" r="12" />
-          </g>
-        </svg>
-      </div>
-    );
-  }
-
-  if (tone === "blue") {
-    return (
-      <div className="flex h-[148px] items-center justify-center">
-        <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
-          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M57 63h112l-10-34H67L57 63Z" strokeWidth="8" />
-            <path d="M70 63v63h86V63" strokeWidth="8" />
-            <path d="M99 126V92h29v34" strokeWidth="8" />
-            <path d="M78 80h18" strokeWidth="7" opacity="0.55" />
-            <path d="M136 80h12" strokeWidth="7" opacity="0.55" />
-            <path d="M190 112c21-4 36-18 44-39" strokeWidth="8" />
-            <path d="M224 72l13-2-2 13" strokeWidth="8" />
-          </g>
-          <g fill="currentColor">
-            <circle cx="197" cy="52" r="13" opacity="0.18" />
-            <path d="M193 51a10 10 0 1 1 20 0 10 10 0 0 1-20 0Z" opacity="0.22" />
-            <path d="M185 91c0-15 42-15 42 0" opacity="0.22" />
-          </g>
-        </svg>
-      </div>
-    );
-  }
-
-  if (tone === "violet") {
-    return (
-      <div className="flex h-[148px] items-center justify-center">
-        <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
-          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="45" y="31" width="124" height="86" rx="18" strokeWidth="8" />
-            <path d="M45 57h124" strokeWidth="7" opacity="0.55" />
-            <path d="M68 82h43" strokeWidth="7" opacity="0.45" />
-            <path d="M68 101h64" strokeWidth="7" opacity="0.45" />
-            <path d="M191 48h18l12 33h-38l8-33Z" strokeWidth="8" />
-            <path d="M185 81h39" strokeWidth="8" />
-            <circle cx="192" cy="104" r="7" strokeWidth="7" />
-            <circle cx="217" cy="104" r="7" strokeWidth="7" />
-            <path d="M193 28c18 0 33 10 43 29" strokeWidth="7" opacity="0.55" />
-            <path d="M228 57l12 1-6 11" strokeWidth="7" opacity="0.55" />
-          </g>
-          <g fill="currentColor" opacity="0.16">
-            <rect x="68" y="71" width="55" height="34" rx="12" />
-          </g>
-        </svg>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-[148px] items-center justify-center">
-      <svg viewBox="0 0 260 150" className={commonClass} aria-hidden="true">
-        <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="91" cy="48" r="18" strokeWidth="8" />
-          <path d="M55 112c6-31 66-31 72 0" strokeWidth="8" />
-          <circle cx="181" cy="48" r="18" strokeWidth="8" />
-          <path d="M145 112c6-31 66-31 72 0" strokeWidth="8" />
-          <path d="M73 122h127" strokeWidth="8" opacity="0.48" />
-          <path d="M107 27c12-13 47-13 59 0" strokeWidth="7" opacity="0.5" />
-          <path d="M118 29h36" strokeWidth="7" opacity="0.5" />
-          <path d="M117 77h39" strokeWidth="7" />
-          <path d="M130 90h26" strokeWidth="7" opacity="0.55" />
-        </g>
-        <g fill="currentColor" opacity="0.14">
-          <rect x="108" y="65" width="62" height="43" rx="14" />
-        </g>
-      </svg>
-    </div>
-  );
-}
-
-function UseCaseCard({ title, body, cta, tone }: UseCaseCardProps) {
-  const toneClass = {
-    rose: "bg-[#f774aa]",
-    blue: "bg-[#9bb6ff]",
-    violet: "bg-[#b9adff]",
-    orange: "bg-[#ff995f]",
-  }[tone];
-
-  return (
-    <article className={`rounded-[34px] ${toneClass} p-7 md:p-8`}>
-      <UseCaseIllustration tone={tone} />
-
-      <h3 className="mt-8 text-2xl font-black tracking-[-0.04em] text-slate-950">
-        {title}
-      </h3>
-
-      <p className="mt-5 min-h-[112px] text-base font-semibold leading-8 text-slate-800/78">
-        {body}
-      </p>
-
-      <Link
-        href={CREATOR_LIST_PATH}
-        className="mt-6 inline-flex rounded-full border border-slate-900/45 px-7 py-3 text-sm font-black text-slate-900 transition hover:bg-slate-900 hover:text-white"
-      >
-        {cta}
-      </Link>
-    </article>
-  );
-}
-
-function UseCaseSection({
-  copy,
-  useCases,
-}: {
-  copy: Record<string, string>;
-  useCases: UseCaseCardProps[];
-}) {
-  return (
-    <section className="bg-white px-4 py-14 md:px-6 lg:py-20">
-      <div className="mx-auto max-w-7xl">
-        <h2 className="text-center text-[34px] font-black leading-[1.08] tracking-[-0.055em] text-slate-950 md:text-[48px]">
-          {copy.useCaseTitle}
-        </h2>
-
-        <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {useCases.map((item) => (
-            <UseCaseCard key={item.title} {...item} />
+    <section className="bg-white py-20 sm:py-28 lg:py-32">
+      <div className="mx-auto max-w-[1220px] px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl tm-reveal"><p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">CHOOSE THE RIGHT MODEL</p><h2 className="mt-4 text-[clamp(2rem,5vw,3.65rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? "月額制・代理店型との違い。" : "A different way to run creator campaigns."}</h2><p className="mt-5 max-w-2xl text-[15px] leading-7 text-neutral-600 sm:text-base">{ja ? "施策の頻度や規模によって、合う方法は変わります。Trend Martは、必要なときだけ柔軟に依頼したい企業のためのMarketplaceです。" : "The right model depends on campaign scale and frequency. Trend Mart is built for flexible, project-by-project requests."}</p></div>
+        <div className="mt-10 grid gap-3 lg:grid-cols-3 lg:gap-4">
+          {options.map((option) => (
+            <article key={option.title} className={`tm-comparison rounded-[24px] border p-5 sm:p-7 ${option.featured ? "border-[#ef8ba0] bg-[#fff8f9] shadow-[0_18px_55px_rgba(98,54,63,0.09)]" : "border-neutral-200 bg-[#faf9f7]"}`}>
+              <div className="flex items-start justify-between gap-4">
+                <div>{option.featured ? <Image src="/brand/trend-mart-logo.png" alt="Trend Mart" width={132} height={26} className="h-[21px] w-auto object-contain" /> : <h3 className="text-base font-semibold text-neutral-950">{option.title}</h3>}<p className="mt-3 text-sm font-semibold text-neutral-800">{option.lead}</p></div>
+                {option.featured ? <span className="shrink-0 text-[10px] font-semibold text-[#d94461]">{ja ? "1件から" : "Flexible"}</span> : null}
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-4 lg:grid-cols-1">
+                {option.items.map((item) => <div key={item} className="flex items-start gap-2 text-[11px] leading-5 text-neutral-600 sm:text-xs"><span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full ${option.featured ? "bg-[#f04f6d] text-white" : "bg-neutral-200 text-neutral-600"}`}><CheckIcon /></span>{item}</div>)}
+              </div>
+              <div className="mt-6 border-t border-neutral-200/80 pt-4"><p className="text-[10px] text-neutral-400">{ja ? "向いている使い方" : "Best suited for"}</p><p className="mt-1 text-xs font-medium leading-5 text-neutral-700">{option.fit}</p></div>
+            </article>
           ))}
         </div>
       </div>
@@ -1543,691 +456,232 @@ function UseCaseSection({
   );
 }
 
-function FinalCta({ copy }: { copy: Record<string, string> }) {
+function UseCases({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  const cases = ja
+    ? [
+        ["01", "ビューティー", "使用感や質感を、Creator自身の言葉とビジュアルで伝える。"],
+        ["02", "ファッション", "着用イメージやコーディネートから、商品のある生活を見せる。"],
+        ["03", "D2C・EC", "商品レビューやUGC制作を、表示価格を見ながら依頼。"],
+        ["04", "飲食店・店舗", "地域やジャンルから、来店・体験につながる発信者を探す。"],
+        ["05", "旅行・宿泊", "現地での過ごし方を、写真や短尺動画で具体的に届ける。"],
+        ["06", "採用・求人", "職場の空気や働く人の声を、自然なコンテンツで届ける。"],
+      ]
+    : [
+        ["01", "Beauty", "Show texture and product experience through a creator's own perspective."],
+        ["02", "Fashion", "Make products tangible through styling and real-life wear."],
+        ["03", "D2C & ecommerce", "Request reviews and UGC with visible rates."],
+        ["04", "Stores & dining", "Find local creators for visits and real-world experiences."],
+        ["05", "Travel & hospitality", "Turn stays and destinations into visual stories."],
+        ["06", "Recruiting", "Share workplace stories through natural creator content."],
+      ];
   return (
-    <section className="bg-white px-4 pb-16 pt-8 md:px-6 lg:pb-24">
-      <div className="mx-auto max-w-5xl rounded-[42px] bg-[#2b2b2b] px-8 py-16 text-center shadow-[0_30px_90px_rgba(0,0,0,0.18)] md:px-12 md:py-20">
-        <h2 className="mx-auto max-w-4xl text-[36px] font-black leading-[1.1] tracking-[-0.055em] text-white md:text-[56px]">
-          {copy.finalLine1}
-          <br />
-          <span className="italic text-[#f85b8f]">{copy.finalAccent}</span>
-          {copy.finalLine2}
-        </h2>
-
-        <p className="mx-auto mt-7 max-w-2xl text-base font-semibold leading-8 text-white/65">
-          {copy.finalBody}
-        </p>
-
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <Link
-            href={CREATOR_LIST_PATH}
-            className="inline-flex min-w-[240px] items-center justify-center rounded-2xl bg-white px-8 py-4 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-slate-100"
-          >
-            {copy.finalPrimary}
-          </Link>
-
-          <Link
-            href="/signup/company"
-            className="inline-flex min-w-[220px] items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] px-8 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/[0.08]"
-          >
-            {copy.finalSecondary}
-          </Link>
-        </div>
-
-        <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm font-bold text-white/50">
-          <span>{copy.finalMini1}</span>
-          <span>{copy.finalMini2}</span>
-          <span>{copy.finalMini3}</span>
+    <section className="bg-[#fbfaf7] py-20 sm:py-28">
+      <div className="mx-auto max-w-[1220px] px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl tm-reveal"><p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">BUILT FOR BUSINESS</p><h2 className="mt-4 text-[clamp(2rem,5vw,3.55rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? "目的に合わせて、すぐに始める。" : "Start with the outcome you need."}</h2></div>
+        <div className="mt-10 border-y border-neutral-200 md:grid md:grid-cols-2">
+          {cases.map(([number, title, body], index) => <Link href={CREATOR_LIST_PATH} key={title} className={`tm-focus group grid grid-cols-[auto_1fr_auto] gap-4 border-neutral-200 py-6 transition hover:bg-white md:px-6 md:py-8 ${index < cases.length - 1 ? "border-b" : ""} ${index % 2 === 0 ? "md:border-r" : ""} ${index >= cases.length - 2 ? "md:border-b-0" : ""}`}><span className="pt-1 text-[10px] font-semibold text-[#e94866]">{number}</span><div><h3 className="text-base font-semibold text-neutral-950 sm:text-lg">{title}</h3><p className="mt-2 max-w-md text-[13px] leading-6 text-neutral-600 sm:text-sm">{body}</p></div><ArrowIcon className="mt-1 h-5 w-5 text-neutral-400 transition group-hover:translate-x-1 group-hover:text-neutral-950" /></Link>)}
         </div>
       </div>
     </section>
   );
 }
 
-function fallbackCreators(copy: Record<string, string>): CreatorPreview[] {
+function Assurance({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  const items = ja ? [
+    ["Creatorが依頼内容を確認", "一方的に案件が始まらず、依頼後にCreator本人が内容を確認します。"],
+    ["案件ごとのチャット", "日程や投稿内容の確認を、依頼ごとの会話にまとめられます。"],
+    ["納品確認と修正依頼", "届いたURLを確認し、必要な場合は同じ案件内で修正を依頼できます。"],
+    ["Stripeによる決済", "支払いは案件の進行とつながり、決済情報をCreatorへ直接伝える必要はありません。"],
+  ] : [
+    ["Creator review", "The creator reviews each request before work begins."],
+    ["Per-campaign chat", "Keep timing and content discussions attached to the request."],
+    ["Delivery review", "Review delivered URLs and request revisions when needed."],
+    ["Stripe payments", "Payments stay connected to campaign progress without sharing card details."],
+  ];
+  return <section className="bg-white py-20 sm:py-28"><div className="mx-auto max-w-[1220px] px-4 sm:px-6 lg:px-8"><div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20"><div className="tm-reveal"><p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">A CLEAR WAY TO WORK</p><h2 className="mt-4 text-[clamp(2rem,5vw,3.4rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? <>依頼したあとも、<br />迷わず進める。</> : <>Clarity after<br />the request.</>}</h2><p className="mt-5 text-sm leading-7 text-neutral-600">{ja ? "Creatorの回答は原則72時間以内。回答がない場合は自動でキャンセルされます。" : "Creators generally respond within 72 hours. Unanswered requests are cancelled automatically."}</p></div><div className="border-t border-neutral-200">{items.map(([title,body],index) => <article key={title} className="tm-reveal grid gap-3 border-b border-neutral-200 py-6 sm:grid-cols-[42px_0.72fr_1.28fr] sm:items-start sm:gap-5 sm:py-7"><span className="text-[10px] font-semibold text-neutral-400">0{index+1}</span><h3 className="text-[15px] font-semibold text-neutral-950">{title}</h3><p className="text-[13px] leading-6 text-neutral-600">{body}</p></article>)}</div></div></div></section>;
+}
+
+function Faq({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  const questions = ja ? [
+    ["月額契約は必要ですか？", "月額契約なしでも始められます。必要なときに1件から依頼でき、利用方法に応じて別途プランを選べる場合があります。"],
+    ["1人だけでも依頼できますか？", "はい。1人への1件の依頼から利用できます。まず相性を確かめたい施策にも使えます。"],
+    ["依頼前に料金は分かりますか？", "Creatorが公開しているメニューと表示価格を確認できます。追加条件がある場合は依頼内容をご確認ください。"],
+    ["どのCreatorへ依頼するか自分で選べますか？", "はい。SNS、ジャンル、活動地域、フォロワー帯、メニューなどを見て選べます。"],
+    ["UGC制作だけでも相談できますか？", "Creatorの公開メニューに対応内容があれば相談できます。納品形式や利用範囲は各メニューと依頼条件で確認してください。"],
+    ["投稿内容はどこで相談できますか？", "依頼が受けられた後、案件ごとのチャットで日程や投稿内容を確認できます。"],
+    ["納品後に修正をお願いできますか？", "納品内容を確認し、依頼条件との相違などがある場合は案件内から修正を依頼できます。"],
+    ["Creatorから回答がない場合は？", "依頼後72時間以内に回答がない場合、依頼は自動でキャンセルされます。"],
+    ["支払いはどのように行いますか？", "Stripeを通じて決済します。具体的な決済タイミングと金額は注文画面で確認できます。"],
+    ["店舗や地域限定の依頼にも使えますか？", "はい。活動地域やジャンルを見ながら、来店・体験型の依頼先を探せます。"],
+    ["大企業のテスト施策にも使えますか？", "はい。新規チャネル、地域限定、UGC試作など、範囲を絞った施策から始められます。"],
+  ] : [
+    ["Is a monthly contract required?", "You can start without one and request one project when needed. Other plans may be available depending on usage."],
+    ["Can I request just one creator?", "Yes. Start with one creator and one request."],
+    ["Can I see pricing before requesting?", "Published creator services show visible rates. Review any additional conditions in the request."],
+    ["Can I choose the creator myself?", "Yes. Compare platform, category, area, audience range, and services."],
+    ["Can I request UGC only?", "Yes, when a creator offers it. Delivery format and usage rights are agreed per service and request."],
+    ["Where do we discuss content?", "After acceptance, use the per-campaign chat to align timing and content."],
+    ["Can I request revisions?", "Review the delivery and request a revision if it differs from the agreed requirements."],
+    ["What if the creator does not respond?", "Requests are automatically cancelled if there is no response within 72 hours."],
+    ["How does payment work?", "Payments are processed through Stripe. Timing and totals are shown in the order."],
+    ["Can I run local store campaigns?", "Yes. Search by activity area and category for in-person experiences."],
+    ["Can enterprise teams use it for tests?", "Yes. Start with a focused channel, region, or UGC test before expanding."],
+  ];
+  return <section className="bg-[#f3f0eb] py-20 sm:py-28"><div className="mx-auto max-w-[1000px] px-4 sm:px-6 lg:px-8"><div className="tm-reveal text-center"><p className="text-[12px] font-semibold tracking-[0.16em] text-[#d94461]">FAQ</p><h2 className="mt-4 text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? "始める前に知っておきたいこと。" : "What to know before you begin."}</h2></div><div className="mt-10 border-t border-neutral-300/80">{questions.map(([question,answer]) => <details key={question} className="tm-faq group border-b border-neutral-300/80"><summary className="tm-focus flex min-h-[74px] cursor-pointer list-none items-center justify-between gap-5 py-5 text-left text-[15px] font-semibold leading-6 text-neutral-950 sm:min-h-[80px] sm:text-base"><span>{question}</span><span className="relative h-5 w-5 shrink-0 text-neutral-500" aria-hidden="true"><span className="absolute left-1 top-[9px] h-px w-3 bg-current" /><span className="absolute left-[9px] top-1 h-3 w-px bg-current transition group-open:rotate-90 group-open:opacity-0" /></span></summary><p className="max-w-3xl pb-6 pr-8 text-[13px] leading-7 text-neutral-600 sm:text-sm">{answer}</p></details>)}</div></div></section>;
+}
+
+function FinalCta({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  return (
+    <section className="bg-white px-4 py-20 sm:px-6 sm:py-28">
+      <div className="mx-auto max-w-[1180px] overflow-hidden rounded-[30px] bg-[#f3f0eb] px-5 py-12 text-center sm:rounded-[38px] sm:px-10 sm:py-16 lg:px-16 lg:py-20">
+        <p className="text-[11px] font-semibold tracking-[0.16em] text-[#d94461]">START WITH SEARCH</p>
+        <h2 className="mx-auto mt-4 max-w-3xl text-[clamp(2rem,5vw,3.75rem)] font-semibold leading-[1.14] tracking-[-0.055em] text-neutral-950">{ja ? "必要なCreatorへ、1件から。" : "Start with one creator, one request."}</h2>
+        <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-neutral-600 sm:text-base">{ja ? "月額契約なしでも始められます。表示価格を見ながら、商品やサービスに合うCreatorを探してみてください。" : "Start without a monthly contract. Explore visible rates and find the right creator for your brand."}</p>
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><Link href={CREATOR_LIST_PATH} className="tm-focus inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-neutral-950 px-6 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-neutral-800"><SearchIcon className="h-4 w-4" />{ja ? "インフルエンサーを探す" : "Explore creators"}</Link><Link href="/signup/company" className="tm-focus inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#f04f6d] px-6 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(240,79,109,0.22)] transition hover:-translate-y-0.5 hover:bg-[#e74362]">{ja ? "無料で企業登録" : "Join free"}<ArrowIcon /></Link></div>
+      </div>
+    </section>
+  );
+}
+
+function HomeFooter({ locale }: { locale: Locale }) {
+  const ja = locale === "ja";
+  return (
+    <footer className="border-t border-neutral-200 bg-white">
+      <div className="mx-auto grid max-w-[1220px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1fr_auto_auto] md:gap-16 lg:px-8">
+        <div><Link href="/home" className="tm-focus inline-block rounded-md"><Image src="/brand/trend-mart-logo.png" alt="Trend Mart" width={174} height={34} className="h-[23px] w-auto" /></Link><p className="mt-4 max-w-xs text-xs leading-6 text-neutral-500">{ja ? "必要なCreatorへ、必要なときに1件から。" : "One creator at a time, whenever your brand needs one."}</p></div>
+        <div><p className="text-xs font-semibold text-neutral-950">{ja ? "サービス" : "Service"}</p><div className="mt-2 grid text-xs text-neutral-500"><a href="#service-overview" className="flex min-h-11 items-center hover:text-neutral-950">{ja ? "サービス概要" : "Overview"}</a><Link href={CREATOR_LIST_PATH} className="flex min-h-11 items-center hover:text-neutral-950">{ja ? "インフルエンサー検索" : "Creator search"}</Link><Link href="/login" className="flex min-h-11 items-center hover:text-neutral-950">{ja ? "ログイン" : "Log in"}</Link><Link href="/signup/company" className="flex min-h-11 items-center hover:text-neutral-950">{ja ? "企業登録" : "Brand signup"}</Link></div></div>
+        <div><p className="text-xs font-semibold text-neutral-950">{ja ? "ポリシー" : "Policy"}</p><div className="mt-2 grid text-xs text-neutral-500"><Link href="/terms" className="flex min-h-11 items-center hover:text-neutral-950">{ja ? "利用規約" : "Terms"}</Link><Link href="/privacy" className="flex min-h-11 items-center hover:text-neutral-950">{ja ? "プライバシーポリシー" : "Privacy"}</Link><Link href="/legal" className="flex min-h-11 items-center hover:text-neutral-950">{ja ? "事業者情報" : "Legal"}</Link></div></div>
+      </div>
+      <div className="border-t border-neutral-100 px-4 py-5 text-center text-[10px] text-neutral-400">© {new Date().getFullYear()} Trendre</div>
+    </footer>
+  );
+}
+
+function fallbackCreators(locale: Locale): CreatorPreview[] {
+  const ja = locale === "ja";
   return [
-    {
-      id: null,
-      displayName: copy.fallbackCreator1Name,
-      category: "Food / Travel / Lifestyle",
-      prefecture: "東京",
-      imageUrl: null,
-      avatarUrl: null,
-      platforms: ["Instagram", "TikTok"],
-      followerRange: null,
-      startingPrice: 50000,
-      startingCurrency: "JPY",
-      menuCount: 8,
-      tag: copy.fallbackCreator1Tag,
-      gradient: CARD_GRADIENTS[0],
-    },
-    {
-      id: null,
-      displayName: copy.fallbackCreator2Name,
-      category: "Fashion / Outdoor",
-      prefecture: "神奈川",
-      imageUrl: null,
-      avatarUrl: null,
-      platforms: ["TikTok", "X"],
-      followerRange: null,
-      startingPrice: 80000,
-      startingCurrency: "JPY",
-      menuCount: 12,
-      tag: copy.fallbackCreator2Tag,
-      gradient: CARD_GRADIENTS[1],
-    },
-    {
-      id: null,
-      displayName: copy.fallbackCreator3Name,
-      category: "Beauty / Camera / UGC",
-      prefecture: "大阪",
-      imageUrl: null,
-      avatarUrl: null,
-      platforms: ["Instagram", "YouTube"],
-      followerRange: null,
-      startingPrice: 30000,
-      startingCurrency: "JPY",
-      menuCount: 6,
-      tag: copy.fallbackCreator3Tag,
-      gradient: CARD_GRADIENTS[2],
-    },
-    {
-      id: null,
-      displayName: copy.fallbackCreator4Name,
-      category: "Gadget / Review",
-      prefecture: "愛知",
-      imageUrl: null,
-      avatarUrl: null,
-      platforms: ["TikTok", "YouTube"],
-      followerRange: null,
-      startingPrice: 100000,
-      startingCurrency: "JPY",
-      menuCount: 10,
-      tag: copy.fallbackCreator4Tag,
-      gradient: CARD_GRADIENTS[3],
-    },
+    { id: null, displayName: "Maya", category: ja ? "美容・スキンケア Creator" : "Beauty / Skincare Creator", prefecture: ja ? "東京" : "Tokyo", imageUrl: "/brand/work-link/beauty-lifestyle.webp", avatarUrl: null, platform: "Instagram / TikTok", followerRange: "30K–50K", startingPrice: 30000, currency: "JPY", menuTitle: ja ? "美容レビュー投稿" : "Beauty review" },
+    { id: null, displayName: "Ren", category: ja ? "アパレル・ファッション Creator" : "Fashion / Lifestyle Creator", prefecture: ja ? "東京・大阪" : "Tokyo / Osaka", imageUrl: "/brand/work-link/fashion-music.webp", avatarUrl: null, platform: "Instagram", followerRange: "50K–100K", startingPrice: 50000, currency: "JPY", menuTitle: ja ? "ファッション投稿" : "Fashion post" },
+    { id: null, displayName: "Aoi", category: ja ? "グルメ・カフェ Creator" : "Food / Cafe Creator", prefecture: ja ? "大阪・福岡" : "Osaka / Fukuoka", imageUrl: "/brand/work-link/gourmet-travel.webp", avatarUrl: null, platform: "Instagram / TikTok", followerRange: "10K–30K", startingPrice: 25000, currency: "JPY", menuTitle: ja ? "店舗体験レビュー" : "Cafe review" },
+    { id: null, displayName: "Rina", category: ja ? "トラベル・旅行 Creator" : "Travel / Hotel Creator", prefecture: ja ? "全国・旅行対応" : "Japan-wide travel", imageUrl: "/brand/work-link/talent-sunset.webp", avatarUrl: null, platform: "Instagram / TikTok", followerRange: "30K–50K", startingPrice: 60000, currency: "JPY", menuTitle: ja ? "ホテル・旅行紹介" : "Hotel / travel post" },
   ];
 }
 
 export default function HomePage() {
   const { locale } = useAppLocale();
   const safeLocale: Locale = locale === "en" ? "en" : "ja";
+  const [creators, setCreators] = useState<CreatorPreview[]>(() => fallbackCreators(safeLocale));
 
-  const copy = useMemo<Record<string, string>>(
-    () =>
-      safeLocale === "ja"
-        ? {
-            heroLine1: "インフルエンサーPRを",
-            heroAccent: '"探す"',
-            heroLine2: "から",
-            heroItalic: '"納品確認"まで。',
-            heroBody:
-              "Trend Martは、インフルエンサーを検索し、依頼し、チャット・納品・支払いまで一元管理できるインフルエンサーマーケティングSaaSです。",
-            searchButton: "検索",
-            chip1: "注目Instagramインフルエンサー",
-            chip2: "TikTokレビュー",
-            chip3: "UGC制作",
-            chip4: "美容・コスメ",
-            chip5: "グルメ・店舗PR",
-            chip6: "¥30,000以下",
-
-            workflowTitle: "PR案件の流れを、ひとつの画面で。",
-            workflowLead:
-              "検索、依頼、承認、チャット、納品確認、支払いまで。案件進行に必要な操作をTrend Mart上で迷わず進められます。",
-
-            illustrationEyebrow: "インフルエンサー検索",
-            illustrationTitle: "ターゲット層とニーズに合わせたインフルエンサーを検索",
-            illustrationBody:
-              "SNS、価格、カテゴリ、対応エリアを見ながら、商品・サービスに合うインフルエンサーをスムーズに探せます。",
-            illustrationCta: "インフルエンサー検索",
-            illustrationFeatureBadge: "SNSごとのインフルエンサー検索",
-            illustrationFeatureTitle: "最適なインフルエンサーをSNS別に検索",
-            illustrationFeatureBody:
-              "Instagram、YouTube、X（旧Twitter）、TikTokなど、SNSごとにインフルエンサーを比較。価格帯、カテゴリ、地域、メニュー内容を確認しながら、ブランドのターゲットに合う依頼先を見つけられます。",
-            illustrationMini1: "無料で検索",
-            illustrationMini2: "表示価格で依頼",
-            illustrationMini3: "納品まで管理",
-
-            toolsTitle: "バラバラの9ツールを、Trend Martひとつに。",
-            toolsBody:
-              "Instagram、TikTok、ChatGPT、スプレッドシート、メール、Drive、Stripeなどに分かれがちなPR業務を、検索から納品確認・支払いまで一画面で進められます。",
-            toolsCta: "インフルエンサーを探す",
-
-            useCaseTitle: "このような目的に合わせて使えます",
-            useCaseCta: "探してみる",
-            useCase1Title: "マーケティング担当",
-            useCase1Body:
-              "新商品PR、認知拡大、SNS投稿施策を、表示価格でスピーディーに発注できます。",
-            useCase2Title: "店舗・体験サービス",
-            useCase2Body:
-              "飲食店、サロン、ジム、イベントなど、来店や予約につながる発信を依頼できます。",
-            useCase3Title: "D2C・ECブランド",
-            useCase3Body:
-              "商品レビュー、UGC素材、LPや広告で使える投稿素材の獲得に活用できます。",
-            useCase4Title: "採用・求人PR",
-            useCase4Body:
-              "職場の雰囲気や働き方を、インフルエンサーの自然な発信で届けられます。",
-
-            finalLine1: "たった数分で",
-            finalAccent: "PR案件の依頼",
-            finalLine2: "ができます。",
-            finalBody:
-              "まずは検索から。商品や店舗に合うインフルエンサーを見つけて、Trend Mart上で依頼・納品確認まで進めましょう。",
-            finalPrimary: "インフルエンサーを探す",
-            finalSecondary: "無料で企業登録",
-            finalMini1: "無料で検索",
-            finalMini2: "表示価格で依頼",
-            finalMini3: "納品・支払いまで管理",
-
-            creatorFallback: "Influencer",
-            fallbackCreator1Name: "なつみ",
-            fallbackCreator2Name: "yuto",
-            fallbackCreator3Name: "emi",
-            fallbackCreator4Name: "コウ",
-            fallbackCreator1Tag: "店舗PRに強い",
-            fallbackCreator2Tag: "自然なレビュー",
-            fallbackCreator3Tag: "UGC・商品撮影",
-            fallbackCreator4Tag: "レビュー動画",
-          }
-        : {
-            heroLine1: "Run influencer PR",
-            heroAccent: '"from search"',
-            heroLine2: " to",
-            heroItalic: '"final delivery."',
-            heroBody:
-              "Trendre helps brands search influencers, order with visible pricing, and manage chat, delivery, and payment in one influencer marketing platform.",
-            searchButton: "Search",
-            chip1: "Rising Instagram influencers",
-            chip2: "TikTok reviews",
-            chip3: "UGC creation",
-            chip4: "Beauty",
-            chip5: "Food and store PR",
-            chip6: "Under ¥30,000",
-
-            workflowTitle: "Everything in one workflow.",
-            workflowLead:
-              "Search, request, approval, chat, delivery review, and payment management all happen inside Trendre.",
-
-            illustrationEyebrow: "Influencer Search",
-            illustrationTitle: "Search influencers by audience and campaign needs.",
-            illustrationBody:
-              "Compare social channels, pricing, categories, and available regions to find the right influencer for your product or service.",
-            illustrationCta: "Search influencers",
-            illustrationFeatureBadge: "Search by social channel",
-            illustrationFeatureTitle: "Find the right influencer by SNS.",
-            illustrationFeatureBody:
-              "Search across Instagram, YouTube, X, TikTok, and other social channels. Compare pricing, categories, regions, and menu details to find influencers that match your campaign target.",
-            illustrationMini1: "Free search",
-            illustrationMini2: "Visible pricing",
-            illustrationMini3: "Delivery tracking",
-
-            toolsTitle: "Replace DMs, spreadsheets, and payment tracking.",
-            toolsBody:
-              "Trendre keeps influencer discovery, ordering, messaging, delivery review, and payout management in one place.",
-            toolsCta: "Search influencers",
-
-            useCaseTitle: "Use Trendre for goals like these",
-            useCaseCta: "Start",
-            useCase1Title: "Marketing teams",
-            useCase1Body:
-              "Launch product PR, awareness campaigns, and social posts with visible pricing.",
-            useCase2Title: "Local businesses",
-            useCase2Body:
-              "Request store visits, restaurant PR, salons, gyms, and local experiences.",
-            useCase3Title: "D2C and ecommerce",
-            useCase3Body:
-              "Collect reviews, UGC assets, and content for ads and landing pages.",
-            useCase4Title: "Recruiting PR",
-            useCase4Body:
-              "Show workplace culture and hiring stories through natural influencer content.",
-
-            finalLine1: "Your next influencer campaign is ",
-            finalAccent: "minutes",
-            finalLine2: " away.",
-            finalBody:
-              "Start with search. Find influencers that fit your product and manage the request through delivery inside Trendre.",
-            finalPrimary: "Search influencers",
-            finalSecondary: "Join as a brand",
-            finalMini1: "Free to search",
-            finalMini2: "Visible pricing",
-            finalMini3: "Delivery and payment tracking",
-
-            creatorFallback: "Influencer",
-            fallbackCreator1Name: "Natsumi",
-            fallbackCreator2Name: "Yuto",
-            fallbackCreator3Name: "Emi",
-            fallbackCreator4Name: "Kou",
-            fallbackCreator1Tag: "Store PR",
-            fallbackCreator2Tag: "Natural review",
-            fallbackCreator3Tag: "UGC / product photo",
-            fallbackCreator4Tag: "Review video",
-          },
-    [safeLocale]
-  );
-
-  const searchSuggestions = useMemo(
-    () =>
-      safeLocale === "ja"
-        ? ["スキンケア", "グルメ", "メンズファッション", "フィットネス", "転職", "インテリア"]
-        : ["skincare", "food", "men's fashion", "fitness", "career change", "interior"],
-    [safeLocale]
-  );
-
-  const workflowSteps = useMemo<WorkflowStep[]>(
-    () =>
-      safeLocale === "ja"
-        ? [
-            {
-              number: "01",
-              title: "探す",
-              eyebrow: "Influencer Search",
-              headline: "エリア・価格・SNSで絞り込み、ブランドに合うインフルエンサーを探す。",
-              body:
-                "Instagram、TikTok、YouTubeなどのSNS種別に加え、体験可能なエリア、価格帯、カテゴリで絞り込み。表示価格を見ながら候補を比較できます。",
-              bullets: ["体験可能なエリアで絞り込み", "価格帯を見ながら比較", "SNS・カテゴリ別に検索"],
-              metricLabel: "最初のアクション",
-              metricValue: "検索から開始",
-              previewTitle: "インフルエンサー検索",
-              previewBadge: "Search",
-              previewRows: ["エリア・価格で絞り込み", "SNS別に比較", "表示価格を確認"],
-              previewCta: "候補を見る",
-            },
-            {
-              number: "02",
-              title: "依頼",
-              eyebrow: "Direct Request",
-              headline: "依頼内容・条件・希望納期を整理して、そのまま発注する。",
-              body:
-                "商品情報、投稿条件、PR表記、参考素材、希望納期を入力。インフルエンサーに伝えるべき条件を整理した状態で依頼できます。",
-              bullets: ["依頼条件を整理", "参考素材を添付", "表示価格でスムーズに発注"],
-              metricLabel: "依頼形式",
-              metricValue: "フォームで完結",
-              previewTitle: "依頼内容作成",
-              previewBadge: "Brief",
-              previewRows: ["商品名・URLを入力", "投稿条件を指定", "参考画像を追加"],
-              previewCta: "依頼する",
-            },
-            {
-              number: "03",
-              title: "承認",
-              eyebrow: "72h Approval",
-              headline: "72時間以内の承認ルールで、待ちっぱなしを防ぐ。",
-              body:
-                "インフルエンサーが依頼を受ける場合は72時間以内に承認。注文後72時間レスポンスがない場合は自動キャンセルされるため、安心して次の判断へ進めます。",
-              bullets: ["72時間以内に承認可否を確認", "無応答は自動キャンセル", "案件停滞を防ぐ安心設計"],
-              metricLabel: "承認期限",
-              metricValue: "72時間",
-              previewTitle: "承認ステータス",
-              previewBadge: "Pending",
-              previewRows: ["承認待ち", "期限まで残り時間を表示", "無応答時は自動キャンセル"],
-              previewCta: "状況確認",
-            },
-            {
-              number: "04",
-              title: "チャット",
-              eyebrow: "Project Chat",
-              headline: "事前に不明点や条件をすり合わせて、認識ズレを減らす。",
-              body:
-                "来店日時、撮影条件、投稿内容、配送先など、事前に確認したいことを案件内チャットでやり取りできます。条件の認識ズレを防ぎます。",
-              bullets: ["不明点を事前確認", "条件のすり合わせが可能", "案件ごとに履歴を残せる"],
-              metricLabel: "連絡手段",
-              metricValue: "案件内チャット",
-              previewTitle: "Trend Mart内チャット",
-              previewBadge: "Chat",
-              previewRows: ["配送先を共有", "投稿条件を確認", "不明点を相談"],
-              previewCta: "返信する",
-            },
-            {
-              number: "05",
-              title: "納品",
-              eyebrow: "Delivery Review",
-              headline: "納品物をワンクリックで確認し、必要なら修正依頼。",
-              body:
-                "インフルエンサーから届いた投稿URLや納品URLをすぐ確認できます。条件に満たない箇所がある場合は、そのまま修正依頼を送れます。",
-              bullets: ["納品URLをすぐ確認", "条件違いは修正依頼", "確認から完了承認まで一画面"],
-              metricLabel: "確認導線",
-              metricValue: "URLを即確認",
-              previewTitle: "納品確認",
-              previewBadge: "Delivered",
-              previewRows: ["納品URLが届く", "内容を確認", "承認または修正依頼"],
-              previewCta: "URLを開く",
-            },
-            {
-              number: "06",
-              title: "支払い",
-              eyebrow: "Secure Payment",
-              headline: "Stripeで安全に決済し、確認後の報酬支払いまで管理。",
-              body:
-                "決済にはStripeを導入。企業の決済はインフルエンサー承認後に確定し、納品確認・修正依頼・完了承認の流れを経て報酬支払いへ進みます。",
-              bullets: ["Stripe導入の安全な決済", "承認後に決済確定", "完了承認後に報酬支払いへ"],
-              metricLabel: "支払い管理",
-              metricValue: "Trend Martが管理",
-              previewTitle: "支払い情報",
-              previewBadge: "Paid",
-              previewRows: ["支払い合計を表示", "手数料を確認", "報酬送金を管理"],
-              previewCta: "明細を見る",
-            },
-          ]
-        : [
-            {
-              number: "01",
-              title: "Search",
-              eyebrow: "Influencer Search",
-              headline: "Find influencers by area, price, SNS, and category.",
-              body:
-                "Filter by social platform, available area, price range, and category so your team can compare influencers with visible pricing before sending a request.",
-              bullets: ["Filter by area and price", "Compare by SNS and category", "Review visible pricing"],
-              metricLabel: "First action",
-              metricValue: "Start with search",
-              previewTitle: "Influencer Search",
-              previewBadge: "Search",
-              previewRows: ["Filter by area and price", "Compare platforms", "Check visible pricing"],
-              previewCta: "View matches",
-            },
-            {
-              number: "02",
-              title: "Request",
-              eyebrow: "Direct Request",
-              headline: "Send a clear request with requirements, assets, and deadline.",
-              body:
-                "Organize product details, posting requirements, PR notes, reference assets, and desired timing before sending the order.",
-              bullets: ["Organize requirements", "Attach reference assets", "Order with visible pricing"],
-              metricLabel: "Request type",
-              metricValue: "Form based",
-              previewTitle: "Campaign Brief",
-              previewBadge: "Brief",
-              previewRows: ["Add product URL", "Set posting notes", "Attach references"],
-              previewCta: "Request",
-            },
-            {
-              number: "03",
-              title: "Approval",
-              eyebrow: "72h Approval",
-              headline: "Prevent stalled campaigns with a 72-hour approval window.",
-              body:
-                "Influencers accept within 72 hours when they take a request. If there is no response, the order is automatically canceled for safer campaign operations.",
-              bullets: ["72-hour response window", "Auto-cancel when unanswered", "Avoid stalled projects"],
-              metricLabel: "Approval window",
-              metricValue: "72 hours",
-              previewTitle: "Approval Status",
-              previewBadge: "Pending",
-              previewRows: ["Waiting for approval", "Deadline visible", "Auto-cancel if unanswered"],
-              previewCta: "Check",
-            },
-            {
-              number: "04",
-              title: "Chat",
-              eyebrow: "Project Chat",
-              headline: "Clarify questions and align conditions before work begins.",
-              body:
-                "Use order-based chat to confirm visit timing, posting requirements, shipping details, and any unclear campaign conditions.",
-              bullets: ["Ask questions in advance", "Align campaign conditions", "Keep history per order"],
-              metricLabel: "Communication",
-              metricValue: "In-order chat",
-              previewTitle: "Trendre Chat",
-              previewBadge: "Chat",
-              previewRows: ["Share shipping details", "Confirm post notes", "Ask questions"],
-              previewCta: "Reply",
-            },
-            {
-              number: "05",
-              title: "Delivery",
-              eyebrow: "Delivery Review",
-              headline: "Review delivered URLs in one click and request revisions.",
-              body:
-                "Open the delivered URL from the order screen. If the content does not meet the brief, send a revision request before completion.",
-              bullets: ["Open delivery URL", "Request revisions", "Approve after review"],
-              metricLabel: "Review path",
-              metricValue: "Open URL",
-              previewTitle: "Delivery Review",
-              previewBadge: "Delivered",
-              previewRows: ["Delivery URL received", "Review content", "Approve or revise"],
-              previewCta: "Open URL",
-            },
-            {
-              number: "06",
-              title: "Payment",
-              eyebrow: "Secure Payment",
-              headline: "Secure payments with Stripe and manage payouts after approval.",
-              body:
-                "Trendre uses Stripe for payment infrastructure. Brand payment is confirmed after influencer approval, then payout flow proceeds after delivery review and completion.",
-              bullets: ["Stripe payment infrastructure", "Confirmed after approval", "Payout after completion"],
-              metricLabel: "Payment",
-              metricValue: "Managed by Trendre",
-              previewTitle: "Payment Details",
-              previewBadge: "Paid",
-              previewRows: ["View total", "Check fees", "Manage payout"],
-              previewCta: "Details",
-            },
-          ],
-    [safeLocale]
-  );
-
-  const [creators, setCreators] = useState<CreatorPreview[]>(() =>
-    fallbackCreators(copy)
-  );
+  const workflowSteps = useMemo<WorkflowStep[]>(() => safeLocale === "ja" ? [
+    { number: "01", title: "探す", headline: "条件を比べて、ブランドに合うCreatorを見つける。", body: "SNS、カテゴリ、エリア、表示価格から候補を絞り込みます。" },
+    { number: "02", title: "依頼", headline: "伝えるべき内容を整理して、そのまま依頼。", body: "商品情報、投稿条件、参考素材、希望時期をまとめて送れます。" },
+    { number: "03", title: "承認", headline: "72時間以内の回答で、待ち続けない。", body: "回答期限を明確にし、無応答の場合は自動でキャンセルされます。" },
+    { number: "04", title: "チャット", headline: "案件ごとの会話で、認識を揃える。", body: "日程や投稿内容など、不明点を案件内で確認できます。" },
+    { number: "05", title: "納品", headline: "届いたURLを確認し、必要なら修正を依頼。", body: "納品確認から完了承認まで、同じ画面で進められます。" },
+    { number: "06", title: "支払い", headline: "決済から報酬支払いまで、流れを止めない。", body: "Stripeを通じた決済を、案件の進行と一緒に管理します。" },
+  ] : [
+    { number: "01", title: "Search", headline: "Compare creators who fit your brand.", body: "Filter by platform, category, area, and visible rates." },
+    { number: "02", title: "Request", headline: "Create a clear brief and send it directly.", body: "Organize product details, requirements, assets, and timing." },
+    { number: "03", title: "Approval", headline: "Get a response within 72 hours.", body: "Clear response windows prevent campaigns from stalling." },
+    { number: "04", title: "Chat", headline: "Keep every detail aligned in one conversation.", body: "Discuss timing, content, and requirements per campaign." },
+    { number: "05", title: "Delivery", headline: "Review delivery and request revisions if needed.", body: "Open delivered URLs and approve once the work is ready." },
+    { number: "06", title: "Payment", headline: "Keep payment connected to campaign progress.", body: "Stripe-powered payments move with the project workflow." },
+  ], [safeLocale]);
 
   useEffect(() => {
-    setCreators(fallbackCreators(copy));
-  }, [copy]);
+    setCreators(fallbackCreators(safeLocale));
+  }, [safeLocale]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadCreators = async () => {
+    let mounted = true;
+    async function loadCreators() {
       try {
         const payoutResult = await supabase.rpc("get_payout_ready_creator_ids");
+        if (payoutResult.error) return;
+        const ids = Array.from(new Set(((payoutResult.data ?? []) as { creator_id: string | null }[]).map((row) => row.creator_id).filter((id): id is string => Boolean(id))));
+        if (ids.length === 0) return;
 
-        if (payoutResult.error) {
-          console.error("home creator ids load error", payoutResult.error);
-          return;
-        }
-
-        const payoutReadyCreatorIds = Array.from(
-          new Set(
-            ((payoutResult.data ?? []) as { creator_id: string | null }[])
-              .map((row) => row.creator_id)
-              .filter((id): id is string => Boolean(id))
-          )
-        );
-
-        if (payoutReadyCreatorIds.length === 0) return;
-
-        const creatorsResult = await supabase
-          .from("creators")
-          .select(
-            `
-            id,
-            display_name,
-            avatar_url,
-            category,
-            prefecture,
-            rating,
-            total_orders,
-            creator_social_accounts (
-              platform,
-              url,
-              handle,
-              follower_range,
-              audience_country
-            )
-          `
-          )
-          .eq("approval_status", "approved")
-          .eq("is_public", true)
-          .in("id", payoutReadyCreatorIds)
-          .order("created_at", { ascending: false })
-          .limit(8);
-
-        if (creatorsResult.error) {
-          console.error("home creators load error", creatorsResult.error);
-          return;
-        }
-
-        const creatorRows = (creatorsResult.data ?? []) as CreatorRow[];
-        const creatorIds = creatorRows.map((row) => row.id);
-
+        const creatorResult = await supabase.from("creators").select(`id, display_name, avatar_url, category, prefecture, creator_social_accounts ( platform, handle, follower_range )`).eq("approval_status", "approved").eq("is_public", true).in("id", ids).order("created_at", { ascending: false }).limit(8);
+        if (creatorResult.error) return;
+        const rows = (creatorResult.data ?? []) as CreatorRow[];
+        const creatorIds = rows.map((row) => row.id);
         if (creatorIds.length === 0) return;
 
-        const [menusResult, portfolioResult] = await Promise.all([
-          supabase
-            .from("creator_menus")
-            .select("id, creator_id, title, price, currency, is_active")
-            .in("creator_id", creatorIds)
-            .eq("is_active", true),
-
-          supabase
-            .from("creator_portfolio_assets")
-            .select(
-              "id, creator_id, asset_url, asset_type, sort_order, is_public, created_at"
-            )
-            .in("creator_id", creatorIds)
-            .eq("is_public", true)
-            .eq("asset_type", "image")
-            .order("sort_order", { ascending: true })
-            .order("created_at", { ascending: true }),
+        const [menuResult, portfolioResult] = await Promise.all([
+          supabase.from("creator_menus").select("id, creator_id, title, price, currency").in("creator_id", creatorIds).eq("is_active", true),
+          supabase.from("creator_portfolio_assets").select("creator_id, asset_url").in("creator_id", creatorIds).eq("is_public", true).eq("asset_type", "image").order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
         ]);
-
-        const menuRows = menusResult.error
-          ? []
-          : ((menusResult.data ?? []) as MenuRow[]);
-
-        const portfolioRows = portfolioResult.error
-          ? []
-          : ((portfolioResult.data ?? []) as PortfolioAssetRow[]);
-
-        const menuMap = new Map<string, MenuRow[]>();
-        for (const menu of menuRows) {
-          if (!menu.creator_id) continue;
-          const list = menuMap.get(menu.creator_id) ?? [];
-          list.push(menu);
-          menuMap.set(menu.creator_id, list);
-        }
-
-        const portfolioMap = new Map<string, PortfolioAssetRow[]>();
-        for (const asset of portfolioRows) {
-          if (!asset.creator_id) continue;
-          const list = portfolioMap.get(asset.creator_id) ?? [];
-          list.push(asset);
-          portfolioMap.set(asset.creator_id, list);
-        }
-
-        const nextCreators = creatorRows
-          .map((row, index): CreatorPreview | null => {
-            const creatorMenus = menuMap.get(row.id) ?? [];
-
-            if (creatorMenus.length === 0) return null;
-
-            const socials = Array.isArray(row.creator_social_accounts)
-              ? row.creator_social_accounts
-              : row.creator_social_accounts
-                ? [row.creator_social_accounts]
-                : [];
-
-            const platforms = Array.from(
-              new Set(
-                socials
-                  .map((social) => social.platform?.trim())
-                  .filter((value): value is string => Boolean(value))
-              )
-            );
-
-            const pricedMenus = creatorMenus
-              .filter((menu) => typeof menu.price === "number")
-              .sort((a, b) => Number(a.price) - Number(b.price));
-
-            const startingMenu = pricedMenus[0] ?? creatorMenus[0] ?? null;
-            const portfolio = portfolioMap.get(row.id) ?? [];
-            const firstPortfolioImage = portfolio[0]?.asset_url?.trim() || null;
-            const primary = socials[0] ?? null;
-            const primaryName = getSocialAccountName(primary);
-
-            return {
-              id: row.id,
-              displayName:
-                row.display_name?.trim() ||
-                primaryName ||
-                copy.creatorFallback,
-              category: row.category?.trim() || "Influencer",
-              prefecture: row.prefecture?.trim() || "地域未設定",
-              imageUrl: firstPortfolioImage,
-              avatarUrl: row.avatar_url?.trim() || null,
-              platforms: platforms.length > 0 ? platforms : ["Instagram"],
-              followerRange: primary?.follower_range?.trim() || null,
-              startingPrice:
-                typeof startingMenu?.price === "number"
-                  ? Number(startingMenu.price)
-                  : null,
-              startingCurrency: startingMenu?.currency ?? "JPY",
-              menuCount: creatorMenus.length,
-              tag: startingMenu?.title?.trim() || row.category?.trim() || "PR / UGC",
-              gradient: CARD_GRADIENTS[index % CARD_GRADIENTS.length],
-            };
-          })
-          .filter((creator): creator is CreatorPreview => Boolean(creator))
-          .slice(0, 4);
-
-        if (nextCreators.length > 0 && isMounted) {
-          setCreators(nextCreators);
-        }
+        const menus = menuResult.error ? [] : (menuResult.data ?? []) as MenuRow[];
+        const assets = portfolioResult.error ? [] : (portfolioResult.data ?? []) as PortfolioAssetRow[];
+        const next = rows.map((row): CreatorPreview | null => {
+          const menu = menus.filter((item) => item.creator_id === row.id).sort((a, b) => Number(a.price ?? Infinity) - Number(b.price ?? Infinity))[0];
+          if (!menu) return null;
+          const socials = Array.isArray(row.creator_social_accounts) ? row.creator_social_accounts : row.creator_social_accounts ? [row.creator_social_accounts] : [];
+          const social = socials[0];
+          return { id: row.id, displayName: row.display_name?.trim() || social?.handle?.replace(/^@/, "") || "Creator", category: row.category?.trim() || "Creator", prefecture: row.prefecture?.trim() || (safeLocale === "ja" ? "地域未設定" : "Area not set"), imageUrl: assets.find((item) => item.creator_id === row.id)?.asset_url || null, avatarUrl: row.avatar_url?.trim() || null, platform: social?.platform?.trim() || "Instagram", followerRange: social?.follower_range?.trim() || null, startingPrice: typeof menu.price === "number" ? menu.price : null, currency: menu.currency || "JPY", menuTitle: menu.title?.trim() || "PR" };
+        }).filter((item): item is CreatorPreview => Boolean(item)).slice(0, 4);
+        if (mounted && next.length >= 2) setCreators([...next, ...fallbackCreators(safeLocale)].slice(0, 4));
       } catch (error) {
         console.error("home creators load error", error);
       }
-    };
-
+    }
     void loadCreators();
+    return () => { mounted = false; };
+  }, [safeLocale]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [copy.creatorFallback]);
-
-  const useCases: UseCaseCardProps[] = [
-    {
-      title: copy.useCase1Title,
-      body: copy.useCase1Body,
-      cta: copy.useCaseCta,
-      tone: "rose",
-    },
-    {
-      title: copy.useCase2Title,
-      body: copy.useCase2Body,
-      cta: copy.useCaseCta,
-      tone: "blue",
-    },
-    {
-      title: copy.useCase3Title,
-      body: copy.useCase3Body,
-      cta: copy.useCaseCta,
-      tone: "violet",
-    },
-    {
-      title: copy.useCase4Title,
-      body: copy.useCase4Body,
-      cta: copy.useCaseCta,
-      tone: "orange",
-    },
-  ];
+  useEffect(() => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(".tm-reveal"));
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      elements.forEach((element) => element.classList.add("tm-visible"));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add("tm-visible"); observer.unobserve(entry.target); } }), { threshold: 0.12 });
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-white text-slate-950">
-      <PublicHeader />
-
+    <div className="tm-home min-h-screen overflow-x-clip bg-[#fbfaf7] font-sans text-neutral-950">
+      <HomeHeader locale={safeLocale} />
       <main>
-        <HeroSection
-          copy={copy}
-          creators={creators}
-          suggestions={searchSuggestions}
-        />
-        <TrendMarqueeSection />
-        <WorkflowSection copy={copy} steps={workflowSteps} />
-        <IllustrationSection copy={copy} />
-        <ToolsSection copy={copy} />
-        <UseCaseSection copy={copy} useCases={useCases} />
-        <FinalCta copy={copy} />
+        <Hero creators={fallbackCreators(safeLocale)} locale={safeLocale} />
+        <MarketTension locale={safeLocale} />
+        <Discovery creators={fallbackCreators(safeLocale)} locale={safeLocale} />
+        <UgcSection locale={safeLocale} />
+        <TestAndScale locale={safeLocale} />
+        <Comparison locale={safeLocale} />
+        <Workflow steps={workflowSteps} locale={safeLocale} />
+        <Assurance locale={safeLocale} />
+        <UseCases locale={safeLocale} />
+        <Faq locale={safeLocale} />
+        <FinalCta locale={safeLocale} />
       </main>
-
-      <PublicFooter />
+      <HomeFooter locale={safeLocale} />
+      <style jsx global>{`
+        .tm-home { --tm-pink: ${PINK}; }
+        .tm-home ::selection { background: rgba(240, 79, 109, 0.2); }
+        .tm-focus:focus-visible { outline: 3px solid rgba(240, 79, 109, 0.28); outline-offset: 3px; }
+        .tm-reveal { opacity: 0; transform: translateY(18px); transition: opacity 760ms cubic-bezier(.22,.8,.3,1), transform 760ms cubic-bezier(.22,.8,.3,1); }
+        .tm-reveal.tm-visible { opacity: 1; transform: translateY(0); }
+        .tm-delay-1 { transition-delay: 80ms; }
+        .tm-delay-2 { transition-delay: 150ms; }
+        .tm-delay-3 { transition-delay: 220ms; }
+        .tm-float { animation: tmFloat 5.2s ease-in-out infinite; }
+        .tm-preview-enter { animation: tmPreviewIn 480ms cubic-bezier(.22,.8,.3,1) both; }
+        .tm-progress { animation: tmProgress 1.1s cubic-bezier(.22,.8,.3,1) both; transform-origin: left; }
+        @keyframes tmFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+        @keyframes tmPreviewIn { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes tmProgress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        @media (prefers-reduced-motion: reduce) {
+          .tm-home *, .tm-home *::before, .tm-home *::after { scroll-behavior: auto !important; }
+          .tm-reveal { opacity: 1; transform: none; transition: none; }
+          .tm-float, .tm-preview-enter, .tm-progress { animation: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
