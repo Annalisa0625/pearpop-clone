@@ -1,10 +1,13 @@
 // File: app/api/requests/create/route.ts
 
 import { NextResponse } from "next/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/types/database.types";
 
 export async function POST(req: Request) {
+  if (isCreatorOnlyRelease()) return NextResponse.json({ error: "Not Found" }, { status: 404 });
+
   const supabase = await createSupabaseServerClient();
 
   // ① ログイン確認

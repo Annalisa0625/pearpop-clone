@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { isCreatorOnlyCompanyResourceActor } from "@/lib/release-mode";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -62,6 +63,16 @@ export async function GET(
 
     if (!chat) {
       return NextResponse.json({ message: "Chat not found" }, { status: 404 });
+    }
+
+    if (
+      isCreatorOnlyCompanyResourceActor({
+        actorUserId: user.id,
+        creatorUserId: chat.creator_user_id,
+        companyUserId: chat.company_user_id,
+      })
+    ) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
     const canAccess =

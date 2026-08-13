@@ -1,6 +1,7 @@
 // File: app/api/chats/[chatId]/messages/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
+import { isCreatorOnlyCompanyResourceActor } from "@/lib/release-mode";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   buildLineMessage,
@@ -319,6 +320,16 @@ export async function GET(
       );
     }
 
+    if (
+      isCreatorOnlyCompanyResourceActor({
+        actorUserId: user.id,
+        creatorUserId: chat.creator_user_id,
+        companyUserId: chat.company_user_id,
+      })
+    ) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
+
     const canAccess =
       chat.company_user_id === user.id || chat.creator_user_id === user.id;
 
@@ -412,6 +423,16 @@ export async function POST(
         { error: "チャットが見つかりません" },
         { status: 404 }
       );
+    }
+
+    if (
+      isCreatorOnlyCompanyResourceActor({
+        actorUserId: user.id,
+        creatorUserId: chat.creator_user_id,
+        companyUserId: chat.company_user_id,
+      })
+    ) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
     const recipientUserId = getRecipientUserId(chat as ChatRow, user.id);

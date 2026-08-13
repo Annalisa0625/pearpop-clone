@@ -1,5 +1,9 @@
 // File: app/api/orders/[id]/reference-assets/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import {
+  isCreatorOnlyCompanyResourceActor,
+  isCreatorOnlyRelease,
+} from "@/lib/release-mode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -139,6 +143,33 @@ export async function GET(
 
     if (authError || !user) {
       return NextResponse.json({ error: authError }, { status: 401 });
+    }
+
+    if (isCreatorOnlyRelease()) {
+      const orderResult: any = await withTimeout(
+        supabaseAdmin
+          .from("orders")
+          .select("b_user_id, creator_user_id")
+          .eq("id", id)
+          .maybeSingle(),
+        DB_TIMEOUT_MS,
+        "order lookup timeout"
+      );
+
+      if (orderResult?.error) {
+        throw orderResult.error;
+      }
+
+      if (
+        orderResult?.data &&
+        isCreatorOnlyCompanyResourceActor({
+          actorUserId: user.id,
+          creatorUserId: orderResult.data.creator_user_id,
+          companyUserId: orderResult.data.b_user_id,
+        })
+      ) {
+        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+      }
     }
 
     const result: any = await withTimeout(

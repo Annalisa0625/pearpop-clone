@@ -1,5 +1,6 @@
 // File: app/api/orders/[id]/chat/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { isCreatorOnlyCompanyResourceActor } from "@/lib/release-mode";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   canCreateOrderChatForOrder,
@@ -65,6 +66,16 @@ export async function GET(
         { error: "注文が見つかりませんでした" },
         { status: 404 }
       );
+    }
+
+    if (
+      isCreatorOnlyCompanyResourceActor({
+        actorUserId: user.id,
+        creatorUserId: order.creator_user_id,
+        companyUserId: order.b_user_id,
+      })
+    ) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
     if (!isOrderChatParticipant(order, user.id)) {

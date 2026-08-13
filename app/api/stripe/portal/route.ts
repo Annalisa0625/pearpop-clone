@@ -1,5 +1,6 @@
 // app/api/stripe/portal/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getBaseUrl, getStripe } from "@/lib/stripe";
 
@@ -158,6 +159,8 @@ async function resolveStrictStripeCustomer(args: {
 }
 
 export async function POST(req: NextRequest) {
+  if (isCreatorOnlyRelease()) return NextResponse.json({ error: "Not Found" }, { status: 404 });
+
   try {
     const { user, error: authError } = await getAuthenticatedUser(req);
 

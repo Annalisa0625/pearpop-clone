@@ -1,6 +1,7 @@
 // app/api/signup/request/route.ts
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
@@ -12,6 +13,10 @@ export async function POST(req: Request) {
         { error: "email and role are required" },
         { status: 400 }
       );
+    }
+
+    if (isCreatorOnlyRelease() && role === "company") {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
     if (!["creator", "company"].includes(role)) {

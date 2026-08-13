@@ -1,5 +1,6 @@
 // File: app/api/orders/sync-checkout-session/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -317,6 +318,8 @@ export async function HEAD() {
 }
 
 export async function POST(req: NextRequest) {
+  if (isCreatorOnlyRelease()) return NextResponse.json({ error: "Not Found" }, { status: 404 });
+
   let deps: ServerDeps | null = null;
   let actorUserId: string | null = null;
   let orderIdForError: string | null = null;

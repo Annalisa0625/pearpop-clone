@@ -1,5 +1,6 @@
 // app/api/signup/complete-company/route.ts
 import { NextResponse } from "next/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const TERMS_VERSION = "2026-03-29-v1";
@@ -413,6 +414,10 @@ async function completeWithLegacyToken(body: CompleteCompanyBody) {
 }
 
 export async function POST(req: Request) {
+  if (isCreatorOnlyRelease()) {
+    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  }
+
   try {
     const body = (await req.json()) as CompleteCompanyBody;
 

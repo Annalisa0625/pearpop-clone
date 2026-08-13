@@ -1,5 +1,6 @@
 // app/api/stripe/sync-current-subscription/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getStripe } from "@/lib/stripe";
@@ -370,6 +371,8 @@ async function findLatestRelevantSubscription(args: {
 }
 
 export async function POST(req: NextRequest) {
+  if (isCreatorOnlyRelease()) return NextResponse.json({ error: "Not Found" }, { status: 404 });
+
   try {
     const { user, error: authError } = await getAuthenticatedUser(req);
 
