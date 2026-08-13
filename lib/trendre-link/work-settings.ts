@@ -16,6 +16,7 @@ export function setCreatorLinkWorkEnabled<T extends CreatorLinkWorkState>(value:
   return {
     ...value,
     simple: { ...value.simple, isEnabled: enabled },
-    pr: { ...value.pr, isEnabled: enabled },
+    // Structured PR quotes are not part of the C-only public release.
+    pr: { ...value.pr, isEnabled: false },
   };
 }

@@ -53,6 +53,14 @@ function formatMoney(value: number | string | null | undefined) {
   }).format(amount) : String(value);
 }
 
+function safeReplyMailto(email: string | null | undefined) {
+  const normalized = email?.trim() ?? "";
+  if (!/^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i.test(normalized)) return null;
+  const address = encodeURIComponent(normalized).replace(/%40/i, "@");
+  const subject = encodeURIComponent("Trendre Linkからのお問い合わせについて");
+  return `mailto:${address}?subject=${subject}`;
+}
+
 function statusLabel(status: string) {
   if (status === "new") return "見積もりを作成してください";
   if (status === "creator_reviewing") return "確認中";
@@ -168,7 +176,9 @@ export default function CreatorInquiryDetailPage() {
     }
     return quote.status;
   }, [quote]);
-  const canManageQuote = !effectiveQuoteStatus || effectiveQuoteStatus === "sent";
+  const isSimpleLinkInquiry = inquiry?.inquiry_type === "other";
+  const canManageQuote = !isSimpleLinkInquiry && (!effectiveQuoteStatus || effectiveQuoteStatus === "sent");
+  const replyMailto = safeReplyMailto(inquiry?.contact_email);
 
   const openQuote = () => {
     if (!canManageQuote) return;
@@ -280,12 +290,12 @@ export default function CreatorInquiryDetailPage() {
         <div className="mt-4 rounded-[18px] bg-white px-6 py-12 text-center ring-1 ring-slate-200"><p className="text-sm">{error}</p><button type="button" onClick={() => void load()} className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm text-white">再読み込み</button></div>
       ) : inquiry ? <>
         <section className="px-1 pb-5 pt-3">
-          <p className="text-[12px] text-slate-500">{quote && effectiveQuoteStatus ? quoteStatusLabel(effectiveQuoteStatus) : statusLabel(inquiry.status)}</p>
+          <p className="text-[12px] text-slate-500">{isSimpleLinkInquiry ? "新しいお問い合わせ" : quote && effectiveQuoteStatus ? quoteStatusLabel(effectiveQuoteStatus) : statusLabel(inquiry.status)}</p>
           <h2 className="mt-3 text-[25px] font-semibold tracking-[-0.04em] text-slate-950">{inquiry.company_name || inquiry.contact_name}</h2>
           <p className="mt-2 text-[14px] text-slate-500">{[requestType, inquiry.product_name].filter(Boolean).join(" · ")}</p>
         </section>
 
-        {quote ? <section className={`mb-5 rounded-[18px] px-5 py-5 text-white ${quoteCardClass(effectiveQuoteStatus || quote.status)}`}>
+        {quote && !isSimpleLinkInquiry ? <section className={`mb-5 rounded-[18px] px-5 py-5 text-white ${quoteCardClass(effectiveQuoteStatus || quote.status)}`}>
           <div className="flex items-start justify-between"><div><p className="text-[11px] text-white/55">送信済みの見積もり</p><p className="mt-2 text-[27px] font-semibold">{formatMoney(quote.quoted_amount)}</p></div><span className="max-w-[150px] text-right text-[11px] leading-5 text-white/70">{quoteStatusLabel(effectiveQuoteStatus || quote.status)}</span></div>
           <div className="mt-4 border-t border-white/10 pt-4"><p className="text-[10px] text-white/45">受取予定額</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.creator_payout_amount)}</p></div>
           {quote.note ? <p className="mt-4 border-t border-white/10 pt-4 text-[12px] leading-6 text-white/75">企業への備考: {quote.note}</p> : null}
@@ -331,6 +341,7 @@ export default function CreatorInquiryDetailPage() {
             <Row name="企業SNS" value={socialDisplay} />
             <Row name="受信日時" value={formatDate(inquiry.created_at)} />
           </Section>
+          {isSimpleLinkInquiry && replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">メールで返信する</a> : null}
         </div>
 
         {sendNotice ? (

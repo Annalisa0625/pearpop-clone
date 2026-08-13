@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CAMPAIGN_GOALS,
   COMPANY_SOCIAL_PLATFORMS,
@@ -30,6 +29,7 @@ import {
 } from "@/lib/trendre-link/inquiry-submission";
 import type { CreatorLinkPublicInquiryResponse } from "@/lib/trendre-link/types";
 import { insertOrRecoverUnique } from "@/lib/db/unique-insert";
+import { notifyCreatorOfLinkInquiry } from "@/lib/trendre-link/creator-inquiry-notification";
 
 type Body = Record<string, unknown>;
 const MAX_BODY_BYTES = 48_000;
@@ -67,6 +67,28 @@ function selections(value: unknown, allowed: readonly string[], max = allowed.le
 
 function positiveInteger(value: unknown) {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 1 ? value : null;
+}
+
+function trustedClientIp(request: NextRequest) {
+  // Only trust Vercel's dedicated forwarding header when this request actually
+  // arrived through Vercel. A public x-forwarded-for header is client-spoofable.
+  if (!request.headers.get("x-vercel-id")) return null;
+  const candidate = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ?? "";
+  return candidate.length > 0 && candidate.length <= 64 ? candidate : null;
+}
+
+async function isRateLimited(args: { pageId: string; email: string; ip: string | null }) {
+  const admin = supabaseAdmin as any;
+  const now = Date.now();
+  const since = (milliseconds: number) => new Date(now - milliseconds).toISOString();
+  const [pageBurst, emailBurst, ipBurst] = await Promise.all([
+    admin.from("creator_inquiries").select("id", { count: "exact", head: true }).eq("link_page_id", args.pageId).eq("source", "trendre_link").gte("created_at", since(10 * 60_000)),
+    admin.from("creator_inquiries").select("id", { count: "exact", head: true }).eq("link_page_id", args.pageId).eq("source", "trendre_link").ilike("contact_email", args.email).gte("created_at", since(30 * 60_000)),
+    args.ip ? admin.from("creator_inquiries").select("id", { count: "exact", head: true }).eq("ip_address", args.ip).eq("source", "trendre_link").gte("created_at", since(15 * 60_000)) : Promise.resolve({ count: 0, error: null }),
+  ]);
+  if (pageBurst.error || emailBurst.error || ipBurst.error) throw new Error("inquiry_rate_limit_lookup_failed");
+  // Allows ordinary retries while constraining a sustained or automated burst.
+  return (pageBurst.count ?? 0) >= 20 || (emailBurst.count ?? 0) >= 5 || (ipBurst.count ?? 0) >= 8;
 }
 
 function validateSocialAccounts(value: unknown) {
@@ -145,6 +167,8 @@ export async function POST(request: NextRequest) {
   const slugValidation = validateCreatorLinkSlug(body.slug);
   if (!slugValidation.valid) return errorResponse("問い合わせ先が正しくありません。");
   const submissionId = body.submissionId;
+  if (body.formKind === "pr") return errorResponse("このフォームは現在公開されていません。", 404);
+  if (body.privacy_consent !== true) return errorResponse("情報共有への同意が必要です。");
 
   const contactName = text(body, "contact_name", 80, true);
   const contactEmail = text(body, "contact_email", 254, true);
@@ -152,29 +176,7 @@ export async function POST(request: NextRequest) {
     return errorResponse("担当者名と正しいメールアドレスを入力してください。");
   }
 
-  let companyUserId: string | null = null;
-  if (body.formKind === "pr") {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return errorResponse("見積もり依頼には企業アカウントでのログインが必要です。", 401);
-    }
-    const { data: company, error: companyError } = await supabaseAdmin
-      .from("companies")
-      .select("id,approval_status")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (companyError) {
-      console.error("[trendre-link/public-inquiries] company lookup failed");
-      return errorResponse("企業アカウントを確認できませんでした。", 500);
-    }
-    if (!company || company.approval_status !== "approved") {
-      return errorResponse("承認済みの企業アカウントでログインしてください。", 403);
-    }
-    companyUserId = user.id;
-  }
+  const companyUserId: string | null = null;
 
   let insert: Record<string, unknown>;
   if (body.formKind === "simple") {
@@ -321,9 +323,7 @@ export async function POST(request: NextRequest) {
       .eq("id", body.formId)
       .eq("page_id", page.id)
       .eq("is_enabled", true);
-    typeQuery = body.formKind === "simple"
-      ? typeQuery.is("template_key", null)
-      : typeQuery.eq("template_key", "pr_post");
+    typeQuery = typeQuery.is("template_key", null);
     const { data: inquiryType, error: typeError } = await typeQuery.maybeSingle();
     if (typeError) throw typeError;
     if (
@@ -362,6 +362,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const ipAddress = trustedClientIp(request);
+    if (await isRateLimited({ pageId: page.id, email: contactEmail.value.toLowerCase(), ip: ipAddress })) {
+      return errorResponse("短時間に送信が集中しています。しばらくしてからもう一度お試しください。", 429);
+    }
+
+    const consentedAt = new Date().toISOString();
+    const requestData = (body.formKind === "simple"
+      ? { ...(insert.request_data as Record<string, unknown>), privacy_consent: true, privacy_policy_version: PRIVACY_VERSION, consented_at: consentedAt }
+      : insert.request_data) as any;
+
     const inquiryPayload = {
       creator_id: page.creator_id,
       creator_user_id: page.owner_user_id,
@@ -370,7 +380,7 @@ export async function POST(request: NextRequest) {
       inquiry_type_id: inquiryType.id,
       submission_id: submissionId,
       inquiry_type_title_snapshot: inquiryType.title,
-      inquiry_type: body.formKind === "simple" ? "other" : "pr_post",
+      inquiry_type: "other",
       contact_name: contactName.value,
       contact_email: contactEmail.value,
       status: "new",
@@ -379,7 +389,7 @@ export async function POST(request: NextRequest) {
       source: "trendre_link",
       referrer_url: request.headers.get("referer"),
       user_agent: request.headers.get("user-agent"),
-      ip_address: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+      ip_address: ipAddress,
       converted_order_id: null,
       converted_request_id: null,
       public_reference: null,
@@ -387,6 +397,7 @@ export async function POST(request: NextRequest) {
       verification_expires_at: null,
       verified_at: null,
       ...insert,
+      request_data: requestData,
     };
     const insertion = await insertOrRecoverUnique({
       insert: async () => {
@@ -415,6 +426,9 @@ export async function POST(request: NextRequest) {
         }),
       missingError: "inquiry_insert_missing",
     });
+    if (!insertion.duplicate) {
+      await notifyCreatorOfLinkInquiry({ inquiryId: insertion.value.id, creatorUserId: page.owner_user_id });
+    }
     return NextResponse.json<CreatorLinkPublicInquiryResponse>({
       ok: true,
       inquiryId: insertion.value.id,

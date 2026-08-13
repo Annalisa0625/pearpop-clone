@@ -49,6 +49,7 @@ export type CreatorLinkInquiryFormState = {
   reference_url: string;
   additional_notes: string;
   consents: boolean[];
+  privacy_consent: boolean;
   subject: string;
   message: string;
   website: string;
@@ -100,6 +101,7 @@ export function createEmptyInquiryFormState(): CreatorLinkInquiryFormState {
     reference_url: "",
     additional_notes: "",
     consents: [false, false, false, false, false, false],
+    privacy_consent: false,
     subject: "",
     message: "",
     website: "",
@@ -170,6 +172,7 @@ export function isCreatorLinkInquiryFormState(
     !Number.isSafeInteger(value.deliverable_count) ||
     Number(value.deliverable_count) < 1 ||
     Number(value.deliverable_count) > 10_000 ||
+    typeof value.privacy_consent !== "boolean" ||
     !Array.isArray(value.consents) ||
     value.consents.length !== 6 ||
     value.consents.some((item) => typeof item !== "boolean") ||

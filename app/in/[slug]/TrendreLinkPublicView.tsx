@@ -77,6 +77,7 @@ export default function TrendreLinkPublicView({ data }: { data: TrendreLinkPubli
         }}
       >
         <PublicLogicalCanvas data={data} locale={locale === "en" ? "en" : "ja"} />
+        <nav className="mx-auto flex w-full max-w-[480px] justify-center gap-4 px-5 pb-5 text-[11px] text-slate-500"><a href="/terms" target="_blank" rel="noreferrer" className="underline underline-offset-2">利用規約</a><a href="/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2">プライバシー</a></nav>
       </div>
     </main>
   );

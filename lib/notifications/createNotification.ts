@@ -26,6 +26,9 @@ export type CreateNotificationInput = {
 
   dedupeKey?: string | null;
 
+  /** Required operational inbox items bypass optional delivery preferences. */
+  bypassInAppPreferences?: boolean;
+
   /**
    * 今はLINE送信は実行しない。
    * ただし、line_enabled=true かつLINE連携済みなら
@@ -109,7 +112,7 @@ export async function createNotification(
   const inAppEnabled = preference?.in_app_enabled !== false;
   const lineEnabled = preference?.line_enabled === true;
 
-  if (isMutedType(preference?.muted_types, notificationType)) {
+  if (!input.bypassInAppPreferences && isMutedType(preference?.muted_types, notificationType)) {
     return {
       notification: null,
       skipped: true,
@@ -117,7 +120,7 @@ export async function createNotification(
     };
   }
 
-  if (!inAppEnabled) {
+  if (!input.bypassInAppPreferences && !inAppEnabled) {
     return {
       notification: null,
       skipped: true,

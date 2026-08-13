@@ -43,7 +43,11 @@ export async function POST(request: NextRequest) {
     if (!isCreatorLinkInquiryFormKind(raw.kind) || typeof raw.title !== "string" || !raw.title.trim() || raw.title.trim().length > 80 || typeof raw.isEnabled !== "boolean" || !Number.isInteger(raw.sortOrder) || Number(raw.sortOrder) < 0 || Number(raw.sortOrder) > 1000 || parsed.has(raw.kind)) return response("フォーム設定が正しくありません。", 400);
     parsed.set(raw.kind, { title: raw.title.trim(), isEnabled: raw.isEnabled, sortOrder: Number(raw.sortOrder) });
   }
-  if (parsed.size !== 2) return response("2種類のフォーム設定を送信してください。", 400);
+  if (parsed.size !== 2) return response("フォーム設定が正しくありません。", 400);
+  // The saved PR row is retained for backward compatibility, but cannot be
+  // enabled during the C-only launch even if a client crafts a request.
+  const requestedPr = parsed.get("pr");
+  if (requestedPr) parsed.set("pr", { ...requestedPr, isEnabled: false });
 
   try {
     const { data: page, error: pageError } = await supabaseAdmin.from("creator_link_pages").select("id").eq("id", body.pageId).eq("owner_user_id", auth.user.id).maybeSingle();

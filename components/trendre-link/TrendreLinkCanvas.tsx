@@ -183,7 +183,7 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
   const socialItems = items.filter((item) => item.itemType === "social" && item.platform && safeUrl(item.url));
   const linkItems = items.filter((item) => item.itemType === "link" && item.id);
   const unmanagedContentItems = items.filter((item) => item.itemType !== "social" && item.itemType !== "link");
-  const enabledForms = data.inquiryTypes.filter((type) => type.templateKey === null || type.templateKey === "pr_post").sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const enabledForms = data.inquiryTypes.filter((type) => type.templateKey === null).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   useEffect(() => {
     if (mode !== "public" || typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -204,7 +204,7 @@ export default function TrendreLinkCanvas({ data, mode, locale = "ja", editingFi
       }
     }
   }, [data.inquiryTypes, mode, page.slug]);
-  const copy = locale === "ja" ? { editName: "表示名を編集", editPhoto: "プロフィール写真を編集", addPhoto: "写真を追加", addName: "名前を追加", addBio: "自己紹介を追加", firstLinkTitle: "リンクを追加", firstLinkHelp: "あなたの活動が伝わるリンクを追加しましょう", inquiries: "仕事の依頼・相談", inquiryHelp: "PR・UGC制作などのご相談はこちら", chooseInquiry: "相談内容を選択", reorder: "並び替え", reordering: "並び替え中", done: "完了" } : { editName: "Edit display name", editPhoto: "Edit profile photo", addPhoto: "Add photo", addName: "Add name", addBio: "Add a bio", firstLinkTitle: "Add a link", firstLinkHelp: "Add a link that shows what you create", inquiries: "Work with me", inquiryHelp: "PR, UGC, and collaboration inquiries", chooseInquiry: "Choose an inquiry type", reorder: "Reorder", reordering: "Reordering", done: "Done" };
+  const copy = locale === "ja" ? { editName: "表示名を編集", editPhoto: "プロフィール写真を編集", addPhoto: "写真を追加", addName: "名前を追加", addBio: "自己紹介を追加", firstLinkTitle: "リンクを追加", firstLinkHelp: "あなたの活動が伝わるリンクを追加しましょう", inquiries: "仕事の相談", inquiryHelp: "お仕事やコラボレーションのご相談はこちら", chooseInquiry: "相談内容を選択", reorder: "並び替え", reordering: "並び替え中", done: "完了" } : { editName: "Edit display name", editPhoto: "Edit profile photo", addPhoto: "Add photo", addName: "Add name", addBio: "Add a bio", firstLinkTitle: "Add a link", firstLinkHelp: "Add a link that shows what you create", inquiries: "Work inquiries", inquiryHelp: "For work and collaboration inquiries", chooseInquiry: "Choose an inquiry type", reorder: "Reorder", reordering: "Reordering", done: "Done" };
   const usesLogicalCanvas = mode === "preview" || mode === "public";
   const profileTopPadding = usesLogicalCanvas ? "pt-[5.5rem]" : "pt-12";
   const canvasBottomPadding = usesLogicalCanvas ? "pb-6" : "pb-[calc(6.75rem+env(safe-area-inset-bottom))]";

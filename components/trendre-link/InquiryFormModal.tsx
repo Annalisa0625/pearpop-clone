@@ -78,6 +78,7 @@ const initialState: FormState = {
   reference_url: "",
   additional_notes: "",
   consents: [false, false, false, false, false, false],
+  privacy_consent: false,
   subject: "",
   message: "",
   website: "",
@@ -283,6 +284,7 @@ export default function InquiryFormModal({ kind, title, slug, formId, mode, onCl
   const validate = () => {
     if (kind === "simple") {
       if (!form.contact_name.trim() || !form.contact_email.trim() || !form.message.trim()) return "必須項目を入力してください。";
+      if (!form.privacy_consent) return "情報共有への同意を確認してください。";
       return "";
     }
     if (step === 0 && !form.request_mode) return "依頼形式を選択してください。";
@@ -328,7 +330,8 @@ export default function InquiryFormModal({ kind, title, slug, formId, mode, onCl
       return Boolean(
         form.contact_name.trim() &&
         form.contact_email.trim() &&
-        form.message.trim()
+        form.message.trim() &&
+        form.privacy_consent
       );
     }
     if (step === 0) return Boolean(form.request_mode);
@@ -466,6 +469,10 @@ export default function InquiryFormModal({ kind, title, slug, formId, mode, onCl
         <label className="block"><FieldLabel required>メールアドレス</FieldLabel><input type="email" value={form.contact_email} maxLength={254} onChange={(e) => update("contact_email", e.target.value)} className={inputClass} /></label>
         <label className="block"><FieldLabel>件名</FieldLabel><input value={form.subject} maxLength={120} onChange={(e) => update("subject", e.target.value)} className={inputClass} /></label>
         <label className="block"><FieldLabel required>お問い合わせ内容</FieldLabel><textarea rows={6} value={form.message} maxLength={3000} onChange={(e) => update("message", e.target.value)} className={textareaClass} /></label>
+        <div className="rounded-[14px] bg-slate-50 px-4 py-4 text-[13px] leading-6 text-slate-600">
+          <p>送信すると、入力したお名前・メールアドレス・相談内容等が相談先Creatorに共有されます。この送信のみでは契約・発注は成立しません。</p>
+          <label className="mt-3 flex cursor-pointer items-start gap-3 text-slate-800"><input type="checkbox" checked={form.privacy_consent} onChange={(event) => update("privacy_consent", event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950" aria-describedby="simple-consent-help" /><span id="simple-consent-help"><Link href="/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2">プライバシーポリシー</Link>を確認し、相談先Creatorへの情報共有に同意します。</span></label>
+        </div>
       </div>
     );
     if (step === 0) return (
@@ -546,7 +553,7 @@ export default function InquiryFormModal({ kind, title, slug, formId, mode, onCl
           <div className="mt-3 flex items-center justify-between gap-3"><div><h2 className="text-[18px] font-semibold text-slate-950">{kind === "pr" ? "見積もりを依頼" : title}</h2>{kind === "pr" && step > 0 ? <p className="mt-1 text-[11px] text-slate-500">{form.request_mode === "pr_post" ? "PR投稿" : "UGC制作"}・{step}/5</p> : null}</div><button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-semibold leading-none text-white shadow-sm ring-1 ring-slate-950 transition hover:bg-slate-800 active:scale-90" aria-label="閉じる">×</button></div>
           {kind === "pr" && step > 0 ? <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-slate-950 transition-all" style={{ width: `${step * 20}%` }} /></div> : null}
         </header>
-        {submitted ? <div className="flex-1 px-6 py-14 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</div><h3 className="mt-5 text-xl font-semibold text-slate-950">見積もり依頼を受け付けました</h3><p className="mt-3 text-sm leading-7 text-slate-500">クリエイターが確認後、見積もりを送信します</p><button type="button" onClick={onClose} className="mt-7 h-12 w-full rounded-full bg-slate-950 text-sm font-semibold text-white">閉じる</button></div> : <form onSubmit={(e) => { e.preventDefault(); if (kind === "simple" || step === 5) void submit(); else next(); }} className="flex min-h-0 flex-1 flex-col">
+        {submitted ? <div className="flex-1 px-6 py-14 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</div><h3 className="mt-5 text-xl font-semibold text-slate-950">{kind === "simple" ? "相談内容を送信しました" : "見積もり依頼を受け付けました"}</h3><p className="mt-3 text-sm leading-7 text-slate-500">{kind === "simple" ? "Creatorが相談を確認後、登録いただいたメールアドレス宛に返信する場合があります。" : "クリエイターが確認後、見積もりを送信します"}</p><button type="button" onClick={onClose} className="mt-7 h-12 w-full rounded-full bg-slate-950 text-sm font-semibold text-white">閉じる</button></div> : <form onSubmit={(e) => { e.preventDefault(); if (kind === "simple" || step === 5) void submit(); else next(); }} className="flex min-h-0 flex-1 flex-col">
           <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-28 pt-5">{renderStep()}<label className="absolute -left-[10000px]" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => update("website", e.target.value)} /></label>{error ? <p role="alert" className="mt-5 text-[13px] font-medium text-rose-600">{error}</p> : null}</main>
           <footer className="flex shrink-0 gap-2 border-t border-slate-100 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">{kind === "pr" && step > 0 ? <button type="button" onClick={() => { setStep((current) => current - 1); setError(""); }} className="h-12 w-24 rounded-full bg-slate-100 text-sm font-semibold text-slate-700">戻る</button> : null}<button type="submit" disabled={!canAdvance} className="h-12 flex-1 rounded-full bg-slate-950 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none">{submitting ? "送信中…" : kind === "simple" ? "送信する" : step === 5 ? "この内容で見積もりを依頼" : "次へ"}</button></footer>
         </form>}

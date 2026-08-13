@@ -81,7 +81,9 @@ export function mapPublicCreatorLinkInquiryTypes(
 ): PublicCreatorLinkInquiryType[] {
   return values.flatMap((value) => {
     const inquiryType = toPublicCreatorLinkInquiryType(value);
-    return inquiryType ? [inquiryType] : [];
+    // C-only release: the structured PR/quote flow depends on the not-yet
+    // public Marketplace contract and payment experience.
+    return inquiryType && inquiryType.templateKey !== "pr_post" ? [inquiryType] : [];
   });
 }
 
@@ -96,7 +98,7 @@ export function createCreatorLinkInquiryFormSelection(type: {
 
   return {
     id: type.id,
-    kind: type.templateKey === "pr_post" ? "pr" : "simple",
+    kind: "simple",
     title: type.title,
   };
 }

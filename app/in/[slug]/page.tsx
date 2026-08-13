@@ -435,21 +435,9 @@ export async function generateMetadata({
     };
   }
 
-  const data = await loadCreator(slug);
-
-  if (!data) {
-    return {
-      title: "仕事依頼ページ | Trend Mart",
-      description:
-        "Trend MartでインフルエンサーにPR投稿・商品レビュー・UGC制作を相談できます。",
-    };
-  }
-
-  const { creator } = data;
-
   return {
-    title: `${creator.display_name}への仕事依頼 | Trend Mart`,
-    description: `${creator.display_name}さんへPR投稿・商品レビュー・UGC制作などを相談できます。`,
+    title: "Trendre Link",
+    description: "Trendre Linkの公開プロフィールです。",
   };
 }
 
@@ -461,12 +449,13 @@ export default async function InfluencerWorkRequestPage({ params }: PageProps) {
     return <TrendreLinkPublicView data={trendreLink} />;
   }
 
-  const data = await loadCreator(slug);
+  notFound();
 
-  if (!data) {
-    notFound();
-  }
-
+  // The legacy Creator/Marketplace request page remains in this file only to
+  // avoid a broad deletion during the C-only launch. It is intentionally
+  // unreachable: /in/[slug] serves published Trendre Link pages exclusively.
+  const data = (await loadCreator(slug)) as Exclude<Awaited<ReturnType<typeof loadCreator>>, null>;
+  if (!data) return null;
   const { creator, socialAccounts, portfolioAssets, menus } = data;
 
   const categoryLabel = creator.category?.trim() || "インフルエンサー";
@@ -510,7 +499,7 @@ export default async function InfluencerWorkRequestPage({ params }: PageProps) {
                 <div className="flex items-end gap-3">
                   {creator.avatar_url ? (
                     <img
-                      src={creator.avatar_url}
+                      src={creator.avatar_url ?? ""}
                       alt={creator.display_name}
                       className="h-16 w-16 shrink-0 rounded-full border-4 border-white object-cover shadow-xl"
                     />
