@@ -178,9 +178,9 @@ export default function CreatorLandingPage() {
         <Image src="/for-creators/trend-mart-creator-hero.webp" alt="スマートフォンを手に、撮影現場で仕事へ進むインフルエンサー" fill sizes="100vw" className="tm-hero__image" priority />
         <div className="tm-hero__shade" />
         <div className="tm-hero__content">
-          <h1>あなたの発信を、<br />待っている企業がいる。</h1>
-          <p className="tm-hero__service">インフルエンサー × ブランド・企業の<br />マッチングプラットフォーム。</p>
-          <p className="tm-hero__invite">あなたの発信力を出品しましょう。</p>
+          <h1>インフルエンサー × 企業</h1>
+          <p className="tm-hero__service">PR案件のスカウト型プラットフォーム。</p>
+          <p className="tm-hero__invite">従来の案件応募型ではなく、<br />1件ごとに報酬が設定されたスカウト型のプラットフォーム。<br /><br />魅力的なプロフィールを完成させ、依頼を待ちましょう。</p>
           <Link href="/signup/creator" className="tm-primary-cta">インフルエンサー登録 <ArrowRight size={18} /></Link>
           <p className="tm-hero__note"><Check size={13} /> 登録無料・届いた依頼を確認してから判断できます</p>
         </div>
