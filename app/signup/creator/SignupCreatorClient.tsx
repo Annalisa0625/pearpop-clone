@@ -13,6 +13,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 type Locale = "ja" | "en";
 
@@ -2269,16 +2270,11 @@ export default function SignupCreatorClient({
     if (step === 1) {
       return (
         <StepShell title={copy.accountTitle} body={copy.accountBody}>
-          <button
-            type="button"
+          <GoogleAuthButton
             onClick={handleGoogleSignup}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-black text-slate-950 ring-1 ring-slate-200 transition hover:bg-slate-50"
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-sm font-black text-[#ff3860] ring-1 ring-slate-100">
-              G
-            </span>
             {copy.signUpWithGoogle}
-          </button>
+          </GoogleAuthButton>
 
           <div className="my-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
