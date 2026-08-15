@@ -1,6 +1,7 @@
 // File: app/api/line/login/start/route.ts
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { isSafeLineOAuthReturnPath, resolveLineOAuthCallbackUrl } from "@/lib/line/oauth-origin";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export const revalidate = 0;
 
 const LINE_AUTHORIZE_URL = "https://access.line.me/oauth2/v2.1/authorize";
 const STATE_TTL_SECONDS = 10 * 60;
+const STATE_COOKIE = "trendre_line_oauth_nonce";
 
 type LineLoginState = {
   app_user_id: string;
@@ -29,18 +31,6 @@ function getLineLoginChannelId() {
 
 function getLineLoginChannelSecret() {
   return process.env.LINE_LOGIN_CHANNEL_SECRET?.trim() ?? "";
-}
-
-function getCallbackUrl(request: NextRequest) {
-  const configured = process.env.LINE_LOGIN_CALLBACK_URL?.trim();
-  if (configured) return configured;
-
-  const fallbackBase =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    new URL(request.url).origin;
-
-  return `${fallbackBase.replace(/\/$/, "")}/api/line/login/callback`;
 }
 
 function base64UrlEncode(value: string | Buffer) {
@@ -67,7 +57,7 @@ function normalizeReturnTo(value: unknown) {
   if (typeof value !== "string") return "/creator/payouts?from=signup&line=linked";
 
   const trimmed = value.trim();
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
+  if (!isSafeLineOAuthReturnPath(trimmed)) {
     return "/creator/payouts?from=signup&line=linked";
   }
 
@@ -116,25 +106,37 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const creatorId = await getCreatorIdForUser(user.id);
+    if (!creatorId) {
+      return NextResponse.json({ error: "Creator情報が見つかりません。" }, { status: 403 });
+    }
     const returnTo = normalizeReturnTo(body?.return_to);
+    const nonce = crypto.randomBytes(16).toString("hex");
 
     const state = signState({
       app_user_id: user.id,
       creator_id: creatorId,
       return_to: returnTo,
-      nonce: crypto.randomBytes(16).toString("hex"),
+      nonce,
       exp: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
     });
 
     const authorizeUrl = new URL(LINE_AUTHORIZE_URL);
     authorizeUrl.searchParams.set("response_type", "code");
     authorizeUrl.searchParams.set("client_id", channelId);
-    authorizeUrl.searchParams.set("redirect_uri", getCallbackUrl(request));
+    authorizeUrl.searchParams.set("redirect_uri", resolveLineOAuthCallbackUrl(request));
     authorizeUrl.searchParams.set("state", state);
     authorizeUrl.searchParams.set("scope", "profile openid");
     authorizeUrl.searchParams.set("bot_prompt", "aggressive");
 
-    return NextResponse.json({ ok: true, url: authorizeUrl.toString() });
+    const response = NextResponse.json({ ok: true, url: authorizeUrl.toString() });
+    response.cookies.set(STATE_COOKIE, nonce, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: STATE_TTL_SECONDS,
+      path: "/api/line/login/callback",
+    });
+    return response;
   } catch (error) {
     console.error("LINE Login start error:", error);
     return NextResponse.json(

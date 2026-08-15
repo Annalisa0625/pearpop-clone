@@ -6,6 +6,7 @@ import {
   replyLineText,
   verifyLineSignature,
 } from "@/lib/notifications/line";
+import { LineAlreadyLinkedError, assertLineUserOwnership } from "@/lib/line/link-ownership";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -91,6 +92,19 @@ async function handleTextMessage(event: LineWebhookEvent) {
   }
 
   const profile = await getLineProfile(lineUserId);
+
+  try {
+    await assertLineUserOwnership(admin, lineUserId, linkCode.app_user_id);
+  } catch (error) {
+    if (error instanceof LineAlreadyLinkedError) {
+      await replyLineText(
+        replyToken,
+        "このLINEアカウントは別のアカウントに連携されています。連携先を確認してください。"
+      );
+      return;
+    }
+    throw error;
+  }
 
   const { error: upsertError } = await admin.from("line_user_links").upsert(
     {

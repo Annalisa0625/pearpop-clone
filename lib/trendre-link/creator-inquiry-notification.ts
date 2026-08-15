@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 
 import { createNotification } from "@/lib/notifications/createNotification";
+import { buildLineMessage, sendLineTextToUserId } from "@/lib/notifications/line";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTrustedAppUrl } from "@/lib/trendre-link/quote-access";
 
@@ -29,6 +30,19 @@ export async function notifyCreatorOfLinkInquiry(args: {
     });
   } catch {
     console.warn("trendre link inquiry in-app notification failed", { inquiryId: args.inquiryId });
+  }
+
+  try {
+    await sendLineTextToUserId(
+      args.creatorUserId,
+      buildLineMessage({
+        title: "新しい仕事相談",
+        body: "Trendre Linkに新しい仕事相談が届きました。\nTrendreで内容を確認してください。",
+        linkPath,
+      })
+    );
+  } catch {
+    console.warn("trendre link inquiry LINE notification failed", { inquiryId: args.inquiryId });
   }
 
   const appUrl = getTrustedAppUrl();

@@ -870,6 +870,7 @@ function LineConnectionCard({
   generating,
   unlinking,
   testing,
+  isCreatorOnly,
   onGenerate,
   onUnlink,
   onTest,
@@ -902,6 +903,7 @@ function LineConnectionCard({
   generating: boolean;
   unlinking: boolean;
   testing: boolean;
+  isCreatorOnly: boolean;
   onGenerate: () => void;
   onUnlink: () => void;
   onTest: () => void;
@@ -928,11 +930,19 @@ function LineConnectionCard({
           </div>
 
           <p className="mt-1.5 max-w-xl text-[14px] font-normal leading-6 text-slate-600">
-            {!linked && locale === "ja"
+            {!linked && isCreatorOnly && locale === "ja"
+              ? "仕事相談や大切なお知らせをLINEで受け取れます。"
+              : !linked && isCreatorOnly
+                ? "Receive work inquiries and important updates on LINE."
+              : !linked && locale === "ja"
               ? "新しい依頼やメッセージ、修正の連絡をLINEですぐ受け取れます。仕事のチャンスを見逃さないために連携しておきましょう。"
               : !linked
                 ? "Get new requests, messages, and revision updates on LINE so you never miss work."
-                : copy.lineBody}
+                : isCreatorOnly && locale === "ja"
+                  ? "仕事相談や大切なお知らせをLINEで受け取れます。"
+                  : isCreatorOnly
+                    ? "Receive work inquiries and important updates on LINE."
+                    : copy.lineBody}
           </p>
 
           {linked ? (
@@ -1006,7 +1016,7 @@ function LineConnectionCard({
                 disabled={generating}
                 className="min-h-12 rounded-[14px] bg-[#06c755] px-5 py-3 text-[13px] font-semibold text-white shadow-[0_10px_26px_rgba(6,199,85,0.18)] outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(6,199,85,0.24)] focus-visible:ring-4 focus-visible:ring-emerald-200 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transform-none motion-reduce:transition-none"
               >
-                {generating ? copy.lineGenerating : copy.lineGenerate}
+                {generating ? copy.lineGenerating : isCreatorOnly ? (locale === "ja" ? "LINEを連携する" : "Connect LINE") : copy.lineGenerate}
               </button>
             )}
 
@@ -2550,7 +2560,7 @@ export default function CreatorProfilePage() {
         </div>
       </SectionCard>
 
-      {!isCreatorOnly ? <LineConnectionCard
+      <LineConnectionCard
         locale={safeLocale}
         copy={copy}
         loading={lineLoading}
@@ -2561,10 +2571,11 @@ export default function CreatorProfilePage() {
         generating={lineGenerating}
         unlinking={lineUnlinking}
         testing={lineTesting}
+        isCreatorOnly={isCreatorOnly}
         onGenerate={() => void generateLineLinkCode()}
         onUnlink={() => void unlinkLine()}
         onTest={() => void sendLineTestNotification()}
-      /> : null}
+      />
 
       {!isCreatorOnly ? <SectionCard className="order-7" title={safeLocale === "ja" ? "報酬の受け取り" : copy.settings}>
         <section className="grid gap-2">
