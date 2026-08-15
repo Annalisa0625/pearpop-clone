@@ -726,7 +726,11 @@ function ProgressBar({ current }: { current: number }) {
   );
 }
 
-export default function SignupCreatorClient() {
+export default function SignupCreatorClient({
+  isCreatorOnly,
+}: {
+  isCreatorOnly: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -1270,6 +1274,11 @@ export default function SignupCreatorClient() {
         .maybeSingle();
 
       if (existingCreator) {
+        if (isCreatorOnly) {
+          router.replace("/creator/dashboard");
+          return;
+        }
+
         const { data: userState } = await supabase
           .from("user_states")
           .select("creator_profile_completed")
@@ -1310,7 +1319,7 @@ export default function SignupCreatorClient() {
 
     void hydrateSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasOAuthReturn, router, supabase]);
+  }, [hasOAuthReturn, isCreatorOnly, router, supabase]);
 
   const ensureAvailableUsername = async () => {
     const current = username.trim().toLowerCase();
@@ -2018,6 +2027,11 @@ export default function SignupCreatorClient() {
       }
 
       localStorage.removeItem(STORAGE_KEY);
+      if (isCreatorOnly) {
+        router.replace("/creator/dashboard");
+        return;
+      }
+
       setLineSetupVisible(true);
     } catch (e) {
       console.error(e);

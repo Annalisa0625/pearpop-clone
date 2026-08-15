@@ -1,10 +1,13 @@
 // app/signup/creator/page.tsx
 import { Suspense } from "react";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import SignupCreatorClient from "./SignupCreatorClient";
 
 export const dynamic = "force-dynamic";
 
 export default function SignupCreatorPage() {
+  const isCreatorOnly = isCreatorOnlyRelease();
+
   return (
     <Suspense
       fallback={
@@ -13,7 +16,7 @@ export default function SignupCreatorPage() {
         </div>
       }
     >
-      <SignupCreatorClient />
+      <SignupCreatorClient isCreatorOnly={isCreatorOnly} />
     </Suspense>
   );
 }
