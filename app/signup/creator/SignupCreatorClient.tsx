@@ -1875,7 +1875,9 @@ export default function SignupCreatorClient({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          return_to: "/creator/payouts?from=signup&line=linked",
+          return_to: isCreatorOnly
+            ? "/creator/dashboard"
+            : "/creator/payouts?from=signup&line=linked",
         }),
       });
 
@@ -1893,6 +1895,11 @@ export default function SignupCreatorClient({
   };
 
   const finishSignupAfterLine = () => {
+    if (isCreatorOnly) {
+      router.replace("/creator/dashboard");
+      return;
+    }
+
     router.replace(
       lineLinked
         ? "/creator/payouts?from=signup&line=linked"
@@ -2028,11 +2035,6 @@ export default function SignupCreatorClient({
       }
 
       localStorage.removeItem(STORAGE_KEY);
-      if (isCreatorOnly) {
-        router.replace("/creator/dashboard");
-        return;
-      }
-
       setLineSetupVisible(true);
     } catch (e) {
       console.error(e);
@@ -2045,7 +2047,31 @@ export default function SignupCreatorClient({
 
 
   const renderLineSetup = () => {
-    const tips = [
+    const tips = isCreatorOnly
+      ? [
+          {
+            title: appLocale === "ja" ? "仕事相談を見逃さない" : "Do not miss work inquiries",
+            body:
+              appLocale === "ja"
+                ? "Trendre Linkに届いた新しい仕事相談をLINEで確認できます。"
+                : "Get notified on LINE when a new work inquiry arrives through Trendre Link.",
+          },
+          {
+            title: appLocale === "ja" ? "大切なお知らせを受け取る" : "Receive important updates",
+            body:
+              appLocale === "ja"
+                ? "今後の重要な通知も、同じLINEアカウントで受け取れます。"
+                : "Future important notifications will arrive at this same LINE account.",
+          },
+          {
+            title: appLocale === "ja" ? "あとからでも設定できる" : "Set it up anytime",
+            body:
+              appLocale === "ja"
+                ? "LINE連携はプロフィール画面からいつでも設定できます。"
+                : "You can connect LINE later from your profile.",
+          },
+        ]
+      : [
       {
         title:
           appLocale === "ja"
@@ -2111,18 +2137,28 @@ export default function SignupCreatorClient({
                       ✓
                     </span>
                     {appLocale === "ja"
-                      ? "登録内容を保存しました"
+                      ? isCreatorOnly
+                        ? "登録が完了しました"
+                        : "登録内容を保存しました"
                       : "Your registration has been saved"}
                   </div>
 
                   <h1 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950 sm:text-[38px]">
-                    {appLocale === "ja"
+                    {isCreatorOnly && appLocale === "ja"
+                      ? "仕事の通知をLINEで受け取りましょう"
+                      : isCreatorOnly
+                        ? "Receive work notifications on LINE"
+                        : appLocale === "ja"
                       ? "あと一歩で、注文を受け取れる状態になります"
                       : "One more step to start receiving orders"}
                   </h1>
 
                   <p className="mt-3 max-w-[620px] text-sm font-bold leading-7 text-slate-500">
-                    {appLocale === "ja"
+                    {isCreatorOnly && appLocale === "ja"
+                      ? "新しい仕事相談や、これからの大切な通知をLINEでお知らせします。LINE連携はあとからプロフィールでも設定できます。"
+                      : isCreatorOnly
+                        ? "Get notified on LINE about new work inquiries and future important updates. You can also connect LINE later from your profile."
+                        : appLocale === "ja"
                       ? "注文を受けるには、LINEで通知を受け取る設定が必要です。新規注文、チャット、修正依頼、納品承認などの大切な連絡を見逃さないように、先にLINE連携を完了してください。"
                       : "To receive orders, you need to enable LINE notifications. Connect LINE now so you do not miss new orders, chats, revision requests, or approvals."}
                   </p>
@@ -2140,7 +2176,11 @@ export default function SignupCreatorClient({
                           ? appLocale === "ja"
                             ? "LINEを開いています..."
                             : "Opening LINE..."
-                          : copy.lineOpenButton}
+                          : isCreatorOnly
+                            ? appLocale === "ja"
+                              ? "LINEを連携する"
+                              : "Connect LINE"
+                            : copy.lineOpenButton}
                     </button>
 
                     <button
@@ -2158,7 +2198,11 @@ export default function SignupCreatorClient({
                   </div>
 
                   <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400 sm:max-w-[420px]">
-                    {appLocale === "ja"
+                    {isCreatorOnly && appLocale === "ja"
+                      ? "LINE連携は任意です。あとからプロフィールでも設定できます。"
+                      : isCreatorOnly
+                        ? "LINE connection is optional and can be set up later from your profile."
+                        : appLocale === "ja"
                       ? "LINEの友だちや企業に、通知設定が見えることはありません。"
                       : "Your LINE notification setting is not visible to your friends or brands."}
                   </p>
@@ -2186,12 +2230,20 @@ export default function SignupCreatorClient({
                     </div>
                     <div>
                       <p className="text-base font-black tracking-[-0.04em] text-slate-950">
-                        {appLocale === "ja"
+                        {isCreatorOnly && appLocale === "ja"
+                          ? "LINE通知"
+                          : isCreatorOnly
+                            ? "LINE notifications"
+                            : appLocale === "ja"
                           ? "通知設定を完了しましょう"
                           : "Complete notification setup"}
                       </p>
                       <p className="mt-0.5 text-[11px] font-bold leading-5 text-slate-500">
-                        {appLocale === "ja"
+                        {isCreatorOnly && appLocale === "ja"
+                          ? "仕事相談や大切なお知らせを受け取れます"
+                          : isCreatorOnly
+                            ? "Receive work inquiries and important updates"
+                            : appLocale === "ja"
                           ? "案件対応に必要な連絡を受け取れます"
                           : "Receive the updates needed for orders"}
                       </p>
