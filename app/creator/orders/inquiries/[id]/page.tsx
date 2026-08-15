@@ -203,6 +203,7 @@ export default function CreatorInquiryDetailPage() {
     return quote.status;
   }, [quote]);
   const isSimpleLinkInquiry = inquiry?.inquiry_type === "other";
+  const isCreatorOnlySimpleInquiry = isCreatorOnly && isSimpleLinkInquiry;
   const canManageQuote = !isSimpleLinkInquiry && (!effectiveQuoteStatus || effectiveQuoteStatus === "sent");
   const replyMailto = safeReplyMailto(inquiry?.contact_email);
 
@@ -306,7 +307,7 @@ export default function CreatorInquiryDetailPage() {
     <div className="mx-auto w-full max-w-3xl pb-8 pt-1">
       <header className="flex h-12 items-center justify-between">
         <Link href="/creator/orders" aria-label="受注一覧へ戻る" className="flex h-10 w-10 items-center justify-center rounded-full text-xl">‹</Link>
-        <h1 className="text-[14px] font-semibold">{isCreatorOnly && isSimpleLinkInquiry ? "仕事相談" : "見積もり依頼"}</h1>
+        <h1 className="text-[14px] font-semibold">{isCreatorOnlySimpleInquiry ? "仕事相談" : "見積もり依頼"}</h1>
         {inquiry && canManageQuote && !["declined", "converted"].includes(inquiry.status) ? (
           <button type="button" onClick={() => void decline()} disabled={declining} className="px-2 text-[12px] font-medium text-rose-600 disabled:opacity-50">辞退</button>
         ) : <span className="w-10" />}
@@ -318,7 +319,7 @@ export default function CreatorInquiryDetailPage() {
         <section className="px-1 pb-5 pt-3">
           <p className="text-[12px] text-slate-500">{isSimpleLinkInquiry ? "新しいお問い合わせ" : quote && effectiveQuoteStatus ? quoteStatusLabel(effectiveQuoteStatus) : statusLabel(inquiry.status)}</p>
           <h2 className="mt-3 text-[25px] font-semibold tracking-[-0.04em] text-slate-950">{inquiry.company_name || inquiry.contact_name}</h2>
-          <p className="mt-2 text-[14px] text-slate-500">{[requestType, inquiry.product_name].filter(Boolean).join(" · ")}</p>
+          {!isCreatorOnlySimpleInquiry ? <p className="mt-2 text-[14px] text-slate-500">{[requestType, inquiry.product_name].filter(Boolean).join(" · ")}</p> : null}
         </section>
 
         {quote && !isSimpleLinkInquiry ? <section className={`mb-5 rounded-[18px] px-5 py-5 text-white ${quoteCardClass(effectiveQuoteStatus || quote.status)}`}>
@@ -328,46 +329,59 @@ export default function CreatorInquiryDetailPage() {
         </section> : null}
 
         <div className="space-y-5">
-          <Section title="依頼内容">
-            <Row name="依頼形式" value={requestType} />
-            {isNewPr ? <Row name="案件タイプ" value={label(data?.project_type)} /> : null}
-            {isNewPr ? <Row name="SNS" value={list(data?.requested_platforms) || label(data?.other_platform)} /> : null}
-            {isNewPr ? <Row name="制作物・制作数" value={deliverablesText(data)} /> : null}
-            {isNewUgc ? <Row name="制作物" value={[list(data?.ugc_deliverable_types), data?.ugc_other_deliverable].filter(Boolean).join(" / ")} /> : null}
-            {isNewUgc ? <Row name="制作数" value={data?.deliverable_count ? `${data.deliverable_count}件` : null} /> : null}
-            {isNewUgc ? <Row name="利用用途" value={[list(data?.usage_purposes), data?.usage_other].filter(Boolean).join(" / ")} /> : null}
-            {isNewUgc ? <Row name="打ち合わせ" value={label(data?.meeting_method)} /> : null}
-            {!requestMode ? <Row name="SNS" value={inquiry.requested_platform} /> : null}
-            {!requestMode ? <Row name="制作物" value={list(data?.content_formats)} /> : null}
-            {!requestMode ? <Row name="制作数" value={data?.deliverable_count ? `${data.deliverable_count}件` : null} /> : null}
-          </Section>
+          {isCreatorOnlySimpleInquiry ? <>
+            <Section title="お問い合わせ">
+              <Row name="件名" value={inquiry.purpose} />
+              <Row name="お問い合わせ内容" value={inquiry.message} />
+            </Section>
+            <Section title="送信者情報">
+              <Row name="お名前" value={inquiry.contact_name} />
+              <Row name="メール" value={inquiry.contact_email} />
+              <Row name="受信日時" value={formatDate(inquiry.created_at)} />
+            </Section>
+            {replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">メールで返信する</a> : null}
+          </> : <>
+            <Section title="依頼内容">
+              <Row name="依頼形式" value={requestType} />
+              {isNewPr ? <Row name="案件タイプ" value={label(data?.project_type)} /> : null}
+              {isNewPr ? <Row name="SNS" value={list(data?.requested_platforms) || label(data?.other_platform)} /> : null}
+              {isNewPr ? <Row name="制作物・制作数" value={deliverablesText(data)} /> : null}
+              {isNewUgc ? <Row name="制作物" value={[list(data?.ugc_deliverable_types), data?.ugc_other_deliverable].filter(Boolean).join(" / ")} /> : null}
+              {isNewUgc ? <Row name="制作数" value={data?.deliverable_count ? `${data.deliverable_count}件` : null} /> : null}
+              {isNewUgc ? <Row name="利用用途" value={[list(data?.usage_purposes), data?.usage_other].filter(Boolean).join(" / ")} /> : null}
+              {isNewUgc ? <Row name="打ち合わせ" value={label(data?.meeting_method)} /> : null}
+              {!requestMode ? <Row name="SNS" value={inquiry.requested_platform} /> : null}
+              {!requestMode ? <Row name="制作物" value={list(data?.content_formats)} /> : null}
+              {!requestMode ? <Row name="制作数" value={data?.deliverable_count ? `${data.deliverable_count}件` : null} /> : null}
+            </Section>
 
-          <Section title="商品・条件・予算">
-            <Row name="商品・サービス" value={inquiry.product_name || data?.product_name} />
-            <Row name="商品URL" value={data?.product_url} href={data?.product_url} />
-            <Row name="希望時期" value={inquiry.desired_timing || data?.desired_timing} />
-            <Row name="予算" value={formatMoney(inquiry.budget_text || data?.budget_text)} />
-            {isNewPr ? <Row name="目的" value={[label(data?.campaign_goal), data?.campaign_goal_other].filter(Boolean).join(" / ")} /> : null}
-            {!requestMode ? <Row name="目的" value={label(data?.campaign_goal)} /> : null}
-            <Row name="無償提供" value={data?.has_free_offer !== undefined ? (data.has_free_offer ? "あり" : "なし") : label(inquiry.offer_type)} />
-            <Row name="提供内容" value={freeOfferDetails} />
-          </Section>
+            <Section title="商品・条件・予算">
+              <Row name="商品・サービス" value={inquiry.product_name || data?.product_name} />
+              <Row name="商品URL" value={data?.product_url} href={data?.product_url} />
+              <Row name="希望時期" value={inquiry.desired_timing || data?.desired_timing} />
+              <Row name="予算" value={formatMoney(inquiry.budget_text || data?.budget_text)} />
+              {isNewPr ? <Row name="目的" value={[label(data?.campaign_goal), data?.campaign_goal_other].filter(Boolean).join(" / ")} /> : null}
+              {!requestMode ? <Row name="目的" value={label(data?.campaign_goal)} /> : null}
+              <Row name="無償提供" value={data?.has_free_offer !== undefined ? (data.has_free_offer ? "あり" : "なし") : label(inquiry.offer_type)} />
+              <Row name="提供内容" value={freeOfferDetails} />
+            </Section>
 
-          {(data?.selling_points || data?.reference_url || data?.additional_notes || (!requestMode && (data?.key_message || inquiry.message))) ? <Section title="特徴・参考情報">
-            <Row name="特徴・アピール" value={data?.selling_points || data?.key_message} />
-            <Row name="参考URL" value={data?.reference_url} href={data?.reference_url} />
-            <Row name="その他の補足" value={data?.additional_notes || inquiry.message} />
-          </Section> : null}
+            {(data?.selling_points || data?.reference_url || data?.additional_notes || (!requestMode && (data?.key_message || inquiry.message))) ? <Section title="特徴・参考情報">
+              <Row name="特徴・アピール" value={data?.selling_points || data?.key_message} />
+              <Row name="参考URL" value={data?.reference_url} href={data?.reference_url} />
+              <Row name="その他の補足" value={data?.additional_notes || inquiry.message} />
+            </Section> : null}
 
-          <Section title="企業情報">
-            <Row name="会社・ブランド" value={inquiry.company_name} />
-            <Row name="担当者" value={inquiry.contact_name} />
-            <Row name="メール" value={inquiry.contact_email} />
-            <Row name="Webサイト" value={data?.company_website} href={data?.company_website} />
-            <Row name="企業SNS" value={socialDisplay} />
-            <Row name="受信日時" value={formatDate(inquiry.created_at)} />
-          </Section>
-          {isSimpleLinkInquiry && replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">メールで返信する</a> : null}
+            <Section title="企業情報">
+              <Row name="会社・ブランド" value={inquiry.company_name} />
+              <Row name="担当者" value={inquiry.contact_name} />
+              <Row name="メール" value={inquiry.contact_email} />
+              <Row name="Webサイト" value={data?.company_website} href={data?.company_website} />
+              <Row name="企業SNS" value={socialDisplay} />
+              <Row name="受信日時" value={formatDate(inquiry.created_at)} />
+            </Section>
+            {isSimpleLinkInquiry && replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">メールで返信する</a> : null}
+          </>}
         </div>
 
         {sendNotice ? (
