@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useAppLocale } from "@/lib/i18n/locale";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import type { CreatorLinkInquiryInboxResponse } from "@/lib/trendre-link/inquiry-inbox";
 
 type Period = 7 | 30 | 90;
@@ -263,6 +264,7 @@ export default function CreatorDashboardPage() {
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const isCreatorOnly = useCreatorOnlyRelease();
   const [state, setState] = useState<HomeState>(EMPTY_HOME);
   const [analytics, setAnalytics] = useState<AnalyticsState>(EMPTY_ANALYTICS);
   const [period, setPeriod] = useState<Period>(7);
@@ -284,8 +286,8 @@ export default function CreatorDashboardPage() {
         chartEmpty: "公開ページが開かれると、ここに推移が表示されます",
         chartLoading: "アクセスを読み込んでいます",
         attention: "対応が必要",
-        orders: "注文・見積もり依頼",
-        ordersBody: "成立前の依頼を確認します",
+        orders: isCreatorOnly ? "仕事相談" : "注文・見積もり依頼",
+        ordersBody: isCreatorOnly ? "新しい相談を確認します" : "成立前の依頼を確認します",
         jobs: "進行中の仕事",
         jobsBody: "成立後の案件を進めます",
         startMartTitle: "企業から見つけてもらう",
@@ -309,8 +311,8 @@ export default function CreatorDashboardPage() {
         chartEmpty: "Traffic will appear here after your public page is opened",
         chartLoading: "Loading traffic",
         attention: "Needs attention",
-        orders: "Orders and quote requests",
-        ordersBody: "Review work before agreement",
+        orders: isCreatorOnly ? "Work inquiries" : "Orders and quote requests",
+        ordersBody: isCreatorOnly ? "Review new inquiries" : "Review work before agreement",
         jobs: "Active jobs",
         jobsBody: "Continue work after agreement",
         startMartTitle: "Help companies discover you",
@@ -349,7 +351,11 @@ export default function CreatorDashboardPage() {
       const martStarted = Boolean((userStateResult.data as { creator_profile_completed?: boolean } | null)?.creator_profile_completed);
       const link = linkResult.data as { slug?: string | null } | null;
       const inquiryCount = inquiryResult?.response.ok && inquiryResult.body?.ok
-        ? inquiryResult.body.counts.new + inquiryResult.body.counts.active
+        ? inquiryResult.body.inquiries.filter(
+            (inquiry) =>
+              inquiry.inquiry_type === "other" &&
+              ["new", "creator_reviewing", "quoted"].includes(inquiry.status)
+          ).length
         : 0;
 
       setState({
@@ -357,7 +363,7 @@ export default function CreatorDashboardPage() {
         linkStarted: Boolean(link?.slug),
         martStarted,
         linkSlug: link?.slug ?? null,
-        pendingOrders: (pendingResult.count ?? 0) + inquiryCount,
+        pendingOrders: isCreatorOnly ? inquiryCount : (pendingResult.count ?? 0) + inquiryCount,
         activeJobs: jobsResult.count ?? 0,
       });
       setLoading(false);
@@ -365,7 +371,7 @@ export default function CreatorDashboardPage() {
 
     void load();
     return () => { cancelled = true; };
-  }, [supabase]);
+  }, [isCreatorOnly, supabase]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -404,7 +410,7 @@ export default function CreatorDashboardPage() {
     return <div className="flex min-h-[60vh] items-center justify-center text-sm font-medium text-slate-400">{copy.loading}</div>;
   }
 
-  const promotion = state.linkStarted && !state.martStarted
+  const promotion = !isCreatorOnly && state.linkStarted && !state.martStarted
     ? {
         href: "/creator/profile?start=trend-mart",
         title: copy.startMartTitle,
@@ -491,12 +497,12 @@ export default function CreatorDashboardPage() {
             count={state.pendingOrders}
             notify
           />
-          <AttentionRow
+          {!isCreatorOnly ? <AttentionRow
             href="/creator/jobs"
             title={copy.jobs}
             description={copy.jobsBody}
             count={state.activeJobs}
-          />
+          /> : null}
         </div>
       </section>
 

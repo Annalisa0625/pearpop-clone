@@ -19,6 +19,7 @@ import {
 import NotificationBell from "@/components/NotificationBell";
 import { useAppLocale } from "@/lib/i18n/locale";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useCreatorOnlyRelease } from "./CreatorReleaseMode";
 
 type IconProps = { className?: string };
 type DetailNavContext = "orders" | "jobs" | null;
@@ -166,6 +167,7 @@ function AccountSheet({
   locale,
   loggingOut,
   copy,
+  isCreatorOnly,
   onClose,
   onToggleLocale,
   onLogout,
@@ -175,6 +177,7 @@ function AccountSheet({
   locale: string;
   loggingOut: boolean;
   copy: Record<string, string>;
+  isCreatorOnly: boolean;
   onClose: () => void;
   onToggleLocale: () => void;
   onLogout: () => void;
@@ -203,8 +206,10 @@ function AccountSheet({
 
         <div className="mt-2 space-y-0.5">
           <MenuLink href="/creator/settings" icon={<Settings className="h-5 w-5" />} title={copy.accountSettings} body={copy.accountSettingsBody} onClick={onClose} />
-          <MenuLink href="/creator/payouts?tab=bank" icon={<Landmark className="h-5 w-5" />} title={copy.bank} body={copy.bankBody} onClick={onClose} />
-          <MenuLink href="/creator/payouts" icon={<Banknote className="h-5 w-5" />} title={copy.earnings} body={copy.earningsBody} onClick={onClose} />
+          {!isCreatorOnly ? <>
+            <MenuLink href="/creator/payouts?tab=bank" icon={<Landmark className="h-5 w-5" />} title={copy.bank} body={copy.bankBody} onClick={onClose} />
+            <MenuLink href="/creator/payouts" icon={<Banknote className="h-5 w-5" />} title={copy.earnings} body={copy.earningsBody} onClick={onClose} />
+          </> : null}
         </div>
 
         <div className="my-2 h-px bg-slate-200/70" />
@@ -238,6 +243,7 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
+  const isCreatorOnly = useCreatorOnlyRelease();
 
   const isStandaloneLinkEditor = pathname === "/creator/link" || pathname.startsWith("/creator/link/onboarding");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -286,8 +292,8 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
 
   const navItems: NavItem[] = [
     { href: "/creator/dashboard", label: "Home", icon: <House className="h-[22px] w-[22px]" /> },
-    { href: "/creator/orders", label: "Order", icon: <ReceiptText className="h-[22px] w-[22px]" /> },
-    { href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> },
+    { href: "/creator/orders", label: isCreatorOnly ? "相談" : "Order", icon: <ReceiptText className="h-[22px] w-[22px]" /> },
+    ...(!isCreatorOnly ? [{ href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> }] : []),
     { href: "/creator/link", label: "Link", icon: <Link2 className="h-[22px] w-[22px]" /> },
     { href: "/creator/profile", label: "Profile", icon: <UserRound className="h-[22px] w-[22px]" /> },
   ];
@@ -408,6 +414,7 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
         locale={locale}
         loggingOut={loggingOut}
         copy={copy}
+        isCreatorOnly={isCreatorOnly}
         onClose={() => setUserMenuOpen(false)}
         onToggleLocale={() => setLocale(locale === "ja" ? "en" : "ja")}
         onLogout={() => void handleLogout()}

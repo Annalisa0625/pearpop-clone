@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import {
   isCreatorLinkItemType,
   isCreatorLinkStatus,
@@ -293,7 +294,16 @@ const loadTrendreLink = cache(
       imageUrl: item.image_url,
       metadata: normalizeCreatorLinkItemAppearance(item.metadata),
     }));
-    const inquiryTypes = mapPublicCreatorLinkInquiryTypes(rawInquiryTypes);
+    const inquiryTypes = mapPublicCreatorLinkInquiryTypes(
+      isCreatorOnlyRelease()
+        ? rawInquiryTypes.filter(
+            (value) =>
+              typeof value === "object" &&
+              value !== null &&
+              (value as { template_key?: unknown }).template_key === null
+          )
+        : rawInquiryTypes
+    );
 
     return {
       page: {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
@@ -10,6 +10,7 @@ import type {
   CreatorInquiryQuoteResponse,
 } from "@/lib/trendre-link/inquiry-quote";
 import type { CreatorLinkInquiryDetailResponse, CreatorLinkInquiryListItem } from "@/lib/trendre-link/inquiry-inbox";
+import { useCreatorOnlyRelease } from "../../../CreatorReleaseMode";
 
 const valueLabels: Record<string, string> = {
   pr_post: "PR投稿", ugc: "UGC制作",
@@ -113,6 +114,7 @@ function deliverablesText(data: CreatorLinkInquiryListItem["request_data"] | und
 }
 
 export default function CreatorInquiryDetailPage() {
+  const isCreatorOnly = useCreatorOnlyRelease();
   const params = useParams<{ id: string }>();
   const [inquiry, setInquiry] = useState<CreatorLinkInquiryListItem | null>(null);
   const [quote, setQuote] = useState<CreatorInquiryQuote | null>(null);
@@ -128,23 +130,45 @@ export default function CreatorInquiryDetailPage() {
   const [notification, setNotification] = useState<CreatorInquiryQuoteNotification | null>(null);
   const [resending, setResending] = useState(false);
   const [declining, setDeclining] = useState(false);
+  const [blockedInquiryId, setBlockedInquiryId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError("");
+    let loadedInquiry: CreatorLinkInquiryListItem | null = null;
     try {
-      const [inquiryResponse, quoteResponse] = await Promise.all([
-        fetch(`/api/creator/link/inquiries/${params.id}`, { cache: "no-store" }),
-        fetch(`/api/creator/orders/inquiries/${params.id}/quote`, { cache: "no-store" }),
-      ]);
-      if (inquiryResponse.status === 401 || quoteResponse.status === 401) {
+      const inquiryResponse = await fetch(`/api/creator/link/inquiries/${params.id}`, { cache: "no-store" });
+      if (inquiryResponse.status === 401) {
         window.location.assign(`/login?next=/creator/orders/inquiries/${params.id}`);
         return;
       }
       const inquiryBody = await inquiryResponse.json() as CreatorLinkInquiryDetailResponse;
-      const quoteBody = await quoteResponse.json() as CreatorInquiryQuoteResponse;
       if (!inquiryResponse.ok || !inquiryBody.ok) throw new Error(inquiryBody.ok ? "依頼を読み込めませんでした。" : inquiryBody.error);
-      setInquiry(inquiryBody.inquiry);
+      loadedInquiry = inquiryBody.inquiry;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "依頼を読み込めませんでした。");
+      setLoading(false);
+      return;
+    }
+
+    if (!loadedInquiry) {
+      setLoading(false);
+      return;
+    }
+    if (isCreatorOnly && loadedInquiry.inquiry_type !== "other") {
+      setBlockedInquiryId(params.id);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setInquiry(loadedInquiry);
+      const quoteResponse = await fetch(`/api/creator/orders/inquiries/${params.id}/quote`, { cache: "no-store" });
+      if (quoteResponse.status === 401) {
+        window.location.assign(`/login?next=/creator/orders/inquiries/${params.id}`);
+        return;
+      }
+      const quoteBody = await quoteResponse.json() as CreatorInquiryQuoteResponse;
       if (quoteResponse.ok && quoteBody.ok) {
         setQuote(quoteBody.quote);
         setNotification(quoteBody.notification ?? null);
@@ -156,7 +180,9 @@ export default function CreatorInquiryDetailPage() {
     }
   };
 
-  useEffect(() => { if (params.id) void load(); }, [params.id]);
+  useEffect(() => { if (params.id) void load(); }, [isCreatorOnly, params.id]);
+
+  if (blockedInquiryId === params.id) notFound();
 
   const data = inquiry?.request_data;
   const requestMode = data?.request_mode;
@@ -280,7 +306,7 @@ export default function CreatorInquiryDetailPage() {
     <div className="mx-auto w-full max-w-3xl pb-8 pt-1">
       <header className="flex h-12 items-center justify-between">
         <Link href="/creator/orders" aria-label="受注一覧へ戻る" className="flex h-10 w-10 items-center justify-center rounded-full text-xl">‹</Link>
-        <h1 className="text-[14px] font-semibold">見積もり依頼</h1>
+        <h1 className="text-[14px] font-semibold">{isCreatorOnly && isSimpleLinkInquiry ? "仕事相談" : "見積もり依頼"}</h1>
         {inquiry && canManageQuote && !["declined", "converted"].includes(inquiry.status) ? (
           <button type="button" onClick={() => void decline()} disabled={declining} className="px-2 text-[12px] font-medium text-rose-600 disabled:opacity-50">辞退</button>
         ) : <span className="w-10" />}

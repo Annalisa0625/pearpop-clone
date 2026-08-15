@@ -8,6 +8,7 @@ import { Clapperboard, Circle, MapPin } from "lucide-react";
 import { FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import {
   CreatorNotice,
   CreatorPage,
@@ -430,13 +431,14 @@ export default function CreatorMenusPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
   const safeLocale: Locale = locale === "en" ? "en" : "ja";
+  const isCreatorOnly = useCreatorOnlyRelease();
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
-            title: "メニュー・価格",
-            subtitle: "企業が購入できるメニューを、見やすく管理できます。",
+            title: isCreatorOnly ? "提供メニュー・参考価格" : "メニュー・価格",
+            subtitle: isCreatorOnly ? "提供したい内容と参考価格を登録できます。" : "企業が購入できるメニューを、見やすく管理できます。",
             loginRequired: "ログインしてください",
             creatorNotFound: "クリエイター情報が見つかりません",
             toggleFailed: "公開状態の切り替えに失敗しました",
@@ -447,7 +449,7 @@ export default function CreatorMenusPage() {
             createNew: "作成",
             emptyTitle: "まだメニューがありません",
             empty:
-              "Instagram投稿、TikTok動画、UGC制作など、企業が注文できるメニューを作成しましょう。",
+              isCreatorOnly ? "Instagram投稿、TikTok動画、UGC制作など、提供したい内容と参考価格を登録しましょう。" : "Instagram投稿、TikTok動画、UGC制作など、企業が注文できるメニューを作成しましょう。",
             price: "価格",
             secondaryUseDenied: "二次利用不可",
             makePrivate: "非公開にする",
@@ -457,13 +459,13 @@ export default function CreatorMenusPage() {
             deleting: "削除中",
             updating: "更新中",
             legacyPriceNotice:
-              "旧形式の参考価格です。編集画面で固定価格にすると注文されやすくなります。",
+              isCreatorOnly ? "旧形式の参考価格です。編集画面で内容と価格を確認できます。" : "旧形式の参考価格です。編集画面で固定価格にすると注文されやすくなります。",
             viewAccount: "SNSを開く",
             errorTitle: "エラー",
           }
         : {
-            title: "Menus & rates",
-            subtitle: "Manage menus brands can order.",
+            title: isCreatorOnly ? "Services & reference rates" : "Menus & rates",
+            subtitle: isCreatorOnly ? "Register the services you offer and their reference rates." : "Manage menus brands can order.",
             loginRequired: "Please log in",
             creatorNotFound: "Creator information was not found",
             toggleFailed: "Failed to change visibility",
@@ -474,7 +476,7 @@ export default function CreatorMenusPage() {
             createNew: "Create",
             emptyTitle: "No menus yet",
             empty:
-              "Create menus companies can order, such as Instagram posts, TikTok videos, or UGC creation.",
+              isCreatorOnly ? "Register the services you offer and their reference rates, such as Instagram posts, TikTok videos, or UGC creation." : "Create menus companies can order, such as Instagram posts, TikTok videos, or UGC creation.",
             price: "Price",
             secondaryUseDenied: "No reuse",
             makePrivate: "Make private",
@@ -484,11 +486,11 @@ export default function CreatorMenusPage() {
             deleting: "Deleting",
             updating: "Updating",
             legacyPriceNotice:
-              "This menu uses a legacy reference price. Set a fixed price from the edit page.",
+              isCreatorOnly ? "This menu uses a legacy reference price. Review its details and price from the edit page." : "This menu uses a legacy reference price. Set a fixed price from the edit page.",
             viewAccount: "Open SNS",
             errorTitle: "Error",
           },
-    [safeLocale],
+    [isCreatorOnly, safeLocale],
   );
 
   const fetchMenus = async () => {

@@ -14,6 +14,7 @@ import { Link2 } from "lucide-react";
 import { FaInstagram, FaLine, FaTiktok, FaXTwitter, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import {
   CreatorBadge,
   CreatorButton,
@@ -1089,6 +1090,7 @@ function OfferingLink({
 }
 
 export default function CreatorProfilePage() {
+  const isCreatorOnly = useCreatorOnlyRelease();
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
@@ -2548,7 +2550,7 @@ export default function CreatorProfilePage() {
         </div>
       </SectionCard>
 
-      <LineConnectionCard
+      {!isCreatorOnly ? <LineConnectionCard
         locale={safeLocale}
         copy={copy}
         loading={lineLoading}
@@ -2562,9 +2564,9 @@ export default function CreatorProfilePage() {
         onGenerate={() => void generateLineLinkCode()}
         onUnlink={() => void unlinkLine()}
         onTest={() => void sendLineTestNotification()}
-      />
+      /> : null}
 
-      <SectionCard className="order-7" title={safeLocale === "ja" ? "報酬の受け取り" : copy.settings}>
+      {!isCreatorOnly ? <SectionCard className="order-7" title={safeLocale === "ja" ? "報酬の受け取り" : copy.settings}>
         <section className="grid gap-2">
           <QuickLink
             href="/creator/payouts"
@@ -2573,7 +2575,7 @@ export default function CreatorProfilePage() {
             body={copy.payoutsBody}
           />
         </section>
-      </SectionCard>
+      </SectionCard> : null}
       </div>
 
       <div className="-mx-2 rounded-[18px] bg-white/96 p-2 shadow-[0_12px_36px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70 sm:mx-0">

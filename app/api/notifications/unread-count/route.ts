@@ -1,6 +1,10 @@
 // File: app/api/notifications/unread-count/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  C_ONLY_MARKETPLACE_NOTIFICATION_TYPES,
+  isCreatorOnlyNotificationViewer,
+} from "@/lib/notifications/release-visibility";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,13 +40,24 @@ export async function GET(req: NextRequest) {
     }
 
     const admin = supabaseAdmin as any;
+    const isCreatorOnly = await isCreatorOnlyNotificationViewer(user.id);
 
-    const { count, error } = await admin
+    let query = admin
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("recipient_user_id", user.id)
       .is("read_at", null)
       .is("archived_at", null);
+
+    if (isCreatorOnly) {
+      query = query.not(
+        "notification_type",
+        "in",
+        `(${C_ONLY_MARKETPLACE_NOTIFICATION_TYPES.join(",")})`
+      );
+    }
+
+    const { count, error } = await query;
 
     if (error) {
       throw error;

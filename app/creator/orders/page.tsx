@@ -9,6 +9,7 @@ import type {
   CreatorLinkInquiryInboxResponse,
   CreatorLinkInquiryListItem,
 } from "@/lib/trendre-link/inquiry-inbox";
+import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 
 type FilterKey = "all" | "order" | "quote";
 
@@ -155,7 +156,7 @@ function quoteStatusClass(status: string) {
   return "text-slate-500";
 }
 
-function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
+function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: "ja" | "en"; isCreatorOnly: boolean }) {
   const isNew = item.kind === "quote" && item.status === "new";
   const urgent = item.kind === "order" && item.deadline
     ? new Date(item.deadline).getTime() - Date.now() <= 24 * 60 * 60 * 1000
@@ -173,7 +174,9 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
         <div className="flex items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
             {isNew ? <span className="h-2 w-2 rounded-full bg-[#ed3155]" aria-label={locale === "ja" ? "新着" : "New"} /> : null}
-            {item.kind === "order"
+            {isCreatorOnly
+              ? locale === "ja" ? "仕事相談" : "Work inquiry"
+              : item.kind === "order"
               ? locale === "ja" ? "注文" : "Order"
               : locale === "ja" ? "見積もり依頼" : "Quote request"}
           </p>
@@ -198,14 +201,18 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
 
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-[16px] font-semibold tabular-nums tracking-[-0.02em] text-slate-950">
-            {item.kind === "order"
+            {isCreatorOnly
+              ? locale === "ja" ? "相談内容を確認" : "Review inquiry"
+              : item.kind === "order"
               ? formatMoney(item.amount, item.currency, locale)
               : item.quoteAmount != null
                 ? formatMoney(item.quoteAmount, "JPY", locale)
                 : formatBudget(item.budget, locale)}
           </p>
           <p className={`text-[11px] font-medium ${statusClass}`}>
-            {item.kind === "order"
+            {isCreatorOnly
+              ? locale === "ja" ? "新しい相談" : "New inquiry"
+              : item.kind === "order"
               ? deadlineText(item.deadline, locale)
               : quoteStatusText(item.status, locale)}
           </p>
@@ -218,6 +225,7 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
 export default function CreatorOrdersPage() {
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
+  const isCreatorOnly = useCreatorOnlyRelease();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -226,12 +234,12 @@ export default function CreatorOrdersPage() {
 
   const copy = safeLocale === "ja"
     ? {
-        title: "受注",
+        title: isCreatorOnly ? "仕事相談" : "受注",
         all: "すべて",
         orders: "注文",
-        quotes: "見積もり依頼",
+        quotes: isCreatorOnly ? "仕事相談" : "見積もり依頼",
         emptyTitle: "新しい依頼はありません",
-        emptyBody: "注文や見積もり依頼が届くと、ここに表示されます。",
+        emptyBody: isCreatorOnly ? "新しい仕事相談が届くと、ここに表示されます。" : "注文や見積もり依頼が届くと、ここに表示されます。",
         loadError: "受注情報を読み込めませんでした。",
         retry: "再読み込み",
       }
@@ -271,7 +279,7 @@ export default function CreatorOrdersPage() {
       if (orderResult.error) throw orderResult.error;
       if (!inquiryResult.response.ok || !inquiryResult.body?.ok) throw new Error(copy.loadError);
 
-      const orderItems: OrderItem[] = ((orderResult.data ?? []) as MartOrder[]).map((order) => ({
+      const orderItems: OrderItem[] = isCreatorOnly ? [] : ((orderResult.data ?? []) as MartOrder[]).map((order) => ({
         kind: "order",
         id: order.id,
         createdAt: order.created_at,
@@ -285,7 +293,7 @@ export default function CreatorOrdersPage() {
 
       const activeStatuses = new Set(["new", "creator_reviewing", "quoted"]);
       const quoteItems: OrderItem[] = inquiryResult.body.inquiries
-        .filter((inquiry: CreatorLinkInquiryListItem) => activeStatuses.has(inquiry.status))
+        .filter((inquiry: CreatorLinkInquiryListItem) => activeStatuses.has(inquiry.status) && (!isCreatorOnly || inquiry.inquiry_type === "other"))
         .map((inquiry: CreatorLinkInquiryListItem) => ({
           kind: "quote",
           id: inquiry.id,
@@ -312,7 +320,7 @@ export default function CreatorOrdersPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isCreatorOnly]);
 
   const counts = useMemo(() => ({
     all: items.length,
@@ -325,7 +333,9 @@ export default function CreatorOrdersPage() {
     return items.filter((item) => item.kind === filter);
   }, [filter, items]);
 
-  const tabs: Array<{ key: FilterKey; label: string; count: number }> = [
+  const tabs: Array<{ key: FilterKey; label: string; count: number }> = isCreatorOnly ? [
+    { key: "all", label: copy.quotes, count: counts.all },
+  ] : [
     { key: "all", label: copy.all, count: counts.all },
     { key: "order", label: copy.orders, count: counts.order },
     { key: "quote", label: copy.quotes, count: counts.quote },
@@ -387,7 +397,7 @@ export default function CreatorOrdersPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {visibleItems.map((item) => (
-              <OrderRow key={`${item.kind}:${item.id}`} item={item} locale={safeLocale} />
+              <OrderRow key={`${item.kind}:${item.id}`} item={item} locale={safeLocale} isCreatorOnly={isCreatorOnly} />
             ))}
           </div>
         )}
