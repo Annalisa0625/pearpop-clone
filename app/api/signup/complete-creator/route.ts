@@ -1,5 +1,6 @@
 // app/api/signup/complete-creator/route.ts
 import { NextResponse } from "next/server";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal/release";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type SocialAccountInput = {
@@ -69,9 +70,6 @@ type RequestBody = {
   agreed_to_terms?: boolean;
   agreed_to_privacy?: boolean;
 };
-
-const TERMS_VERSION = "2026-03-29-v1";
-const PRIVACY_VERSION = "2026-03-29-v1";
 
 const RESERVED_USERNAMES = new Set([
   "admin",

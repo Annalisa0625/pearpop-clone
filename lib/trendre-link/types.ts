@@ -9,6 +9,7 @@ import type {
 import type { CreatorLinkSlugValidationReason } from "./slug";
 import type { CreatorLinkItemAppearance } from "./item-validation";
 import type { CreatorLinkInquiryFormKind } from "./inquiry-forms";
+import type { CreatorLinkLayoutToken } from "./layout-order";
 
 export type CreatorLinkPage = {
   id: string;
@@ -16,6 +17,7 @@ export type CreatorLinkPage = {
   ownerUserId: string;
   slug: string;
   displayName: string;
+  displayNameColor: string | null;
   bio: string | null;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -25,6 +27,7 @@ export type CreatorLinkPage = {
   fontStyle: CreatorLinkFontStyle;
   status: CreatorLinkStatus;
   isAcceptingInquiries: boolean;
+  layoutOrder: CreatorLinkLayoutToken[] | null;
   setupStep: number;
   setupCompletedAt: string | null;
   publishedAt: string | null;
@@ -138,7 +141,7 @@ export type CreatorLinkInquiryFormsUpdateResponse =
   | { ok: false; error: string };
 
 export type CreatorLinkPublicInquiryResponse =
-  | { ok: true }
+  | { ok: true; inquiryId?: string; duplicate?: boolean }
   | { ok: false; error: string };
 
 export type CreatorLinkInquiryFormConfig = {

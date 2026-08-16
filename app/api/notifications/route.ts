@@ -1,6 +1,10 @@
 // File: app/api/notifications/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  C_ONLY_MARKETPLACE_NOTIFICATION_TYPES,
+  isCreatorOnlyNotificationViewer,
+} from "@/lib/notifications/release-visibility";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -48,6 +52,7 @@ export async function GET(req: NextRequest) {
     const admin = supabaseAdmin as any;
     const limit = getSafeLimit(req);
     const unreadOnly = req.nextUrl.searchParams.get("unread") === "1";
+    const isCreatorOnly = await isCreatorOnlyNotificationViewer(user.id);
 
     let query = admin
       .from("notifications")
@@ -76,6 +81,14 @@ export async function GET(req: NextRequest) {
       .is("archived_at", null)
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    if (isCreatorOnly) {
+      query = query.not(
+        "notification_type",
+        "in",
+        `(${C_ONLY_MARKETPLACE_NOTIFICATION_TYPES.join(",")})`
+      );
+    }
 
     if (unreadOnly) {
       query = query.is("read_at", null);

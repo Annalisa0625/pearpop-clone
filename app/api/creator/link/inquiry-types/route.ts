@@ -43,7 +43,11 @@ export async function POST(request: NextRequest) {
     if (!isCreatorLinkInquiryFormKind(raw.kind) || typeof raw.title !== "string" || !raw.title.trim() || raw.title.trim().length > 80 || typeof raw.isEnabled !== "boolean" || !Number.isInteger(raw.sortOrder) || Number(raw.sortOrder) < 0 || Number(raw.sortOrder) > 1000 || parsed.has(raw.kind)) return response("フォーム設定が正しくありません。", 400);
     parsed.set(raw.kind, { title: raw.title.trim(), isEnabled: raw.isEnabled, sortOrder: Number(raw.sortOrder) });
   }
-  if (parsed.size !== 2) return response("2種類のフォーム設定を送信してください。", 400);
+  if (parsed.size !== 2) return response("フォーム設定が正しくありません。", 400);
+  // The saved PR row is retained for backward compatibility, but cannot be
+  // enabled during the C-only launch even if a client crafts a request.
+  const requestedPr = parsed.get("pr");
+  if (requestedPr) parsed.set("pr", { ...requestedPr, isEnabled: false });
 
   try {
     const { data: page, error: pageError } = await supabaseAdmin.from("creator_link_pages").select("id").eq("id", body.pageId).eq("owner_user_id", auth.user.id).maybeSingle();
@@ -52,14 +56,14 @@ export async function POST(request: NextRequest) {
 
     const { data: rows, error: rowsError } = await supabaseAdmin.from("creator_link_inquiry_types").select("*").eq("page_id", page.id).order("sort_order", { ascending: true });
     if (rowsError) throw new Error("inquiry_types_lookup_failed");
-    const simpleExisting = rows?.find((row) => row.template_key === null && row.is_custom) ?? null;
+    const simpleExisting = rows?.find((row) => row.template_key === null) ?? null;
     const prExisting = rows?.find((row) => row.template_key === "pr_post") ?? null;
     const saved: InquiryTypeRow[] = [];
 
     for (const kind of ["simple", "pr"] as const) {
       const form = parsed.get(kind)!;
       const existing = kind === "simple" ? simpleExisting : prExisting;
-      const payload = { page_id: page.id, template_key: kind === "simple" ? null : "pr_post", title: form.title, description: INQUIRY_FORM_DEFAULTS[kind].description, sort_order: form.sortOrder, is_enabled: form.isEnabled, is_custom: kind === "simple" };
+      const payload = { page_id: page.id, template_key: kind === "simple" ? null : "pr_post", title: form.title, description: INQUIRY_FORM_DEFAULTS[kind].description, sort_order: form.sortOrder, is_enabled: form.isEnabled, is_custom: kind === "simple" ? existing?.is_custom ?? false : false };
       if (existing) {
         const { data, error } = await supabaseAdmin.from("creator_link_inquiry_types").update(payload).eq("id", existing.id).eq("page_id", page.id).select("*").single();
         if (error) throw new Error("inquiry_type_update_failed");

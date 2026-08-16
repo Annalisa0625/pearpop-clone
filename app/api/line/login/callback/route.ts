@@ -1,6 +1,13 @@
 // File: app/api/line/login/callback/route.ts
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { LineAlreadyLinkedError, assertLineUserOwnership } from "@/lib/line/link-ownership";
+import {
+  isSafeLineOAuthReturnPath,
+  resolveLineOAuthCallbackUrl,
+  resolveLineOAuthReturnUrl,
+} from "@/lib/line/oauth-origin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +16,7 @@ export const revalidate = 0;
 const LINE_TOKEN_URL = "https://api.line.me/oauth2/v2.1/token";
 const LINE_PROFILE_URL = "https://api.line.me/v2/profile";
 const LINE_FRIENDSHIP_URL = "https://api.line.me/friendship/v1/status";
+const STATE_COOKIE = "trendre_line_oauth_nonce";
 
 type LineLoginState = {
   app_user_id: string;
@@ -27,13 +35,6 @@ type LineProfileResponse = {
 };
 type LineFriendshipResponse = { friendFlag?: boolean };
 
-class LineAlreadyLinkedError extends Error {
-  constructor() {
-    super("This LINE account is already linked to another creator account.");
-    this.name = "LineAlreadyLinkedError";
-  }
-}
-
 function getLineLoginChannelId() {
   return process.env.LINE_LOGIN_CHANNEL_ID?.trim() ?? "";
 }
@@ -42,33 +43,29 @@ function getLineLoginChannelSecret() {
   return process.env.LINE_LOGIN_CHANNEL_SECRET?.trim() ?? "";
 }
 
-function getCallbackUrl(request: NextRequest) {
-  const configured = process.env.LINE_LOGIN_CALLBACK_URL?.trim();
-  if (configured) return configured;
-
-  const fallbackBase =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    new URL(request.url).origin;
-
-  return `${fallbackBase.replace(/\/$/, "")}/api/line/login/callback`;
-}
-
-function getAppBaseUrl(request: NextRequest) {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    new URL(request.url).origin
-  ).replace(/\/$/, "");
-}
-
 function redirectTo(request: NextRequest, path: string) {
-  return NextResponse.redirect(new URL(path, getAppBaseUrl(request)));
+  return NextResponse.redirect(resolveLineOAuthReturnUrl(request, path));
 }
 
-function appendLineResult(path: string, result: string) {
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}line=${encodeURIComponent(result)}`;
+function withLineResult(path: string, result: string) {
+  const url = new URL(path, "https://trendre.invalid");
+  url.searchParams.set("line", result);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function clearStateCookie(response: NextResponse) {
+  response.cookies.set(STATE_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+    path: "/api/line/login/callback",
+  });
+  return response;
+}
+
+function redirectWithClearedState(request: NextRequest, path: string) {
+  return clearStateCookie(redirectTo(request, path));
 }
 
 function base64UrlEncode(value: string | Buffer) {
@@ -123,7 +120,7 @@ function verifyState(value: string | null): LineLoginState | null {
     }
 
     if (parsed.exp < Math.floor(Date.now() / 1000)) return null;
-    if (!parsed.return_to.startsWith("/") || parsed.return_to.startsWith("//")) {
+    if (!isSafeLineOAuthReturnPath(parsed.return_to)) {
       return null;
     }
 
@@ -146,7 +143,7 @@ async function exchangeCodeForToken(request: NextRequest, code: string) {
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      redirect_uri: getCallbackUrl(request),
+      redirect_uri: resolveLineOAuthCallbackUrl(request),
       client_id: getLineLoginChannelId(),
       client_secret: getLineLoginChannelSecret(),
     }),
@@ -201,22 +198,7 @@ async function saveLineLink(args: {
   const admin = supabaseAdmin as any;
   const now = new Date().toISOString();
 
-  const { data: existingLineLink, error: existingLineLinkError } = await admin
-    .from("line_user_links")
-    .select("id, app_user_id")
-    .eq("line_user_id", args.profile.userId)
-    .maybeSingle();
-
-  if (existingLineLinkError) {
-    throw existingLineLinkError;
-  }
-
-  if (
-    existingLineLink?.app_user_id &&
-    existingLineLink.app_user_id !== args.state.app_user_id
-  ) {
-    throw new LineAlreadyLinkedError();
-  }
+  await assertLineUserOwnership(admin, args.profile.userId, args.state.app_user_id);
 
   const { error } = await admin.from("line_user_links").upsert(
     {
@@ -238,6 +220,26 @@ async function saveLineLink(args: {
   if (error) throw error;
 }
 
+function nonceMatches(expected: string, actual: string | undefined) {
+  const expectedBuffer = Buffer.from(expected);
+  const actualBuffer = Buffer.from(actual ?? "");
+  return (
+    expectedBuffer.length === actualBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, actualBuffer)
+  );
+}
+
+async function getCurrentCreatorId(userId: string) {
+  const admin = supabaseAdmin as any;
+  const { data, error } = await admin
+    .from("creators")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return typeof data?.id === "string" ? data.id : null;
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -250,20 +252,35 @@ export async function GET(request: NextRequest) {
       description: url.searchParams.get("error_description"),
     });
     const errorState = verifyState(stateValue);
-    return redirectTo(
+    const validErrorState =
+      errorState && nonceMatches(errorState.nonce, request.cookies.get(STATE_COOKIE)?.value)
+        ? errorState
+        : null;
+    return redirectWithClearedState(
       request,
-      errorState
-        ? appendLineResult(errorState.return_to, "cancelled")
+      validErrorState
+        ? withLineResult(validErrorState.return_to, "cancelled")
         : "/creator/payouts?from=signup&line=cancelled"
     );
   }
 
   const state = verifyState(stateValue);
   if (!state || !code) {
-    return redirectTo(request, "/creator/payouts?from=signup&line=invalid");
+    return redirectWithClearedState(request, "/creator/payouts?from=signup&line=invalid");
   }
 
   try {
+    if (!nonceMatches(state.nonce, request.cookies.get(STATE_COOKIE)?.value)) {
+      return redirectWithClearedState(request, withLineResult(state.return_to, "invalid"));
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentCreatorId = user ? await getCurrentCreatorId(user.id) : null;
+    if (!user || user.id !== state.app_user_id || !state.creator_id || currentCreatorId !== state.creator_id) {
+      return redirectWithClearedState(request, withLineResult(state.return_to, "error"));
+    }
+
     const accessToken = await exchangeCodeForToken(request, code);
     const profile = await getLineLoginProfile(accessToken);
     const friendship = await getLineFriendshipStatus(accessToken);
@@ -272,13 +289,13 @@ export async function GET(request: NextRequest) {
 
     await saveLineLink({ state, profile, isFriend });
 
-    return redirectTo(request, state.return_to);
+    return redirectWithClearedState(request, withLineResult(state.return_to, "linked"));
   } catch (error) {
     if (error instanceof LineAlreadyLinkedError) {
-      return redirectTo(request, appendLineResult(state.return_to, "already_linked"));
+      return redirectWithClearedState(request, withLineResult(state.return_to, "already_linked"));
     }
 
     console.error("LINE Login callback error:", error);
-    return redirectTo(request, appendLineResult(state.return_to, "error"));
+    return redirectWithClearedState(request, withLineResult(state.return_to, "error"));
   }
 }

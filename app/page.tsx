@@ -1,102 +1,41 @@
-// app/page.tsx
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default function RootPage() {
-  const router = useRouter();
+export default async function RootPage() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    const check = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  if (!user) redirect(isCreatorOnlyRelease() ? "/for-creators" : "/home");
 
-      if (!user) {
-        router.replace("/home");
-        return;
-      }
+  const { data: roles, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id);
 
-      const { data: roles, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
+  if (roleError || !roles || roles.length === 0) redirect("/signup/creator-entry");
 
-      if (roleError || !roles || roles.length === 0) {
-        router.replace("/signup/creator-entry");
-        return;
-      }
+  const roleList = roles.map((row) => row.role);
+  if (roleList.includes("creator")) redirect("/creator/dashboard");
+  if (roleList.includes("admin")) redirect("/admin");
 
-      const role = roles[0]?.role;
+  if (roleList.includes("company")) {
+    if (isCreatorOnlyRelease()) redirect("/for-creators");
 
-      const { data: userState } = await supabase
-        .from("user_states")
-        .select(
-          `
-            creator_profile_completed,
-            company_profile_completed,
-            onboarding_completed
-          `
-        )
-        .eq("user_id", user.id)
-        .maybeSingle();
+    const { data: userState } = await supabase
+      .from("user_states")
+      .select("company_profile_completed, onboarding_completed")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-      if (role === "creator") {
-        if (!userState) {
-          router.replace("/creator/profile");
-          return;
-        }
+    if (!userState?.company_profile_completed || !userState.onboarding_completed) {
+      redirect("/b/onboarding");
+    }
+    redirect("/b/dashboard");
+  }
 
-        if (!userState.creator_profile_completed) {
-          router.replace("/creator/profile");
-          return;
-        }
-
-        if (!userState.onboarding_completed) {
-          router.replace("/creator/onboarding");
-          return;
-        }
-
-        router.replace("/creator/dashboard");
-        return;
-      }
-
-      if (role === "company") {
-        if (!userState) {
-          router.replace("/b/onboarding");
-          return;
-        }
-
-        if (!userState.company_profile_completed) {
-          router.replace("/b/onboarding");
-          return;
-        }
-
-        if (!userState.onboarding_completed) {
-          router.replace("/b/onboarding");
-          return;
-        }
-
-        router.replace("/b/dashboard");
-        return;
-      }
-
-      if (role === "admin") {
-        router.replace("/admin");
-        return;
-      }
-
-      router.replace("/signup/creator-entry");
-    };
-
-    check();
-  }, [router]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
-      Loading...
-    </div>
-  );
+  redirect("/signup/creator-entry");
 }
