@@ -1,303 +1,203 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
-import { useAppLocale } from "@/lib/i18n/locale";
+import { createAnonymousLinkDraft, clearAnonymousLinkDraft, isCurrentAnonymousLinkMigration, loadAnonymousLinkDraft, saveAnonymousLinkDraft, type AnonymousLinkDraft } from "@/lib/trendre-link/anonymous-draft";
+import { deleteAnonymousDraftImage, loadAnonymousDraftImage, saveAnonymousDraftImage } from "@/lib/trendre-link/anonymous-draft-images";
+import { validateCreatorLinkSlug } from "@/lib/trendre-link/slug";
+import DeferredLinkOnboarding from "./_components/DeferredLinkOnboarding";
+import DeferredLinkAuthSheet from "./_components/DeferredLinkAuthSheet";
+import ProfileImageCropModal from "@/app/creator/link/_components/ProfileImageCropModal";
 
-type ViewState =
-  | "checkingSession"
-  | "idle"
-  | "submittingEmail"
-  | "startingGoogle"
-  | "preparingLink"
-  | "error";
+type SlugState = "idle" | "checking" | "available" | "unavailable" | "invalid";
+type Bootstrap = { ok: true; isNewLink: boolean; page: { id: string; slug: string } };
 
-const LOGIN_HREF = "/login?next=%2Fcreator%2Flink";
-const SIGNUP_COPY = {
-  ja: {
-    title: "あなたのリンクを、すぐに作れます", description: "SNS、リンク、仕事の相談窓口をひとつにまとめられます。", google: "Googleで続ける", googleLoading: "Googleに移動中…", or: "または", email: "メールアドレス", password: "パスワード", passwordHint: "8文字以上", emailSubmit: "メールアドレスで登録", emailSubmitting: "登録しています…", free: "無料で利用できます", startNow: "登録後すぐに編集を始められます", existingLead: "すでにアカウントをお持ちの方", login: "ログイン", consentStart: "続行することで、", terms: "利用規約", consentAnd: "と", privacy: "プライバシーポリシー", consentEnd: "に同意したものとみなします。",
-    preparing: "リンクを準備しています…", preparingHelp: "数秒で編集を始められます", retryTitle: "もう一度お試しください", retry: "もう一度試す", missingSession: "ログインを完了できませんでした。\nもう一度お試しください。", prepareError: "リンクを準備できませんでした。時間を置いてもう一度お試しください。", googleError: "Googleログインを開始できませんでした。\n時間を置いてもう一度お試しください。", invalidEmail: "メールアドレスを確認してください。", shortPassword: "パスワードは8文字以上で入力してください。", existingAccount: "このメールアドレスはすでに登録されています。ログインしてください。", rateLimit: "試行回数が多すぎます。少し時間を置いてもう一度お試しください。", genericSignup: "登録を完了できませんでした。時間を置いてもう一度お試しください。", authConfiguration: "登録を完了できませんでした。\n現在の認証設定を確認して、もう一度お試しください。",
-  },
-  en: {
-    title: "Create your link in minutes", description: "Bring your social profiles, links, and work inquiries together in one place.", google: "Continue with Google", googleLoading: "Redirecting to Google…", or: "or", email: "Email address", password: "Password", passwordHint: "At least 8 characters", emailSubmit: "Sign up with email", emailSubmitting: "Creating your account…", free: "Free to use", startNow: "Start editing right after signup", existingLead: "Already have an account?", login: "Log in", consentStart: "By continuing, you agree to the ", terms: "Terms of Service", consentAnd: " and ", privacy: "Privacy Policy", consentEnd: ".",
-    preparing: "Preparing your link…", preparingHelp: "You can start editing in a few seconds", retryTitle: "Please try again", retry: "Try again", missingSession: "We could not complete your login.\nPlease try again.", prepareError: "We could not prepare your link. Please wait a moment and try again.", googleError: "We could not start Google login.\nPlease wait a moment and try again.", invalidEmail: "Please check your email address.", shortPassword: "Enter a password with at least 8 characters.", existingAccount: "This email address is already registered. Please log in.", rateLimit: "Too many attempts. Please wait a moment and try again.", genericSignup: "We could not complete signup. Please wait a moment and try again.", authConfiguration: "We could not complete signup.\nPlease check the current authentication settings and try again.",
-  },
-} as const;
+function errorMessage(error: unknown) { return error instanceof Error ? error.message : "処理を完了できませんでした。もう一度お試しください。"; }
 
-type SignupCopy = (typeof SIGNUP_COPY)[keyof typeof SIGNUP_COPY];
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.58c2.09-1.93 3.27-4.78 3.27-8.09Z" />
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.58-2.77c-.98.66-2.23 1.06-3.7 1.06-2.84 0-5.25-1.92-6.12-4.5H2.18v2.84C3.99 20.53 7.7 23 12 23Z" />
-      <path fill="#FBBC05" d="M5.88 14.13A6.6 6.6 0 0 1 5.53 12c0-.74.13-1.45.35-2.13V7.03H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.44 1.18 4.97l3.7-2.84Z" />
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.03l3.7 2.84c.87-2.58 3.28-4.49 6.12-4.49Z" />
-    </svg>
-  );
-}
-
-function blurAndResetViewport() {
-  const activeElement = document.activeElement;
-  if (activeElement instanceof HTMLElement) activeElement.blur();
-  window.scrollTo(0, 0);
-}
-
-function signupErrorMessage(message: string, copy: SignupCopy) {
-  const lower = message.toLowerCase();
-  if (lower.includes("already registered") || lower.includes("already been registered") || lower.includes("user already exists")) {
-    return copy.existingAccount;
-  }
-  if (lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("over_email_send_rate_limit")) {
-    return copy.rateLimit;
-  }
-  if (lower.includes("invalid email") || lower.includes("email address") && lower.includes("invalid")) {
-    return copy.invalidEmail;
-  }
-  if (lower.includes("password") && (lower.includes("short") || lower.includes("least") || lower.includes("weak"))) {
-    return copy.shortPassword;
-  }
-  return copy.genericSignup;
-}
-
-function PreparingView({ copy, error, onRetry }: { copy: SignupCopy; error?: string; onRetry?: () => void }) {
-  return (
-    <main className="flex min-h-dvh items-center justify-center bg-[#fbfaf8] px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
-      <div className="w-full max-w-sm text-center" aria-busy={!error}>
-        {!error ? <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#ed5964]" /> : null}
-        <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-slate-900">
-          {error ? copy.retryTitle : copy.preparing}
-        </h1>
-        <p className={`mt-2 whitespace-pre-line text-sm leading-6 ${error ? "text-rose-700" : "text-slate-500"}`} role={error ? "alert" : undefined}>
-          {error ?? copy.preparingHelp}
-        </p>
-        {onRetry ? (
-          <button type="button" onClick={onRetry} className="mt-6 min-h-12 w-full rounded-2xl bg-[#29272a] px-5 text-sm font-semibold text-white outline-none transition hover:bg-black focus-visible:ring-4 focus-visible:ring-rose-200">
-            {copy.retry}
-          </button>
-        ) : null}
-      </div>
-    </main>
-  );
+function emailSignupErrorMessage(error: unknown) {
+  const candidate = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const code = typeof candidate.code === "string" ? candidate.code.toLowerCase() : "";
+  const name = typeof candidate.name === "string" ? candidate.name : "";
+  const message = typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+  if (code === "over_email_send_rate_limit" || /rate limit|too many requests/.test(message)) return "メール送信の上限に達しています。時間を置いてもう一度お試しください。";
+  if (code === "user_already_exists" || code === "email_exists" || /already registered|user already exists/.test(message)) return "このメールアドレスはすでに登録されています。";
+  if (code === "weak_password" || /password.*(short|weak)|weak.*password/.test(message)) return "パスワードは8文字以上で入力してください。";
+  if (/invalid.*email|email.*invalid/.test(message)) return "メールアドレスを確認してください。";
+  if (name === "AuthRetryableFetchError" || /fetch|network|load failed/.test(message)) return "メール登録を完了できませんでした。通信状況を確認してもう一度お試しください。";
+  return "メール登録を完了できませんでした。入力内容を確認してもう一度お試しください。";
 }
 
 export default function SignupLinkClient() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { locale, isLocaleReady } = useAppLocale();
-  const copy = SIGNUP_COPY[locale === "en" ? "en" : "ja"];
-  const oauthReturn = searchParams.get("oauth") === "1";
-  const [view, setView] = useState<ViewState>("checkingSession");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [showLoginAction, setShowLoginAction] = useState(false);
-  const preparingRef = useRef(false);
-  const initialCheckRef = useRef(false);
+  const params = useSearchParams();
+  const [draft, setDraft] = useState<AnonymousLinkDraft | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const avatarUrlRef = useRef<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [slugState, setSlugState] = useState<SlugState>("idle");
+  const [slugMessage, setSlugMessage] = useState("公開URLを入力してください");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const emailSignupInFlightRef = useRef(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
 
-  const prepareLink = async () => {
-    if (preparingRef.current) return;
-    preparingRef.current = true;
-    setError("");
-    setShowLoginAction(false);
-    setView("preparingLink");
-
-    try {
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !data.session?.user) {
-        throw new Error("missing_session");
-      }
-
-      const response = await fetch("/api/creator/link/bootstrap", {
-        method: "POST",
-        credentials: "include",
-      });
-      const result: unknown = await response.json().catch(() => null);
-      if (
-        !response.ok ||
-        typeof result !== "object" ||
-        result === null ||
-        !("ok" in result) ||
-        result.ok !== true ||
-        !("isNewLink" in result) ||
-        typeof result.isNewLink !== "boolean"
-      ) {
-        throw new Error("bootstrap_failed");
-      }
-
-      router.replace(result.isNewLink ? "/creator/link?firstRun=1" : "/creator/link");
-    } catch (prepareError) {
-      const message = prepareError instanceof Error && prepareError.message === "missing_session"
-        ? copy.missingSession
-        : copy.prepareError;
-      preparingRef.current = false;
-      setError(message);
-      setView("error");
-    }
+  const replaceAvatarPreview = (file: File | null) => {
+    if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
+    const next = file ? URL.createObjectURL(file) : null;
+    avatarUrlRef.current = next;
+    setAvatarUrl(next);
   };
 
   useEffect(() => {
-    if (!isLocaleReady) return;
-    if (initialCheckRef.current) return;
-    initialCheckRef.current = true;
+    const initial = loadAnonymousLinkDraft() ?? createAnonymousLinkDraft();
+    setDraft(initial);
+    void (async () => { if (initial.page.avatarAssetId) replaceAvatarPreview(await loadAnonymousDraftImage(initial.page.avatarAssetId)); })();
+    return () => { if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current); };
+  }, []);
 
-    const checkSession = async () => {
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        if (oauthReturn) {
-          setError(copy.missingSession);
-          setView("error");
-        } else {
-          setView("idle");
-        }
-        return;
+  useEffect(() => { if (draft) saveAnonymousLinkDraft(draft); }, [draft]);
+
+  useEffect(() => {
+    if (!draft) return;
+    const result = validateCreatorLinkSlug(draft.page.slug);
+    if (!result.valid) { setSlugState("invalid"); setSlugMessage(result.reason === "required" ? "公開URLを入力してください" : "3〜30文字の英小文字・数字・ハイフンを使えます"); return; }
+    setSlugState("checking"); setSlugMessage("確認中…");
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/creator/link/slug-availability?slug=${encodeURIComponent(result.normalizedSlug)}`, { signal: controller.signal });
+        const data = await response.json() as { ok?: boolean; available?: boolean };
+        if (!response.ok || !data.ok) throw new Error();
+        setSlugState(data.available ? "available" : "unavailable");
+        setSlugMessage(data.available ? "利用できます" : "このURLはすでに使用されています");
+      } catch { if (!controller.signal.aborted) { setSlugState("unavailable"); setSlugMessage("URLを確認できませんでした"); } }
+    }, 350);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [draft?.page.slug]);
+
+  const updateDraft = (next: AnonymousLinkDraft) => setDraft({ ...next, updatedAt: new Date().toISOString() });
+  const selectAvatar = (file: File) => {
+    const type = file.type.toLowerCase();
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (["image/heic", "image/heif"].includes(type) || extension === "heic" || extension === "heif") {
+      setNotice("HEIC・HEIF形式には対応していません。JPEGまたはPNGに変換して選択してください。");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(type) || file.size > 5 * 1024 * 1024) { setNotice("JPEG、PNG、WebPの5MB以下の画像を選んでください。"); return; }
+    setCropFile(file);
+  };
+  const persistAvatar = async (file: File) => {
+    if (!draft) return false;
+    const assetId = draft.page.avatarAssetId ?? `${draft.draftId}:avatar`;
+    try {
+      await saveAnonymousDraftImage(assetId, file, file.name);
+    } catch (error) {
+      throw new Error("anonymous_avatar_indexeddb_save_failed", { cause: error });
+    }
+    try {
+      replaceAvatarPreview(file);
+    } catch (error) {
+      throw new Error("anonymous_avatar_preview_url_failed", { cause: error });
+    }
+    updateDraft({ ...draft, page: { ...draft.page, avatarAssetId: assetId } });
+    return true;
+  };
+
+  const migrateAndPublish = async ({ allowBusy = false }: { allowBusy?: boolean } = {}) => {
+    if (!draft || (busy && !allowBusy)) return;
+    setBusy(true); setAuthError(null); setNotice("Linkを保存しています…");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) throw new Error("認証が完了していません。メール確認後、同じブラウザで戻ってください。");
+      const bootstrapResponse = await fetch("/api/creator/link/bootstrap", { method: "POST", credentials: "include" });
+      const bootstrap = await bootstrapResponse.json() as Bootstrap | { ok?: false; error?: string };
+      if (!bootstrapResponse.ok || !("ok" in bootstrap) || !bootstrap.ok) throw new Error("error" in bootstrap ? bootstrap.error : "Linkページを準備できませんでした。");
+      const userId = sessionData.session.user.id;
+      const isValidResume = isCurrentAnonymousLinkMigration(draft.migration, userId, bootstrap.page.id);
+      if (!bootstrap.isNewLink && !isValidResume) throw new Error("既存のLinkページは上書きしません。作成中の下書きはこの端末に残っています。");
+      const pageId = bootstrap.page.id;
+      const bootstrappedDraft = { ...draft, migration: { phase: "bootstrapped" as const, pageId, userId: sessionData.session.user.id } };
+      updateDraft(bootstrappedDraft);
+      let uploadedAvatarUrl: string | null = null;
+      if (draft.page.avatarAssetId) {
+        const file = await loadAnonymousDraftImage(draft.page.avatarAssetId);
+        if (!file) throw new Error("プロフィール画像を復元できませんでした。画像をもう一度選択してください。");
+        updateDraft({ ...bootstrappedDraft, migration: { phase: "uploading", pageId, userId: sessionData.session.user.id } });
+        const form = new FormData(); form.append("file", file); form.append("kind", "avatar");
+        const imageResponse = await fetch("/api/creator/link/images", { method: "POST", credentials: "include", body: form });
+        const image = await imageResponse.json() as { ok?: boolean; url?: string; error?: string };
+        if (!imageResponse.ok || !image.ok || !image.url) throw new Error(image.error ?? "画像を保存できませんでした。");
+        uploadedAvatarUrl = image.url;
       }
-      if (data.session?.user) {
-        void prepareLink();
-        return;
-      }
-      if (oauthReturn) {
-        setError(copy.missingSession);
-        setView("error");
-        return;
-      }
-      setView("idle");
-    };
+      const current = { ...bootstrappedDraft, migration: { phase: "hydrating" as const, pageId, userId: sessionData.session.user.id } };
+      updateDraft(current);
+      const hydrateResponse = await fetch("/api/creator/link/hydrate-draft", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageId, draft: { ...current, avatarUrl: uploadedAvatarUrl, coverUrl: null } }) });
+      const hydrated = await hydrateResponse.json() as { ok?: boolean; slug?: string; error?: string };
+      if (!hydrateResponse.ok || !hydrated.ok || !hydrated.slug) throw new Error(hydrated.error ?? "下書きを反映できませんでした。");
+      const publishResponse = await fetch("/api/creator/link/page", { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageId, displayName: draft.page.displayName, displayNameColor: draft.page.displayNameColor, bio: draft.page.bio, slug: hydrated.slug, themeKey: draft.page.themeKey, accentColor: draft.page.accentColor, buttonStyle: draft.page.buttonStyle, fontStyle: draft.page.fontStyle, avatarUrl: uploadedAvatarUrl, coverUrl: null, isAcceptingInquiries: draft.page.isAcceptingInquiries, status: "published" }) });
+      const published = await publishResponse.json() as { ok?: boolean; error?: string };
+      if (!publishResponse.ok || !published.ok) throw new Error(published.error ?? "公開できませんでした。");
+      await deleteAnonymousDraftImage(draft.page.avatarAssetId);
+      clearAnonymousLinkDraft();
+      setAuthOpen(false);
+      setNotice(null);
+      setPublishedSlug(hydrated.slug);
+    } catch (error) { setAuthError(errorMessage(error)); setNotice(null); setAuthOpen(true); }
+    finally { setBusy(false); }
+  };
 
-    void checkSession();
-  }, [isLocaleReady, oauthReturn]);
+  useEffect(() => {
+    if (!draft) return;
+    const returnFromAuth = params.get("oauth") === "1" || params.get("email-confirmed") === "1";
+    if (!returnFromAuth) return;
+    void (async () => { const { data } = await supabase.auth.getSession(); if (data.session?.user) await migrateAndPublish(); else setNotice("メール確認を完了した後、同じブラウザでこの画面に戻ってください。下書きは保存されています。"); })();
+  // Only handle an OAuth/email return once after draft hydration.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.draftId, params]);
 
-  const handleEmailSignup = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (view !== "idle") return;
-
+  const startGoogle = async () => {
+    if (!draft) return;
+    saveAnonymousLinkDraft({ ...draft, migration: { ...draft.migration, phase: "auth" } });
+    setBusy(true); setAuthError(null);
+    const { error } = await signInWithGoogle(`${window.location.origin}/signup/link?oauth=1&draft=1`);
+    if (error) { setBusy(false); setAuthError("Googleログインを開始できませんでした。"); }
+  };
+  const startEmail = async (email: string, password: string) => {
+    if (!draft || busy || emailSignupInFlightRef.current) return;
     const normalizedEmail = email.trim().toLowerCase();
-    setError("");
-    setShowLoginAction(false);
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setError(copy.invalidEmail);
-      return;
-    }
-    if (password.length < 8) {
-      setError(copy.shortPassword);
-      return;
-    }
-
-    blurAndResetViewport();
-    setView("submittingEmail");
-    const { data, error: signupError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-    });
-
-    if (signupError) {
-      const message = signupErrorMessage(signupError.message, copy);
-      setError(message);
-      setShowLoginAction(message === copy.existingAccount);
-      setView("idle");
-      return;
-    }
-
-    if (!data.session) {
-      const isExistingAccount = Array.isArray(data.user?.identities) && data.user.identities.length === 0;
-      setError(isExistingAccount
-        ? copy.existingAccount
-        : copy.authConfiguration);
-      setShowLoginAction(isExistingAccount);
-      setView("idle");
-      return;
-    }
-
-    void prepareLink();
-  };
-
-  const handleGoogleSignup = async () => {
-    if (view !== "idle") return;
-    blurAndResetViewport();
-    setError("");
-    setShowLoginAction(false);
-    setView("startingGoogle");
-
-    const redirectTo = `${window.location.origin}/signup/link?oauth=1`;
-    const { error: oauthError } = await signInWithGoogle(redirectTo);
-
-    if (oauthError) {
-      setError(copy.googleError);
-      setView("idle");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) { setAuthError("メールアドレスを確認してください。"); return; }
+    if (password.length < 8) { setAuthError("パスワードは8文字以上で入力してください。"); return; }
+    saveAnonymousLinkDraft({ ...draft, migration: { ...draft.migration, phase: "auth" } });
+    emailSignupInFlightRef.current = true;
+    setEmailSubmitting(true); setBusy(true); setAuthError(null);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/signup/link?email-confirmed=1&draft=1` },
+      });
+      if (error) {
+        setAuthError(emailSignupErrorMessage(error));
+        return;
+      }
+      if (data.session) {
+        await migrateAndPublish({ allowBusy: true });
+        return;
+      }
+      setAuthOpen(false);
+      setNotice("確認メールを送信しました。同じ端末・同じブラウザでメール確認を完了してください。下書きは保存されています。");
+    } catch (error) {
+      setAuthError(emailSignupErrorMessage(error));
+    } finally {
+      emailSignupInFlightRef.current = false;
+      setEmailSubmitting(false); setBusy(false);
     }
   };
 
-  const retry = () => {
-    preparingRef.current = false;
-    setError("");
-    setShowLoginAction(false);
-    setView("idle");
-    router.replace("/signup/link");
-  };
-
-  if (view === "checkingSession" || view === "preparingLink") return <PreparingView copy={copy} />;
-  if (view === "error") return <PreparingView copy={copy} error={error} onRetry={retry} />;
-
-  const submitting = view === "submittingEmail" || view === "startingGoogle";
-
-  return (
-    <main className="min-h-dvh overflow-x-hidden bg-[#fbfaf8] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-slate-950 sm:px-6 sm:py-8">
-      <div className="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md items-center sm:min-h-[calc(100dvh-4rem)]">
-        <section className="w-full rounded-[28px] bg-white px-5 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 sm:px-8 sm:py-8" aria-busy={submitting}>
-          <div className="text-center">
-            <Link href="/for-creators/work-link" className="inline-flex min-h-11 items-center rounded-full px-2 text-lg font-semibold tracking-[-0.04em] text-slate-900 outline-none focus-visible:ring-4 focus-visible:ring-rose-200">
-              Trendre <span className="ml-1 text-[#ed5964]">Link</span>
-            </Link>
-            <h1 className="mt-3 text-[26px] font-semibold leading-tight tracking-[-0.045em]">{copy.title}</h1>
-            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-slate-500">{copy.description}</p>
-          </div>
-
-          <button type="button" onClick={handleGoogleSignup} disabled={submitting} className="mt-6 flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition hover:bg-slate-50 focus-visible:ring-4 focus-visible:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60">
-            <GoogleIcon />
-            <span>{view === "startingGoogle" ? copy.googleLoading : copy.google}</span>
-          </button>
-
-          <div className="my-5 flex items-center gap-3" aria-hidden="true">
-            <span className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs text-slate-400">{copy.or}</span>
-            <span className="h-px flex-1 bg-slate-200" />
-          </div>
-
-          <form onSubmit={handleEmailSignup} className="space-y-4">
-            <div>
-              <label htmlFor="link-signup-email" className="mb-1.5 block text-sm font-medium text-slate-700">{copy.email}</label>
-              <input id="link-signup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={submitting} className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-[#ed5964] focus:ring-4 focus:ring-rose-100 disabled:bg-slate-50" />
-            </div>
-            <div>
-              <label htmlFor="link-signup-password" className="mb-1.5 block text-sm font-medium text-slate-700">{copy.password}</label>
-              <input id="link-signup-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" disabled={submitting} className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-[#ed5964] focus:ring-4 focus:ring-rose-100 disabled:bg-slate-50" />
-              <p className="mt-1.5 text-xs text-slate-400">{copy.passwordHint}</p>
-            </div>
-
-            {error ? (
-              <div role="alert" className="whitespace-pre-line rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-5 text-rose-700">
-                <p>{error}</p>
-                {showLoginAction ? <Link href={LOGIN_HREF} className="mt-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{copy.login}</Link> : null}
-              </div>
-            ) : null}
-
-            <button type="submit" disabled={submitting} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#ed5964] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(237,89,100,0.22)] outline-none transition hover:bg-[#e34f5b] focus-visible:ring-4 focus-visible:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-60">
-              {view === "submittingEmail" ? copy.emailSubmitting : copy.emailSubmit}
-            </button>
-          </form>
-
-          <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
-            <span>{copy.free}</span>
-            <span>{copy.startNow}</span>
-          </div>
-          <p className="mt-5 text-center text-sm text-slate-500">{copy.existingLead} <Link href={LOGIN_HREF} className="inline-flex min-h-11 items-center font-semibold text-slate-900 underline underline-offset-4">{copy.login}</Link></p>
-          <p className="mt-2 text-center text-[11px] leading-5 text-slate-400">{copy.consentStart}<Link href="/terms" className="underline underline-offset-2">{copy.terms}</Link>{copy.consentAnd}<Link href="/privacy" className="underline underline-offset-2">{copy.privacy}</Link>{copy.consentEnd}</p>
-        </section>
-      </div>
-    </main>
-  );
+  if (!draft) return <main className="grid min-h-dvh place-items-center bg-[#141414] text-sm text-white/60">読み込み中…</main>;
+  return <><DeferredLinkOnboarding draft={draft} avatarPreviewUrl={avatarUrl} slugState={slugState} slugMessage={slugMessage} publishedSlug={publishedSlug} onChange={updateDraft} onAvatar={selectAvatar} onRequireAuth={() => { setAuthError(null); setAuthOpen(true); }} />{notice ? <div className="fixed inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-[110] mx-auto max-w-md rounded-2xl bg-[#242326] px-4 py-3 text-sm text-white shadow-xl" role="status">{notice}</div> : null}<DeferredLinkAuthSheet open={authOpen} busy={busy} emailSubmitting={emailSubmitting} error={authError} onClose={() => setAuthOpen(false)} onGoogle={() => void startGoogle()} onEmail={(email, password) => void startEmail(email, password)} />{cropFile ? <ProfileImageCropModal file={cropFile} locale="ja" onCancel={() => setCropFile(null)} onConfirm={async (file) => { const saved = await persistAvatar(file); if (saved) setCropFile(null); return saved; }} /> : null}</>;
 }

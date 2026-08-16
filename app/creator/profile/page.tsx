@@ -10,8 +10,11 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Link2 } from "lucide-react";
+import { FaInstagram, FaLine, FaTiktok, FaXTwitter, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import {
   CreatorBadge,
   CreatorButton,
@@ -21,7 +24,6 @@ import {
   CreatorPage,
   CreatorSelect,
   CreatorSkeleton,
-  CreatorStickyFooter,
 } from "@/app/creator/_components/CreatorDesignSystem";
 
 type Locale = "ja" | "en";
@@ -39,6 +41,7 @@ type CreatorRow = {
   response_language: string | null;
   sub_categories: string[] | null;
   avatar_url: string | null;
+  is_public: boolean | null;
   approval_status: "pending" | "approved" | "rejected" | string | null;
 };
 
@@ -482,7 +485,15 @@ function extractHandleFromUrl(platform: string, url: string, handle?: string | n
   }
 }
 
-function getPublicStatusLabel(status: string | null, locale: Locale) {
+function getPublicStatusLabel(
+  status: string | null,
+  isPublic: boolean,
+  locale: Locale,
+) {
+  if (!isPublic) {
+    return locale === "ja" ? "企業に非表示" : "Hidden from companies";
+  }
+
   if (locale === "ja") {
     if (status === "approved") return "企業に表示中";
     if (status === "pending") return "確認中";
@@ -496,7 +507,11 @@ function getPublicStatusLabel(status: string | null, locale: Locale) {
   return "Reviewing";
 }
 
-function getPublicStatusTone(status: string | null): "green" | "red" | "amber" {
+function getPublicStatusTone(
+  status: string | null,
+  isPublic: boolean,
+): "green" | "red" | "amber" {
+  if (!isPublic) return "amber";
   if (status === "approved") return "green";
   if (status === "rejected") return "red";
   return "amber";
@@ -576,22 +591,7 @@ function YenIcon() {
 }
 
 function LineIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path
-        d="M12 4C7.6 4 4 6.9 4 10.5c0 3.2 2.7 5.9 6.4 6.4.3.1.5.3.5.6v1.8c0 .4.5.6.8.3l2.4-2.2c.2-.2.4-.2.7-.3 3.1-.8 5.2-3.4 5.2-6.5C20 6.9 16.4 4 12 4Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 10.2h1.7M8 12.3h1.7M11.2 10.2v2.1M13.1 10.2v2.1l1.8-2.1v2.1M16.3 10.2h1.7M16.3 12.3h1.7"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <FaLine className="h-6 w-6" aria-hidden="true" />;
 }
 
 function UserIcon() {
@@ -633,13 +633,13 @@ function CreatorAvatar({
       <img
         src={src}
         alt={name}
-        className="h-16 w-16 shrink-0 rounded-[24px] object-cover shadow-sm ring-1 ring-slate-100"
+        className="h-16 w-16 shrink-0 rounded-full object-cover ring-1 ring-slate-200/80"
       />
     );
   }
 
   return (
-    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-rose-50 text-xl font-black text-[#ff3860] ring-1 ring-rose-100">
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-rose-50 text-xl font-semibold text-[#ff3860] ring-1 ring-rose-100">
       {fallbackInitial(name)}
     </div>
   );
@@ -654,47 +654,36 @@ function PlatformBadge({
   selected: boolean;
   onClick: () => void;
 }) {
-  const platformClass =
-    platform === "Instagram"
-      ? selected
-        ? "bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 text-white ring-transparent"
-        : "bg-white text-rose-600 ring-rose-100"
-      : platform === "TikTok"
-        ? selected
-          ? "bg-slate-950 text-white ring-slate-950"
-          : "bg-white text-slate-900 ring-slate-200"
-        : platform === "YouTube"
-          ? selected
-            ? "bg-red-600 text-white ring-red-600"
-            : "bg-white text-red-600 ring-red-100"
-          : platform === "X"
-            ? selected
-              ? "bg-slate-950 text-white ring-slate-950"
-              : "bg-white text-slate-800 ring-slate-200"
-            : selected
-              ? "bg-blue-600 text-white ring-blue-600"
-              : "bg-white text-blue-700 ring-blue-100";
+  const platformClass = selected
+    ? "bg-rose-50 text-slate-950 ring-rose-300"
+    : "bg-white text-slate-600 ring-slate-200";
 
-  const icon =
-    platform === "Instagram"
-      ? "◎"
-      : platform === "TikTok"
-        ? "♪"
-        : platform === "YouTube"
-          ? "▶"
-          : platform === "X"
-            ? "𝕏"
-            : "↗";
+  const icon = socialPlatformIcon(platform);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold ring-1 transition active:scale-[0.98] ${platformClass}`}
+      aria-pressed={selected}
+      className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[12px] px-3 text-[12px] font-semibold ring-1 outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.98] motion-reduce:transition-none ${platformClass}`}
     >
       <span className="text-[13px] leading-none">{icon}</span>
       {platform}
     </button>
+  );
+}
+
+function socialPlatformIcon(platform: string) {
+  return (
+    platform === "Instagram"
+      ? <FaInstagram className="h-[18px] w-[18px]" aria-hidden="true" />
+      : platform === "TikTok"
+        ? <FaTiktok className="h-[17px] w-[17px]" aria-hidden="true" />
+        : platform === "YouTube"
+          ? <FaYoutube className="h-[18px] w-[18px]" aria-hidden="true" />
+          : platform === "X"
+            ? <FaXTwitter className="h-[17px] w-[17px]" aria-hidden="true" />
+            : <Link2 className="h-[17px] w-[17px]" aria-hidden="true" />
   );
 }
 
@@ -716,16 +705,16 @@ function ProfilePhotoPicker({
   const src = previewUrl || currentUrl;
 
   return (
-    <div className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100">
+    <div className="flex items-center gap-5 py-1">
       <div className="flex items-center gap-4">
         {src ? (
           <img
             src={src}
             alt={label}
-            className="h-20 w-20 shrink-0 rounded-[26px] object-cover ring-1 ring-slate-100"
+            className="h-[76px] w-[76px] shrink-0 rounded-full object-cover ring-1 ring-slate-200"
           />
         ) : (
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[26px] bg-slate-50 text-sm font-semibold text-slate-300 ring-1 ring-slate-100">
+          <div className="grid h-[76px] w-[76px] shrink-0 place-items-center rounded-full bg-white text-sm font-medium text-slate-400 ring-1 ring-slate-200">
             {noImageLabel}
           </div>
         )}
@@ -734,11 +723,7 @@ function ProfilePhotoPicker({
           <p className="text-[15px] font-semibold tracking-[-0.035em] text-slate-950">
             {label}
           </p>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-            企業が最初に見る写真です。
-          </p>
-
-          <label className="mt-3 inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-50 px-4 py-2 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-100 transition active:scale-[0.98]">
+          <label className="mt-3 inline-flex min-h-10 cursor-pointer items-center justify-center rounded-[12px] bg-white px-4 py-2 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-200 outline-none transition duration-150 hover:bg-slate-50 active:scale-[0.98] motion-reduce:transition-none">
             {buttonLabel}
             <input
               type="file"
@@ -769,8 +754,8 @@ function PortfolioUploadBox({
   onChange: (files: File[]) => void;
 }) {
   return (
-    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-white p-4 text-center transition active:scale-[0.98]">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-xl font-semibold text-[#ff3860] ring-1 ring-rose-100">
+    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed border-slate-300 bg-slate-50/50 p-3 text-center transition duration-150 hover:bg-slate-50 active:scale-[0.98] motion-reduce:transition-none">
+      <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-xl font-medium text-[#ff3860] ring-1 ring-slate-200">
         +
       </div>
 
@@ -813,7 +798,7 @@ function PortfolioImage({
   deleteLabel: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-[22px] bg-slate-100">
+    <div className="group relative overflow-hidden rounded-[16px] bg-slate-100 ring-1 ring-slate-200/60">
       <img src={src} alt={label} className="aspect-square w-full object-cover" />
 
       {onDelete ? (
@@ -821,7 +806,7 @@ function PortfolioImage({
           type="button"
           onClick={onDelete}
           disabled={deleting}
-          className="absolute right-2 top-2 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur transition active:scale-95 disabled:opacity-60"
+          className="absolute right-2 top-2 min-h-9 rounded-[10px] bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm outline-none backdrop-blur transition focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-95 disabled:opacity-60"
         >
           {deleting ? "..." : deleteLabel}
         </button>
@@ -835,20 +820,22 @@ function SectionCard({
   title,
   description,
   children,
+  className = "",
 }: {
   id?: string;
   title: string;
   description?: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section id={id} className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
-      <div className="mb-4">
-        <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-slate-950">
+    <section id={id} className={`border-t border-slate-200/80 py-7 sm:py-9 ${className}`}>
+      <div className="mb-5 sm:grid sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:gap-8">
+        <h2 className="text-[20px] font-semibold tracking-[-0.04em] text-slate-950">
           {title}
         </h2>
         {description ? (
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+          <p className="mt-1.5 text-[14px] font-normal leading-6 text-slate-600 sm:mt-0">
             {description}
           </p>
         ) : null}
@@ -883,6 +870,7 @@ function LineConnectionCard({
   generating,
   unlinking,
   testing,
+  isCreatorOnly,
   onGenerate,
   onUnlink,
   onTest,
@@ -915,18 +903,19 @@ function LineConnectionCard({
   generating: boolean;
   unlinking: boolean;
   testing: boolean;
+  isCreatorOnly: boolean;
   onGenerate: () => void;
   onUnlink: () => void;
   onTest: () => void;
 }) {
   return (
-    <section className="rounded-[24px] bg-white p-4 ring-1 ring-slate-100 sm:p-5">
-      <div className="flex items-start gap-3">
+    <section className={`order-4 my-3 rounded-[28px] px-5 py-6 sm:px-7 sm:py-7 ${linked ? "border border-slate-200/70 bg-white" : "creator-line-prompt relative overflow-hidden bg-[#ecfff3] shadow-[0_18px_55px_rgba(6,199,85,0.10)]"}`}>
+      <div className="relative flex items-start gap-4">
         <div
-          className={`grid h-11 w-11 shrink-0 place-items-center rounded-[18px] ring-1 ${
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-[16px] ${
             linked
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-              : "bg-slate-50 text-slate-700 ring-slate-100"
+              ? "bg-[#06c755]/10 text-[#06a947]"
+              : "bg-[#06c755] text-white shadow-[0_10px_28px_rgba(6,199,85,0.22)]"
           }`}
         >
           <LineIcon />
@@ -934,21 +923,30 @@ function LineConnectionCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-slate-950">
+            <h2 className="text-[20px] font-semibold tracking-[-0.045em] text-slate-950">
               {copy.lineTitle}
             </h2>
-
-            <CreatorBadge tone={linked ? "green" : "amber"}>
-              {loading ? copy.lineLoading : linked ? copy.lineLinked : copy.lineNotLinked}
-            </CreatorBadge>
+            {linked ? <span className="text-[12px] font-medium text-[#079447]">{loading ? copy.lineLoading : copy.lineLinked}</span> : null}
           </div>
 
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
-            {copy.lineBody}
+          <p className="mt-1.5 max-w-xl text-[14px] font-normal leading-6 text-slate-600">
+            {!linked && isCreatorOnly && locale === "ja"
+              ? "仕事相談や大切なお知らせをLINEで受け取れます。"
+              : !linked && isCreatorOnly
+                ? "Receive work inquiries and important updates on LINE."
+              : !linked && locale === "ja"
+              ? "新しい依頼やメッセージ、修正の連絡をLINEですぐ受け取れます。仕事のチャンスを見逃さないために連携しておきましょう。"
+              : !linked
+                ? "Get new requests, messages, and revision updates on LINE so you never miss work."
+                : isCreatorOnly && locale === "ja"
+                  ? "仕事相談や大切なお知らせをLINEで受け取れます。"
+                  : isCreatorOnly
+                    ? "Receive work inquiries and important updates on LINE."
+                    : copy.lineBody}
           </p>
 
           {linked ? (
-            <div className="mt-4 rounded-[20px] bg-emerald-50 px-4 py-3 ring-1 ring-emerald-100">
+            <div className="mt-4 rounded-[14px] bg-emerald-50/70 px-4 py-3 ring-1 ring-emerald-100">
               <p className="text-[12px] font-semibold text-emerald-800">
                 {copy.lineConnectedAs}
                 {linkInfo?.line_display_name ? `：${linkInfo.line_display_name}` : ""}
@@ -997,7 +995,7 @@ function LineConnectionCard({
                   type="button"
                   onClick={onTest}
                   disabled={testing}
-                  className="rounded-full bg-slate-950 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="min-h-10 rounded-[12px] bg-slate-950 px-4 py-2 text-[12px] font-semibold text-white outline-none transition focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {testing ? copy.lineTestSending : copy.lineTestSend}
                 </button>
@@ -1006,7 +1004,7 @@ function LineConnectionCard({
                   type="button"
                   onClick={onUnlink}
                   disabled={unlinking}
-                  className="rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="min-h-10 rounded-[12px] bg-white px-4 py-2 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-200 outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {unlinking ? copy.lineUnlinking : copy.lineUnlink}
                 </button>
@@ -1016,9 +1014,9 @@ function LineConnectionCard({
                 type="button"
                 onClick={onGenerate}
                 disabled={generating}
-                className="rounded-full bg-slate-950 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-12 rounded-[14px] bg-[#06c755] px-5 py-3 text-[13px] font-semibold text-white shadow-[0_10px_26px_rgba(6,199,85,0.18)] outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(6,199,85,0.24)] focus-visible:ring-4 focus-visible:ring-emerald-200 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transform-none motion-reduce:transition-none"
               >
-                {generating ? copy.lineGenerating : copy.lineGenerate}
+                {generating ? copy.lineGenerating : isCreatorOnly ? (locale === "ja" ? "LINEを連携する" : "Connect LINE") : copy.lineGenerate}
               </button>
             )}
 
@@ -1043,13 +1041,14 @@ function QuickLink({
   body: string;
   badges?: string[];
 }) {
+  void badges;
   return (
     <Link
       href={href}
-      className="block rounded-[22px] bg-white px-4 py-3.5 ring-1 ring-slate-100 transition active:scale-[0.99]"
+      className="group block border-b border-slate-200/80 py-4 outline-none transition duration-200 hover:pl-1 focus-visible:ring-2 focus-visible:ring-rose-200 active:opacity-70 motion-reduce:transition-none"
     >
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[17px] bg-slate-50 text-slate-600 ring-1 ring-slate-100">
+        <span className="grid h-9 w-9 shrink-0 place-items-center text-slate-600">
           {icon}
         </span>
         <span className="min-w-0 flex-1">
@@ -1060,28 +1059,48 @@ function QuickLink({
             {body}
           </span>
         </span>
-        <span className="text-slate-300">
+        <span className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500 motion-reduce:transition-none">
           <ChevronIcon />
         </span>
       </div>
+    </Link>
+  );
+}
 
-      {badges?.length ? (
-        <div className="mt-3 flex flex-wrap gap-1.5 pl-[52px]">
-          {badges.map((badge) => (
-            <span
-              key={badge}
-              className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-[#ff3860] ring-1 ring-rose-100"
-            >
-              {badge}
-            </span>
-          ))}
-        </div>
-      ) : null}
+function OfferingLink({
+  href,
+  title,
+  body,
+}: {
+  href: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-h-[88px] items-center gap-4 rounded-[20px] border border-[#e4e1db] bg-[#fffefa] px-5 py-4 text-slate-950 shadow-[0_8px_24px_rgba(40,35,30,0.045)] outline-none transition duration-200 hover:border-[#d8d4cd] hover:bg-white hover:shadow-[0_10px_28px_rgba(40,35,30,0.065)] focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.995] motion-reduce:transform-none motion-reduce:transition-none"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[16px] font-semibold tracking-[-0.035em]">
+          {title}
+        </span>
+        <span className="mt-1 block text-[12px] font-normal leading-5 text-slate-500">
+          {body}
+        </span>
+      </span>
+      <span
+        className="shrink-0 text-[20px] text-slate-400 transition duration-200 group-hover:translate-x-0.5 group-hover:text-slate-600 motion-reduce:transition-none"
+        aria-hidden="true"
+      >
+        ›
+      </span>
     </Link>
   );
 }
 
 export default function CreatorProfilePage() {
+  const isCreatorOnly = useCreatorOnlyRelease();
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
@@ -1092,7 +1111,7 @@ export default function CreatorProfilePage() {
       safeLocale === "ja"
         ? {
             title: "プロフィール",
-            subtitle: "企業に表示・検索される情報を整えます。",
+            subtitle: "あなたらしさと得意なことが伝わるプロフィールをつくりましょう。",
             username: "ユーザーネーム",
             usernamePlaceholder: "例：yuna_beauty",
             usernameHelp:
@@ -1110,7 +1129,7 @@ export default function CreatorProfilePage() {
             contentLanguage: "発信言語",
             responseLanguage: "対応言語",
             photoSection: "プロフィール画像",
-            photoBody: "企業が最初に見るメイン画像です。",
+            photoBody: "あなたの雰囲気が伝わる一枚を選びましょう。",
             avatar: "プロフィール画像",
             imageChoose: "写真を選択",
             noImage: "画像なし",
@@ -1120,7 +1139,7 @@ export default function CreatorProfilePage() {
             portfolioEmpty: "投稿実績や雰囲気が伝わる画像を追加してください。",
             selectedImages: "選択中",
             socialTitle: "SNSアカウント",
-            socialBody: "サインアップ時と同じ形式で、主要SNSだけを管理します。",
+            socialBody: "活動しているアカウントとオーディエンスをまとめます。",
             socialItem: "SNS",
             socialHandle: "ユーザーネーム / URL",
             followerRange: "フォロワー数",
@@ -1150,8 +1169,8 @@ export default function CreatorProfilePage() {
             saveError: "保存中にエラーが発生しました。",
             uploadFailed: "画像アップロードに失敗しました。",
             settings: "関連設定",
-            menusTitle: "メニュー・価格",
-            menusBody: "企業が購入できるメニューを管理",
+            menusTitle: "メニューの追加・編集",
+            menusBody: "提供するサービスと料金を設定",
             payoutsTitle: "報酬受け取り",
             payoutsBody: "受取設定と報酬履歴を確認",
             statusPrefix: "表示状態",
@@ -1187,7 +1206,7 @@ export default function CreatorProfilePage() {
           }
         : {
             title: "Profile",
-            subtitle: "Update information shown to brands and search.",
+            subtitle: "Build a profile that feels like you and shows what you do best.",
             username: "Username",
             usernamePlaceholder: "Example: yuna_beauty",
             usernameHelp:
@@ -1205,7 +1224,7 @@ export default function CreatorProfilePage() {
             contentLanguage: "Content language",
             responseLanguage: "Response language",
             photoSection: "Profile image",
-            photoBody: "The main image brands will see first.",
+            photoBody: "Choose a photo that captures your style.",
             avatar: "Profile image",
             imageChoose: "Choose photo",
             noImage: "No image",
@@ -1215,7 +1234,7 @@ export default function CreatorProfilePage() {
             portfolioEmpty: "Add images that show your past posts or style.",
             selectedImages: "Selected",
             socialTitle: "Social accounts",
-            socialBody: "Manage main social accounts in the same format as sign-up.",
+            socialBody: "Bring your social presence and audience together.",
             socialItem: "SNS",
             socialHandle: "Username / URL",
             followerRange: "Follower range",
@@ -1245,8 +1264,8 @@ export default function CreatorProfilePage() {
             saveError: "An error occurred while saving.",
             uploadFailed: "Failed to upload image.",
             settings: "Related settings",
-            menusTitle: "Menus & rates",
-            menusBody: "Manage menus brands can order.",
+            menusTitle: "Add or edit menus",
+            menusBody: "Set the services and rates you offer.",
             payoutsTitle: "Payouts",
             payoutsBody: "Check payout setup and history.",
             statusPrefix: "Status",
@@ -1286,6 +1305,10 @@ export default function CreatorProfilePage() {
   const [creatorId, setCreatorId] = useState<string | null>(null);
   const [creatorUserId, setCreatorUserId] = useState<string | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
+  const [creatorIsPublic, setCreatorIsPublic] = useState(false);
+  const [marketplaceProfileCompleted, setMarketplaceProfileCompleted] =
+    useState(false);
+  const [isTrendMartStart, setIsTrendMartStart] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
   const [country] = useState(COUNTRY_DEFAULT);
@@ -1338,6 +1361,12 @@ export default function CreatorProfilePage() {
 
   const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
   const profileName = displayName || "Trendre";
+
+  useEffect(() => {
+    setIsTrendMartStart(
+      new URLSearchParams(window.location.search).get("start") === "trend-mart",
+    );
+  }, []);
 
   const getAccessToken = async () => {
     const {
@@ -1539,7 +1568,7 @@ export default function CreatorProfilePage() {
       const { data: creator, error: creatorError } = await supabase
         .from("creators")
         .select(
-          "id, user_id, display_name, category, country, prefecture, city, can_receive_products, content_language, response_language, sub_categories, avatar_url, approval_status",
+          "id, user_id, display_name, category, country, prefecture, city, can_receive_products, content_language, response_language, sub_categories, avatar_url, is_public, approval_status",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -1572,6 +1601,23 @@ export default function CreatorProfilePage() {
       setCreatorId(creatorRow.id);
       setCreatorUserId(creatorRow.user_id);
       setApprovalStatus(creatorRow.approval_status ?? null);
+      setCreatorIsPublic(creatorRow.is_public === true);
+
+      const { data: userState, error: userStateError } = await supabase
+        .from("user_states")
+        .select("creator_profile_completed")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (userStateError) {
+        setError(userStateError.message);
+        setLoading(false);
+        return;
+      }
+
+      setMarketplaceProfileCompleted(
+        userState?.creator_profile_completed === true,
+      );
       setDisplayName(creatorRow.display_name ?? "");
       setPrefectures(splitPrefectures(creatorRow.prefecture));
       setCanReceiveProductsChoice(
@@ -1846,6 +1892,10 @@ export default function CreatorProfilePage() {
       }
 
       const now = new Date().toISOString();
+      const shouldPublishCreator =
+        isTrendMartStart &&
+        !marketplaceProfileCompleted &&
+        !creatorIsPublic;
 
       const { error: creatorUpdateError } = await supabase
         .from("creators")
@@ -1860,6 +1910,7 @@ export default function CreatorProfilePage() {
           response_language: normalizedResponseLanguage,
           sub_categories: normalizedSubCategories,
           avatar_url: finalAvatarUrl,
+          ...(shouldPublishCreator ? { is_public: true } : {}),
           updated_at: now,
         })
         .eq("id", creatorId);
@@ -1914,6 +1965,9 @@ export default function CreatorProfilePage() {
 
         if (stateInsertError) throw stateInsertError;
       }
+
+      setMarketplaceProfileCompleted(true);
+      if (shouldPublishCreator) setCreatorIsPublic(true);
 
       const cleanedSocials = socialAccounts
         .map((item) => ({
@@ -2052,25 +2106,18 @@ export default function CreatorProfilePage() {
   }
 
   return (
-    <CreatorPage>
-      <section className="rounded-[28px] bg-white p-4 ring-1 ring-slate-100">
+    <CreatorPage className="!pb-0">
+      <section className="px-1 pb-5 pt-2 sm:px-2 sm:pb-7">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">
+            <h1 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.055em] text-slate-950 sm:text-[34px]">
               {copy.title}
             </h1>
-            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            <p className="mt-2 max-w-xl text-[14px] font-normal leading-7 text-slate-600">
               {copy.subtitle}
             </p>
-
-            <div className="mt-3">
-              <CreatorBadge tone={getPublicStatusTone(approvalStatus)}>
-                {copy.statusPrefix}：{getPublicStatusLabel(approvalStatus, safeLocale)}
-              </CreatorBadge>
-            </div>
           </div>
 
-          <CreatorAvatar name={profileName} src={avatarPreview || avatarUrl} />
         </div>
       </section>
 
@@ -2082,7 +2129,8 @@ export default function CreatorProfilePage() {
         <CreatorNotice tone="green" title={success} />
       ) : null}
 
-      <SectionCard title={copy.photoSection} description={copy.photoBody}>
+      <div className="flex flex-col">
+      <SectionCard className="order-1" title={copy.photoSection} description={copy.photoBody}>
         <ProfilePhotoPicker
           label={copy.avatar}
           currentUrl={avatarUrl}
@@ -2093,9 +2141,41 @@ export default function CreatorProfilePage() {
         />
       </SectionCard>
 
-      <SectionCard title={copy.categoryTitle} description={copy.categoryBody}>
-        <div className="rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <section className="order-2 border-t border-slate-200/80 py-7 sm:py-9">
+        <div className="mb-4">
+          <h2 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">{safeLocale === "ja" ? "販売サービス" : "Services"}</h2>
+        </div>
+        <OfferingLink
+          href="/creator/menus"
+          title={copy.menusTitle}
+          body={copy.menusBody}
+        />
+      </section>
+
+      <SectionCard className="order-5" title={copy.categoryTitle} description={copy.categoryBody}>
+        {selectedCategories.length > 0 ? (
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {selectedCategories.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => toggleCategory(item)}
+                className="creator-profile-control border-b border-slate-300 px-0.5 py-1 text-[12px] font-medium text-slate-700 outline-none hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-200"
+              >
+                {item} ×
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <details className="group">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between border-y border-slate-200/80 py-3 text-[13px] font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
+            <span>{safeLocale === "ja" ? "ジャンルを編集" : "Edit genres"}</span>
+            <span className="text-slate-400 transition group-open:rotate-180" aria-hidden="true">⌄</span>
+          </summary>
+          <div className="pt-4">
+        <div className="border-b border-slate-200/80">
+          <div className="flex gap-6 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {GENRE_GROUPS.map((group) => {
               const active = activeGenreGroup === group.key;
 
@@ -2104,10 +2184,11 @@ export default function CreatorProfilePage() {
                   key={group.key}
                   type="button"
                   onClick={() => setActiveGenreGroup(group.key)}
-                  className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold transition ${
+                  aria-pressed={active}
+                  className={`creator-profile-control relative min-h-11 shrink-0 px-0.5 py-3 text-[13px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 ${
                     active
-                      ? "bg-[#ff3860] text-white"
-                      : "bg-white text-slate-600 ring-1 ring-slate-200"
+                      ? "text-slate-950 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#ed3155]"
+                      : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
                   {safeLocale === "ja" ? group.ja : group.en}
@@ -2117,7 +2198,7 @@ export default function CreatorProfilePage() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
+        <div className="mt-4 flex items-center justify-between text-[13px]">
           <span className="text-xs font-semibold text-slate-500">
             {copy.categoryCount}
           </span>
@@ -2126,7 +2207,7 @@ export default function CreatorProfilePage() {
           </span>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-3">
           {activeGenre.items.map((item) => {
             const selected = selectedCategories.includes(item);
             const disabled = !selected && selectedCategories.length >= 5;
@@ -2137,10 +2218,11 @@ export default function CreatorProfilePage() {
                 type="button"
                 disabled={disabled}
                 onClick={() => toggleCategory(item)}
-                className={`min-h-[38px] rounded-xl px-2.5 py-2 text-left text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                aria-pressed={selected}
+                className={`creator-profile-control min-h-11 rounded-[10px] px-3 py-2 text-left text-[13px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-35 ${
                   selected
-                    ? "bg-[#ff3860] text-white"
-                    : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-slate-950 text-white"
+                    : "text-slate-700 hover:bg-white"
                 }`}
               >
                 {item}
@@ -2148,24 +2230,11 @@ export default function CreatorProfilePage() {
             );
           })}
         </div>
-
-        {selectedCategories.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {selectedCategories.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => toggleCategory(item)}
-                className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-[#ff3860] ring-1 ring-rose-100"
-              >
-                {item} ×
-              </button>
-            ))}
           </div>
-        ) : null}
+        </details>
       </SectionCard>
 
-      <SectionCard title={copy.areaTitle} description={copy.areaBody}>
+      <SectionCard className="order-6" title={copy.areaTitle} description={copy.areaBody}>
         <div className="grid gap-4">
           <CreatorField label={copy.username} help={copy.usernameHelp}>
             <CreatorInput
@@ -2179,7 +2248,29 @@ export default function CreatorProfilePage() {
             label={`${copy.prefecture}（${prefectures.length}）`}
             help={copy.selectPrefecture}
           >
-            <div className="grid max-h-[260px] grid-cols-2 gap-2 overflow-y-auto rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100 sm:grid-cols-3">
+            {prefectures.length > 0 ? (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {prefectures.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() =>
+                      setPrefectures((prev) => toggleString(prev, item))
+                    }
+                    className="creator-profile-control border-b border-slate-300 px-0.5 py-1 text-[12px] font-medium text-slate-700 outline-none hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-200"
+                  >
+                    {item} ×
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <details className="group">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between border-y border-slate-200/80 py-3 text-[13px] font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
+                <span>{safeLocale === "ja" ? "活動エリアを編集" : "Edit areas"}</span>
+                <span className="text-slate-400 transition group-open:rotate-180" aria-hidden="true">⌄</span>
+              </summary>
+            <div className="creator-profile-options mt-2 grid max-h-[288px] grid-cols-2 gap-x-2 gap-y-1 overflow-y-auto py-2 pr-1 sm:grid-cols-3">
               {PREFECTURE_OPTIONS.map((item) => {
                 const selected = prefectures.includes(item);
 
@@ -2190,10 +2281,11 @@ export default function CreatorProfilePage() {
                     onClick={() =>
                       setPrefectures((prev) => toggleString(prev, item))
                     }
-                    className={`min-h-[40px] rounded-xl px-3 py-2 text-left text-xs font-semibold transition ${
+                    aria-pressed={selected}
+                    className={`creator-profile-control min-h-11 rounded-[10px] px-3 py-2 text-left text-[13px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 ${
                       selected
-                        ? "bg-[#ff3860] text-white shadow-[0_10px_24px_rgba(255,56,96,0.18)]"
-                        : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                        ? "bg-slate-950 text-white"
+                        : "text-slate-700 hover:bg-white"
                     }`}
                   >
                     {selected ? "✓ " : ""}
@@ -2202,34 +2294,19 @@ export default function CreatorProfilePage() {
                 );
               })}
             </div>
-
-            {prefectures.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {prefectures.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() =>
-                      setPrefectures((prev) => toggleString(prev, item))
-                    }
-                    className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-[#ff3860] ring-1 ring-rose-100"
-                  >
-                    {item} ×
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            </details>
           </CreatorField>
 
           <CreatorField label={copy.productPr}>
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setCanReceiveProductsChoice("yes")}
-                className={`rounded-2xl px-3 py-3 text-left text-sm font-semibold ring-1 transition ${
+                aria-pressed={canReceiveProductsChoice === "yes"}
+                className={`creator-profile-control min-h-[72px] rounded-[14px] px-4 py-3 text-left text-[14px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 ${
                   canReceiveProductsChoice === "yes"
-                    ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-slate-950 text-white"
+                    : "bg-[#f3f2ef] text-slate-800 hover:bg-[#efede9]"
                 }`}
               >
                 {copy.productPrYes}
@@ -2238,10 +2315,11 @@ export default function CreatorProfilePage() {
               <button
                 type="button"
                 onClick={() => setCanReceiveProductsChoice("no")}
-                className={`rounded-2xl px-3 py-3 text-left text-sm font-semibold ring-1 transition ${
+                aria-pressed={canReceiveProductsChoice === "no"}
+                className={`creator-profile-control min-h-[72px] rounded-[14px] px-4 py-3 text-left text-[14px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 ${
                   canReceiveProductsChoice === "no"
-                    ? "bg-rose-50 text-[#ff3860] ring-rose-200"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-slate-950 text-white"
+                    : "bg-[#f3f2ef] text-slate-800 hover:bg-[#efede9]"
                 }`}
               >
                 {copy.productPrNo}
@@ -2281,7 +2359,7 @@ export default function CreatorProfilePage() {
         </div>
       </SectionCard>
 
-      <SectionCard id="sns" title={copy.socialTitle} description={copy.socialBody}>
+      <SectionCard className="order-3" id="sns" title={copy.socialTitle} description={copy.socialBody}>
         <div className="space-y-3">
           {socialAccounts.map((social, index) => {
             const config = getSocialConfig(social.platform, safeLocale);
@@ -2291,22 +2369,34 @@ export default function CreatorProfilePage() {
             );
 
             return (
-              <div key={index} className="rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-100">
-                <div className="mb-3 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-white text-slate-600 ring-1 ring-slate-100">
-                      <SnsIcon />
+              <details
+                key={index}
+                className="group rounded-[20px] bg-white"
+              >
+                <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 sm:px-5 [&::-webkit-details-marker]:hidden">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center text-slate-700">
+                      {socialPlatformIcon(social.platform)}
                     </span>
-
-                    <p className="text-sm font-semibold text-slate-950">
-                      {copy.socialItem} {index + 1}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="truncate text-[14px] font-semibold text-slate-950">
+                        {social.platform || `${copy.socialItem} ${index + 1}`}
+                      </p>
+                      <p className="truncate text-[11px] font-medium text-slate-500">
+                        {social.username_or_url || (safeLocale === "ja" ? "アカウントを設定" : "Set up account")}
+                        {social.follower_range ? ` · ${social.follower_range}` : ""}
+                      </p>
+                    </div>
                   </div>
+                  <span className="text-slate-400 transition group-open:rotate-180" aria-hidden="true">⌄</span>
+                </summary>
 
+                <div className="border-t border-slate-100 p-4 sm:p-5">
+                <div className="mb-4 flex items-center justify-end border-b border-slate-100 pb-4">
                   <button
                     type="button"
                     onClick={() => removeSocial(index)}
-                    className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200 transition active:scale-95"
+                    className="min-h-9 rounded-[10px] bg-white px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 outline-none transition focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-95"
                   >
                     {copy.remove}
                   </button>
@@ -2323,15 +2413,15 @@ export default function CreatorProfilePage() {
                   ))}
                 </div>
 
-                <div className="grid gap-2.5">
+                <div className="grid gap-4">
                   <div>
                     <p className="mb-1.5 text-[12px] font-semibold text-slate-700">
                       {copy.socialHandle}
                     </p>
 
-                    <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-[#ff5f67] focus-within:ring-4 focus-within:ring-rose-100">
+                    <div className="flex min-h-[52px] overflow-hidden rounded-[14px] border border-transparent bg-[#f3f2ef] focus-within:border-[#ff5f67]/45 focus-within:bg-white focus-within:ring-4 focus-within:ring-rose-100">
                       {config.prefix ? (
-                        <div className="flex max-w-[42%] items-center bg-slate-50 px-2 text-[11px] font-semibold text-slate-400">
+                        <div className="flex max-w-[42%] items-center border-r border-slate-200/70 px-3 text-[11px] font-medium text-slate-500">
                           <span className="truncate">{config.prefix}</span>
                         </div>
                       ) : null}
@@ -2351,7 +2441,7 @@ export default function CreatorProfilePage() {
                     </div>
 
                     {previewUrl ? (
-                      <p className="mt-1.5 truncate rounded-xl bg-white px-3 py-2 text-[11px] font-medium text-slate-500 ring-1 ring-slate-100">
+                      <p className="mt-1.5 truncate px-1 text-[11px] font-medium text-slate-500">
                         {copy.urlPreview}: {previewUrl}
                       </p>
                     ) : (
@@ -2399,7 +2489,8 @@ export default function CreatorProfilePage() {
                     </CreatorSelect>
                   </div>
                 </div>
-              </div>
+                </div>
+              </details>
             );
           })}
         </div>
@@ -2415,21 +2506,20 @@ export default function CreatorProfilePage() {
       </SectionCard>
 
       <SectionCard
+        className="order-8"
         id="portfolio"
         title={copy.portfolioTitle}
         description={copy.portfolioBody}
       >
         <div className="mb-3 flex items-center justify-between gap-3">
-          <CreatorBadge tone={portfolioTotalCount >= 3 ? "green" : "amber"}>
-            {portfolioTotalCount}/3
-          </CreatorBadge>
-          <p className="text-[11px] font-medium text-slate-400">
+          <p className="text-[13px] font-medium tabular-nums text-slate-700">{portfolioTotalCount} / 3</p>
+          <p className="text-[12px] font-medium text-slate-400">
             {copy.portfolioRecommended}
           </p>
         </div>
 
         {portfolioTotalCount === 0 ? (
-          <div className="rounded-[20px] bg-slate-50 px-4 py-5 text-center ring-1 ring-slate-100">
+          <div className="rounded-[16px] bg-[#f3f2ef] px-4 py-6 text-center">
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white text-slate-300 ring-1 ring-slate-100">
               <ImageIcon />
             </div>
@@ -2439,7 +2529,7 @@ export default function CreatorProfilePage() {
           </div>
         ) : null}
 
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {portfolioAssets.map((asset) => (
             <PortfolioImage
               key={asset.id}
@@ -2481,20 +2571,14 @@ export default function CreatorProfilePage() {
         generating={lineGenerating}
         unlinking={lineUnlinking}
         testing={lineTesting}
+        isCreatorOnly={isCreatorOnly}
         onGenerate={() => void generateLineLinkCode()}
         onUnlink={() => void unlinkLine()}
         onTest={() => void sendLineTestNotification()}
       />
 
-      <SectionCard title={copy.settings}>
+      {!isCreatorOnly ? <SectionCard className="order-7" title={safeLocale === "ja" ? "報酬の受け取り" : copy.settings}>
         <section className="grid gap-2">
-          <QuickLink
-            href="/creator/menus"
-            icon={<MenuIcon />}
-            title={copy.menusTitle}
-            body={copy.menusBody}
-            badges={MENU_PREVIEW_BADGES}
-          />
           <QuickLink
             href="/creator/payouts"
             icon={<YenIcon />}
@@ -2502,9 +2586,10 @@ export default function CreatorProfilePage() {
             body={copy.payoutsBody}
           />
         </section>
-      </SectionCard>
+      </SectionCard> : null}
+      </div>
 
-      <CreatorStickyFooter>
+      <div className="-mx-2 rounded-[18px] bg-white/96 p-2 shadow-[0_12px_36px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70 sm:mx-0">
         <CreatorButton
           type="button"
           onClick={handleSave}
@@ -2513,7 +2598,7 @@ export default function CreatorProfilePage() {
         >
           {saving ? copy.saving : copy.save}
         </CreatorButton>
-      </CreatorStickyFooter>
+      </div>
     </CreatorPage>
   );
 }

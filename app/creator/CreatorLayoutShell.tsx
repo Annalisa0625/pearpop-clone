@@ -3,10 +3,23 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  BadgeHelp,
+  Banknote,
+  BriefcaseBusiness,
+  House,
+  Landmark,
+  Link2,
+  ReceiptText,
+  Settings,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 
 import NotificationBell from "@/components/NotificationBell";
 import { useAppLocale } from "@/lib/i18n/locale";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useCreatorOnlyRelease } from "./CreatorReleaseMode";
 
 type IconProps = { className?: string };
 type DetailNavContext = "orders" | "jobs" | null;
@@ -138,13 +151,90 @@ function isActivePath(pathname: string, href: string, detailContext: DetailNavCo
 
 function MenuLink({ href, icon, title, body, onClick }: { href: string; icon: ReactNode; title: string; body?: string; onClick: () => void }) {
   return (
-    <Link href={href} onClick={onClick} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 active:scale-[0.99]">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-700">{icon}</span>
+    <Link href={href} onClick={onClick} className="flex min-h-[58px] items-center gap-3 rounded-[14px] px-3 py-2 outline-none transition duration-150 hover:bg-[#f6f5f2] focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.99] motion-reduce:transition-none">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center text-slate-500">{icon}</span>
       <span className="min-w-0">
-        <span className="block text-sm font-bold text-slate-950">{title}</span>
-        {body ? <span className="mt-0.5 block truncate text-xs font-medium text-slate-400">{body}</span> : null}
+        <span className="block text-[14px] font-medium text-slate-950">{title}</span>
+        {body ? <span className="mt-0.5 block truncate text-[12px] font-normal text-slate-500">{body}</span> : null}
       </span>
     </Link>
+  );
+}
+
+function AccountSheet({
+  open,
+  email,
+  locale,
+  loggingOut,
+  copy,
+  isCreatorOnly,
+  onClose,
+  onToggleLocale,
+  onLogout,
+}: {
+  open: boolean;
+  email: string | null;
+  locale: string;
+  loggingOut: boolean;
+  copy: Record<string, string>;
+  isCreatorOnly: boolean;
+  onClose: () => void;
+  onToggleLocale: () => void;
+  onLogout: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100]" role="presentation">
+      <button
+        type="button"
+        aria-label="close menu"
+        onClick={onClose}
+        className="creator-sheet-backdrop absolute inset-0 cursor-default bg-slate-950/30 backdrop-blur-[3px]"
+      />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label={copy.accountMenu}
+        className="creator-account-sheet absolute inset-x-0 bottom-0 max-h-[calc(100dvh-24px)] overflow-y-auto rounded-t-[30px] bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-24px_70px_rgba(15,23,42,0.20)] sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-[76px] sm:w-[368px] sm:rounded-[24px] sm:border sm:border-slate-200/70 sm:p-3 sm:shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+      >
+        <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
+        <div className="rounded-[18px] bg-[#f6f5f2] px-4 py-4">
+          <p className="text-[18px] font-semibold tracking-[-0.035em]">{copy.accountMenu}</p>
+          {email ? <p className="mt-1.5 truncate text-[13px] font-normal text-slate-600">{email}</p> : null}
+        </div>
+
+        <div className="mt-2 space-y-0.5">
+          <MenuLink href="/creator/settings" icon={<Settings className="h-5 w-5" />} title={copy.accountSettings} body={copy.accountSettingsBody} onClick={onClose} />
+          {!isCreatorOnly ? <>
+            <MenuLink href="/creator/payouts?tab=bank" icon={<Landmark className="h-5 w-5" />} title={copy.bank} body={copy.bankBody} onClick={onClose} />
+            <MenuLink href="/creator/payouts" icon={<Banknote className="h-5 w-5" />} title={copy.earnings} body={copy.earningsBody} onClick={onClose} />
+          </> : null}
+        </div>
+
+        <div className="my-2 h-px bg-slate-200/70" />
+
+        <button type="button" onClick={onToggleLocale} className="flex min-h-14 w-full items-center gap-3 rounded-[14px] px-3 py-2 text-left outline-none transition duration-150 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.99] motion-reduce:transition-none">
+          <span className="flex h-9 w-9 items-center justify-center text-[11px] font-semibold text-slate-600">{locale === "ja" ? "EN" : "JA"}</span>
+          <span>
+            <span className="block text-[14px] font-medium">{copy.language}</span>
+            <span className="mt-0.5 block text-[12px] font-normal text-slate-500">{locale === "ja" ? "English" : "日本語"}</span>
+          </span>
+        </button>
+        <MenuLink href="/help" icon={<BadgeHelp className="h-5 w-5" />} title={copy.help} onClick={onClose} />
+        <MenuLink href="/terms" icon={<ShieldCheck className="h-5 w-5" />} title={copy.terms} onClick={onClose} />
+        <MenuLink href="/privacy" icon={<ShieldCheck className="h-5 w-5" />} title={copy.privacy} onClick={onClose} />
+
+        {email ? (
+          <>
+            <div className="my-2 h-px bg-slate-200/70" />
+            <button type="button" onClick={onLogout} disabled={loggingOut} className="flex min-h-12 w-full items-center justify-center rounded-[14px] px-4 py-2.5 text-[14px] font-medium text-rose-600 outline-none transition duration-150 hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-200 disabled:opacity-50 motion-reduce:transition-none">
+              {loggingOut ? copy.loggingOut : copy.logout}
+            </button>
+          </>
+        ) : null}
+      </section>
+    </div>
   );
 }
 
@@ -153,6 +243,7 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale();
+  const isCreatorOnly = useCreatorOnlyRelease();
 
   const isStandaloneLinkEditor = pathname === "/creator/link" || pathname.startsWith("/creator/link/onboarding");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -200,11 +291,11 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
       };
 
   const navItems: NavItem[] = [
-    { href: "/creator/dashboard", label: "Home", icon: <HomeIcon className="h-[22px] w-[22px]" /> },
-    { href: "/creator/orders", label: "Order", icon: <OrderIcon className="h-[22px] w-[22px]" /> },
-    { href: "/creator/jobs", label: "Job", icon: <JobIcon className="h-[22px] w-[22px]" /> },
-    { href: "/creator/link", label: "Link", icon: <LinkFeatureIcon className="h-[22px] w-[22px]" /> },
-    { href: "/creator/profile", label: "Profile", icon: <ProfileIcon className="h-[22px] w-[22px]" /> },
+    { href: "/creator/dashboard", label: "Home", icon: <House className="h-[22px] w-[22px]" /> },
+    { href: "/creator/orders", label: isCreatorOnly ? "相談" : "Order", icon: <ReceiptText className="h-[22px] w-[22px]" /> },
+    ...(!isCreatorOnly ? [{ href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> }] : []),
+    { href: "/creator/link", label: "Link", icon: <Link2 className="h-[22px] w-[22px]" /> },
+    { href: "/creator/profile", label: "Profile", icon: <UserRound className="h-[22px] w-[22px]" /> },
   ];
 
   useEffect(() => {
@@ -280,8 +371,8 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
   if (isStandaloneLinkEditor) return <>{children}</>;
 
   return (
-    <div className="min-h-[100dvh] overflow-x-hidden bg-[#f6f7f9] text-slate-950">
-      <header className="fixed inset-x-0 top-0 z-[100] border-b border-slate-200/70 bg-white/92 backdrop-blur-xl">
+    <div className="min-h-[100dvh] overflow-x-hidden bg-[#f7f6f3] text-slate-950">
+      <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-[#f7f6f3]/95 backdrop-blur-xl">
         {limitReason ? (
           <div className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-amber-900">
             <div className="mx-auto max-w-5xl">
@@ -291,80 +382,55 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
           </div>
         ) : null}
 
-        <div className="mx-auto flex h-[62px] max-w-5xl items-center justify-between gap-3 px-4 md:px-6">
-          <Link href="/creator/dashboard" aria-label="Trend Mart Home" className="flex min-w-0 items-center">
-            <img src="/brand/trend-mart-logo.png" alt="Trend Mart" className="h-7 w-auto object-contain" />
+        <div className="mx-auto flex h-[68px] max-w-5xl items-center justify-between gap-3 px-4 md:px-6">
+          <Link href="/creator/dashboard" aria-label="Trend Mart Home" className="flex min-h-11 min-w-0 items-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-rose-200">
+            <img src="/brand/trend-mart-logo.png" alt="Trend Mart" className="h-[27px] w-auto object-contain" />
           </Link>
 
           <div className="relative flex items-center gap-2">
             <NotificationBell
               href="/notifications"
               label={copy.notifications}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-100 active:scale-95"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full text-slate-700 outline-none transition duration-150 hover:bg-white focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-95 motion-reduce:transition-none"
+              badgeClassName="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3860] px-1 text-[9px] font-semibold leading-none tabular-nums text-white ring-2 ring-white"
             />
             <button
               type="button"
               onClick={() => setUserMenuOpen((open) => !open)}
               aria-label={copy.accountMenu}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-100 active:scale-95"
+              aria-expanded={userMenuOpen}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 outline-none transition duration-150 hover:bg-white focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-95 motion-reduce:transition-none"
             >
-              <UserIcon className="h-[21px] w-[21px]" />
+              <UserRound className="h-[21px] w-[21px]" />
             </button>
 
-            {userMenuOpen ? (
-              <>
-                <button type="button" aria-label="close menu" onClick={() => setUserMenuOpen(false)} className="fixed inset-0 z-40 cursor-default bg-slate-950/10" />
-                <div className="absolute right-0 top-12 z-50 w-[min(350px,calc(100vw-24px))] overflow-hidden rounded-[24px] bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.2)] ring-1 ring-slate-100">
-                  <div className="px-3 py-3">
-                    <p className="text-base font-bold tracking-[-0.03em]">{copy.accountMenu}</p>
-                    {userEmail ? <p className="mt-1 truncate text-xs font-medium text-slate-400">{userEmail}</p> : null}
-                  </div>
-
-                  <div className="space-y-1">
-                    <MenuLink href="/creator/settings" icon={<SettingsIcon className="h-5 w-5" />} title={copy.accountSettings} body={copy.accountSettingsBody} onClick={() => setUserMenuOpen(false)} />
-                    <MenuLink href="/creator/payouts?tab=bank" icon={<BankIcon className="h-5 w-5" />} title={copy.bank} body={copy.bankBody} onClick={() => setUserMenuOpen(false)} />
-                    <MenuLink href="/creator/payouts" icon={<YenIcon className="h-5 w-5" />} title={copy.earnings} body={copy.earningsBody} onClick={() => setUserMenuOpen(false)} />
-                  </div>
-
-                  <div className="my-2 h-px bg-slate-100" />
-
-                  <button type="button" onClick={() => setLocale(locale === "ja" ? "en" : "ja")} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-slate-50 active:scale-[0.99]">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-xs font-bold text-slate-700">{locale === "ja" ? "EN" : "JA"}</span>
-                    <span>
-                      <span className="block text-sm font-bold">{copy.language}</span>
-                      <span className="mt-0.5 block text-xs font-medium text-slate-400">{locale === "ja" ? "English" : "日本語"}</span>
-                    </span>
-                  </button>
-                  <MenuLink href="/help" icon={<HelpIcon className="h-5 w-5" />} title={copy.help} onClick={() => setUserMenuOpen(false)} />
-                  <MenuLink href="/terms" icon={<ShieldIcon className="h-5 w-5" />} title={copy.terms} onClick={() => setUserMenuOpen(false)} />
-                  <MenuLink href="/privacy" icon={<ShieldIcon className="h-5 w-5" />} title={copy.privacy} onClick={() => setUserMenuOpen(false)} />
-
-                  {userEmail ? (
-                    <>
-                      <div className="my-2 h-px bg-slate-100" />
-                      <button type="button" onClick={handleLogout} disabled={loggingOut} className="flex w-full items-center justify-center rounded-full bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-200 disabled:opacity-50">
-                        {loggingOut ? copy.loggingOut : copy.logout}
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              </>
-            ) : null}
           </div>
         </div>
       </header>
 
-      <main className={`mx-auto w-full max-w-5xl overflow-x-hidden px-4 pb-28 md:px-6 ${limitReason ? "pt-[116px]" : "pt-[78px]"}`}>
+      <AccountSheet
+        open={userMenuOpen}
+        email={userEmail}
+        locale={locale}
+        loggingOut={loggingOut}
+        copy={copy}
+        isCreatorOnly={isCreatorOnly}
+        onClose={() => setUserMenuOpen(false)}
+        onToggleLocale={() => setLocale(locale === "ja" ? "en" : "ja")}
+        onLogout={() => void handleLogout()}
+      />
+
+      <main className="mx-auto w-full max-w-5xl overflow-x-hidden px-4 pb-[calc(104px+env(safe-area-inset-bottom))] pt-4 md:px-6 md:pt-6">
         {children}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200/70 bg-white/94 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-[560px] grid-cols-5 gap-1">
+      <nav className="fixed inset-x-0 bottom-0 z-[60] bg-gradient-to-t from-[#f7f6f3] via-[#f7f6f3]/96 to-transparent px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="mx-auto grid max-w-[560px] grid-cols-5 gap-1 rounded-[24px] bg-white/94 px-1 shadow-[0_10px_36px_rgba(32,28,36,0.10)] ring-1 ring-black/[0.045] backdrop-blur-xl">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailContext);
             return (
-              <Link key={item.href} href={item.href} className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition active:scale-[0.96] ${active ? "text-slate-950" : "text-slate-400"}`}>
-                <span className={`flex h-8 w-10 items-center justify-center rounded-xl transition ${active ? "bg-slate-950 text-white" : "bg-transparent"}`}>{item.icon}</span>
+              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`relative flex min-h-[62px] flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:scale-[0.95] motion-reduce:transition-none ${active ? "text-[#ed3155]" : "text-slate-400 hover:text-slate-600"}`}>
+                <span className={`flex h-8 w-10 items-center justify-center transition duration-200 motion-reduce:transition-none ${active ? "-translate-y-0.5 scale-105" : ""}`}>{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             );

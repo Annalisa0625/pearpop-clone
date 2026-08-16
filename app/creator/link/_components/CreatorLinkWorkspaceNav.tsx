@@ -63,16 +63,6 @@ const NAV_ITEMS: NavItem[] = [
 export default function CreatorLinkWorkspaceNav() {
   return (
     <>
-      <style jsx global>{`
-        .creator-link-workspace > div:first-child > div.fixed.inset-x-0.bottom-0.z-50.border-t {
-          bottom: calc(64px + env(safe-area-inset-bottom)) !important;
-        }
-
-        .creator-link-workspace > div:first-child > main {
-          padding-bottom: calc(132px + env(safe-area-inset-bottom)) !important;
-        }
-      `}</style>
-
       <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200/70 bg-white/94 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-xl">
         <div className="mx-auto grid max-w-[560px] grid-cols-5 gap-1">
           {NAV_ITEMS.map((item) => {

@@ -9,6 +9,7 @@ import type {
   CreatorLinkInquiryInboxResponse,
   CreatorLinkInquiryListItem,
 } from "@/lib/trendre-link/inquiry-inbox";
+import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 
 type FilterKey = "all" | "order" | "quote";
 
@@ -57,7 +58,7 @@ function ChevronIcon() {
 
 function OrderIcon({ kind }: { kind: OrderItem["kind"] }) {
   return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-white to-slate-100 text-slate-700 shadow-[0_5px_14px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center text-slate-500">
       {kind === "order" ? (
         <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
           <path d="M7 4.5h10a2 2 0 0 1 2 2v13l-3-1.7-2.7 1.7-2.6-1.7L8 19.5l-3-1.7V6.5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -155,7 +156,7 @@ function quoteStatusClass(status: string) {
   return "text-slate-500";
 }
 
-function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
+function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: "ja" | "en"; isCreatorOnly: boolean }) {
   const isNew = item.kind === "quote" && item.status === "new";
   const urgent = item.kind === "order" && item.deadline
     ? new Date(item.deadline).getTime() - Date.now() <= 24 * 60 * 60 * 1000
@@ -167,19 +168,15 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
   return (
     <Link
       href={item.href}
-      className="group relative flex min-h-[116px] items-start gap-3.5 px-4 py-4 transition duration-200 active:scale-[0.985] active:bg-slate-50/80"
+      className="group relative flex min-h-[132px] items-start gap-3 px-1 py-5 outline-none transition duration-150 hover:pl-2 focus-visible:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:bg-white/70 motion-reduce:transition-none sm:px-2"
     >
-      <div className="relative">
-        <OrderIcon kind={item.kind} />
-        {isNew ? (
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff304f] ring-[3px] ring-white" aria-label={locale === "ja" ? "新着" : "New"} />
-        ) : null}
-      </div>
-
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-medium text-slate-400">
-            {item.kind === "order"
+          <p className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+            {isNew ? <span className="h-2 w-2 rounded-full bg-[#ed3155]" aria-label={locale === "ja" ? "新着" : "New"} /> : null}
+            {isCreatorOnly
+              ? locale === "ja" ? "仕事相談" : "Work inquiry"
+              : item.kind === "order"
               ? locale === "ja" ? "注文" : "Order"
               : locale === "ja" ? "見積もり依頼" : "Quote request"}
           </p>
@@ -190,7 +187,7 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
 
         <div className="mt-1 flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[16px] font-semibold tracking-[-0.025em] text-slate-950">
+            <h2 className="truncate text-[17px] font-semibold tracking-[-0.03em] text-slate-950">
               {item.title}
             </h2>
             <p className="mt-1 line-clamp-1 text-[13px] leading-5 text-slate-500">
@@ -203,15 +200,19 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-[13px] font-semibold text-slate-800">
-            {item.kind === "order"
+          <p className="text-[16px] font-semibold tabular-nums tracking-[-0.02em] text-slate-950">
+            {isCreatorOnly
+              ? locale === "ja" ? "相談内容を確認" : "Review inquiry"
+              : item.kind === "order"
               ? formatMoney(item.amount, item.currency, locale)
               : item.quoteAmount != null
                 ? formatMoney(item.quoteAmount, "JPY", locale)
                 : formatBudget(item.budget, locale)}
           </p>
           <p className={`text-[11px] font-medium ${statusClass}`}>
-            {item.kind === "order"
+            {isCreatorOnly
+              ? locale === "ja" ? "新しい相談" : "New inquiry"
+              : item.kind === "order"
               ? deadlineText(item.deadline, locale)
               : quoteStatusText(item.status, locale)}
           </p>
@@ -224,6 +225,7 @@ function OrderRow({ item, locale }: { item: OrderItem; locale: "ja" | "en" }) {
 export default function CreatorOrdersPage() {
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
+  const isCreatorOnly = useCreatorOnlyRelease();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -232,12 +234,12 @@ export default function CreatorOrdersPage() {
 
   const copy = safeLocale === "ja"
     ? {
-        title: "受注",
+        title: isCreatorOnly ? "仕事相談" : "受注",
         all: "すべて",
         orders: "注文",
-        quotes: "見積もり依頼",
+        quotes: isCreatorOnly ? "仕事相談" : "見積もり依頼",
         emptyTitle: "新しい依頼はありません",
-        emptyBody: "注文や見積もり依頼が届くと、ここに表示されます。",
+        emptyBody: isCreatorOnly ? "新しい仕事相談が届くと、ここに表示されます。" : "注文や見積もり依頼が届くと、ここに表示されます。",
         loadError: "受注情報を読み込めませんでした。",
         retry: "再読み込み",
       }
@@ -277,7 +279,7 @@ export default function CreatorOrdersPage() {
       if (orderResult.error) throw orderResult.error;
       if (!inquiryResult.response.ok || !inquiryResult.body?.ok) throw new Error(copy.loadError);
 
-      const orderItems: OrderItem[] = ((orderResult.data ?? []) as MartOrder[]).map((order) => ({
+      const orderItems: OrderItem[] = isCreatorOnly ? [] : ((orderResult.data ?? []) as MartOrder[]).map((order) => ({
         kind: "order",
         id: order.id,
         createdAt: order.created_at,
@@ -291,7 +293,7 @@ export default function CreatorOrdersPage() {
 
       const activeStatuses = new Set(["new", "creator_reviewing", "quoted"]);
       const quoteItems: OrderItem[] = inquiryResult.body.inquiries
-        .filter((inquiry: CreatorLinkInquiryListItem) => activeStatuses.has(inquiry.status))
+        .filter((inquiry: CreatorLinkInquiryListItem) => activeStatuses.has(inquiry.status) && (!isCreatorOnly || inquiry.inquiry_type === "other"))
         .map((inquiry: CreatorLinkInquiryListItem) => ({
           kind: "quote",
           id: inquiry.id,
@@ -318,7 +320,7 @@ export default function CreatorOrdersPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isCreatorOnly]);
 
   const counts = useMemo(() => ({
     all: items.length,
@@ -331,20 +333,22 @@ export default function CreatorOrdersPage() {
     return items.filter((item) => item.kind === filter);
   }, [filter, items]);
 
-  const tabs: Array<{ key: FilterKey; label: string; count: number }> = [
+  const tabs: Array<{ key: FilterKey; label: string; count: number }> = isCreatorOnly ? [
+    { key: "all", label: copy.quotes, count: counts.all },
+  ] : [
     { key: "all", label: copy.all, count: counts.all },
     { key: "order", label: copy.orders, count: counts.order },
     { key: "quote", label: copy.quotes, count: counts.quote },
   ];
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-5 pt-3">
-      <header className="flex items-end justify-between px-1 pb-3 pt-2">
-        <h1 className="text-[27px] font-semibold tracking-[-0.05em] text-slate-950">{copy.title}</h1>
-        <p className="pb-1 text-xs font-medium text-slate-400">{counts.all}</p>
+    <div className="mx-auto w-full max-w-3xl pb-6 pt-1 sm:pb-8 sm:pt-2">
+      <header className="flex items-end justify-between px-0.5 pb-4 pt-2 sm:pt-3">
+        <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.05em] text-slate-950">{copy.title}</h1>
+        <p className="pb-1 text-xs font-medium tabular-nums text-slate-500">{counts.all}</p>
       </header>
 
-      <nav className="creator-scrollbar-none flex overflow-x-auto border-b border-slate-200/80" aria-label={copy.title}>
+      <nav className="creator-scrollbar-none flex min-h-11 overflow-x-auto border-b border-slate-200/80" aria-label={copy.title}>
         {tabs.map((tab) => {
           const active = filter === tab.key;
           return (
@@ -352,17 +356,18 @@ export default function CreatorOrdersPage() {
               key={tab.key}
               type="button"
               onClick={() => setFilter(tab.key)}
-              className={`relative min-h-11 shrink-0 px-4 text-[13px] font-medium transition duration-200 active:opacity-60 ${active ? "text-slate-950" : "text-slate-400"}`}
+              aria-pressed={active}
+              className={`relative min-h-11 shrink-0 rounded-t-md px-4 text-[13px] font-medium outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:opacity-60 motion-reduce:transition-none ${active ? "text-slate-950" : "text-slate-500 hover:text-slate-800"}`}
             >
               {tab.label}
               <span className="ml-1.5 text-[11px] text-slate-400">{tab.count}</span>
-              {active ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-slate-950" /> : null}
+              {active ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#ff3860]" /> : null}
             </button>
           );
         })}
       </nav>
 
-      <section className="mt-3 overflow-hidden rounded-[20px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.045)] ring-1 ring-slate-200/70" aria-busy={loading}>
+      <section className="mt-4 border-y border-slate-200/80" aria-busy={loading}>
         {loading ? (
           <div className="divide-y divide-slate-100">
             {[0, 1, 2].map((item) => (
@@ -392,7 +397,7 @@ export default function CreatorOrdersPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {visibleItems.map((item) => (
-              <OrderRow key={`${item.kind}:${item.id}`} item={item} locale={safeLocale} />
+              <OrderRow key={`${item.kind}:${item.id}`} item={item} locale={safeLocale} isCreatorOnly={isCreatorOnly} />
             ))}
           </div>
         )}

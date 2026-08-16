@@ -1,5 +1,6 @@
 // app/api/signup/complete/route.ts
 import { NextResponse } from "next/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
@@ -38,6 +39,10 @@ export async function POST(req: Request) {
         { error: "Token expired" },
         { status: 400 }
       );
+    }
+
+    if (isCreatorOnlyRelease() && signup.role === "company") {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
     return NextResponse.json({

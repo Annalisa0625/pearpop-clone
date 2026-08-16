@@ -1,6 +1,7 @@
 // File: app/api/public/inquiries/route.ts
 
 import { NextResponse } from "next/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type InquiryType =
@@ -33,6 +34,8 @@ function isValidEmail(value: string) {
 }
 
 export async function POST(req: Request) {
+  if (isCreatorOnlyRelease()) return NextResponse.json({ error: "Not Found" }, { status: 404 });
+
   const supabase = await createSupabaseServerClient();
 
   const body = await req.json().catch(() => null);

@@ -67,13 +67,20 @@ type OwnedInquiry = {
   request_data: unknown;
 };
 
+// Public Link forms create simple (`other`) inquiries during the C-only
+// release. They remain conversations and cannot enter the quote workflow.
+function isCOnlySimpleLinkInquiry(inquiry: OwnedInquiry) {
+  return inquiry.inquiry_type === "other";
+}
+
 async function findOwnedInquiry(id: string, creatorUserId: string) {
   const admin = supabaseAdmin as any;
   const { data, error } = await admin.from("creator_inquiries")
     .select("id,creator_user_id,company_user_id,contact_email,company_name,contact_name,status,source,inquiry_type,purpose,product_name,requested_platform,request_data")
     .eq("id", id).eq("creator_user_id", creatorUserId).eq("source", "trendre_link").maybeSingle();
   if (error) throw error;
-  return data as OwnedInquiry | null;
+  const inquiry = data as OwnedInquiry | null;
+  return inquiry && !isCOnlySimpleLinkInquiry(inquiry) ? inquiry : null;
 }
 
 function buildScopeSnapshot(inquiry: OwnedInquiry) {
@@ -171,6 +178,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         contactEmail: inquiry.contact_email,
         companyName: inquiry.company_name,
         contactName: inquiry.contact_name,
+        companyUserId: inquiry.company_user_id,
       });
       notification = { result: initial, rawClaimToken: "" };
     }
@@ -277,6 +285,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         contactEmail: inquiry.contact_email,
         companyName: inquiry.company_name,
         contactName: inquiry.contact_name,
+        companyUserId: inquiry.company_user_id,
       });
     } catch {
       // The quote and inquiry status are already durable. Notification failures

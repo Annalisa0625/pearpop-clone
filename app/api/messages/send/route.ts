@@ -1,6 +1,7 @@
 // File: app/api/messages/send/route.ts
 
 import { NextResponse } from "next/server";
+import { isCreatorOnlyCompanyResourceActor } from "@/lib/release-mode";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const ALLOWED_REQUEST_STATUSES = new Set(["accepted", "completed_by_creator"]);
@@ -48,6 +49,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: chatErr.message }, { status: 500 });
     if (!chat)
       return NextResponse.json({ error: "チャットが見つかりません。" }, { status: 404 });
+
+    if (
+      isCreatorOnlyCompanyResourceActor({
+        actorUserId: user.id,
+        creatorUserId: chat.creator_user_id,
+        companyUserId: chat.company_user_id,
+      })
+    ) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
 
     // 🔥 正しい参加者判定
     const isParticipant =

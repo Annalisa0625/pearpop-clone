@@ -6,7 +6,6 @@ import {
   isCreatorLinkSocialPlatform,
   normalizeSocialProfile,
   validateCreatorLinkItemAppearance,
-  validateGeneralLink,
 } from "@/lib/trendre-link/item-validation";
 import {
   findOwnedItem,
@@ -18,6 +17,7 @@ import type {
   CreatorLinkItemMutationResponse,
 } from "@/lib/trendre-link/types";
 import type { TablesUpdate } from "@/types/database.types";
+import { getCreatorLinkServiceKeyFromMetadata, validateCreatorLinkServiceLink } from "@/lib/trendre-link/service-registry";
 
 type RouteContext = { params: Promise<{ id: string }> };
 type RequestBody = {
@@ -63,6 +63,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       description: string | null;
       url: string;
     };
+    const appearance = body.metadata === undefined ? null : validateCreatorLinkItemAppearance(body.metadata);
+    if (appearance && !appearance.ok) return mutationError(appearance.error, 400);
 
     if (item.item_type === "social") {
       if (
@@ -95,13 +97,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if (typeof body.title !== "string" || typeof body.url !== "string") {
         return mutationError("リンクの入力内容を確認してください。", 400);
       }
-      const validated = validateGeneralLink({ title: body.title, url: body.url });
+      const serviceKey = appearance?.ok
+        ? appearance.value.serviceKey ?? "custom"
+        : getCreatorLinkServiceKeyFromMetadata(item.metadata) ?? "custom";
+      const validated = validateCreatorLinkServiceLink({ serviceKey, title: body.title, input: body.url });
       if (!validated.ok) return mutationError(validated.error, 400);
-      values = { platform: null, ...validated.value };
+      values = { platform: null, title: validated.value.title, description: null, url: validated.value.url };
     }
 
-    const appearance = body.metadata === undefined ? null : validateCreatorLinkItemAppearance(body.metadata);
-    if (appearance && !appearance.ok) return mutationError(appearance.error, 400);
     const updates: TablesUpdate<"creator_link_items"> = { ...values };
     if (appearance?.ok) updates.metadata = appearance.value;
     if (body.sortOrder !== undefined) {

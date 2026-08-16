@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import type { User } from "@supabase/supabase-js";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createNotification } from "@/lib/notifications/createNotification";
 
 export const QUOTE_ACCESS_LIFETIME_MS = 72 * 60 * 60 * 1000;
 
@@ -231,6 +232,7 @@ export async function sendInitialQuoteNotification(args: {
   contactEmail: string;
   companyName: string | null;
   contactName: string | null;
+  companyUserId?: string | null;
 }): Promise<QuoteNotificationResult> {
   const admin = supabaseAdmin as any;
   const { data: existing, error: existingError } = await admin
@@ -261,6 +263,8 @@ export async function sendInitialQuoteNotification(args: {
       contact_email: normalizedEmail,
       claim_token_hash: hashClaimToken(rawClaimToken),
       expires_at: expiresAt,
+      user_id: args.companyUserId ?? null,
+      claimed_at: args.companyUserId ? now.toISOString() : null,
       email_status: "pending",
       send_attempt_count: 1,
       last_send_attempt_at: now.toISOString(),
@@ -282,6 +286,28 @@ export async function sendInitialQuoteNotification(args: {
     return { status, sent: status === "sent", duplicate: true };
   }
   if (insertError || !access) throw insertError ?? new Error("quote_access_insert_failed");
+
+  if (args.companyUserId) {
+    try {
+      await createNotification({
+        recipientUserId: args.companyUserId,
+        actorUserId: args.creatorUserId,
+        notificationType: "trendre_link_quote_received",
+        title: "クリエイターから見積もりが届きました",
+        body: "内容と金額を確認し、承認または見送りを選択してください。",
+        linkPath: `/b/quotes/${args.quoteId}`,
+        entityType: "creator_inquiry_quote",
+        entityId: args.quoteId,
+        importance: "high",
+        dedupeKey: `trendre-link-quote-company:${args.quoteId}`,
+      });
+    } catch (error) {
+      console.warn("trendre link quote in-app notification skipped", {
+        quoteId: args.quoteId,
+        cause: error instanceof Error ? error.message : "unknown",
+      });
+    }
+  }
 
   return deliverNotification(
     {

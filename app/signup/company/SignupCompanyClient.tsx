@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import { normalizeNextPath } from "@/lib/auth/next-path";
 
 type LocaleOption = {
   value: string;
@@ -25,13 +26,6 @@ const USAGE_PURPOSE_OPTIONS: LocaleOption[] = [
   { value: "海外向けPR", ja: "海外向けPR", en: "Global promotion" },
   { value: "その他", ja: "その他", en: "Other" },
 ];
-
-function normalizeNextPath(value: string | null) {
-  if (!value) return null;
-  if (!value.startsWith("/")) return null;
-  if (value.startsWith("//")) return null;
-  return value;
-}
 
 function getOAuthRedirectUrl(nextPath: string | null) {
   if (typeof window === "undefined") return "";

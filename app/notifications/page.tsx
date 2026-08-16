@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import { useCreatorOnlyRelease } from "@/app/creator/CreatorReleaseMode";
 
 type NotificationRow = {
   id: string;
@@ -592,13 +593,14 @@ export default function NotificationsPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
+  const isCreatorOnly = useCreatorOnlyRelease();
 
   const copy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
             title: "通知",
-            subtitle: "注文・メッセージ・お知らせを確認できます。",
+            subtitle: isCreatorOnly ? "仕事相談・メッセージ・お知らせを確認できます。" : "注文・メッセージ・お知らせを確認できます。",
             direct: "あなた",
             news: "お知らせ",
             unread: "未読",
@@ -607,7 +609,7 @@ export default function NotificationsPage() {
             loginRequired: "ログインが必要です",
             loginBody: "通知を確認するにはログインしてください。",
             directEmpty: "あなた宛の通知はありません",
-            directEmptyBody: "注文・メッセージ・納品などの通知がここに表示されます。",
+            directEmptyBody: isCreatorOnly ? "仕事相談・メッセージ・お知らせがここに表示されます。" : "注文・メッセージ・納品などの通知がここに表示されます。",
             newsEmpty: "お知らせはありません",
             newsEmptyBody: "Trend Martからのお知らせや重要な案内がここに表示されます。",
             loadFailed: "通知の取得に失敗しました。",
@@ -616,7 +618,7 @@ export default function NotificationsPage() {
           }
         : {
             title: "Notifications",
-            subtitle: "Check orders, messages, and updates.",
+            subtitle: isCreatorOnly ? "Check work inquiries, messages, and updates." : "Check orders, messages, and updates.",
             direct: "For you",
             news: "News",
             unread: "Unread",
@@ -626,7 +628,7 @@ export default function NotificationsPage() {
             loginBody: "Please log in to view notifications.",
             directEmpty: "No notifications for you",
             directEmptyBody:
-              "Order, message, and delivery updates will appear here.",
+              isCreatorOnly ? "Work inquiry, message, and update notifications will appear here." : "Order, message, and delivery updates will appear here.",
             newsEmpty: "No news",
             newsEmptyBody:
               "Important updates and announcements from Trendre will appear here.",
@@ -634,7 +636,7 @@ export default function NotificationsPage() {
             readFailed: "Failed to mark as read.",
             login: "Login",
           },
-    [safeLocale],
+    [isCreatorOnly, safeLocale],
   );
 
   const [items, setItems] = useState<NotificationRow[]>([]);

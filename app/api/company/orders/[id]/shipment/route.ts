@@ -2,6 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createInAppNotification, getOrderNotificationName } from "@/lib/notifications/in-app";
+import {
+  executeShipmentRegistration,
+  normalizeShipmentCarrier,
+  normalizeShipmentTrackingNumber,
+  ShipmentRegistrationError,
+  type ShipmentOrder,
+} from "@/lib/orders/order-shipment";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -33,33 +40,6 @@ async function getAuthenticatedUser(req: NextRequest) {
   return { user, error: null };
 }
 
-function getString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizeCarrier(value: unknown) {
-  return getString(value).slice(0, 80);
-}
-
-function normalizeTrackingNumber(value: unknown) {
-  return getString(value).replace(/\s+/g, "").slice(0, 120);
-}
-
-function canRegisterShipment(order: {
-  status: string;
-  payment_status: string;
-  fulfillment_type: string | null;
-  shipping_address_shared_at: string | null;
-  received_at: string | null;
-}) {
-  if (order.fulfillment_type !== "product_shipping") return false;
-  if (order.payment_status !== "captured") return false;
-  if (!order.shipping_address_shared_at) return false;
-  if (order.received_at) return false;
-
-  return order.status === "accepted_captured" || order.status === "in_progress";
-}
-
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -89,8 +69,8 @@ export async function POST(
 
     const body = (await req.json().catch(() => null)) as ShipmentInput | null;
 
-    const shippingCarrier = normalizeCarrier(body?.shipping_carrier);
-    const shippingTrackingNumber = normalizeTrackingNumber(
+    const shippingCarrier = normalizeShipmentCarrier(body?.shipping_carrier);
+    const shippingTrackingNumber = normalizeShipmentTrackingNumber(
       body?.shipping_tracking_number
     );
 
@@ -115,6 +95,7 @@ export async function POST(
         id,
         b_user_id,
         creator_user_id,
+        creator_menu_id,
         status,
         payment_status,
         fulfillment_type,
@@ -142,94 +123,91 @@ export async function POST(
       );
     }
 
-    if (order.b_user_id !== user.id) {
-      return NextResponse.json(
-        { error: "この注文の発送情報を更新する権限がありません" },
-        { status: 403 }
-      );
-    }
-
-    if (!canRegisterShipment(order)) {
-      return NextResponse.json(
-        { error: "この注文では現在、発送情報を登録できません" },
-        { status: 409 }
-      );
-    }
-
     const nowIso = new Date().toISOString();
-
-    const { error: updateError } = await supabaseAdmin
-      .from("orders")
-      .update({
-        status: order.status === "accepted_captured" ? "in_progress" : order.status,
-        preparation_status: "shipped",
-        shipping_carrier: shippingCarrier,
-        shipping_tracking_number: shippingTrackingNumber,
-        shipped_at: order.shipped_at ?? nowIso,
-        updated_at: nowIso,
-      } as never)
-      .eq("id", order.id);
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    const eventType = order.shipped_at
-      ? "company_updated_product_shipment"
-      : "company_registered_product_shipment";
-    const shippedAt = order.shipped_at ?? nowIso;
-
-    await supabaseAdmin.from("order_events").insert({
-      order_id: order.id,
-      actor_user_id: user.id,
-      event_type: eventType,
-      event_data: {
-        previous_preparation_status: order.preparation_status,
-        preparation_status: "shipped",
-        shipping_carrier: shippingCarrier,
-        shipping_tracking_number: shippingTrackingNumber,
-        shipped_at: shippedAt,
-      },
-    });
-
     const orderName = getOrderNotificationName(order);
-
-    await createInAppNotification({
-      recipientUserId: order.creator_user_id,
-      actorUserId: user.id,
-      notificationType: "product_shipped",
-      title: order.shipped_at ? "発送情報が更新されました" : "商品が発送されました",
-      body:
-        orderName === "注文"
-          ? `配送会社：${shippingCarrier} / 追跡番号：${shippingTrackingNumber}`
-          : `${orderName}の商品が発送されました。配送会社：${shippingCarrier} / 追跡番号：${shippingTrackingNumber}`,
-      linkPath: `/creator/orders/${order.id}`,
-      entityType: "order",
-      entityId: order.id,
-      orderId: order.id,
-      importance: "high",
-      dedupeKey: `product_shipped:${order.id}`,
-      metadata: {
-        product_name: order.product_name,
-        menu_title: order.menu_title_snapshot,
-        fulfillment_type: "product_shipping",
-        shipping_carrier: shippingCarrier,
-        shipping_tracking_number: shippingTrackingNumber,
-        shipped_at: shippedAt,
-        event_type: eventType,
+    const plan = await executeShipmentRegistration({
+      order: order as ShipmentOrder,
+      userId: user.id,
+      shippingCarrier,
+      shippingTrackingNumber,
+      nowIso,
+      dependencies: {
+        updateOrder: async (shipment) => {
+          const { error } = await supabaseAdmin
+            .from("orders")
+            .update({
+              status: shipment.nextStatus,
+              preparation_status: "shipped",
+              shipping_carrier: shipment.shippingCarrier,
+              shipping_tracking_number: shipment.shippingTrackingNumber,
+              shipped_at: shipment.shippedAt,
+              updated_at: nowIso,
+            } as never)
+            .eq("id", order.id);
+          if (error) throw error;
+        },
+        recordEvent: async (shipment) => {
+          const { error } = await supabaseAdmin.from("order_events").upsert(
+            {
+              order_id: order.id,
+              actor_user_id: user.id,
+              event_type: shipment.eventType,
+              dedupe_key: shipment.eventDedupeKey,
+              event_data: {
+                previous_preparation_status: order.preparation_status,
+                preparation_status: "shipped",
+                shipping_carrier: shipment.shippingCarrier,
+                shipping_tracking_number: shipment.shippingTrackingNumber,
+                shipped_at: shipment.shippedAt,
+              },
+            },
+            { onConflict: "dedupe_key", ignoreDuplicates: true }
+          );
+          if (error) throw error;
+        },
+        notifyCreator: (shipment, recipientUserId) =>
+          createInAppNotification({
+            recipientUserId,
+            actorUserId: user.id,
+            notificationType: "product_shipped",
+            title: shipment.notificationTitle,
+            body:
+              orderName === "注文"
+                ? `配送会社：${shipment.shippingCarrier} / 追跡番号：${shipment.shippingTrackingNumber}`
+                : `${orderName}の商品が発送されました。配送会社：${shipment.shippingCarrier} / 追跡番号：${shipment.shippingTrackingNumber}`,
+            linkPath: `/creator/orders/${order.id}`,
+            entityType: "order",
+            entityId: order.id,
+            orderId: order.id,
+            importance: "high",
+            dedupeKey: shipment.notificationDedupeKey,
+            metadata: {
+              product_name: order.product_name,
+              menu_title: order.menu_title_snapshot,
+              fulfillment_type: "product_shipping",
+              shipping_carrier: shipment.shippingCarrier,
+              shipping_tracking_number: shipment.shippingTrackingNumber,
+              shipped_at: shipment.shippedAt,
+              event_type: shipment.eventType,
+            },
+          }),
       },
     });
 
     return NextResponse.json({
       ok: true,
       order_id: order.id,
-      status: order.status === "accepted_captured" ? "in_progress" : order.status,
+      status: plan.nextStatus,
       preparation_status: "shipped",
-      shipping_carrier: shippingCarrier,
-      shipping_tracking_number: shippingTrackingNumber,
-      shipped_at: order.shipped_at ?? nowIso,
+      shipping_carrier: plan.shippingCarrier,
+      shipping_tracking_number: plan.shippingTrackingNumber,
+      shipped_at: plan.shippedAt,
     });
   } catch (error) {
+    if (error instanceof ShipmentRegistrationError) {
+      const status = error.code === "forbidden" ? 403 : error.code === "not_available" ? 409 : 500;
+      return NextResponse.json({ error: error.message }, { status });
+    }
     console.error("company order shipment error", error);
 
     return NextResponse.json(

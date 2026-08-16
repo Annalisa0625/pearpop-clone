@@ -177,11 +177,12 @@ export default function CreatorLandingPage() {
       <section className="tm-hero">
         <Image src="/for-creators/trend-mart-creator-hero.webp" alt="スマートフォンを手に、撮影現場で仕事へ進むインフルエンサー" fill sizes="100vw" className="tm-hero__image" priority />
         <div className="tm-hero__shade" />
-        <div className="tm-hero__content">
-          <h1>あなたの発信を、<br />待っている企業がいる。</h1>
-          <p className="tm-hero__service">インフルエンサー × ブランド・企業の<br />マッチングプラットフォーム。</p>
-          <p className="tm-hero__invite">あなたの発信力を出品しましょう。</p>
-          <Link href="/signup/creator" className="tm-primary-cta">インフルエンサー登録 <ArrowRight size={18} /></Link>
+        <div className="tm-hero__content lg:!w-[min(660px,52vw)] xl:!w-[min(700px,52vw)] 2xl:!w-[720px]">
+          <h1 className="!text-[38px] !font-medium !leading-[1.1] !tracking-[-0.025em] min-[390px]:!text-[40px] min-[430px]:!text-[42px] lg:!text-[50px] lg:whitespace-nowrap xl:!text-[54px] 2xl:!text-[56px]"><span className="inline-block whitespace-nowrap">インフルエンサー</span>{" "}<span className="inline-block whitespace-nowrap">× 企業</span></h1>
+          <p className="tm-hero__service !mt-7 !max-w-none !text-[22px] !font-semibold !leading-[1.3] min-[430px]:!text-[23px] lg:!mt-8 lg:!text-[25px] xl:!text-[26px]">PR案件のスカウト型プラットフォーム。</p>
+          <p className="tm-hero__invite !mb-0 !mt-3 !text-[15px] !font-medium !leading-[1.75] min-[430px]:!text-[16px] lg:!mt-4 lg:!text-[17px]">従来の案件応募型ではなく、<br />1件ごとに報酬が設定されたスカウト型のプラットフォーム。</p>
+          <p className="tm-hero__invite !mb-0 !mt-5 !text-[16px] !font-medium !leading-[1.55] lg:!mt-6 lg:!text-[18px]"><span className="inline-block whitespace-nowrap">魅力的なプロフィールを完成させ、</span><span className="inline-block whitespace-nowrap">依頼を待ちましょう。</span></p>
+          <Link href="/signup/creator" className="tm-primary-cta !mt-7 lg:!mt-8">インフルエンサー登録 <ArrowRight size={18} /></Link>
           <p className="tm-hero__note"><Check size={13} /> 登録無料・届いた依頼を確認してから判断できます</p>
         </div>
         <RequestDemo index={requestIndex} />

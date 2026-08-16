@@ -2,7 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import {
+  buildInquiryReturnPath,
+  createInquiryDraft,
+  createInquirySubmissionId,
+  inquiryDraftStorageKey,
+  parseInquiryDraft,
+  safeSessionStorageGet,
+  safeSessionStorageRemove,
+  safeSessionStorageSet,
+  type CreatorLinkInquiryFormState,
+} from "@/lib/trendre-link/inquiry-return";
 
 import {
   CAMPAIGN_GOALS,
@@ -23,48 +37,13 @@ type Props = {
   kind: CreatorLinkInquiryFormKind;
   title: string;
   slug: string;
+  formId: string | null;
   mode: "public" | "preview";
   locale: "ja" | "en";
   onClose: () => void;
 };
 
-type FormState = {
-  request_mode: CreatorLinkRequestMode | "";
-  project_type: string;
-  requested_platforms: string[];
-  other_platform: string;
-  deliverables_by_platform: Record<string, PlatformDeliverable[]>;
-  ugc_deliverable_types: string[];
-  ugc_other_deliverable: string;
-  deliverable_count: number;
-  usage_purposes: string[];
-  usage_other: string;
-  meeting_method: string;
-  product_name: string;
-  product_url: string;
-  desired_timing: string;
-  budget_text: string;
-  campaign_goal: string;
-  campaign_goal_other: string;
-  has_free_offer: "" | "provided" | "not_provided";
-  free_offer_item: string;
-  free_offer_quantity: string;
-  free_offer_frequency: string;
-  free_offer_people: string;
-  free_offer_conditions: string;
-  company_name: string;
-  contact_name: string;
-  contact_email: string;
-  company_website: string;
-  company_social_accounts: Record<string, string>;
-  selling_points: string;
-  reference_url: string;
-  additional_notes: string;
-  consents: boolean[];
-  subject: string;
-  message: string;
-  website: string;
-};
+type FormState = CreatorLinkInquiryFormState;
 
 const initialState: FormState = {
   request_mode: "",
@@ -99,6 +78,7 @@ const initialState: FormState = {
   reference_url: "",
   additional_notes: "",
   consents: [false, false, false, false, false, false],
+  privacy_consent: false,
   subject: "",
   message: "",
   website: "",
@@ -201,12 +181,68 @@ function CountInput({ value, onChange, label }: { value: number; onChange: (valu
   );
 }
 
-export default function InquiryFormModal({ kind, title, slug, mode, onClose }: Props) {
+export default function InquiryFormModal({ kind, title, slug, formId, mode, onClose }: Props) {
+  const router = useRouter();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [form, setForm] = useState<FormState>(initialState);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submissionId, setSubmissionId] = useState("");
+  useEffect(() => {
+    if (mode !== "public" || typeof window === "undefined") return;
+    if (!formId) return;
+    const key = inquiryDraftStorageKey(slug);
+    const stored = safeSessionStorageGet(key);
+    const draft = parseInquiryDraft(
+      stored,
+      { slug, formId, kind }
+    );
+    if (!draft) {
+      if (stored) safeSessionStorageRemove(key);
+      setSubmissionId(createInquirySubmissionId() ?? "");
+      return;
+    }
+    setForm(draft.form);
+    setStep(draft.step);
+    setSubmissionId(draft.submissionId);
+  }, [formId, kind, mode, slug]);
+
+  const ensureSubmissionId = () => {
+    if (submissionId) return submissionId;
+    const created = createInquirySubmissionId();
+    if (created) setSubmissionId(created);
+    return created;
+  };
+
+  const saveDraftAndContinueToAuth = () => {
+    if (!formId) return false;
+    const activeSubmissionId = ensureSubmissionId();
+    if (!activeSubmissionId) {
+      setError("安全な送信IDを作成できませんでした。ブラウザを更新してもう一度お試しください。");
+      return false;
+    }
+    const returnPath = buildInquiryReturnPath(slug);
+    const saved = safeSessionStorageSet(
+      inquiryDraftStorageKey(slug),
+      JSON.stringify(createInquiryDraft({
+        slug,
+        formId,
+        submissionId: activeSubmissionId,
+        kind,
+        title,
+        form,
+        step,
+      }))
+    );
+    if (!saved) {
+      setError("入力内容をブラウザへ安全に保存できませんでした。ストレージ設定を確認してください。");
+      return false;
+    }
+    router.push(`/signup/company?next=${encodeURIComponent(returnPath)}`);
+    return true;
+  };
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }));
   const toggle = (key: "requested_platforms" | "ugc_deliverable_types" | "usage_purposes", value: string) =>
     update(key, form[key].includes(value) ? form[key].filter((item) => item !== value) : [...form[key], value]);
@@ -248,6 +284,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
   const validate = () => {
     if (kind === "simple") {
       if (!form.contact_name.trim() || !form.contact_email.trim() || !form.message.trim()) return "必須項目を入力してください。";
+      if (!form.privacy_consent) return "情報共有への同意を確認してください。";
       return "";
     }
     if (step === 0 && !form.request_mode) return "依頼形式を選択してください。";
@@ -293,7 +330,8 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
       return Boolean(
         form.contact_name.trim() &&
         form.contact_email.trim() &&
-        form.message.trim()
+        form.message.trim() &&
+        form.privacy_consent
       );
     }
     if (step === 0) return Boolean(form.request_mode);
@@ -363,16 +401,42 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
     const message = validate();
     if (message) return setError(message);
     if (mode === "preview") return setError("送信は公開ページで行えます。");
+    if (!formId) return setError("フォームを確認できませんでした。");
+    const activeSubmissionId = ensureSubmissionId();
+    if (!activeSubmissionId) {
+      return setError("安全な送信IDを作成できませんでした。ブラウザを更新してもう一度お試しください。");
+    }
     setSubmitting(true);
     setError("");
     try {
+      if (kind === "pr") {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.user) {
+          saveDraftAndContinueToAuth();
+          return;
+        }
+      }
+
       const response = await fetch("/api/public/creator-link/inquiries", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug, formKind: kind, ...form }),
+        body: JSON.stringify({
+          slug,
+          formId,
+          submissionId: activeSubmissionId,
+          formKind: kind,
+          ...form,
+        }),
       });
       const body = await response.json();
+      if (response.status === 401 && kind === "pr") {
+        saveDraftAndContinueToAuth();
+        return;
+      }
       if (!response.ok || !body.ok) throw new Error(body.error || "送信できませんでした。");
+      safeSessionStorageRemove(inquiryDraftStorageKey(slug));
       setSubmitted(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "送信できませんでした。");
@@ -386,7 +450,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
     "実際に体験していない感想や、根拠のない効果表現を求めません",
     "特定の高評価や好意的な感想を強制しません",
     "TrendMart利用規約とプライバシーポリシーに同意します",
-    "見積もりが届いた場合、入力したメールアドレスで無料のTrendMartアカウントを有効化して確認することに同意します",
+    "見積もりが届いた場合、登録したTrendMartアカウントで内容を確認することに同意します",
     "本案件の契約・連絡・支払いをTrendMart上で行うことに同意します",
   ];
 
@@ -405,6 +469,10 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
         <label className="block"><FieldLabel required>メールアドレス</FieldLabel><input type="email" value={form.contact_email} maxLength={254} onChange={(e) => update("contact_email", e.target.value)} className={inputClass} /></label>
         <label className="block"><FieldLabel>件名</FieldLabel><input value={form.subject} maxLength={120} onChange={(e) => update("subject", e.target.value)} className={inputClass} /></label>
         <label className="block"><FieldLabel required>お問い合わせ内容</FieldLabel><textarea rows={6} value={form.message} maxLength={3000} onChange={(e) => update("message", e.target.value)} className={textareaClass} /></label>
+        <div className="rounded-[14px] bg-slate-50 px-4 py-4 text-[13px] leading-6 text-slate-600">
+          <p>送信すると、入力したお名前・メールアドレス・相談内容等が相談先Creatorに共有されます。この送信のみでは契約・発注は成立しません。</p>
+          <label className="mt-3 flex cursor-pointer items-start gap-3 text-slate-800"><input type="checkbox" checked={form.privacy_consent} onChange={(event) => update("privacy_consent", event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950" aria-describedby="simple-consent-help" /><span id="simple-consent-help"><Link href="/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2">プライバシーポリシー</Link>を確認し、相談先Creatorへの情報共有に同意します。</span></label>
+        </div>
       </div>
     );
     if (step === 0) return (
@@ -485,7 +553,7 @@ export default function InquiryFormModal({ kind, title, slug, mode, onClose }: P
           <div className="mt-3 flex items-center justify-between gap-3"><div><h2 className="text-[18px] font-semibold text-slate-950">{kind === "pr" ? "見積もりを依頼" : title}</h2>{kind === "pr" && step > 0 ? <p className="mt-1 text-[11px] text-slate-500">{form.request_mode === "pr_post" ? "PR投稿" : "UGC制作"}・{step}/5</p> : null}</div><button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-semibold leading-none text-white shadow-sm ring-1 ring-slate-950 transition hover:bg-slate-800 active:scale-90" aria-label="閉じる">×</button></div>
           {kind === "pr" && step > 0 ? <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-slate-950 transition-all" style={{ width: `${step * 20}%` }} /></div> : null}
         </header>
-        {submitted ? <div className="flex-1 px-6 py-14 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</div><h3 className="mt-5 text-xl font-semibold text-slate-950">見積もり依頼を受け付けました</h3><p className="mt-3 text-sm leading-7 text-slate-500">クリエイターが確認後、見積もりを送信します</p><button type="button" onClick={onClose} className="mt-7 h-12 w-full rounded-full bg-slate-950 text-sm font-semibold text-white">閉じる</button></div> : <form onSubmit={(e) => { e.preventDefault(); if (kind === "simple" || step === 5) void submit(); else next(); }} className="flex min-h-0 flex-1 flex-col">
+        {submitted ? <div className="flex-1 px-6 py-14 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</div><h3 className="mt-5 text-xl font-semibold text-slate-950">{kind === "simple" ? "相談内容を送信しました" : "見積もり依頼を受け付けました"}</h3><p className="mt-3 text-sm leading-7 text-slate-500">{kind === "simple" ? "Creatorが相談を確認後、登録いただいたメールアドレス宛に返信する場合があります。" : "クリエイターが確認後、見積もりを送信します"}</p><button type="button" onClick={onClose} className="mt-7 h-12 w-full rounded-full bg-slate-950 text-sm font-semibold text-white">閉じる</button></div> : <form onSubmit={(e) => { e.preventDefault(); if (kind === "simple" || step === 5) void submit(); else next(); }} className="flex min-h-0 flex-1 flex-col">
           <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-28 pt-5">{renderStep()}<label className="absolute -left-[10000px]" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => update("website", e.target.value)} /></label>{error ? <p role="alert" className="mt-5 text-[13px] font-medium text-rose-600">{error}</p> : null}</main>
           <footer className="flex shrink-0 gap-2 border-t border-slate-100 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">{kind === "pr" && step > 0 ? <button type="button" onClick={() => { setStep((current) => current - 1); setError(""); }} className="h-12 w-24 rounded-full bg-slate-100 text-sm font-semibold text-slate-700">戻る</button> : null}<button type="submit" disabled={!canAdvance} className="h-12 flex-1 rounded-full bg-slate-950 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none">{submitting ? "送信中…" : kind === "simple" ? "送信する" : step === 5 ? "この内容で見積もりを依頼" : "次へ"}</button></footer>
         </form>}

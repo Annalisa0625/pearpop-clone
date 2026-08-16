@@ -510,14 +510,13 @@ export default function CreatorChatPage() {
       const nextOrder = orderData as unknown as OrderRow;
       setOrder(nextOrder);
 
-      const { data: chatData, error: chatError } = await supabase
-        .from("chats")
-        .select("id, order_id, last_message_at")
-        .eq("order_id", nextOrder.id)
-        .maybeSingle();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (chatError) {
-        console.error("creator chat load error:", chatError);
+      if (sessionError || !session?.access_token) {
+        console.error("creator chat session load error:", sessionError);
         setError(copy.loadError);
         setChat(null);
         setMessages([]);
@@ -525,7 +524,25 @@ export default function CreatorChatPage() {
         return;
       }
 
-      const nextChat = (chatData ?? null) as ChatRow | null;
+      const chatResponse = await fetch(`/api/orders/${nextOrder.id}/chat`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        cache: "no-store",
+      });
+      const chatPayload = await chatResponse.json().catch(() => ({}));
+
+      if (!chatResponse.ok) {
+        console.error("creator chat load error:", chatPayload?.error);
+        setError(copy.loadError);
+        setChat(null);
+        setMessages([]);
+        setLoading(false);
+        return;
+      }
+
+      const nextChat = (chatPayload?.chat ?? null) as ChatRow | null;
       setChat(nextChat);
 
       if (!nextChat) {

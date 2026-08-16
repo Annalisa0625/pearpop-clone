@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { User } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -12,6 +12,8 @@ import {
   isCreatorLinkFontStyle,
 } from "@/lib/trendre-link/constants";
 import { normalizeCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
+import { INQUIRY_FORM_DEFAULTS } from "@/lib/trendre-link/inquiry-forms";
+import { parseCreatorLinkLayoutOrder } from "@/lib/trendre-link/layout-order";
 import {
   normalizeCreatorLinkSlug,
   validateCreatorLinkSlug,
@@ -58,6 +60,13 @@ function getAvatarUrl(user: User): string | null {
 
 function randomSlugSuffix(): string {
   return randomBytes(3).toString("hex").slice(0, 4);
+}
+
+function simpleFormId(pageId: string) {
+  const hex = createHash("sha256").update(`trendre-link-simple-inquiry:${pageId}`).digest("hex").slice(0, 32).split("");
+  hex[12] = "5";
+  hex[16] = ((Number.parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8).join("")}-${hex.slice(8, 12).join("")}-${hex.slice(12, 16).join("")}-${hex.slice(16, 20).join("")}-${hex.slice(20).join("")}`;
 }
 
 function withSuffix(base: string): string {
@@ -126,6 +135,7 @@ function toPage(row: LinkPageRow): CreatorLinkPage {
     ownerUserId: row.owner_user_id,
     slug: row.slug,
     displayName: row.display_name,
+    displayNameColor: row.display_name_color && /^#[0-9A-Fa-f]{6}$/.test(row.display_name_color) ? row.display_name_color.toUpperCase() : null,
     bio: row.bio,
     avatarUrl: row.avatar_url,
     coverUrl: row.cover_url,
@@ -135,6 +145,7 @@ function toPage(row: LinkPageRow): CreatorLinkPage {
     fontStyle: row.font_style,
     status: row.status,
     isAcceptingInquiries: row.is_accepting_inquiries,
+    layoutOrder: parseCreatorLinkLayoutOrder(row.layout_order),
     setupStep: row.setup_step,
     setupCompletedAt: row.setup_completed_at,
     publishedAt: row.published_at,
@@ -336,7 +347,7 @@ async function createPage(
         avatar_url: creator.avatar_url,
         cover_url: creator.cover_image_url,
         status: "draft",
-        is_accepting_inquiries: false,
+        is_accepting_inquiries: true,
         setup_step: 0,
       })
       .select("*")
@@ -354,6 +365,22 @@ async function createPage(
   }
 
   throw new BootstrapError("Linkページの作成が競合しました。もう一度お試しください。", 409);
+}
+
+async function ensureStandardInquiryForm(page: LinkPageRow) {
+  const { error } = await supabaseAdmin
+    .from("creator_link_inquiry_types")
+    .upsert({
+      id: simpleFormId(page.id),
+      page_id: page.id,
+      template_key: null,
+      title: INQUIRY_FORM_DEFAULTS.simple.title,
+      description: INQUIRY_FORM_DEFAULTS.simple.description,
+      sort_order: INQUIRY_FORM_DEFAULTS.simple.sortOrder,
+      is_enabled: true,
+      is_custom: false,
+    }, { onConflict: "id", ignoreDuplicates: true });
+  if (error) throw new BootstrapError("標準問い合わせフォームの作成に失敗しました。");
 }
 
 export async function POST(request: NextRequest) {
@@ -391,6 +418,7 @@ export async function POST(request: NextRequest) {
     }
 
     const pageResult = await createPage(creator, user, profile?.username ?? null);
+    if (pageResult.created) await ensureStandardInquiryForm(pageResult.page);
 
     const [itemsResult, inquiryTypesResult] = await Promise.all([
       supabaseAdmin

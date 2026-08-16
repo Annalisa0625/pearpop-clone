@@ -52,8 +52,7 @@ export const FREE_OFFER_OPTIONS = ["provided", "not_provided"] as const;
 export const COMPANY_SOCIAL_PLATFORMS = ["instagram", "tiktok", "x", "youtube"] as const;
 
 // 暫定版。正式な規約改定管理が導入されたら、この一箇所を更新する。
-export const TERMS_VERSION = "2026-03-29-v1";
-export const PRIVACY_VERSION = "2026-03-29-v1";
+export { TERMS_VERSION, PRIVACY_VERSION } from "../legal/release";
 
 export type PlatformDeliverable = {
   type: string;

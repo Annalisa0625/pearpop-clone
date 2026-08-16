@@ -223,8 +223,10 @@ export type Database = {
           purpose: string | null
           referrer_url: string | null
           requested_platform: string | null
+          request_data: Json
           source: string
           status: string
+          submission_id: string | null
           submitter_kind: string
           updated_at: string
           user_agent: string | null
@@ -260,8 +262,10 @@ export type Database = {
           purpose?: string | null
           referrer_url?: string | null
           requested_platform?: string | null
+          request_data?: Json
           source?: string
           status?: string
+          submission_id?: string | null
           submitter_kind?: string
           updated_at?: string
           user_agent?: string | null
@@ -297,8 +301,10 @@ export type Database = {
           purpose?: string | null
           referrer_url?: string | null
           requested_platform?: string | null
+          request_data?: Json
           source?: string
           status?: string
+          submission_id?: string | null
           submitter_kind?: string
           updated_at?: string
           user_agent?: string | null
@@ -320,6 +326,125 @@ export type Database = {
             columns: ["link_page_id"]
             isOneToOne: false
             referencedRelation: "creator_link_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_inquiry_quotes: {
+        Row: {
+          accepted_at: string | null
+          buyer_marketplace_fee_amount: number
+          buyer_marketplace_fee_rate_bps: number
+          buyer_plan_code_snapshot: string | null
+          buyer_total_amount: number
+          checkout_attempt_count: number
+          checkout_attempt_token: string | null
+          checkout_completed_at: string | null
+          checkout_last_error: string | null
+          checkout_session_request: Json | null
+          checkout_started_at: string | null
+          checkout_status: string
+          company_user_id: string | null
+          contact_email: string
+          created_at: string
+          creator_payout_amount: number
+          creator_transaction_fee_amount: number
+          creator_transaction_fee_rate_bps: number
+          creator_user_id: string
+          currency: string
+          declined_at: string | null
+          delivery_text: string | null
+          id: string
+          inquiry_id: string
+          note: string | null
+          platform_gross_revenue_amount: number
+          quoted_amount: number
+          scope: string | null
+          sent_at: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          valid_until: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          buyer_marketplace_fee_amount: number
+          buyer_marketplace_fee_rate_bps: number
+          buyer_plan_code_snapshot?: string | null
+          buyer_total_amount: number
+          checkout_attempt_count?: number
+          checkout_attempt_token?: string | null
+          checkout_completed_at?: string | null
+          checkout_last_error?: string | null
+          checkout_session_request?: Json | null
+          checkout_started_at?: string | null
+          checkout_status?: string
+          company_user_id?: string | null
+          contact_email: string
+          created_at?: string
+          creator_payout_amount: number
+          creator_transaction_fee_amount: number
+          creator_transaction_fee_rate_bps: number
+          creator_user_id: string
+          currency?: string
+          declined_at?: string | null
+          delivery_text?: string | null
+          id?: string
+          inquiry_id: string
+          note?: string | null
+          platform_gross_revenue_amount: number
+          quoted_amount: number
+          scope?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          valid_until: string
+        }
+        Update: {
+          accepted_at?: string | null
+          buyer_marketplace_fee_amount?: number
+          buyer_marketplace_fee_rate_bps?: number
+          buyer_plan_code_snapshot?: string | null
+          buyer_total_amount?: number
+          checkout_attempt_count?: number
+          checkout_attempt_token?: string | null
+          checkout_completed_at?: string | null
+          checkout_last_error?: string | null
+          checkout_session_request?: Json | null
+          checkout_started_at?: string | null
+          checkout_status?: string
+          company_user_id?: string | null
+          contact_email?: string
+          created_at?: string
+          creator_payout_amount?: number
+          creator_transaction_fee_amount?: number
+          creator_transaction_fee_rate_bps?: number
+          creator_user_id?: string
+          currency?: string
+          declined_at?: string | null
+          delivery_text?: string | null
+          id?: string
+          inquiry_id?: string
+          note?: string | null
+          platform_gross_revenue_amount?: number
+          quoted_amount?: number
+          scope?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_inquiry_quotes_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: true
+            referencedRelation: "creator_inquiries"
             referencedColumns: ["id"]
           },
         ]
@@ -437,9 +562,11 @@ export type Database = {
           created_at: string
           creator_id: string
           display_name: string
+          display_name_color: string | null
           font_style: string
           id: string
           is_accepting_inquiries: boolean
+          layout_order: Json | null
           owner_user_id: string
           published_at: string | null
           setup_completed_at: string | null
@@ -458,9 +585,11 @@ export type Database = {
           created_at?: string
           creator_id: string
           display_name: string
+          display_name_color?: string | null
           font_style?: string
           id?: string
           is_accepting_inquiries?: boolean
+          layout_order?: Json | null
           owner_user_id: string
           published_at?: string | null
           setup_completed_at?: string | null
@@ -479,9 +608,11 @@ export type Database = {
           created_at?: string
           creator_id?: string
           display_name?: string
+          display_name_color?: string | null
           font_style?: string
           id?: string
           is_accepting_inquiries?: boolean
+          layout_order?: Json | null
           owner_user_id?: string
           published_at?: string | null
           setup_completed_at?: string | null
@@ -1322,6 +1453,7 @@ export type Database = {
         Row: {
           actor_user_id: string | null
           created_at: string
+          dedupe_key: string | null
           event_data: Json
           event_type: string
           id: string
@@ -1330,6 +1462,7 @@ export type Database = {
         Insert: {
           actor_user_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
           event_data?: Json
           event_type: string
           id?: string
@@ -1338,6 +1471,7 @@ export type Database = {
         Update: {
           actor_user_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
           event_data?: Json
           event_type?: string
           id?: string
@@ -1427,7 +1561,7 @@ export type Database = {
           created_at: string
           creator_accept_deadline: string | null
           creator_id: string
-          creator_menu_id: string
+          creator_menu_id: string | null
           creator_payout_amount: number
           creator_transaction_fee_amount: number | null
           creator_transaction_fee_rate_bps: number | null
@@ -1457,6 +1591,16 @@ export type Database = {
           menu_title_snapshot: string
           menu_type_snapshot: string | null
           metadata: Json
+          payment_action_auto_cancel_attempted_at: string | null
+          payment_action_effects_completed_at: string | null
+          payment_action_effects_attempted_at: string | null
+          payment_action_execution_started_at: string | null
+          payment_action_reconcile_attempted_at: string | null
+          payment_action_started_at: string | null
+          payment_action_state: string | null
+          payment_action_token: string | null
+          payment_action_type: string | null
+          payment_action_updated_at: string | null
           payment_flow: string | null
           payment_status: string
           payout_batch_id: string | null
@@ -1494,6 +1638,8 @@ export type Database = {
           stripe_payment_intent_id: string | null
           stripe_payment_status: string | null
           stripe_transfer_id: string | null
+          trendre_link_inquiry_id: string | null
+          trendre_link_quote_id: string | null
           transfer_attempted_at: string | null
           transfer_failed_reason: string | null
           transfer_status: string
@@ -1523,7 +1669,7 @@ export type Database = {
           created_at?: string
           creator_accept_deadline?: string | null
           creator_id: string
-          creator_menu_id: string
+          creator_menu_id?: string | null
           creator_payout_amount?: number
           creator_transaction_fee_amount?: number | null
           creator_transaction_fee_rate_bps?: number | null
@@ -1553,6 +1699,16 @@ export type Database = {
           menu_title_snapshot: string
           menu_type_snapshot?: string | null
           metadata?: Json
+          payment_action_auto_cancel_attempted_at?: string | null
+          payment_action_effects_completed_at?: string | null
+          payment_action_effects_attempted_at?: string | null
+          payment_action_execution_started_at?: string | null
+          payment_action_reconcile_attempted_at?: string | null
+          payment_action_started_at?: string | null
+          payment_action_state?: string | null
+          payment_action_token?: string | null
+          payment_action_type?: string | null
+          payment_action_updated_at?: string | null
           payment_flow?: string | null
           payment_status?: string
           payout_batch_id?: string | null
@@ -1590,6 +1746,8 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_payment_status?: string | null
           stripe_transfer_id?: string | null
+          trendre_link_inquiry_id?: string | null
+          trendre_link_quote_id?: string | null
           transfer_attempted_at?: string | null
           transfer_failed_reason?: string | null
           transfer_status?: string
@@ -1619,7 +1777,7 @@ export type Database = {
           created_at?: string
           creator_accept_deadline?: string | null
           creator_id?: string
-          creator_menu_id?: string
+          creator_menu_id?: string | null
           creator_payout_amount?: number
           creator_transaction_fee_amount?: number | null
           creator_transaction_fee_rate_bps?: number | null
@@ -1649,6 +1807,16 @@ export type Database = {
           menu_title_snapshot?: string
           menu_type_snapshot?: string | null
           metadata?: Json
+          payment_action_auto_cancel_attempted_at?: string | null
+          payment_action_effects_completed_at?: string | null
+          payment_action_effects_attempted_at?: string | null
+          payment_action_execution_started_at?: string | null
+          payment_action_reconcile_attempted_at?: string | null
+          payment_action_started_at?: string | null
+          payment_action_state?: string | null
+          payment_action_token?: string | null
+          payment_action_type?: string | null
+          payment_action_updated_at?: string | null
           payment_flow?: string | null
           payment_status?: string
           payout_batch_id?: string | null
@@ -1686,6 +1854,8 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_payment_status?: string | null
           stripe_transfer_id?: string | null
+          trendre_link_inquiry_id?: string | null
+          trendre_link_quote_id?: string | null
           transfer_attempted_at?: string | null
           transfer_failed_reason?: string | null
           transfer_status?: string
@@ -2280,6 +2450,94 @@ export type Database = {
       }
     }
     Functions: {
+      claim_order_payment_action: {
+        Args: {
+          p_action: string
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+        }
+        Returns: {
+          claimed: boolean
+          previous_action: string | null
+          reason: string
+        }[]
+      }
+      claim_order_payment_action_work: {
+        Args: {
+          p_batch_size: number
+          p_retry_after_seconds: number
+          p_work_type: string
+        }
+        Returns: {
+          order_id: string
+        }[]
+      }
+      clear_stale_order_payment_action_claims: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cleared_count: number
+        }[]
+      }
+      finalize_order_payment_action: {
+        Args: {
+          p_action: string
+          p_cancel_action: string | null
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+          p_outcome: string
+          p_stripe_status: string
+        }
+        Returns: {
+          finalized: boolean
+          reason: string
+        }[]
+      }
+      start_order_payment_action_execution: {
+        Args: {
+          p_action: string
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+        }
+        Returns: {
+          reason: string
+          started: boolean
+        }[]
+      }
+      verify_order_payment_action_execution: {
+        Args: {
+          p_action: string
+          p_claim_token: string
+          p_expected_amount: number
+          p_expected_company_user_id: string
+          p_expected_creator_accept_deadline: string
+          p_expected_creator_user_id: string
+          p_expected_currency: string
+          p_expected_payment_intent_id: string
+          p_order_id: string
+        }
+        Returns: {
+          authorized: boolean
+          reason: string
+        }[]
+      }
       create_app_notification: {
         Args: {
           p_actor_user_id: string

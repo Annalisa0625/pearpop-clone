@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -2156,6 +2157,7 @@ export default function CompanyOrderDetailPage() {
   const [creator, setCreator] = useState<CreatorLite | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<ActionLoading>(null);
+  const shipmentSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [revisionNote, setRevisionNote] = useState("");
   const [shipmentForm, setShipmentForm] = useState<ShipmentForm>({
@@ -2434,7 +2436,7 @@ export default function CompanyOrderDetailPage() {
   };
 
   const runRegisterShipment = async () => {
-    if (!order) return;
+    if (!order || shipmentSubmittingRef.current) return;
 
     if (
       !shipmentForm.shipping_carrier.trim() ||
@@ -2446,6 +2448,7 @@ export default function CompanyOrderDetailPage() {
 
     if (!window.confirm(copy.shipmentConfirm)) return;
 
+    shipmentSubmittingRef.current = true;
     setActionLoading("shipment");
     setError(null);
 
@@ -2454,7 +2457,6 @@ export default function CompanyOrderDetailPage() {
 
       if (!accessToken) {
         setError(copy.authFailed);
-        setActionLoading(null);
         return;
       }
 
@@ -2476,14 +2478,14 @@ export default function CompanyOrderDetailPage() {
 
       if (!res.ok) {
         setError(json?.error ?? copy.shipmentFailed);
-        setActionLoading(null);
         return;
       }
 
       await loadOrder();
-      setActionLoading(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : copy.shipmentFailed);
+    } finally {
+      shipmentSubmittingRef.current = false;
       setActionLoading(null);
     }
   };

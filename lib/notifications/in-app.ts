@@ -1,6 +1,7 @@
 // File: lib/notifications/in-app.ts
 import { createHash } from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { insertOrRecoverUnique } from "@/lib/db/unique-insert";
 
 type NotificationImportance = "low" | "normal" | "high";
 
@@ -80,6 +81,7 @@ export async function createInAppNotification(input: CreateInAppNotificationInpu
       message_id: input.messageId ?? null,
       importance: input.importance ?? "normal",
       metadata: input.metadata ?? {},
+      dedupe_key: dedupeKey ?? null,
     };
 
     if (dedupeKey) {
@@ -88,16 +90,41 @@ export async function createInAppNotification(input: CreateInAppNotificationInpu
       row.read_at = null;
       row.archived_at = null;
 
-      const { error } = await admin
-        .from("notifications")
-        .upsert(row, { onConflict: "id" });
+      const insertion = await insertOrRecoverUnique<Record<string, unknown>>({
+        insert: async () => {
+          const { data, error } = await admin
+            .from("notifications")
+            .insert(row)
+            .select("id, recipient_user_id, dedupe_key")
+            .single();
+          return { data, error };
+        },
+        recover: async () => {
+          const byId = await admin
+            .from("notifications")
+            .select("id, recipient_user_id, dedupe_key")
+            .eq("id", row.id)
+            .maybeSingle();
+          if (byId.error || byId.data) return byId;
 
-      if (error) {
-        console.error("in-app notification upsert error:", error);
-        return { ok: false, skipped: false, error: error.message };
-      }
+          return admin
+            .from("notifications")
+            .select("id, recipient_user_id, dedupe_key")
+            .eq("recipient_user_id", recipientUserId)
+            .eq("dedupe_key", dedupeKey)
+            .maybeSingle();
+        },
+        validateRecovered: (notification) =>
+          notification.recipient_user_id === recipientUserId &&
+          (notification.id === row.id || notification.dedupe_key === dedupeKey),
+        missingError: "in_app_notification_insert_missing",
+      });
 
-      return { ok: true, skipped: false, error: null };
+      return {
+        ok: true,
+        skipped: insertion.duplicate,
+        error: null,
+      };
     }
 
     const { error } = await admin.from("notifications").insert(row);
