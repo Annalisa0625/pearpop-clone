@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { isSafeLineOAuthReturnPath, resolveLineOAuthCallbackUrl } from "@/lib/line/oauth-origin";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getTrendreLinkBearerAuthenticatedUser } from "@/lib/trendre-link/server-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -65,16 +66,11 @@ function normalizeReturnTo(value: unknown) {
 }
 
 async function getAuthenticatedUser(request: NextRequest) {
-  const token = getBearerToken(request);
-  if (!token) return { user: null, error: "認証トークンがありません。" };
+  if (!getBearerToken(request)) {
+    return { user: null, error: "認証トークンがありません。" };
+  }
 
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.getUser(token);
-
-  if (error || !user) return { user: null, error: "認証に失敗しました。" };
-  return { user, error: null };
+  return getTrendreLinkBearerAuthenticatedUser(request);
 }
 
 async function getCreatorIdForUser(userId: string) {

@@ -23,6 +23,7 @@ import { applyLinkDesignPreset, findLinkDesignPresetByPageAppearance, findMatchi
 import { createCreatorLinkBackgroundReference, withCreatorLinkBackground } from "@/lib/trendre-link/background-selection";
 import type { CreatorLinkOnboardingPreset } from "@/lib/trendre-link/onboarding-presets";
 import { useAppLocale } from "@/lib/i18n/locale";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   isCreatorLinkStatus,
   isCreatorLinkTheme,
@@ -289,6 +290,7 @@ function WorkEditorV2({ value, locale, onChange, onPreview }: { value: InquiryFo
 export default function CreatorLinkBuilderPage() {
   const router = useRouter();
   const routerRef = useRef(router);
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
   const [page, setPage] = useState<CreatorLinkPage | null>(null);
   const [form, setForm] = useState<LinkFormState | null>(null);
@@ -323,6 +325,20 @@ export default function CreatorLinkBuilderPage() {
   const publicUrlRef = useRef<HTMLInputElement>(null);
   const knownPersistedItemIdsRef = useRef(new Set<string>());
   const deletedPersistedItemIdsRef = useRef(new Set<string>());
+
+  const privateFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error("セッション情報を確認できませんでした。もう一度ログインしてください。");
+    }
+
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${session.access_token}`);
+    return fetch(input, { ...init, credentials: "include", headers });
+  };
 
   const copy = useMemo(() => locale === "ja" ? {
     edit: "編集", preview: "プレビュー", draft: "下書き", published: "公開中", private: "非公開",
@@ -370,7 +386,7 @@ export default function CreatorLinkBuilderPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const response = await fetch("/api/creator/link/bootstrap", { method: "POST", credentials: "include", signal: controller.signal });
+        const response = await privateFetch("/api/creator/link/bootstrap", { method: "POST", signal: controller.signal });
         if (response.status === 401) {
           routerRef.current.replace("/login");
           return;
@@ -417,7 +433,7 @@ export default function CreatorLinkBuilderPage() {
     const timer = window.setTimeout(async () => {
       try {
         const params = new URLSearchParams({ slug: form.slug, excludePageId: page.id });
-        const response = await fetch(`/api/creator/link/slug-availability?${params.toString()}`, { credentials: "include", signal: controller.signal });
+        const response = await privateFetch(`/api/creator/link/slug-availability?${params.toString()}`, { signal: controller.signal });
         if (response.status === 401) {
           router.replace("/login");
           return;
@@ -533,7 +549,7 @@ export default function CreatorLinkBuilderPage() {
 
       for (const persistedItem of persistedDraft.items) {
         if (currentIds.has(persistedItem.id) || deletedPersistedItemIdsRef.current.has(persistedItem.id)) continue;
-        const response = await fetch(`/api/creator/link/items/${persistedItem.id}`, { method: "DELETE", credentials: "include" });
+        const response = await privateFetch(`/api/creator/link/items/${persistedItem.id}`, { method: "DELETE" });
         if (response.status === 401) { router.replace("/login"); return false; }
         const data: unknown = await response.json().catch(() => null);
         if (!response.ok || !isItemDeleteSuccess(data)) throw new Error(getApiError(data, copy.itemError));
@@ -543,9 +559,8 @@ export default function CreatorLinkBuilderPage() {
 
       for (const draftItem of [...workingItems]) {
         if (knownPersistedItemIdsRef.current.has(draftItem.id)) continue;
-        const response = await fetch("/api/creator/link/items", {
+        const response = await privateFetch("/api/creator/link/items", {
           method: "POST",
-          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pageId: page.id, itemType: draftItem.itemType, platform: draftItem.platform, title: draftItem.title, url: draftItem.url, metadata: draftItem.metadata }),
         });
@@ -562,9 +577,8 @@ export default function CreatorLinkBuilderPage() {
 
       const savedItems: CreatorLinkItem[] = [];
       for (const draftItem of workingItems) {
-        const response = await fetch(`/api/creator/link/items/${draftItem.id}`, {
+        const response = await privateFetch(`/api/creator/link/items/${draftItem.id}`, {
           method: "PATCH",
-          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...(draftItem.itemType === "social" ? { platform: draftItem.platform, url: draftItem.url } : { title: draftItem.title, url: draftItem.url }),
@@ -580,9 +594,8 @@ export default function CreatorLinkBuilderPage() {
 
       const orderedItems = savedItems.sort((left, right) => left.sortOrder - right.sortOrder).map((item, sortOrder) => ({ ...item, sortOrder }));
       if (orderedItems.length > 0) {
-        const response = await fetch("/api/creator/link/items/reorder", {
+        const response = await privateFetch("/api/creator/link/items/reorder", {
           method: "PATCH",
-          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pageId: page.id, items: orderedItems.map((item) => ({ id: item.id, sortOrder: item.sortOrder })) }),
         });
@@ -595,9 +608,8 @@ export default function CreatorLinkBuilderPage() {
         workingItems = [];
       }
 
-      const inquiryResponse = await fetch("/api/creator/link/inquiry-types", {
+      const inquiryResponse = await privateFetch("/api/creator/link/inquiry-types", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId: page.id, forms: (["simple", "pr"] as const).map((kind, sortOrder) => ({ kind, title: inquiryFormEditor[kind].title, isEnabled: inquiryFormEditor[kind].isEnabled, sortOrder })) }),
       });
@@ -607,8 +619,8 @@ export default function CreatorLinkBuilderPage() {
 
       const realLinkIds = workingItems.filter((item) => item.itemType === "link").map((item) => item.id);
       const finalLayoutOrder = normalizeCreatorLinkLayoutOrder(workingLayoutOrder, realLinkIds);
-      const response = await fetch("/api/creator/link/page", {
-        method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
+      const response = await privateFetch("/api/creator/link/page", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId: page.id, displayName: form.displayName, displayNameColor: form.displayNameColor, bio: form.bio, slug: form.slug, themeKey: form.themeKey, accentColor: form.accentColor, buttonStyle: form.buttonStyle, fontStyle: form.fontStyle, avatarUrl: form.avatarUrl, coverUrl: form.coverUrl, isAcceptingInquiries: inquiryData.isAcceptingInquiries, status: nextStatus, layoutOrder: finalLayoutOrder }),
       });
       if (response.status === 401) { router.replace("/login"); return false; }
@@ -808,7 +820,7 @@ export default function CreatorLinkBuilderPage() {
       const payload = new FormData();
       payload.append("file", file);
       payload.append("kind", kind);
-      const response = await fetch("/api/creator/link/images", { method: "POST", credentials: "include", body: payload });
+      const response = await privateFetch("/api/creator/link/images", { method: "POST", body: payload });
       if (response.status === 401) { router.replace("/login"); return false; }
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok || !isImageUploadSuccess(data)) throw new Error(getApiError(data, "画像を保存できませんでした。"));

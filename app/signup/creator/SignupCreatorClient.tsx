@@ -1749,6 +1749,34 @@ export default function SignupCreatorClient({
     return session?.access_token ?? null;
   };
 
+  const confirmSignupSession = async (signupSession: {
+    user: { id: string };
+    access_token: string;
+    refresh_token: string;
+  }) => {
+    const { data, error: setSessionError } = await supabase.auth.setSession({
+      access_token: signupSession.access_token,
+      refresh_token: signupSession.refresh_token,
+    });
+
+    if (setSessionError || data.session?.user.id !== signupSession.user.id) {
+      throw new Error(copy.sessionMissing);
+    }
+
+    const {
+      data: { session: currentSession },
+      error: getSessionError,
+    } = await supabase.auth.getSession();
+
+    if (
+      getSessionError ||
+      !currentSession?.access_token ||
+      currentSession.user.id !== signupSession.user.id
+    ) {
+      throw new Error(copy.sessionMissing);
+    }
+  };
+
   const loadLineStatus = async (options: { silent?: boolean } = {}) => {
     const token = await getCurrentAccessToken();
 
@@ -2034,6 +2062,7 @@ export default function SignupCreatorClient({
         throw new Error(json?.error || copy.signupFailed);
       }
 
+      await confirmSignupSession(session);
       localStorage.removeItem(STORAGE_KEY);
       setLineSetupVisible(true);
     } catch (e) {
