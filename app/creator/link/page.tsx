@@ -842,7 +842,10 @@ export default function CreatorLinkBuilderPage() {
     return <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6"><p className="rounded-xl bg-white px-4 py-3 text-sm text-rose-600 shadow-sm">{toast?.message ?? copy.loadError}</p></div>;
   }
 
-  const publicPath = `/in/${form.slug}`;
+  const savedStatus = persistedDraft?.form.status ?? page.status;
+  const isPublished = savedStatus === "published";
+  const canUsePublicUrl = isPublished && !isDirty;
+  const publicPath = `/in/${persistedDraft?.form.slug ?? page.slug}`;
   const publicUrl = typeof window === "undefined" ? publicPath : new URL(publicPath, window.location.origin).toString();
   const slugMessage = slugError ? copy.checkFailed : slugCheck === "checking" ? copy.checking : slugCheck === "available" ? copy.available : slugCheck === "unavailable" ? copy.unavailable : copy.invalid;
   const slugTone = !slugError && slugCheck === "available" ? "text-emerald-600" : slugCheck === "checking" ? "text-amber-600" : "text-rose-600";
@@ -873,6 +876,14 @@ export default function CreatorLinkBuilderPage() {
   };
 
   const copyPublicUrl = async () => {
+    if (!canUsePublicUrl) {
+      setToast({
+        tone: "error",
+        message: locale === "ja" ? "公開後にリンクをコピーできます" : "Publish your Link before copying it.",
+      });
+      return;
+    }
+
     let copied = false;
     try {
       if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(publicUrl); copied = true; }
@@ -997,9 +1008,10 @@ export default function CreatorLinkBuilderPage() {
         <div className="mx-auto grid h-[60px] max-w-3xl grid-cols-[48px_1fr_auto] items-center px-2">
           <Link href="/creator/dashboard" aria-label={copy.back} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"><BackIcon /></Link>
           <h1 className="text-center text-[16px] font-semibold tracking-[-0.025em]">Link</h1>
-          <div className="flex min-w-0 justify-end gap-1">
-            <button type="button" onClick={() => void copyPublicUrl()} className="flex min-h-10 items-center justify-center gap-1 rounded-full px-3 text-[13px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><Copy className="h-4 w-4" aria-hidden="true" />{copy.copyUrl}</button>
-            {isDirty ? <button type="button" disabled={!canSave} onClick={() => void save(form.status)} className="onboarding-press min-h-10 rounded-full bg-[#242326] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{saving ? copy.saving : getCreatorLinkEditorCtaCopy(locale, "saveChanges")}</button> : <Link href={publicPath} target="_blank" rel="noopener noreferrer" aria-label={copy.openPage} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><ExternalLink className="h-[19px] w-[19px]" /></Link>}
+          <div className="flex min-w-0 items-center justify-end gap-1">
+            <button type="button" disabled={!canUsePublicUrl} onClick={() => void copyPublicUrl()} title={canUsePublicUrl ? copy.copyUrl : (locale === "ja" ? "公開後にリンクをコピーできます" : "Publish before copying your Link")} className="flex min-h-10 items-center justify-center gap-1 rounded-full px-2 text-[13px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500 disabled:cursor-not-allowed disabled:text-slate-300"><Copy className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{copy.copyUrl}</span><span className="sr-only">{copy.copyUrl}</span></button>
+            {canUsePublicUrl ? <Link href={publicPath} target="_blank" rel="noopener noreferrer" aria-label={copy.openPage} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"><ExternalLink className="h-[19px] w-[19px]" /></Link> : <button type="button" disabled title={locale === "ja" ? "公開後に公開ページを開けます" : "Publish before opening your Link"} aria-label={copy.openPage} className="flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-full text-slate-300"><ExternalLink className="h-[19px] w-[19px]" /></button>}
+            {!isPublished ? <button type="button" disabled={saving} onClick={() => void save("published")} className="onboarding-press min-h-10 rounded-full bg-[#242326] px-3 text-[13px] font-semibold text-white disabled:opacity-35">{saving ? copy.saving : copy.publish}</button> : isDirty ? <button type="button" disabled={!canSave} onClick={() => void save("published")} className="onboarding-press min-h-10 rounded-full bg-[#242326] px-3 text-[13px] font-semibold text-white disabled:opacity-35">{saving ? copy.saving : getCreatorLinkEditorCtaCopy(locale, "saveChanges")}</button> : <span className="rounded-full bg-emerald-50 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700 ring-1 ring-emerald-100">{locale === "ja" ? "公開中" : "Published"}</span>}
           </div>
         </div>
       </header>
@@ -1100,7 +1112,7 @@ export default function CreatorLinkBuilderPage() {
                 <label className="flex min-h-14 items-center justify-between rounded-2xl bg-slate-50 px-4 text-sm font-medium text-slate-700">Display name color<span className="flex items-center gap-2"><span className="font-mono text-xs text-slate-500">{form.displayNameColor ?? "Design"}</span><span className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow ring-1 ring-black/10" style={{ backgroundColor: form.displayNameColor ?? "#29272A" }}><input type="color" value={form.displayNameColor ?? "#29272A"} onChange={(event) => setForm({ ...form, displayNameColor: event.target.value.toUpperCase() })} className="absolute inset-[-8px] h-16 w-16 cursor-pointer opacity-0" /></span></span></label>
                 <label className="block text-sm font-medium text-slate-600">slug<div className="mt-1.5 flex h-12 overflow-hidden rounded-xl border border-slate-200 bg-white/80 focus-within:border-rose-400"><span className="flex shrink-0 items-center border-r border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500">trendre.jp/in/</span><input value={form.slug} maxLength={50} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => { setForm({ ...form, slug: event.target.value }); setSlugError(null); }} className="min-w-0 flex-1 select-text bg-transparent px-3 text-base outline-none" /></div></label>
                 <p className={`flex items-center gap-1.5 text-xs font-medium ${slugTone}`}>{!slugError && slugCheck === "available" ? <CheckIcon /> : null}{slugMessage}</p>
-                <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-black/[0.06] bg-[#fffdfa]/95 px-4 pb-2 pt-3 backdrop-blur"><button type="button" onClick={() => setSheet(null)} className="min-h-11 flex-1 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700">{copy.done}</button><button type="button" onClick={() => setForm({ ...form, status: form.status === "published" ? "private" : "published" })} className="min-h-11 flex-1 rounded-full bg-[#242326] px-4 text-sm font-semibold text-white">{form.status === "published" ? copy.unpublish : copy.publish}</button></div>
+                <div className="sticky bottom-0 -mx-4 border-t border-black/[0.06] bg-[#fffdfa]/95 px-4 pb-2 pt-3 backdrop-blur"><button type="button" onClick={() => setSheet(null)} className="min-h-11 w-full rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700">{copy.done}</button></div>
               </div>
             ) : null}
 
