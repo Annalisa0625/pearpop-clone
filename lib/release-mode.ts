@@ -5,11 +5,28 @@ const BLOCKED_PAGE_PREFIXES = [
   "/for-companies",
   "/signup/company",
   "/signup/company-entry",
+  "/signup/complete",
   "/b",
   "/company",
+  "/creator/accepted",
+  "/creator/chats",
+  "/creator/jobs",
+  "/creator/menus",
+  "/creator/payouts",
+  "/creator/requests",
 ] as const;
 
-const BLOCKED_API_PREFIXES = ["/api/b", "/api/company"] as const;
+const BLOCKED_API_PREFIXES = [
+  "/api/b",
+  "/api/company",
+  "/api/chats",
+  "/api/creator/connect",
+  "/api/creator/orders",
+  "/api/creator/requests",
+  "/api/messages",
+  "/api/orders",
+  "/api/requests",
+] as const;
 
 const BLOCKED_API_PATHS = new Set([
   "/api/orders/checkout",
@@ -22,6 +39,8 @@ const BLOCKED_API_PATHS = new Set([
   "/api/stripe/sync-current-subscription",
   "/api/stripe/webhook",
   "/api/signup/complete-company",
+  "/api/signup/complete",
+  "/api/signup/request",
 ]);
 
 function matchesPathPrefix(pathname: string, prefix: string) {
@@ -36,7 +55,10 @@ export function isCreatorOnlyRelease(
 }
 
 export function isCreatorOnlyBlockedPagePath(pathname: string) {
-  return BLOCKED_PAGE_PREFIXES.some((prefix) => matchesPathPrefix(pathname, prefix));
+  return (
+    BLOCKED_PAGE_PREFIXES.some((prefix) => matchesPathPrefix(pathname, prefix)) ||
+    /^\/creator\/orders\/((?!inquiries\/)[^/]+)(?:\/.*)?\/?$/.test(pathname)
+  );
 }
 
 export function isCreatorOnlyBlockedApiPath(pathname: string) {
