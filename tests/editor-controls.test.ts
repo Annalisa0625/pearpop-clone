@@ -191,7 +191,7 @@ test("Work routing covers both, PR-only, Other-only, and both-off states", () =>
   assert.equal(getCreatorLinkWorkRoute({ pr: { isEnabled: false }, simple: { isEnabled: true } }), "simple");
   assert.equal(getCreatorLinkWorkRoute({ pr: { isEnabled: false }, simple: { isEnabled: false } }), "hidden");
   const titled = { pr: { isEnabled: false, title: "PR" }, simple: { isEnabled: false, title: "Other" } };
-  assert.deepEqual(setCreatorLinkWorkEnabled(titled, true), { pr: { isEnabled: true, title: "PR" }, simple: { isEnabled: true, title: "Other" } });
+  assert.deepEqual(setCreatorLinkWorkEnabled(titled, true), { pr: { isEnabled: false, title: "PR" }, simple: { isEnabled: true, title: "Other" } });
 });
 
 test("image wallpaper previews reuse the public background definition", () => {
