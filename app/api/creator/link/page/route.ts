@@ -8,7 +8,9 @@ import {
   isCreatorLinkFontStyle,
 } from "@/lib/trendre-link/constants";
 import { getCreatorImageBucket, getOwnedCreatorLinkStoragePath } from "@/lib/trendre-link/storage";
+import { isCreatorLinkBackgroundReference } from "@/lib/trendre-link/background-selection";
 import { validateCreatorLinkSlug } from "@/lib/trendre-link/slug";
+import { normalizeCreatorLinkLayoutOrder, parseCreatorLinkLayoutOrder } from "@/lib/trendre-link/layout-order";
 import type {
   CreatorLinkPage,
   CreatorLinkPageUpdateResponse,
@@ -47,6 +49,7 @@ function toCreatorLinkPage(row: LinkPageRow): CreatorLinkPage {
     ownerUserId: row.owner_user_id,
     slug: row.slug,
     displayName: row.display_name,
+    displayNameColor: row.display_name_color && /^#[0-9A-Fa-f]{6}$/.test(row.display_name_color) ? row.display_name_color.toUpperCase() : null,
     bio: row.bio,
     avatarUrl: row.avatar_url,
     coverUrl: row.cover_url,
@@ -56,6 +59,7 @@ function toCreatorLinkPage(row: LinkPageRow): CreatorLinkPage {
     fontStyle: row.font_style,
     status: row.status,
     isAcceptingInquiries: row.is_accepting_inquiries,
+    layoutOrder: parseCreatorLinkLayoutOrder(row.layout_order),
     setupStep: row.setup_step,
     setupCompletedAt: row.setup_completed_at,
     publishedAt: row.published_at,
@@ -90,11 +94,13 @@ export async function PATCH(request: NextRequest) {
   const themeKey = typeof body.themeKey === "string" ? body.themeKey : "";
   const status = typeof body.status === "string" ? body.status : "";
   const isAcceptingInquiries = body.isAcceptingInquiries;
+  const displayNameColor = body.displayNameColor === undefined ? undefined : body.displayNameColor;
   const accentColor = body.accentColor === undefined ? undefined : body.accentColor;
   const buttonStyle = body.buttonStyle === undefined ? undefined : body.buttonStyle;
   const fontStyle = body.fontStyle === undefined ? undefined : body.fontStyle;
   const avatarUrl = body.avatarUrl === undefined ? undefined : body.avatarUrl;
   const coverUrl = body.coverUrl === undefined ? undefined : body.coverUrl;
+  const layoutOrder = body.layoutOrder;
 
   if (!UUID_PATTERN.test(pageId)) {
     return errorResponse("ページIDが不正です。", 400);
@@ -136,6 +142,9 @@ export async function PATCH(request: NextRequest) {
   if (typeof isAcceptingInquiries !== "boolean") {
     return errorResponse("仕事相談受付の指定が不正です。", 400);
   }
+  if (!(displayNameColor === undefined || displayNameColor === null || (typeof displayNameColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(displayNameColor)))) {
+    return errorResponse("表示名カラーの形式が正しくありません。", 400);
+  }
   if (!(accentColor === undefined || accentColor === null || (typeof accentColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(accentColor)))) {
     return errorResponse("アクセントカラーが正しくありません。", 400);
   }
@@ -148,6 +157,9 @@ export async function PATCH(request: NextRequest) {
   if (!(avatarUrl === undefined || avatarUrl === null || typeof avatarUrl === "string") ||
       !(coverUrl === undefined || coverUrl === null || typeof coverUrl === "string")) {
     return errorResponse("画像URLが正しくありません。", 400);
+  }
+  if (!(layoutOrder === undefined || Array.isArray(layoutOrder))) {
+    return errorResponse("並び順の形式が正しくありません。", 400);
   }
 
   const { data: currentPage, error: pageError } = await supabaseAdmin
@@ -166,12 +178,42 @@ export async function PATCH(request: NextRequest) {
     return errorResponse("更新できるLinkページが見つかりません。", 404);
   }
 
+  let normalizedLayoutOrder = currentPage.layout_order;
+  if (layoutOrder !== undefined) {
+    const { data: creatorIdentity, error: creatorError } = await supabaseAdmin
+      .from("creators")
+      .select("id")
+      .eq("id", currentPage.creator_id)
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+    if (creatorError) {
+      console.error("trendre link layout creator identity lookup failed");
+      return errorResponse("Creator情報を確認できませんでした。", 500);
+    }
+    if (!creatorIdentity) {
+      return errorResponse("並び順を更新できるCreatorが見つかりません。", 404);
+    }
+    const { data: currentLinks, error: linksError } = await supabaseAdmin
+      .from("creator_link_items")
+      .select("id")
+      .eq("page_id", currentPage.id)
+      .eq("item_type", "link");
+    if (linksError) {
+      console.error("trendre link layout ownership lookup failed");
+      return errorResponse("並び順を確認できませんでした。", 500);
+    }
+    normalizedLayoutOrder = normalizeCreatorLinkLayoutOrder(
+      layoutOrder,
+      (currentLinks ?? []).map((item) => item.id),
+    );
+  }
+
   const nextAvatarUrl = avatarUrl === undefined ? currentPage.avatar_url : avatarUrl;
   const nextCoverUrl = coverUrl === undefined ? currentPage.cover_url : coverUrl;
   if (nextAvatarUrl && nextAvatarUrl !== currentPage.avatar_url && !getOwnedCreatorLinkStoragePath(nextAvatarUrl, auth.user.id)) {
     return errorResponse("許可されていないアバターURLです。", 400);
   }
-  if (nextCoverUrl && nextCoverUrl !== currentPage.cover_url && !getOwnedCreatorLinkStoragePath(nextCoverUrl, auth.user.id)) {
+  if (nextCoverUrl && nextCoverUrl !== currentPage.cover_url && !isCreatorLinkBackgroundReference(nextCoverUrl) && !getOwnedCreatorLinkStoragePath(nextCoverUrl, auth.user.id)) {
     return errorResponse("許可されていない背景画像URLです。", 400);
   }
 
@@ -195,6 +237,7 @@ export async function PATCH(request: NextRequest) {
 
   const update: TablesUpdate<"creator_link_pages"> = {
     display_name: displayName,
+    display_name_color: displayNameColor === undefined ? currentPage.display_name_color : displayNameColor?.toUpperCase() ?? null,
     bio,
     slug: slugValidation.normalizedSlug,
     theme_key: themeKey,
@@ -205,6 +248,7 @@ export async function PATCH(request: NextRequest) {
     font_style: fontStyle === undefined ? currentPage.font_style : fontStyle,
     avatar_url: nextAvatarUrl,
     cover_url: nextCoverUrl,
+    layout_order: normalizedLayoutOrder,
   };
 
   if (status === "published") {

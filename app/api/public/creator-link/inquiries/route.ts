@@ -1,133 +1,443 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { cleanInquiryText, CREATOR_LINK_OFFER_TYPES, CREATOR_LINK_PR_REQUEST_TYPES, CREATOR_LINK_REQUESTED_PLATFORMS, isCreatorLinkInquiryFormKind, isValidInquiryEmail } from "@/lib/trendre-link/inquiry-forms";
-import { getTrendreLinkAuthenticatedUser } from "@/lib/trendre-link/server-auth";
+import {
+  CAMPAIGN_GOALS,
+  COMPANY_SOCIAL_PLATFORMS,
+  FREE_OFFER_OPTIONS,
+  MEETING_METHODS,
+  PLATFORM_DELIVERABLES,
+  PR_PROJECT_TYPES,
+  PRIVACY_VERSION,
+  REQUEST_MODES,
+  REQUESTED_PLATFORMS,
+  TERMS_VERSION,
+  UGC_DELIVERABLE_TYPES,
+  UGC_USAGE_PURPOSES,
+  cleanInquiryText,
+  isCreatorLinkInquiryFormKind,
+  isValidInquiryEmail,
+  type CreatorLinkRequestData,
+  type PlatformDeliverable,
+} from "@/lib/trendre-link/inquiry-forms";
 import { validateCreatorLinkSlug } from "@/lib/trendre-link/slug";
+import { UUID_PATTERN } from "@/lib/trendre-link/items-server";
+import {
+  isInquirySubmissionId,
+  isPublicInquiryFormTarget,
+  matchesInquirySubmissionTarget,
+} from "@/lib/trendre-link/inquiry-submission";
 import type { CreatorLinkPublicInquiryResponse } from "@/lib/trendre-link/types";
+import { insertOrRecoverUnique } from "@/lib/db/unique-insert";
+import { notifyCreatorOfLinkInquiry } from "@/lib/trendre-link/creator-inquiry-notification";
 
 type Body = Record<string, unknown>;
+const MAX_BODY_BYTES = 48_000;
 
-function errorResponse(error: string, status: number) {
+function errorResponse(error: string, status = 400) {
   return NextResponse.json<CreatorLinkPublicInquiryResponse>({ ok: false, error }, { status });
 }
 
-function requiredText(body: Body, key: string, max: number, label: string) {
-  const result = cleanInquiryText(body[key], max, true);
-  return result.ok ? result : { ok: false as const, error: result.error.includes("文字") ? `${label}は${max}文字以内で入力してください。` : `${label}を入力してください。` };
+function text(body: Body, key: string, max: number, required = false) {
+  return cleanInquiryText(body[key], max, required);
 }
 
-function optionalText(body: Body, key: string, max: number, label: string) {
-  const result = cleanInquiryText(body[key], max);
-  return result.ok ? result : { ok: false as const, error: `${label}は${max}文字以内で入力してください。` };
+function url(body: Body, key: string) {
+  const value = text(body, key, 500);
+  if (!value.ok || !value.value) return value;
+  try {
+    const parsed = new URL(value.value);
+    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+    return { ok: true as const, value: parsed.toString() };
+  } catch {
+    return { ok: false as const, error: "URLはhttpまたはhttpsで正しく入力してください。" };
+  }
+}
+
+function selection(value: unknown, allowed: readonly string[], required = true) {
+  return typeof value === "string" && allowed.includes(value) ? value : required ? null : undefined;
+}
+
+function selections(value: unknown, allowed: readonly string[], max = allowed.length) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > max) return null;
+  if (value.some((item) => typeof item !== "string" || !allowed.includes(item))) return null;
+  const unique = [...new Set(value)];
+  return unique.length === value.length ? unique as string[] : null;
+}
+
+function positiveInteger(value: unknown) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 1 ? value : null;
+}
+
+function trustedClientIp(request: NextRequest) {
+  // Only trust Vercel's dedicated forwarding header when this request actually
+  // arrived through Vercel. A public x-forwarded-for header is client-spoofable.
+  if (!request.headers.get("x-vercel-id")) return null;
+  const candidate = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ?? "";
+  return candidate.length > 0 && candidate.length <= 64 ? candidate : null;
+}
+
+async function isRateLimited(args: { pageId: string; email: string; ip: string | null }) {
+  const admin = supabaseAdmin as any;
+  const now = Date.now();
+  const since = (milliseconds: number) => new Date(now - milliseconds).toISOString();
+  const [pageBurst, emailBurst, ipBurst] = await Promise.all([
+    admin.from("creator_inquiries").select("id", { count: "exact", head: true }).eq("link_page_id", args.pageId).eq("source", "trendre_link").gte("created_at", since(10 * 60_000)),
+    admin.from("creator_inquiries").select("id", { count: "exact", head: true }).eq("link_page_id", args.pageId).eq("source", "trendre_link").ilike("contact_email", args.email).gte("created_at", since(30 * 60_000)),
+    args.ip ? admin.from("creator_inquiries").select("id", { count: "exact", head: true }).eq("ip_address", args.ip).eq("source", "trendre_link").gte("created_at", since(15 * 60_000)) : Promise.resolve({ count: 0, error: null }),
+  ]);
+  if (pageBurst.error || emailBurst.error || ipBurst.error) throw new Error("inquiry_rate_limit_lookup_failed");
+  // Allows ordinary retries while constraining a sustained or automated burst.
+  return (pageBurst.count ?? 0) >= 20 || (emailBurst.count ?? 0) >= 5 || (ipBurst.count ?? 0) >= 8;
+}
+
+function validateSocialAccounts(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const entries = Object.entries(value);
+  if (entries.length > COMPANY_SOCIAL_PLATFORMS.length) return null;
+  const result: Record<string, string> = {};
+  for (const [platform, username] of entries) {
+    if (!(COMPANY_SOCIAL_PLATFORMS as readonly string[]).includes(platform)) return null;
+    if (typeof username !== "string" || !username.trim() || username.trim().length > 100) return null;
+    result[platform] = username.trim().replace(/^@/, "");
+  }
+  return result;
+}
+
+function validateDeliverables(value: unknown, platforms: string[]) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const entries = Object.entries(value);
+  if (entries.length !== platforms.length || entries.length > REQUESTED_PLATFORMS.length) return null;
+  const result: Record<string, PlatformDeliverable[]> = {};
+  for (const platform of platforms) {
+    const items = (value as Record<string, unknown>)[platform];
+    const allowed = PLATFORM_DELIVERABLES[platform as keyof typeof PLATFORM_DELIVERABLES] as readonly string[];
+    if (!Array.isArray(items) || items.length < 1 || items.length > allowed.length) return null;
+    const seen = new Set<string>();
+    const validated: PlatformDeliverable[] = [];
+    for (const raw of items) {
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+      const item = raw as Record<string, unknown>;
+      if (typeof item.type !== "string" || !allowed.includes(item.type) || seen.has(item.type)) return null;
+      const count = positiveInteger(item.count);
+      if (!count) return null;
+      let otherText: string | null = null;
+      if (item.type === "other") {
+        if (typeof item.other_text !== "string" || !item.other_text.trim() || item.other_text.trim().length > 200) return null;
+        otherText = item.other_text.trim();
+      } else if (item.other_text != null && item.other_text !== "") {
+        return null;
+      }
+      seen.add(item.type);
+      validated.push({ type: item.type, count, other_text: otherText });
+    }
+    result[platform] = validated;
+  }
+  if (Object.keys(value).some((key) => !platforms.includes(key))) return null;
+  return result;
 }
 
 export async function POST(request: NextRequest) {
+  const length = Number(request.headers.get("content-length") ?? 0);
+  if (length > MAX_BODY_BYTES) return errorResponse("入力内容が大きすぎます。", 413);
+
   let body: Body;
   try {
-    const value: unknown = await request.json();
-    if (typeof value !== "object" || value === null || Array.isArray(value)) return errorResponse("入力内容を確認してください。", 400);
+    const raw = await request.text();
+    if (raw.length > MAX_BODY_BYTES) return errorResponse("入力内容が大きすぎます。", 413);
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error();
     body = value as Body;
-  } catch { return errorResponse("入力内容を確認してください。", 400); }
+  } catch {
+    return errorResponse("入力内容を確認してください。");
+  }
 
-  if (typeof body.website === "string" && body.website.trim()) return NextResponse.json<CreatorLinkPublicInquiryResponse>({ ok: true });
-  if (typeof body.slug !== "string" || !isCreatorLinkInquiryFormKind(body.formKind)) return errorResponse("問い合わせ先が正しくありません。", 400);
+  if (typeof body.website === "string" && body.website.trim()) {
+    return NextResponse.json<CreatorLinkPublicInquiryResponse>({ ok: true });
+  }
+  if (
+    typeof body.slug !== "string" ||
+    !isCreatorLinkInquiryFormKind(body.formKind) ||
+    typeof body.formId !== "string" ||
+    !UUID_PATTERN.test(body.formId) ||
+    !isInquirySubmissionId(body.submissionId)
+  ) {
+    return errorResponse("問い合わせ先が正しくありません。");
+  }
   const slugValidation = validateCreatorLinkSlug(body.slug);
-  if (!slugValidation.valid) return errorResponse("問い合わせ先が正しくありません。", 400);
+  if (!slugValidation.valid) return errorResponse("問い合わせ先が正しくありません。");
+  const submissionId = body.submissionId;
+  if (body.formKind === "pr") return errorResponse("このフォームは現在公開されていません。", 404);
+  if (body.privacy_consent !== true) return errorResponse("情報共有への同意が必要です。");
 
-  const contactName = requiredText(body, "contactName", 80, body.formKind === "pr" ? "担当者名" : "お名前");
-  const email = requiredText(body, "contactEmail", 254, "メールアドレス");
-  if (!contactName.ok) return errorResponse(contactName.error, 400);
-  if (!email.ok || !email.value || !isValidInquiryEmail(email.value)) return errorResponse("有効なメールアドレスを入力してください。", 400);
+  const contactName = text(body, "contact_name", 80, true);
+  const contactEmail = text(body, "contact_email", 254, true);
+  if (!contactName.ok || !contactEmail.ok || !contactEmail.value || !isValidInquiryEmail(contactEmail.value)) {
+    return errorResponse("担当者名と正しいメールアドレスを入力してください。");
+  }
 
-  const subject = optionalText(body, "subject", 120, "件名");
-  const companyName = optionalText(body, "companyName", 120, "会社名・ブランド名");
-  const productName = optionalText(body, "productName", 200, "商品・サービス名");
-  const desiredTiming = optionalText(body, "desiredTiming", 120, "希望時期");
-  const budget = optionalText(body, "budget", 120, "予算");
-  const details = optionalText(body, "details", 3000, "詳細");
-  if (!subject.ok) return errorResponse(subject.error, 400);
-  if (!companyName.ok) return errorResponse(companyName.error, 400);
-  if (!productName.ok) return errorResponse(productName.error, 400);
-  if (!desiredTiming.ok) return errorResponse(desiredTiming.error, 400);
-  if (!budget.ok) return errorResponse(budget.error, 400);
-  if (!details.ok) return errorResponse(details.error, 400);
+  const companyUserId: string | null = null;
 
-  const primaryMessage = requiredText(body, body.formKind === "simple" ? "message" : "requestContent", 3000, body.formKind === "simple" ? "お問い合わせ内容" : "依頼内容");
-  if (!primaryMessage.ok) return errorResponse(primaryMessage.error, 400);
-  if (body.formKind === "pr" && (!primaryMessage.value || !(CREATOR_LINK_PR_REQUEST_TYPES as readonly string[]).includes(primaryMessage.value))) return errorResponse("依頼内容を選択してください。", 400);
+  let insert: Record<string, unknown>;
+  if (body.formKind === "simple") {
+    const subject = text(body, "subject", 120);
+    const message = text(body, "message", 3000, true);
+    if (!subject.ok || !message.ok) return errorResponse("お問い合わせ内容を確認してください。");
+    insert = {
+      company_name: null,
+      product_name: null,
+      desired_timing: null,
+      budget_text: null,
+      requested_platform: null,
+      offer_type: null,
+      purpose: subject.value,
+      message: message.value,
+      request_data: {},
+    };
+  } else {
+    const requestMode = selection(body.request_mode, REQUEST_MODES);
+    const companyName = text(body, "company_name", 120, true);
+    const productName = text(body, "product_name", 200, true);
+    const productUrl = url(body, "product_url");
+    const desiredTiming = text(body, "desired_timing", 120, true);
+    const budget = text(body, "budget_text", 12, true);
+    const companyWebsite = url(body, "company_website");
+    const sellingPoints = text(body, "selling_points", 2000);
+    const referenceUrl = url(body, "reference_url");
+    const additionalNotes = text(body, "additional_notes", 3000);
+    const hasFreeOffer = selection(body.has_free_offer, FREE_OFFER_OPTIONS);
+    const freeOfferItem = text(body, "free_offer_item", 200, hasFreeOffer === "provided");
+    const freeOfferQuantity = text(body, "free_offer_quantity", 80);
+    const freeOfferFrequency = text(body, "free_offer_frequency", 80);
+    const freeOfferPeople = text(body, "free_offer_people", 80);
+    const freeOfferConditions = text(body, "free_offer_conditions", 1000);
+    const socialAccounts = validateSocialAccounts(body.company_social_accounts);
+    const consents = body.consents;
 
-  const requestedPlatform = body.requestedPlatforms === undefined
-    ? null
-    : Array.isArray(body.requestedPlatforms)
-      && body.requestedPlatforms.length <= CREATOR_LINK_REQUESTED_PLATFORMS.length
-      && body.requestedPlatforms.every((value) => typeof value === "string" && (CREATOR_LINK_REQUESTED_PLATFORMS as readonly string[]).includes(value))
-      && new Set(body.requestedPlatforms).size === body.requestedPlatforms.length
-        ? body.requestedPlatforms.join(",") || null
-        : undefined;
-  const offerType = body.offerType === "" || body.offerType === undefined
-    ? null
-    : typeof body.offerType === "string" && (CREATOR_LINK_OFFER_TYPES as readonly string[]).includes(body.offerType)
-      ? body.offerType
-      : undefined;
-  if (requestedPlatform === undefined || offerType === undefined) return errorResponse("選択項目を確認してください。", 400);
+    if (!requestMode || !companyName.ok || !productName.ok || !productUrl.ok || !desiredTiming.ok ||
+      !budget.ok || !budget.value || !/^[1-9]\d*$/.test(budget.value) || !companyWebsite.ok ||
+      !sellingPoints.ok || !referenceUrl.ok || !additionalNotes.ok || !hasFreeOffer ||
+      !freeOfferItem.ok || !freeOfferQuantity.ok || !freeOfferFrequency.ok || !freeOfferPeople.ok ||
+      !freeOfferConditions.ok || !socialAccounts) {
+      return errorResponse("必須項目、URL、予算、入力文字数を確認してください。");
+    }
+    if (!Array.isArray(consents) || consents.length !== 6 || consents.some((value) => value !== true)) {
+      return errorResponse("すべての確認事項への同意が必要です。");
+    }
+
+    const requestData: CreatorLinkRequestData = {
+      request_mode: requestMode as "pr_post" | "ugc",
+      product_name: productName.value,
+      product_url: productUrl.value,
+      desired_timing: desiredTiming.value,
+      budget_text: budget.value,
+      has_free_offer: hasFreeOffer === "provided",
+      free_offer_item: freeOfferItem.value,
+      free_offer_quantity: freeOfferQuantity.value,
+      free_offer_frequency: freeOfferFrequency.value,
+      free_offer_people: freeOfferPeople.value,
+      free_offer_conditions: freeOfferConditions.value,
+      company_website: companyWebsite.value,
+      company_social_accounts: socialAccounts,
+      selling_points: sellingPoints.value,
+      reference_url: referenceUrl.value,
+      additional_notes: additionalNotes.value,
+      consent_data: {
+        accepted_at: new Date().toISOString(),
+        terms_accepted: true,
+        privacy_accepted: true,
+        truthful_information_confirmed: true,
+        no_false_experience_request_confirmed: true,
+        no_forced_positive_opinion_confirmed: true,
+        account_activation_notice_accepted: true,
+        platform_transaction_accepted: true,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+      },
+    };
+
+    let requestedPlatform: string | null = null;
+    let purpose: string = requestMode;
+    if (requestMode === "ugc") {
+      const types = selections(body.ugc_deliverable_types, UGC_DELIVERABLE_TYPES);
+      const otherDeliverable = text(body, "ugc_other_deliverable", 200, types?.includes("other"));
+      const count = positiveInteger(body.deliverable_count);
+      const purposes = selections(body.usage_purposes, UGC_USAGE_PURPOSES);
+      const usageOther = text(body, "usage_other", 200, purposes?.includes("other"));
+      const meeting = selection(body.meeting_method, MEETING_METHODS);
+      if (!types || !otherDeliverable.ok || !count || !purposes || !usageOther.ok || !meeting) {
+        return errorResponse("UGC制作の制作物、制作数、用途、打ち合わせ方法を確認してください。");
+      }
+      requestData.ugc_deliverable_types = types;
+      requestData.ugc_other_deliverable = otherDeliverable.value;
+      requestData.deliverable_count = count;
+      requestData.usage_purposes = purposes;
+      requestData.usage_other = usageOther.value;
+      requestData.meeting_method = meeting;
+    } else {
+      const projectType = selection(body.project_type, PR_PROJECT_TYPES);
+      const platforms = selections(body.requested_platforms, REQUESTED_PLATFORMS);
+      const otherPlatform = text(body, "other_platform", 100, platforms?.includes("other"));
+      const deliverables = platforms ? validateDeliverables(body.deliverables_by_platform, platforms) : null;
+      const campaignGoal = selection(body.campaign_goal, CAMPAIGN_GOALS);
+      const goalOther = text(body, "campaign_goal_other", 200, campaignGoal === "other");
+      if (!projectType || !platforms || !otherPlatform.ok || !deliverables || !campaignGoal || !goalOther.ok) {
+        return errorResponse("PR投稿の案件タイプ、SNS、制作物、制作数、目的を確認してください。");
+      }
+      requestData.project_type = projectType;
+      requestData.requested_platforms = platforms;
+      requestData.other_platform = otherPlatform.value;
+      requestData.deliverables_by_platform = deliverables;
+      requestData.campaign_goal = campaignGoal;
+      requestData.campaign_goal_other = goalOther.value;
+      requestedPlatform = platforms.join(",");
+      purpose = projectType;
+    }
+
+    insert = {
+      company_name: companyName.value,
+      product_name: productName.value,
+      desired_timing: desiredTiming.value,
+      budget_text: budget.value,
+      requested_platform: requestedPlatform,
+      offer_type: hasFreeOffer,
+      purpose,
+      message: additionalNotes.value,
+      request_data: requestData,
+    };
+  }
 
   try {
-    const { data: page, error: pageError } = await supabaseAdmin.from("creator_link_pages")
-      .select("id, creator_id, owner_user_id")
+    const { data: page, error: pageError } = await supabaseAdmin
+      .from("creator_link_pages")
+      .select("id, creator_id, owner_user_id, status, is_accepting_inquiries")
       .eq("slug", slugValidation.normalizedSlug)
       .eq("status", "published")
       .eq("is_accepting_inquiries", true)
       .maybeSingle();
-    if (pageError) throw new Error("page_lookup_failed");
+    if (pageError) throw pageError;
     if (!page) return errorResponse("現在、このページでは問い合わせを受け付けていません。", 404);
 
-    let typeQuery = supabaseAdmin.from("creator_link_inquiry_types").select("id, template_key, title").eq("page_id", page.id).eq("is_enabled", true);
-    typeQuery = body.formKind === "simple" ? typeQuery.is("template_key", null).eq("is_custom", true) : typeQuery.eq("template_key", "pr_post");
-    const { data: inquiryTypes, error: typeError } = await typeQuery.order("sort_order", { ascending: true }).limit(1);
-    if (typeError) throw new Error("inquiry_type_lookup_failed");
-    const inquiryType = inquiryTypes?.[0];
-    if (!inquiryType) return errorResponse("このフォームは現在公開されていません。", 404);
+    let typeQuery = supabaseAdmin.from("creator_link_inquiry_types")
+      .select("id, page_id, template_key, title, is_custom, is_enabled")
+      .eq("id", body.formId)
+      .eq("page_id", page.id)
+      .eq("is_enabled", true);
+    typeQuery = typeQuery.is("template_key", null);
+    const { data: inquiryType, error: typeError } = await typeQuery.maybeSingle();
+    if (typeError) throw typeError;
+    if (
+      !inquiryType ||
+      !isPublicInquiryFormTarget({
+        pageStatus: page.status,
+        isAcceptingInquiries: page.is_accepting_inquiries,
+        pageId: page.id,
+        formPageId: inquiryType.page_id,
+        formEnabled: inquiryType.is_enabled,
+        requestedKind: body.formKind,
+        templateKey: inquiryType.template_key,
+        isCustom: inquiryType.is_custom,
+      })
+    ) {
+      return errorResponse("このフォームは現在公開されていません。", 404);
+    }
 
-    const auth = await getTrendreLinkAuthenticatedUser(request);
-    const message = body.formKind === "simple" ? primaryMessage.value : details.value ?? primaryMessage.value;
-    const purpose = body.formKind === "simple" ? subject.value : primaryMessage.value;
-    const { error: insertError } = await supabaseAdmin.from("creator_inquiries").insert({
+    let existingQuery = supabaseAdmin
+      .from("creator_inquiries")
+      .select("id,link_page_id,inquiry_type_id")
+      .eq("submission_id", submissionId);
+    existingQuery = companyUserId
+      ? existingQuery.eq("company_user_id", companyUserId)
+      : existingQuery.is("company_user_id", null).eq("link_page_id", page.id);
+    const { data: existing, error: existingError } = await existingQuery.maybeSingle();
+    if (existingError) throw existingError;
+    if (existing) {
+      if (!matchesInquirySubmissionTarget(existing, { pageId: page.id, formId: inquiryType.id })) {
+        return errorResponse("この送信IDは別の問い合わせで使用されています。", 409);
+      }
+      return NextResponse.json<CreatorLinkPublicInquiryResponse>({
+        ok: true,
+        inquiryId: existing.id,
+        duplicate: true,
+      });
+    }
+
+    const ipAddress = trustedClientIp(request);
+    if (await isRateLimited({ pageId: page.id, email: contactEmail.value.toLowerCase(), ip: ipAddress })) {
+      return errorResponse("短時間に送信が集中しています。しばらくしてからもう一度お試しください。", 429);
+    }
+
+    const consentedAt = new Date().toISOString();
+    const requestData = (body.formKind === "simple"
+      ? { ...(insert.request_data as Record<string, unknown>), privacy_consent: true, privacy_policy_version: PRIVACY_VERSION, consented_at: consentedAt }
+      : insert.request_data) as any;
+
+    const inquiryPayload = {
       creator_id: page.creator_id,
       creator_user_id: page.owner_user_id,
-      company_user_id: auth.user?.id ?? null,
+      company_user_id: companyUserId,
       link_page_id: page.id,
       inquiry_type_id: inquiryType.id,
+      submission_id: submissionId,
       inquiry_type_title_snapshot: inquiryType.title,
-      inquiry_type: inquiryType.template_key ?? "other",
-      company_name: body.formKind === "pr" ? companyName.value : null,
+      inquiry_type: "other",
       contact_name: contactName.value,
-      contact_email: email.value,
-      product_name: body.formKind === "pr" ? productName.value : null,
-      desired_timing: body.formKind === "pr" ? desiredTiming.value : null,
-      budget_text: body.formKind === "pr" ? budget.value : null,
-      requested_platform: body.formKind === "pr" ? requestedPlatform : null,
-      offer_type: body.formKind === "pr" ? offerType : null,
-      purpose,
-      message,
+      contact_email: contactEmail.value,
       status: "new",
       verification_status: "verified",
       submitter_kind: "company",
       source: "trendre_link",
       referrer_url: request.headers.get("referer"),
       user_agent: request.headers.get("user-agent"),
-      ip_address: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+      ip_address: ipAddress,
       converted_order_id: null,
       converted_request_id: null,
       public_reference: null,
       verification_token_hash: null,
       verification_expires_at: null,
       verified_at: null,
+      ...insert,
+      request_data: requestData,
+    };
+    const insertion = await insertOrRecoverUnique({
+      insert: async () => {
+        const { data, error } = await supabaseAdmin
+          .from("creator_inquiries")
+          .insert(inquiryPayload)
+          .select("id,link_page_id,inquiry_type_id")
+          .single();
+        return { data, error };
+      },
+      recover: async () => {
+        let racedQuery = supabaseAdmin
+          .from("creator_inquiries")
+          .select("id,link_page_id,inquiry_type_id")
+          .eq("submission_id", submissionId);
+        racedQuery = companyUserId
+          ? racedQuery.eq("company_user_id", companyUserId)
+          : racedQuery.is("company_user_id", null).eq("link_page_id", page.id);
+        const { data, error } = await racedQuery.maybeSingle();
+        return { data, error };
+      },
+      validateRecovered: (raced) =>
+        matchesInquirySubmissionTarget(raced, {
+          pageId: page.id,
+          formId: inquiryType.id,
+        }),
+      missingError: "inquiry_insert_missing",
     });
-    if (insertError) throw new Error("inquiry_insert_failed");
-    return NextResponse.json<CreatorLinkPublicInquiryResponse>({ ok: true });
-  } catch (error) {
-    console.error("[trendre-link/public-inquiries] 問い合わせを保存できませんでした。", { cause: error instanceof Error ? error.message : "unknown" });
+    if (!insertion.duplicate) {
+      await notifyCreatorOfLinkInquiry({ inquiryId: insertion.value.id, creatorUserId: page.owner_user_id });
+    }
+    return NextResponse.json<CreatorLinkPublicInquiryResponse>({
+      ok: true,
+      inquiryId: insertion.value.id,
+      ...(insertion.duplicate ? { duplicate: true } : {}),
+    });
+  } catch (cause) {
+    console.error("[trendre-link/public-inquiries] inquiry insert failed", {
+      cause: cause instanceof Error ? cause.message : "unknown",
+    });
     return errorResponse("送信できませんでした。入力内容を残したまま、もう一度お試しください。", 500);
   }
 }

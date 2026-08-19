@@ -4,14 +4,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import {
-  isCreatorLinkInquiryTemplate,
   isCreatorLinkItemType,
   isCreatorLinkStatus,
   isCreatorLinkTheme,
   isCreatorLinkButtonStyle,
   isCreatorLinkFontStyle,
-  type CreatorLinkInquiryTemplate,
   type CreatorLinkItemType,
   type CreatorLinkStatus,
   type CreatorLinkTheme,
@@ -19,6 +18,8 @@ import {
   type CreatorLinkFontStyle,
 } from "@/lib/trendre-link/constants";
 import { normalizeCreatorLinkItemAppearance } from "@/lib/trendre-link/item-validation";
+import { mapPublicCreatorLinkInquiryTypes } from "@/lib/trendre-link/public-inquiry-types";
+import { normalizeCreatorLinkLayoutOrder } from "@/lib/trendre-link/layout-order";
 import type { Database } from "@/types/database.types";
 import RequestForm from "./RequestForm";
 import TrendreLinkPublicView, {
@@ -74,6 +75,7 @@ type CreatorLinkPageRow = Pick<
   | "id"
   | "slug"
   | "display_name"
+  | "display_name_color"
   | "bio"
   | "avatar_url"
   | "cover_url"
@@ -83,22 +85,20 @@ type CreatorLinkPageRow = Pick<
   | "font_style"
   | "status"
   | "is_accepting_inquiries"
+  | "layout_order"
 >;
 
 type CreatorLinkItemRow = Pick<
   Database["public"]["Tables"]["creator_link_items"]["Row"],
   | "item_type"
+  | "id"
   | "platform"
   | "title"
   | "description"
   | "url"
   | "image_url"
   | "metadata"
->;
-
-type CreatorLinkInquiryTypeRow = Pick<
-  Database["public"]["Tables"]["creator_link_inquiry_types"]["Row"],
-  "template_key" | "title" | "description" | "is_custom"
+  | "sort_order"
 >;
 
 const requestButtons = [
@@ -214,29 +214,15 @@ function isCreatorLinkItemRow(
 ): value is CreatorLinkItemRow & { item_type: CreatorLinkItemType } {
   return (
     isRecord(value) &&
+    typeof value.id === "string" &&
     typeof value.item_type === "string" &&
     isCreatorLinkItemType(value.item_type) &&
     isNullableString(value.platform) &&
     isNullableString(value.title) &&
     isNullableString(value.description) &&
     isNullableString(value.url) &&
-    isNullableString(value.image_url)
-  );
-}
-
-function isCreatorLinkInquiryTypeRow(
-  value: unknown
-): value is CreatorLinkInquiryTypeRow & {
-  template_key: CreatorLinkInquiryTemplate | null;
-} {
-  return (
-    isRecord(value) &&
-    (value.template_key === null ||
-      (typeof value.template_key === "string" &&
-        isCreatorLinkInquiryTemplate(value.template_key))) &&
-    typeof value.title === "string" &&
-    isNullableString(value.description) &&
-    typeof value.is_custom === "boolean"
+    isNullableString(value.image_url) &&
+    typeof value.sort_order === "number"
   );
 }
 
@@ -252,7 +238,7 @@ const loadTrendreLink = cache(
     const { data: pageData, error: pageError } = await supabase
       .from("creator_link_pages")
       .select(
-        "id, slug, display_name, bio, avatar_url, cover_url, theme_key, accent_color, button_style, font_style, status, is_accepting_inquiries"
+        "id, slug, display_name, display_name_color, bio, avatar_url, cover_url, theme_key, accent_color, button_style, font_style, status, is_accepting_inquiries, layout_order"
       )
       .eq("slug", normalizedSlug)
       .eq("status", "published")
@@ -271,13 +257,13 @@ const loadTrendreLink = cache(
     const [itemsResult, inquiryTypesResult] = await Promise.all([
       supabase
         .from("creator_link_items")
-        .select("item_type, platform, title, description, url, image_url, metadata")
+        .select("id, item_type, platform, title, description, url, image_url, metadata, sort_order")
         .eq("page_id", rawPage.id)
         .eq("is_visible", true)
         .order("sort_order", { ascending: true }),
       supabase
         .from("creator_link_inquiry_types")
-        .select("template_key, title, description, is_custom")
+        .select("id, sort_order, template_key, title, description, is_custom")
         .eq("page_id", rawPage.id)
         .eq("is_enabled", true)
         .order("sort_order", { ascending: true }),
@@ -298,6 +284,8 @@ const loadTrendreLink = cache(
       : [];
 
     const items = rawItems.filter(isCreatorLinkItemRow).map((item) => ({
+      id: item.id,
+      sortOrder: item.sort_order,
       itemType: item.item_type,
       platform: item.platform,
       title: item.title,
@@ -306,19 +294,22 @@ const loadTrendreLink = cache(
       imageUrl: item.image_url,
       metadata: normalizeCreatorLinkItemAppearance(item.metadata),
     }));
-    const inquiryTypes = rawInquiryTypes
-      .filter(isCreatorLinkInquiryTypeRow)
-      .map((inquiryType) => ({
-        templateKey: inquiryType.template_key,
-        title: inquiryType.title,
-        description: inquiryType.description,
-        isCustom: inquiryType.is_custom,
-      }));
+    const inquiryTypes = mapPublicCreatorLinkInquiryTypes(
+      isCreatorOnlyRelease()
+        ? rawInquiryTypes.filter(
+            (value) =>
+              typeof value === "object" &&
+              value !== null &&
+              (value as { template_key?: unknown }).template_key === null
+          )
+        : rawInquiryTypes
+    );
 
     return {
       page: {
         slug: rawPage.slug,
         displayName: rawPage.display_name,
+        displayNameColor: rawPage.display_name_color && /^#[0-9A-Fa-f]{6}$/.test(rawPage.display_name_color) ? rawPage.display_name_color.toUpperCase() : null,
         bio: rawPage.bio,
         avatarUrl: rawPage.avatar_url,
         coverUrl: rawPage.cover_url,
@@ -327,6 +318,7 @@ const loadTrendreLink = cache(
         buttonStyle: rawPage.button_style,
         fontStyle: rawPage.font_style,
         isAcceptingInquiries: rawPage.is_accepting_inquiries,
+        layoutOrder: normalizeCreatorLinkLayoutOrder(rawPage.layout_order, items.map((item) => item.id)),
       },
       items,
       inquiryTypes,
@@ -453,21 +445,9 @@ export async function generateMetadata({
     };
   }
 
-  const data = await loadCreator(slug);
-
-  if (!data) {
-    return {
-      title: "仕事依頼ページ | Trend Mart",
-      description:
-        "Trend MartでインフルエンサーにPR投稿・商品レビュー・UGC制作を相談できます。",
-    };
-  }
-
-  const { creator } = data;
-
   return {
-    title: `${creator.display_name}への仕事依頼 | Trend Mart`,
-    description: `${creator.display_name}さんへPR投稿・商品レビュー・UGC制作などを相談できます。`,
+    title: "Trendre Link",
+    description: "Trendre Linkの公開プロフィールです。",
   };
 }
 
@@ -479,12 +459,13 @@ export default async function InfluencerWorkRequestPage({ params }: PageProps) {
     return <TrendreLinkPublicView data={trendreLink} />;
   }
 
-  const data = await loadCreator(slug);
+  notFound();
 
-  if (!data) {
-    notFound();
-  }
-
+  // The legacy Creator/Marketplace request page remains in this file only to
+  // avoid a broad deletion during the C-only launch. It is intentionally
+  // unreachable: /in/[slug] serves published Trendre Link pages exclusively.
+  const data = (await loadCreator(slug)) as Exclude<Awaited<ReturnType<typeof loadCreator>>, null>;
+  if (!data) return null;
   const { creator, socialAccounts, portfolioAssets, menus } = data;
 
   const categoryLabel = creator.category?.trim() || "インフルエンサー";
@@ -528,7 +509,7 @@ export default async function InfluencerWorkRequestPage({ params }: PageProps) {
                 <div className="flex items-end gap-3">
                   {creator.avatar_url ? (
                     <img
-                      src={creator.avatar_url}
+                      src={creator.avatar_url ?? ""}
                       alt={creator.display_name}
                       className="h-16 w-16 shrink-0 rounded-full border-4 border-white object-cover shadow-xl"
                     />

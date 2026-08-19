@@ -26,21 +26,21 @@ export const creatorTheme = {
   },
 
   page:
-  "trendre-safe-page trendre-creator-page-bottom max-w-full touch-pan-y space-y-3 overflow-x-hidden text-slate-950",
+  "trendre-safe-page trendre-creator-page-bottom mx-auto max-w-4xl touch-pan-y space-y-6 overflow-x-hidden pb-3 text-slate-950",
 
   surface:
-    "rounded-[28px] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-slate-100",
+    "rounded-[24px] bg-white",
 
   card:
-    "rounded-[26px] bg-white shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100",
+    "rounded-[20px] bg-white",
 
-  softCard: "rounded-[24px] bg-[#F8F9FA] ring-1 ring-slate-100",
+  softCard: "rounded-[16px] bg-[#F3F2EF]",
 
   input:
-    "w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-[15px] font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#FF3B5C] focus:ring-4 focus:ring-rose-100",
+    "min-h-[52px] w-full rounded-[14px] border border-transparent bg-[#F3F2EF] px-4 py-3 text-[15px] font-medium text-slate-950 outline-none transition duration-150 placeholder:text-slate-400 hover:bg-[#efede9] focus:border-[#FF3B5C]/45 focus:bg-white focus:ring-4 focus:ring-rose-100 motion-reduce:transition-none",
 
   textarea:
-    "min-h-[132px] w-full resize-none rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-[15px] font-semibold leading-7 text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-[#FF3B5C] focus:ring-4 focus:ring-rose-100",
+    "min-h-[132px] w-full resize-none rounded-[14px] border border-transparent bg-[#F3F2EF] px-4 py-3 text-[15px] font-medium leading-7 text-slate-950 outline-none transition duration-150 placeholder:text-slate-400 hover:bg-[#efede9] focus:border-[#FF3B5C]/45 focus:bg-white focus:ring-4 focus:ring-rose-100 motion-reduce:transition-none",
 };
 
 function joinClass(...classes: Array<string | false | null | undefined>) {
@@ -106,9 +106,15 @@ export function CreatorMotionStyle() {
   );
 }
 
-export function CreatorPage({ children }: { children: ReactNode }) {
+export function CreatorPage({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={creatorTheme.page}>
+    <div className={joinClass(creatorTheme.page, className)}>
       <CreatorMotionStyle />
       {children}
     </div>
@@ -133,28 +139,25 @@ export function CreatorHero({
   return (
     <section
       className={joinClass(
-        "creator-appear relative overflow-hidden p-5",
+        "creator-appear relative overflow-hidden px-1 pb-3 pt-2 sm:px-2 sm:pb-4",
         creatorTheme.surface,
         className
       )}
     >
-      <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-rose-100/50 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-100/35 blur-3xl" />
-
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#FF3B5C]">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FF3B5C]">
               {eyebrow}
             </p>
           ) : null}
 
-          <h1 className="text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950">
+          <h1 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.055em] text-slate-950 sm:text-[34px]">
             {title}
           </h1>
 
           {description ? (
-            <p className="mt-2 text-[15px] font-semibold leading-7 text-slate-500">
+            <p className="mt-2.5 max-w-xl text-[14px] font-normal leading-7 text-slate-600">
               {description}
             </p>
           ) : null}
@@ -163,7 +166,7 @@ export function CreatorHero({
         {right ? <div className="shrink-0">{right}</div> : null}
       </div>
 
-      {children ? <div className="relative mt-5">{children}</div> : null}
+      {children ? <div className="relative mt-6">{children}</div> : null}
     </section>
   );
 }
@@ -185,7 +188,7 @@ export function CreatorCard({
         : creatorTheme.card;
 
   return (
-    <section className={joinClass("creator-appear p-4", toneClass, className)}>
+    <section className={joinClass("creator-appear p-5 sm:p-6", toneClass, className)}>
       {children}
     </section>
   );
@@ -210,19 +213,19 @@ export function CreatorSection({
     <section
       id={id}
       className={joinClass(
-        "creator-appear p-5",
+        "creator-appear border-t border-slate-200/80 px-0 py-7 sm:py-9",
         creatorTheme.surface,
         className
       )}
     >
-      <div className="mb-4 flex items-start justify-between gap-4">
+      <div className="mb-5 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-[21px] font-black tracking-[-0.055em] text-slate-950">
+          <h2 className="text-[21px] font-semibold tracking-[-0.04em] text-slate-950">
             {title}
           </h2>
 
           {description ? (
-            <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-500">
+            <p className="mt-1.5 max-w-xl text-[14px] font-normal leading-6 text-slate-600">
               {description}
             </p>
           ) : null}
@@ -259,7 +262,7 @@ export function CreatorBadge({
   return (
     <span
       className={joinClass(
-        "inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1",
+        "inline-flex min-h-7 items-center rounded-full px-3 py-1 text-[11px] font-semibold ring-1",
         toneClass,
         className
       )}
@@ -288,12 +291,12 @@ export function CreatorMetric({
         className
       )}
     >
-      <p className="text-xs font-black text-slate-400">{label}</p>
-      <p className="mt-2 text-[26px] font-black tracking-[-0.06em] text-slate-950">
+      <p className="text-xs font-semibold text-slate-500">{label}</p>
+      <p className="mt-2 text-[26px] font-semibold tracking-[-0.05em] text-slate-950">
         {value}
       </p>
       {helper ? (
-        <p className="mt-1 text-xs font-semibold text-slate-400">{helper}</p>
+        <p className="mt-1 text-xs font-medium text-slate-500">{helper}</p>
       ) : null}
     </div>
   );
@@ -310,13 +313,13 @@ export function CreatorMiniInfo({
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] font-black text-slate-400">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500">{label}</p>
       <p
         className={joinClass(
           "mt-1 truncate text-sm",
           strong
-            ? "font-black tracking-[-0.03em] text-slate-950"
-            : "font-bold text-slate-700"
+            ? "font-semibold tracking-[-0.02em] text-slate-950"
+            : "font-medium text-slate-700"
         )}
       >
         {value}
@@ -433,7 +436,7 @@ export function CreatorListItem({
   );
 
   const itemClass = joinClass(
-    "creator-appear block rounded-[24px] bg-white p-4 text-left shadow-[0_14px_40px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 transition active:scale-[0.98]",
+    "creator-appear block rounded-[18px] bg-white p-5 text-left outline-none transition duration-150 hover:bg-slate-50 focus-visible:ring-4 focus-visible:ring-rose-100 active:scale-[0.99] motion-reduce:transition-none",
     className
   );
 
@@ -468,19 +471,19 @@ export function CreatorEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] bg-[#F8F9FA] px-5 py-8 text-center ring-1 ring-slate-100">
+    <div className="rounded-[18px] bg-[#F3F2EF] px-5 py-9 text-center">
       {icon ? (
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-white text-slate-400 shadow-sm ring-1 ring-slate-100">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] border border-slate-200/70 bg-white text-slate-400">
           {icon}
         </div>
       ) : null}
 
-      <h3 className="mt-5 text-lg font-black tracking-[-0.04em] text-slate-950">
+      <h3 className="mt-4 text-lg font-semibold tracking-[-0.03em] text-slate-950">
         {title}
       </h3>
 
       {description ? (
-        <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-7 text-slate-500">
+        <p className="mx-auto mt-2 max-w-sm text-[13px] font-medium leading-6 text-slate-500">
           {description}
         </p>
       ) : null}
@@ -515,11 +518,11 @@ export function CreatorNotice({
   return (
     <section
       className={joinClass(
-        "creator-appear rounded-[24px] p-4 ring-1",
+        "creator-appear rounded-[16px] p-4 ring-1",
         toneClass
       )}
     >
-      <p className="text-sm font-black tracking-[-0.03em]">{title}</p>
+      <p className="text-sm font-semibold tracking-[-0.02em]">{title}</p>
 
       {description ? (
         <p className="mt-1.5 text-xs font-semibold leading-6 opacity-75">
@@ -542,7 +545,7 @@ export function CreatorButton({
 }) {
   const variantClass =
     variant === "primary"
-      ? "bg-[#FF3B5C] text-white shadow-[0_18px_35px_rgba(255,59,92,0.22)]"
+      ? "bg-slate-950 text-white shadow-[0_8px_20px_rgba(15,23,42,0.12)]"
       : variant === "secondary"
         ? "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
         : variant === "soft"
@@ -553,7 +556,7 @@ export function CreatorButton({
     <button
       {...props}
       className={joinClass(
-        "inline-flex items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] px-5 py-3 text-sm font-semibold outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-rose-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none",
         variantClass,
         className
       )}
@@ -576,7 +579,7 @@ export function CreatorLinkButton({
 }) {
   const variantClass =
     variant === "primary"
-      ? "bg-[#FF3B5C] text-white shadow-[0_18px_35px_rgba(255,59,92,0.22)]"
+      ? "bg-slate-950 text-white shadow-[0_8px_20px_rgba(15,23,42,0.12)]"
       : variant === "secondary"
         ? "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
         : variant === "soft"
@@ -588,7 +591,7 @@ export function CreatorLinkButton({
       {...props}
       href={href}
       className={joinClass(
-        "inline-flex items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-black transition active:scale-[0.98]",
+        "inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] px-5 py-3 text-sm font-semibold outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-rose-100 active:scale-[0.98] motion-reduce:transition-none",
         variantClass,
         className
       )}
@@ -608,7 +611,7 @@ export function CreatorTabs({
   return (
     <div
       className={joinClass(
-        "-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 creator-scrollbar-none",
+        "flex min-h-11 gap-6 overflow-x-auto border-b border-slate-200/70 creator-scrollbar-none",
         className
       )}
     >
@@ -630,10 +633,11 @@ export function CreatorTabButton({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={
         active
-          ? "shrink-0 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-[0_10px_26px_rgba(15,23,42,0.16)] transition active:scale-95"
-          : "shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-200 transition active:scale-95"
+          ? "relative shrink-0 px-1 py-3 text-[13px] font-semibold text-slate-950 outline-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-[#FF3B5C] focus-visible:ring-2 focus-visible:ring-rose-200"
+          : "shrink-0 px-1 py-3 text-[13px] font-medium text-slate-500 outline-none transition duration-150 hover:text-slate-800 focus-visible:ring-2 focus-visible:ring-rose-200 motion-reduce:transition-none"
       }
     >
       {children}
@@ -652,10 +656,10 @@ export function CreatorField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-black text-slate-800">{label}</label>
+      <label className="block text-[13px] font-semibold text-slate-800">{label}</label>
       <div className="mt-2">{children}</div>
       {help ? (
-        <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">
+        <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
           {help}
         </p>
       ) : null}
@@ -696,7 +700,7 @@ export function CreatorSelect({
 
 export function CreatorStickyFooter({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-24 z-20 rounded-[28px] bg-white/95 p-3 shadow-[0_18px_55px_rgba(15,23,42,0.14)] ring-1 ring-slate-100 backdrop-blur">
+    <div className="sticky bottom-[calc(80px+env(safe-area-inset-bottom))] z-20 -mx-2 rounded-[18px] bg-white/96 p-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] ring-1 ring-slate-200/70 backdrop-blur-xl sm:mx-0">
       {children}
     </div>
   );
