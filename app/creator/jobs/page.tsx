@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAppLocale } from "@/lib/i18n/locale";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 
 type FulfillmentType = "material_provided" | "product_shipping" | "visit" | null;
 type PreparationStatus =
@@ -283,6 +284,7 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 export default function CreatorJobsPage() {
   const { locale } = useAppLocale();
   const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
+  const isCreatorOnly = useCreatorOnlyRelease();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [tab, setTab] = useState<TabKey>("jobs");
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
@@ -324,6 +326,12 @@ export default function CreatorJobsPage() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         window.location.assign("/login?next=/creator/jobs");
+        return;
+      }
+
+      if (isCreatorOnly) {
+        setOrders([]);
+        setChatItems([]);
         return;
       }
 
@@ -421,13 +429,15 @@ export default function CreatorJobsPage() {
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [isCreatorOnly, supabase]);
 
   useEffect(() => {
     void loadJobs();
   }, [loadJobs]);
 
   useEffect(() => {
+    if (isCreatorOnly) return;
+
     const channel = supabase
       .channel("creator-active-work-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => void loadJobs())
@@ -442,7 +452,7 @@ export default function CreatorJobsPage() {
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
     };
-  }, [loadJobs, supabase]);
+  }, [isCreatorOnly, loadJobs, supabase]);
 
   const unreadTotal = chatItems.reduce((sum, item) => sum + item.unreadCount, 0);
 

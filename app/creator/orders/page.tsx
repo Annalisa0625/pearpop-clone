@@ -265,21 +265,22 @@ export default function CreatorOrdersPage() {
         return;
       }
 
-      const [orderResult, inquiryResult] = await Promise.all([
-        supabase
-          .from("orders")
-          .select("id, created_at, product_name, menu_title_snapshot, creator_payout_amount, currency, creator_accept_deadline, status")
-          .eq("creator_user_id", user.id)
-          .eq("status", "authorized_pending_creator")
-          .order("created_at", { ascending: false }),
-        fetch("/api/creator/link/inquiries", { credentials: "same-origin", cache: "no-store" })
-          .then(async (response) => ({ response, body: (await response.json().catch(() => null)) as CreatorLinkInquiryInboxResponse | null })),
-      ]);
+      const inquiryPromise = fetch("/api/creator/link/inquiries", { credentials: "same-origin", cache: "no-store" })
+        .then(async (response) => ({ response, body: (await response.json().catch(() => null)) as CreatorLinkInquiryInboxResponse | null }));
+      const orderPromise = isCreatorOnly
+        ? null
+        : supabase
+            .from("orders")
+            .select("id, created_at, product_name, menu_title_snapshot, creator_payout_amount, currency, creator_accept_deadline, status")
+            .eq("creator_user_id", user.id)
+            .eq("status", "authorized_pending_creator")
+            .order("created_at", { ascending: false });
+      const [orderResult, inquiryResult] = await Promise.all([orderPromise, inquiryPromise]);
 
-      if (orderResult.error) throw orderResult.error;
+      if (orderResult?.error) throw orderResult.error;
       if (!inquiryResult.response.ok || !inquiryResult.body?.ok) throw new Error(copy.loadError);
 
-      const orderItems: OrderItem[] = isCreatorOnly ? [] : ((orderResult.data ?? []) as MartOrder[]).map((order) => ({
+      const orderItems: OrderItem[] = ((orderResult?.data ?? []) as MartOrder[]).map((order) => ({
         kind: "order",
         id: order.id,
         createdAt: order.created_at,

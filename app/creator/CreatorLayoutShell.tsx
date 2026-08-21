@@ -292,8 +292,8 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
 
   const navItems: NavItem[] = [
     { href: "/creator/dashboard", label: "Home", icon: <House className="h-[22px] w-[22px]" /> },
-    { href: "/creator/orders", label: isCreatorOnly ? "相談" : "Order", icon: <ReceiptText className="h-[22px] w-[22px]" /> },
-    ...(!isCreatorOnly ? [{ href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> }] : []),
+    { href: "/creator/orders", label: "Order", icon: <ReceiptText className="h-[22px] w-[22px]" /> },
+    { href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> },
     { href: "/creator/link", label: "Link", icon: <Link2 className="h-[22px] w-[22px]" /> },
     { href: "/creator/profile", label: "Profile", icon: <UserRound className="h-[22px] w-[22px]" /> },
   ];
