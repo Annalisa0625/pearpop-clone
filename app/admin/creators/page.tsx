@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useAdminCreatorOnlyRelease } from "../AdminReleaseMode";
 
 type StatusFilter =
   | "all"
@@ -255,7 +256,13 @@ function FilterButton({
   );
 }
 
-function CreatorCard({ creator }: { creator: AdminUserRow }) {
+function CreatorCard({
+  creator,
+  isCreatorOnly,
+}: {
+  creator: AdminUserRow;
+  isCreatorOnly: boolean;
+}) {
   const approvalStatus = creator.creator_approval_status ?? "-";
   const displayName =
     creator.creator_name || creator.display_name || "表示名未設定";
@@ -264,9 +271,9 @@ function CreatorCard({ creator }: { creator: AdminUserRow }) {
     <article
       className={`rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ${
         isSuspended(creator) ||
-        creator.delayed_c_order_count > 0 ||
         isImageShort(creator) ||
-        isMenuMissing(creator)
+        (!isCreatorOnly &&
+          (creator.delayed_c_order_count > 0 || isMenuMissing(creator)))
           ? "ring-amber-100"
           : "ring-slate-100"
       }`}
@@ -290,13 +297,14 @@ function CreatorCard({ creator }: { creator: AdminUserRow }) {
               <Pill>非公開</Pill>
             )}
 
-            {creator.creator_stripe_onboarding_completed ? (
-              <Pill tone="green">Connect完了</Pill>
-            ) : (
-              <Pill tone="amber">Connect未完了</Pill>
-            )}
+            {!isCreatorOnly &&
+              (creator.creator_stripe_onboarding_completed ? (
+                <Pill tone="green">Connect完了</Pill>
+              ) : (
+                <Pill tone="amber">Connect未完了</Pill>
+              ))}
 
-            {isMenuMissing(creator) ? (
+            {!isCreatorOnly && isMenuMissing(creator) ? (
               <Pill tone="amber">メニュー未作成</Pill>
             ) : null}
 
@@ -304,7 +312,7 @@ function CreatorCard({ creator }: { creator: AdminUserRow }) {
               <Pill tone="amber">画像不足</Pill>
             ) : null}
 
-            {creator.delayed_c_order_count > 0 ? (
+            {!isCreatorOnly && creator.delayed_c_order_count > 0 ? (
               <Pill tone="red">遅延案件 {creator.delayed_c_order_count}</Pill>
             ) : null}
 
@@ -319,7 +327,11 @@ function CreatorCard({ creator }: { creator: AdminUserRow }) {
             {creator.email ?? "メール未取得"}
           </p>
 
-          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+          <div
+            className={`mt-4 grid gap-3 text-sm ${
+              isCreatorOnly ? "sm:grid-cols-3" : "sm:grid-cols-2 xl:grid-cols-4"
+            }`}
+          >
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
               <p className="text-xs font-black text-slate-400">最終ログイン</p>
               <p className="mt-1 truncate font-black text-slate-800">
@@ -340,28 +352,44 @@ function CreatorCard({ creator }: { creator: AdminUserRow }) {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="text-xs font-black text-slate-400">受注数</p>
-              <p className="mt-1 truncate font-black text-slate-800">
-                {creator.c_order_count}件
-              </p>
-              <p className="mt-1 truncate text-xs font-bold text-slate-400">
-                進行中 {creator.active_c_order_count}件
-              </p>
-            </div>
+            {!isCreatorOnly ? (
+              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                <p className="text-xs font-black text-slate-400">受注数</p>
+                <p className="mt-1 truncate font-black text-slate-800">
+                  {creator.c_order_count}件
+                </p>
+                <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                  進行中 {creator.active_c_order_count}件
+                </p>
+              </div>
+            ) : null}
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="text-xs font-black text-slate-400">プロフィール</p>
-              <p className="mt-1 truncate font-black text-slate-800">
-                メニュー {creator.creator_menu_count}件
+              <p className="text-xs font-black text-slate-400">
+                {isCreatorOnly ? "プロフィール画像数" : "プロフィール"}
               </p>
-              <p className="mt-1 truncate text-xs font-bold text-slate-400">
-                画像 {creator.creator_portfolio_count}枚
-              </p>
+              {isCreatorOnly ? (
+                <p className="mt-1 truncate font-black text-slate-800">
+                  画像 {creator.creator_portfolio_count}枚
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1 truncate font-black text-slate-800">
+                    メニュー {creator.creator_menu_count}件
+                  </p>
+                  <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                    画像 {creator.creator_portfolio_count}枚
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+          <div
+            className={`mt-3 grid gap-3 text-sm ${
+              isCreatorOnly ? "sm:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"
+            }`}
+          >
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
               <p className="text-xs font-black text-slate-400">承認状態</p>
               <p className="mt-1 truncate font-black text-slate-800">
@@ -376,12 +404,14 @@ function CreatorCard({ creator }: { creator: AdminUserRow }) {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="text-xs font-black text-slate-400">Stripe Connect</p>
-              <p className="mt-1 truncate font-black text-slate-800">
-                {creator.creator_stripe_onboarding_completed ? "完了" : "未完了"}
-              </p>
-            </div>
+            {!isCreatorOnly ? (
+              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                <p className="text-xs font-black text-slate-400">Stripe Connect</p>
+                <p className="mt-1 truncate font-black text-slate-800">
+                  {creator.creator_stripe_onboarding_completed ? "完了" : "未完了"}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
@@ -420,6 +450,7 @@ function CreatorCard({ creator }: { creator: AdminUserRow }) {
 }
 
 export default function AdminCreatorsPage() {
+  const isCreatorOnly = useAdminCreatorOnlyRelease();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -547,7 +578,9 @@ export default function AdminCreatorsPage() {
             </h1>
 
             <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-              Cの承認状態、公開状態、Connect、メニュー、画像、受注状況を確認できます。
+              {isCreatorOnly
+                ? "Cの承認状態、公開状態、プロフィール画像、アカウント状態を確認できます。"
+                : "Cの承認状態、公開状態、Connect、メニュー、画像、受注状況を確認できます。"}
             </p>
           </div>
 
@@ -575,41 +608,63 @@ export default function AdminCreatorsPage() {
         </section>
       ) : null}
 
-      <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <StatCard label="すべて" value={counts.all} />
-        <StatCard label="承認済" value={counts.approved} />
-        <StatCard label="未承認" value={counts.pending} />
-        <StatCard
-          label="Connect未完了"
-          value={counts.connectIncomplete}
-          tone={counts.connectIncomplete > 0 ? "warning" : "default"}
-        />
-        <StatCard
-          label="画像不足"
-          value={counts.imageShort}
-          tone={counts.imageShort > 0 ? "warning" : "default"}
-        />
-      </section>
+      {isCreatorOnly ? (
+        <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-4">
+          <StatCard label="すべて" value={counts.all} />
+          <StatCard label="承認済" value={counts.approved} />
+          <StatCard label="未承認" value={counts.pending} />
+          <StatCard label="公開中" value={counts.public} />
+          <StatCard label="非公開" value={counts.notPublic} />
+          <StatCard
+            label="停止中"
+            value={counts.suspended}
+            tone={counts.suspended > 0 ? "danger" : "default"}
+          />
+          <StatCard
+            label="画像不足"
+            value={counts.imageShort}
+            tone={counts.imageShort > 0 ? "warning" : "default"}
+          />
+        </section>
+      ) : (
+        <>
+          <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <StatCard label="すべて" value={counts.all} />
+            <StatCard label="承認済" value={counts.approved} />
+            <StatCard label="未承認" value={counts.pending} />
+            <StatCard
+              label="Connect未完了"
+              value={counts.connectIncomplete}
+              tone={counts.connectIncomplete > 0 ? "warning" : "default"}
+            />
+            <StatCard
+              label="画像不足"
+              value={counts.imageShort}
+              tone={counts.imageShort > 0 ? "warning" : "default"}
+            />
+          </section>
 
-      <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <StatCard label="公開中" value={counts.public} />
-        <StatCard label="非公開" value={counts.notPublic} />
-        <StatCard
-          label="メニュー未作成"
-          value={counts.menuMissing}
-          tone={counts.menuMissing > 0 ? "warning" : "default"}
-        />
-        <StatCard
-          label="停止中"
-          value={counts.suspended}
-          tone={counts.suspended > 0 ? "danger" : "default"}
-        />
-        <StatCard
-          label="遅延C"
-          value={counts.delayed}
-          tone={counts.delayed > 0 ? "danger" : "default"}
-        />
-      </section>
+          <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <StatCard label="公開中" value={counts.public} />
+            <StatCard label="非公開" value={counts.notPublic} />
+            <StatCard
+              label="メニュー未作成"
+              value={counts.menuMissing}
+              tone={counts.menuMissing > 0 ? "warning" : "default"}
+            />
+            <StatCard
+              label="停止中"
+              value={counts.suspended}
+              tone={counts.suspended > 0 ? "danger" : "default"}
+            />
+            <StatCard
+              label="遅延C"
+              value={counts.delayed}
+              tone={counts.delayed > 0 ? "danger" : "default"}
+            />
+          </section>
+        </>
+      )}
 
       <section className="mb-5 rounded-[28px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
         <div className="flex flex-col gap-4">
@@ -660,21 +715,25 @@ export default function AdminCreatorsPage() {
                 tone={counts.suspended > 0 ? "danger" : "default"}
               />
 
-              <FilterButton
-                label="Connect未完了"
-                count={counts.connectIncomplete}
-                active={statusFilter === "connect_incomplete"}
-                onClick={() => setStatusFilter("connect_incomplete")}
-                tone={counts.connectIncomplete > 0 ? "warning" : "default"}
-              />
+              {!isCreatorOnly ? (
+                <>
+                  <FilterButton
+                    label="Connect未完了"
+                    count={counts.connectIncomplete}
+                    active={statusFilter === "connect_incomplete"}
+                    onClick={() => setStatusFilter("connect_incomplete")}
+                    tone={counts.connectIncomplete > 0 ? "warning" : "default"}
+                  />
 
-              <FilterButton
-                label="メニュー未作成"
-                count={counts.menuMissing}
-                active={statusFilter === "menu_missing"}
-                onClick={() => setStatusFilter("menu_missing")}
-                tone={counts.menuMissing > 0 ? "warning" : "default"}
-              />
+                  <FilterButton
+                    label="メニュー未作成"
+                    count={counts.menuMissing}
+                    active={statusFilter === "menu_missing"}
+                    onClick={() => setStatusFilter("menu_missing")}
+                    tone={counts.menuMissing > 0 ? "warning" : "default"}
+                  />
+                </>
+              ) : null}
 
               <FilterButton
                 label="画像不足"
@@ -684,13 +743,15 @@ export default function AdminCreatorsPage() {
                 tone={counts.imageShort > 0 ? "warning" : "default"}
               />
 
-              <FilterButton
-                label="遅延C"
-                count={counts.delayed}
-                active={statusFilter === "delayed"}
-                onClick={() => setStatusFilter("delayed")}
-                tone={counts.delayed > 0 ? "danger" : "default"}
-              />
+              {!isCreatorOnly ? (
+                <FilterButton
+                  label="遅延C"
+                  count={counts.delayed}
+                  active={statusFilter === "delayed"}
+                  onClick={() => setStatusFilter("delayed")}
+                  tone={counts.delayed > 0 ? "danger" : "default"}
+                />
+              ) : null}
             </div>
 
             <input
@@ -710,7 +771,11 @@ export default function AdminCreatorsPage() {
       ) : (
         <section className="space-y-3">
           {filteredCreators.map((creator) => (
-            <CreatorCard key={creator.user_id} creator={creator} />
+            <CreatorCard
+              key={creator.user_id}
+              creator={creator}
+              isCreatorOnly={isCreatorOnly}
+            />
           ))}
         </section>
       )}
