@@ -55,6 +55,9 @@ export function isCreatorOnlyRelease(
 }
 
 export function isCreatorOnlyBlockedPagePath(pathname: string) {
+  if (pathname === "/creator/jobs") return false;
+  if (pathname.startsWith("/creator/jobs")) return true;
+
   return (
     BLOCKED_PAGE_PREFIXES.some((prefix) => matchesPathPrefix(pathname, prefix)) ||
     /^\/creator\/orders\/((?!inquiries\/)[^/]+)(?:\/.*)?\/?$/.test(pathname)
