@@ -30,13 +30,9 @@ type PortfolioAssetInput = {
 };
 
 type RequestBody = {
-  auth_mode: "email" | "oauth";
-  access_token?: string;
   username: string;
   display_name?: string;
   full_name?: string;
-  email?: string;
-  password?: string;
   avatar_url?: string | null;
   portfolio_assets?: PortfolioAssetInput[];
   gender?: string | null;
@@ -75,16 +71,39 @@ function normalizeSocialHandle(input: string) {
   return input.trim().replace(/^@/, "");
 }
 
+function normalizeHttpUrl(input: string, allowBareHost = false) {
+  const value = input.trim();
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(value);
+
+  if (!value || value.startsWith("//") || value.startsWith("\\")) {
+    throw new Error("SNS URLはhttpまたはhttpsで入力してください");
+  }
+  if (hasScheme && !/^https?:/i.test(value)) {
+    throw new Error("SNS URLはhttpまたはhttpsで入力してください");
+  }
+
+  try {
+    const url = new URL(hasScheme ? value : allowBareHost ? `https://${value}` : value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new Error("unsafe scheme");
+    }
+    return url.toString();
+  } catch {
+    throw new Error("SNS URLは有効なhttpまたはhttps URLで入力してください");
+  }
+}
+
 function buildSocialUrl(platform: string, usernameOrUrl: string) {
   const value = usernameOrUrl.trim();
-  if (/^https?:\/\//i.test(value)) return value;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return normalizeHttpUrl(value);
+  if (platform === "Website") return normalizeHttpUrl(value, true);
   const handle = normalizeSocialHandle(value);
   switch (platform) {
     case "Instagram": return `https://www.instagram.com/${handle}`;
     case "TikTok": return `https://www.tiktok.com/@${handle}`;
     case "X": return `https://x.com/${handle}`;
     case "YouTube": return `https://www.youtube.com/@${handle}`;
-    default: return value;
+    default: return normalizeHttpUrl(value, true);
   }
 }
 
@@ -143,12 +162,6 @@ function errorResponse(error: string, status: number, code?: string) {
   return NextResponse.json(code ? { error, code } : { error }, { status });
 }
 
-async function findExistingUserByEmail(email: string) {
-  const { data, error } = await supabaseAdmin.auth.admin.listUsers();
-  if (error) throw new Error("メールアドレスの確認に失敗しました");
-  return data.users.some((user) => user.email?.toLowerCase() === email.toLowerCase());
-}
-
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as RequestBody;
@@ -195,44 +208,32 @@ export async function POST(req: Request) {
       audience_country: item.audience_country?.trim() ?? "",
     }));
     if (normalizedSocials.some((item) => !item.platform || !item.username_or_url || !item.follower_range || !item.audience_country)) return errorResponse("SNSアカウント情報に未入力があります", 400);
+    let socialRows: { platform: string; url: string; handle: string; follower_range: string; audience_country: string }[];
+    try {
+      socialRows = normalizedSocials.map((item) => ({
+        platform: item.platform,
+        url: buildSocialUrl(item.platform, item.username_or_url),
+        handle: normalizeSocialHandle(item.username_or_url),
+        follower_range: item.follower_range,
+        audience_country: item.audience_country,
+      }));
+    } catch (error) {
+      return errorResponse(error instanceof Error ? error.message : "SNS URLを確認してください", 400);
+    }
 
     const normalizedMenus = normalizeMenus(body);
     if (normalizedMenus.length === 0) return errorResponse("メニューを少なくとも1つ追加してください", 400);
     if (normalizedMenus.some((menu) => !menu.menu_type || !Number.isFinite(menu.price) || menu.price <= 0)) return errorResponse("メニュー種別と価格を正しく入力してください", 400);
 
-    let userId: string;
-    let currentEmail = "";
-    let currentUserMetadata: Record<string, unknown> = {};
+    const authorization = req.headers.get("authorization") ?? "";
+    const accessToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    if (!accessToken) return errorResponse("認証トークンが必要です", 401);
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
+    if (authError || !authData.user) return errorResponse("認証ユーザーの確認に失敗しました", 401);
 
-    if (body.auth_mode === "email") {
-      if (!body.email?.trim()) return errorResponse("メールアドレスを入力してください", 400);
-      if (!body.password || body.password.length < 8) return errorResponse("パスワードは8文字以上必要です", 400);
-      if (await findExistingUserByEmail(body.email.trim())) {
-        return errorResponse("このメールアドレスは既に登録されています", 400);
-      }
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email: body.email.trim(), password: body.password, email_confirm: true,
-      });
-      if (error || !data.user) return errorResponse(error?.message ?? "ユーザー作成に失敗しました", 500);
-      userId = data.user.id;
-      currentEmail = data.user.email ?? body.email.trim();
-      currentUserMetadata = data.user.user_metadata ?? {};
-    } else {
-      if (!body.access_token) return errorResponse("OAuthアクセストークンが必要です", 400);
-      const { data, error } = await supabaseAdmin.auth.getUser(body.access_token);
-      if (error || !data.user) return errorResponse("OAuthユーザーの確認に失敗しました", 401);
-      userId = data.user.id;
-      currentEmail = data.user.email ?? "";
-      currentUserMetadata = data.user.user_metadata ?? {};
-    }
-
-    const socialRows = normalizedSocials.map((item) => ({
-      platform: item.platform,
-      url: buildSocialUrl(item.platform, item.username_or_url),
-      handle: normalizeSocialHandle(item.username_or_url),
-      follower_range: item.follower_range,
-      audience_country: item.audience_country,
-    }));
+    const userId = authData.user.id;
+    const currentEmail = authData.user.email ?? "";
+    const currentUserMetadata = authData.user.user_metadata ?? {};
     const menuRows = normalizedMenus.map((menu, index) => {
       const platform = inferPlatformFromMenuType(menu.menu_type);
       return {
@@ -259,7 +260,7 @@ export async function POST(req: Request) {
     const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc("complete_creator_signup", {
       p_user_id: userId,
       p_payload: {
-        contact_email: currentEmail || body.email?.trim() || "",
+        contact_email: currentEmail,
         username: normalizedUsername,
         display_name: normalizedDisplayName,
         full_name: normalizedFullName,

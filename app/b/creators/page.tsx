@@ -30,6 +30,16 @@ type SocialAccountRow = {
   audience_country?: string | null;
 };
 
+function getSafeExternalUrl(value: string | null | undefined) {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 type CreatorRow = {
   id: string;
   display_name?: string | null;
@@ -1315,11 +1325,13 @@ function CreatorCardItem({
           {creator.socialLinks.slice(0, 5).map((social, socialIndex) => {
             const key = `${social.platform}-${social.url ?? "no-url"}-${socialIndex}`;
 
-            if (social.url) {
+            const safeUrl = getSafeExternalUrl(social.url);
+
+            if (safeUrl) {
               return (
                 <a
                   key={key}
-                  href={social.url}
+                  href={safeUrl}
                   target="_blank"
                   rel="noreferrer"
                   title={getPlatformLabel(social.platform)}

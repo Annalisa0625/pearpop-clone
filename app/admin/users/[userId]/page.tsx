@@ -5,6 +5,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 
+function getSafeExternalUrl(value: string | null | undefined) {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 type PrimaryRole = "admin" | "company" | "creator" | "unknown";
 
 type AuthUser = {
@@ -754,9 +764,9 @@ export default function AdminUserDetailPage() {
                         {sns.audience_country ? <Pill>{sns.audience_country}</Pill> : null}
                       </div>
 
-                      {sns.url ? (
+                      {getSafeExternalUrl(sns.url) ? (
                         <a
-                          href={sns.url}
+                          href={getSafeExternalUrl(sns.url)!}
                           target="_blank"
                           rel="noreferrer"
                           className="break-all text-sm font-bold text-[#ff5f67] underline"

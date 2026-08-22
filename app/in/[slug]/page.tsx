@@ -49,6 +49,16 @@ type SocialAccount = {
   audience_country: string | null;
 };
 
+function getSafeExternalUrl(value: string | null | undefined) {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 type PortfolioAsset = {
   id: string;
   asset_url: string;
@@ -551,11 +561,13 @@ export default async function InfluencerWorkRequestPage({ params }: PageProps) {
                       </span>
                     );
 
-                    if (account.url?.trim()) {
+                    const safeUrl = getSafeExternalUrl(account.url);
+
+                    if (safeUrl) {
                       return (
                         <a
                           key={account.id}
-                          href={account.url.trim()}
+                          href={safeUrl}
                           target="_blank"
                           rel="noreferrer"
                         >

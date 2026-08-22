@@ -2014,17 +2014,13 @@ export default function SignupCreatorClient({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         credentials: "include",
         body: JSON.stringify({
-          auth_mode: "oauth",
-          access_token: session.access_token,
-
           username: internalUsername,
           display_name: displayName.trim(),
           full_name: displayName.trim(),
-          email: email.trim(),
-
           avatar_url: avatarUrl,
           portfolio_assets: portfolioAssets,
 

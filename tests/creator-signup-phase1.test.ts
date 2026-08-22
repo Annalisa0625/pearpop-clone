@@ -6,6 +6,7 @@ import test from "node:test";
 const root = resolve(process.cwd());
 const api = readFileSync(resolve(root, "app/api/signup/complete-creator/route.ts"), "utf8");
 const client = readFileSync(resolve(root, "app/signup/creator/SignupCreatorClient.tsx"), "utf8");
+const publicProfile = readFileSync(resolve(root, "app/in/[slug]/page.tsx"), "utf8");
 const migration = readFileSync(
   resolve(root, "supabase/migrations/20260822105903_add_atomic_creator_signup_completion.sql"),
   "utf8"
@@ -83,6 +84,17 @@ test("ambiguity fix is a new migration and qualifies every collection delete", (
   assert.match(ambiguityFixMigration, /grant execute on function public\.complete_creator_signup\(uuid, jsonb\) to service_role/);
 });
 
+test("completion API requires a verified Bearer token and has no public server-side signup", () => {
+  assert.doesNotMatch(api, /auth\.admin\.createUser/);
+  assert.doesNotMatch(api, /email_confirm:\s*true/);
+  assert.doesNotMatch(api, /auth_mode/);
+  assert.doesNotMatch(api, /access_token/);
+  assert.doesNotMatch(api, /password/);
+  assert.match(api, /req\.headers\.get\("authorization"\)/);
+  assert.match(api, /\^Bearer\\s\+\(\.\+\)\$/);
+  assert.match(api, /supabaseAdmin\.auth\.getUser\(accessToken\)/);
+});
+
 test("email signup reuses matching sessions and recovers Auth-only partial users", () => {
   assert.match(client, /const normalizedEmail = email\.trim\(\)\.toLowerCase\(\)/);
   assert.match(client, /currentSession\.user\.email\?\.trim\(\)\.toLowerCase\(\) === normalizedEmail/);
@@ -93,4 +105,15 @@ test("email signup reuses matching sessions and recovers Auth-only partial users
   assert.match(client, /existingEmailSignInFailed/);
   assert.match(client, /COMPANY_ACCOUNT_CONFLICT/);
   assert.match(client, /if \(oauthSessionEmail\) \{/);
+  assert.match(client, /Authorization:\s*`Bearer \$\{session\.access_token\}`/);
+});
+
+test("Creator social URLs allow only http and https at save and render time", () => {
+  assert.match(api, /function normalizeHttpUrl/);
+  assert.match(api, /url\.protocol !== "https:" && url\.protocol !== "http:"/);
+  assert.match(api, /SNS URLはhttpまたはhttpsで入力してください/);
+  assert.match(publicProfile, /function getSafeExternalUrl/);
+  assert.match(publicProfile, /url\.protocol === "https:" \|\| url\.protocol === "http:"/);
+  assert.match(publicProfile, /href=\{safeUrl\}/);
+  assert.doesNotMatch(publicProfile, /href=\{account\.url\.trim\(\)\}/);
 });
