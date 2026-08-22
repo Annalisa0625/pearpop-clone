@@ -73,6 +73,7 @@ const PREFECTURE_OPTIONS = [
   "福島県",
   "茨城県",
   "栃木県",
+  "群馬県",
   "埼玉県",
   "千葉県",
   "東京都",
@@ -467,22 +468,6 @@ function safeMenus(value: unknown): MenuForm[] {
 function getOAuthRedirectUrl() {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/signup/creator?oauth=1`;
-}
-
-function hasGoogleAuthProvider(user: {
-  app_metadata?: Record<string, unknown>;
-  identities?: Array<{ provider?: string }> | null;
-}) {
-  const appMetadata = user.app_metadata ?? {};
-  const providers = Array.isArray(appMetadata.providers)
-    ? appMetadata.providers
-    : [];
-
-  return (
-    appMetadata.provider === "google" ||
-    providers.some((provider) => provider === "google") ||
-    user.identities?.some((identity) => identity.provider === "google") === true
-  );
 }
 
 function normalizeHandle(input: string) {
@@ -1139,7 +1124,6 @@ export default function SignupCreatorClient({
     setMenus([createEmptyMenu()]);
     setAgreedToTerms(false);
     setAgreedToPrivacy(false);
-    setOauthSessionEmail(null);
     setError(null);
 
     if (typeof window !== "undefined") {
@@ -1272,13 +1256,8 @@ export default function SignupCreatorClient({
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (!session?.user) {
-        setOauthSessionEmail(null);
-        return;
-      }
+      if (!session?.user) return;
 
-      const isGoogleOAuthReturn =
-        hasOAuthReturn && hasGoogleAuthProvider(session.user);
       const meta = session.user.user_metadata ?? {};
 
       const oauthName =
@@ -1291,16 +1270,11 @@ export default function SignupCreatorClient({
               : "";
 
       const oauthEmail =
-        typeof session.user.email === "string" ? session.user.email.trim() : "";
-      const acceptedOAuthEmail =
-        isGoogleOAuthReturn && oauthEmail ? oauthEmail : null;
+        typeof session.user.email === "string" ? session.user.email : "";
 
-      setOauthSessionEmail(acceptedOAuthEmail);
-
-      if (acceptedOAuthEmail) {
-        setDisplayName((prev) => (prev.trim() ? prev : oauthName));
-        setEmail(acceptedOAuthEmail);
-      }
+      setOauthSessionEmail(oauthEmail || null);
+      setDisplayName((prev) => (prev.trim() ? prev : oauthName));
+      setEmail((prev) => (prev.trim() ? prev : oauthEmail));
 
       const { data: existingCreator } = await supabase
         .from("creators")
@@ -1325,7 +1299,7 @@ export default function SignupCreatorClient({
         return;
       }
 
-      if (acceptedOAuthEmail && step < 2) {
+      if (hasOAuthReturn && step < 2) {
         goToStep(2);
       }
     };
@@ -1699,18 +1673,7 @@ export default function SignupCreatorClient({
 
     if (currentSession?.user && currentSession.access_token) {
       if (oauthSessionEmail) {
-        const currentSessionEmail =
-          currentSession.user.email?.trim().toLowerCase() ?? "";
-        const normalizedOAuthEmail = oauthSessionEmail.trim().toLowerCase();
-
-        if (
-          hasGoogleAuthProvider(currentSession.user) &&
-          currentSessionEmail === normalizedOAuthEmail
-        ) {
-          return currentSession;
-        }
-
-        setOauthSessionEmail(null);
+        return currentSession;
       }
 
       if (currentSession.user.email?.trim().toLowerCase() === normalizedEmail) {
