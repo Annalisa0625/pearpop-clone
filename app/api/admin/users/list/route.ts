@@ -37,9 +37,13 @@ type AdminUserRow = {
 
   creator_name: string | null;
   creator_approval_status: string | null;
+  creator_avatar_url: string | null;
+  creator_created_at: string | null;
   creator_is_public: boolean | null;
   creator_is_suspended: boolean | null;
   creator_stripe_onboarding_completed: boolean | null;
+  creator_line_linked: boolean;
+  creator_social_platforms: string[];
   creator_menu_count: number;
   creator_portfolio_count: number;
 
@@ -107,6 +111,8 @@ export async function GET() {
       { data: userStates, error: userStatesErr },
       { data: creatorMenus, error: creatorMenusErr },
       { data: portfolioAssets, error: portfolioAssetsErr },
+      { data: lineUserLinks, error: lineUserLinksErr },
+      { data: creatorSocialAccounts, error: creatorSocialAccountsErr },
       { data: orders, error: ordersErr },
       authResult,
     ] = await Promise.all([
@@ -178,6 +184,14 @@ export async function GET() {
         .select("id, creator_id, is_public"),
 
       supabaseAdmin
+        .from("line_user_links")
+        .select("app_user_id, line_user_id, is_enabled, blocked_at"),
+
+      supabaseAdmin
+        .from("creator_social_accounts")
+        .select("creator_id, platform"),
+
+      supabaseAdmin
         .from("orders")
         .select(
           `
@@ -207,6 +221,8 @@ export async function GET() {
     if (userStatesErr) throw userStatesErr;
     if (creatorMenusErr) throw creatorMenusErr;
     if (portfolioAssetsErr) throw portfolioAssetsErr;
+    if (lineUserLinksErr) throw lineUserLinksErr;
+    if (creatorSocialAccountsErr) throw creatorSocialAccountsErr;
     if (ordersErr) throw ordersErr;
 
     if (authResult.error) {
@@ -228,6 +244,8 @@ export async function GET() {
     const userStatesSafe = userStates ?? [];
     const creatorMenusSafe = creatorMenus ?? [];
     const portfolioAssetsSafe = portfolioAssets ?? [];
+    const lineUserLinksSafe = lineUserLinks ?? [];
+    const creatorSocialAccountsSafe = creatorSocialAccounts ?? [];
     const ordersSafe = orders ?? [];
 
     const allUserIds = uniq([
@@ -267,6 +285,8 @@ export async function GET() {
 
     const creatorMenuCountMap = new Map<string, number>();
     const creatorPortfolioCountMap = new Map<string, number>();
+    const creatorLineLinkedMap = new Map<string, boolean>();
+    const creatorSocialPlatformsMap = new Map<string, Set<string>>();
 
     for (const menu of creatorMenusSafe) {
       if (!menu.creator_id) continue;
@@ -284,6 +304,30 @@ export async function GET() {
         asset.creator_id,
         (creatorPortfolioCountMap.get(asset.creator_id) ?? 0) + 1
       );
+    }
+
+    for (const link of lineUserLinksSafe) {
+      if (!link.app_user_id) continue;
+
+      const isLinked = Boolean(
+        link.line_user_id && link.is_enabled && !link.blocked_at
+      );
+
+      creatorLineLinkedMap.set(
+        link.app_user_id,
+        (creatorLineLinkedMap.get(link.app_user_id) ?? false) || isLinked
+      );
+    }
+
+    for (const social of creatorSocialAccountsSafe) {
+      if (!social.creator_id || typeof social.platform !== "string") continue;
+
+      const platform = social.platform.trim().toLowerCase();
+      if (!platform) continue;
+
+      const platforms = creatorSocialPlatformsMap.get(social.creator_id) ?? new Set();
+      platforms.add(platform);
+      creatorSocialPlatformsMap.set(social.creator_id, platforms);
     }
 
     const bOrderCountMap = new Map<string, number>();
@@ -396,10 +440,18 @@ export async function GET() {
 
           creator_name: creatorName,
           creator_approval_status: creator?.approval_status ?? null,
+          creator_avatar_url: creator?.avatar_url ?? profile?.avatar_url ?? null,
+          creator_created_at: creator?.created_at ?? null,
           creator_is_public: creator?.is_public ?? null,
           creator_is_suspended: creator?.is_suspended ?? null,
           creator_stripe_onboarding_completed:
             creator?.stripe_onboarding_completed ?? null,
+          creator_line_linked: creator
+            ? creatorLineLinkedMap.get(userId) ?? false
+            : false,
+          creator_social_platforms: creator?.id
+            ? Array.from(creatorSocialPlatformsMap.get(creator.id) ?? []).sort()
+            : [],
           creator_menu_count: creator?.id
             ? creatorMenuCountMap.get(creator.id) ?? 0
             : 0,
