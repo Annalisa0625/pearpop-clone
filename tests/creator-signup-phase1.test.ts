@@ -10,6 +10,10 @@ const migration = readFileSync(
   resolve(root, "supabase/migrations/20260822105903_add_atomic_creator_signup_completion.sql"),
   "utf8"
 );
+const ambiguityFixMigration = readFileSync(
+  resolve(root, "supabase/migrations/20260822135731_fix_atomic_creator_signup_completion.sql"),
+  "utf8"
+);
 
 test("Creator completion API delegates application writes to the atomic RPC", () => {
   assert.match(api, /rpc\("complete_creator_signup"/);
@@ -66,4 +70,27 @@ test("atomic completion RPC is executable only by service_role", () => {
   assert.match(migration, /revoke all on function public\.complete_creator_signup\(uuid, jsonb\) from anon/);
   assert.match(migration, /revoke all on function public\.complete_creator_signup\(uuid, jsonb\) from authenticated/);
   assert.match(migration, /grant execute on function public\.complete_creator_signup\(uuid, jsonb\) to service_role/);
+});
+
+test("ambiguity fix is a new migration and qualifies every collection delete", () => {
+  assert.match(migration, /where creator_id = v_creator_id/);
+  assert.match(ambiguityFixMigration, /create or replace function public\.complete_creator_signup\(/);
+  assert.match(ambiguityFixMigration, /delete from public\.creator_portfolio_assets as portfolio\s+where portfolio\.creator_id = v_creator_id/);
+  assert.match(ambiguityFixMigration, /delete from public\.creator_social_accounts as social_account\s+where social_account\.creator_id = v_creator_id/);
+  assert.match(ambiguityFixMigration, /delete from public\.creator_menus as creator_menu\s+where creator_menu\.creator_id = v_creator_id/);
+  assert.doesNotMatch(ambiguityFixMigration, /where creator_id = v_creator_id/);
+  assert.match(ambiguityFixMigration, /pg_advisory_xact_lock/);
+  assert.match(ambiguityFixMigration, /grant execute on function public\.complete_creator_signup\(uuid, jsonb\) to service_role/);
+});
+
+test("email signup reuses matching sessions and recovers Auth-only partial users", () => {
+  assert.match(client, /const normalizedEmail = email\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(client, /currentSession\.user\.email\?\.trim\(\)\.toLowerCase\(\) === normalizedEmail/);
+  assert.match(client, /await supabase\.auth\.signOut\(\)/);
+  assert.match(client, /errorCode === "user_already_exists"/);
+  assert.match(client, /supabase\.auth\.signInWithPassword\(/);
+  assert.match(client, /email: normalizedEmail/);
+  assert.match(client, /existingEmailSignInFailed/);
+  assert.match(client, /COMPANY_ACCOUNT_CONFLICT/);
+  assert.match(client, /if \(oauthSessionEmail\) \{/);
 });

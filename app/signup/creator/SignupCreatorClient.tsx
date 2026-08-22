@@ -864,6 +864,8 @@ export default function SignupCreatorClient({
             termsRequired:
               "利用規約とプライバシーポリシーへの同意が必要です",
             signupFailed: "登録に失敗しました",
+            existingEmailSignInFailed:
+              "このメールアドレスはすでに登録されています。登録時のパスワードを確認するか、別のメールアドレスを使用してください。",
             companyAccountConflict:
               "このメールアドレスは企業アカウントに登録されています。Creator登録には別のアカウントを使用してください。",
             imageUploadFailed: "画像のアップロードに失敗しました",
@@ -992,6 +994,8 @@ export default function SignupCreatorClient({
             menuRequired: "Please add at least one valid menu",
             termsRequired: "You must agree to the Terms and Privacy Policy",
             signupFailed: "Sign up failed",
+            existingEmailSignInFailed:
+              "This email address is already registered. Check the password used when registering, or use a different email address.",
             companyAccountConflict:
               "This email address is registered to a company account. Please use a different account to register as a Creator.",
             imageUploadFailed: "Failed to upload images",
@@ -1665,15 +1669,21 @@ export default function SignupCreatorClient({
       data: { session: currentSession },
     } = await supabase.auth.getSession();
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     if (currentSession?.user && currentSession.access_token) {
       if (oauthSessionEmail) {
+        return currentSession;
+      }
+
+      if (currentSession.user.email?.trim().toLowerCase() === normalizedEmail) {
         return currentSession;
       }
 
       await supabase.auth.signOut();
     }
 
-    if (!email.trim()) throw new Error(copy.emailRequired);
+    if (!normalizedEmail) throw new Error(copy.emailRequired);
 
     if (!password.trim() || password.trim().length < 8) {
       throw new Error(copy.passwordRequired);
@@ -1682,7 +1692,7 @@ export default function SignupCreatorClient({
     const internalUsername = username.trim() || (await ensureAvailableUsername());
 
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email: email.trim(),
+      email: normalizedEmail,
       password: password.trim(),
       options: {
         emailRedirectTo: getOAuthRedirectUrl(),
@@ -1699,6 +1709,27 @@ export default function SignupCreatorClient({
     });
 
     if (signUpError) {
+      const errorCode = signUpError.code?.toLowerCase() ?? "";
+      const errorMessage = signUpError.message?.toLowerCase() ?? "";
+      const isExistingEmailError =
+        errorCode === "user_already_exists" ||
+        errorMessage.includes("user already registered") ||
+        errorMessage.includes("already registered");
+
+      if (isExistingEmailError) {
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password: password.trim(),
+          });
+
+        if (signInError || !signInData.session?.user || !signInData.session.access_token) {
+          throw new Error(copy.existingEmailSignInFailed);
+        }
+
+        return signInData.session;
+      }
+
       throw new Error(signUpError.message || copy.signupFailed);
     }
 
