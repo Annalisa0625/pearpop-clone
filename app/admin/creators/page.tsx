@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useAdminCreatorOnlyRelease } from "../AdminReleaseMode";
 
 type StatusFilter =
   | "all"
@@ -15,7 +14,9 @@ type StatusFilter =
   | "connect_incomplete"
   | "menu_missing"
   | "image_short"
-  | "delayed";
+  | "delayed"
+  | "recent"
+  | "line_unlinked";
 
 type AdminUserRow = {
   user_id: string;
@@ -39,9 +40,13 @@ type AdminUserRow = {
 
   creator_name: string | null;
   creator_approval_status: string | null;
+  creator_avatar_url: string | null;
+  creator_created_at: string | null;
   creator_is_public: boolean | null;
   creator_is_suspended: boolean | null;
   creator_stripe_onboarding_completed: boolean | null;
+  creator_line_linked: boolean;
+  creator_social_platforms: string[];
   creator_menu_count: number;
   creator_portfolio_count: number;
 
@@ -131,6 +136,32 @@ function isMenuMissing(creator: AdminUserRow) {
 
 function isImageShort(creator: AdminUserRow) {
   return creator.creator_portfolio_count < 3;
+}
+
+function getCreatorRegistrationDate(creator: AdminUserRow) {
+  return creator.creator_created_at ?? creator.created_at;
+}
+
+function isRecentCreator(creator: AdminUserRow) {
+  const value = getCreatorRegistrationDate(creator);
+  if (!value) return false;
+
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return false;
+
+  const elapsed = Date.now() - time;
+  return elapsed >= 0 && elapsed <= 7 * 24 * 60 * 60 * 1000;
+}
+
+function getSocialPlatformLabel(platform: string) {
+  const normalized = platform.trim().toLowerCase();
+
+  if (normalized === "instagram") return "Instagram";
+  if (normalized === "tiktok") return "TikTok";
+  if (normalized === "youtube") return "YouTube";
+  if (normalized === "x" || normalized === "twitter") return "X";
+
+  return platform;
 }
 
 function getApprovalLabel(status: string | null) {
@@ -256,82 +287,103 @@ function FilterButton({
   );
 }
 
-function CreatorCard({
-  creator,
-  isCreatorOnly,
-}: {
-  creator: AdminUserRow;
-  isCreatorOnly: boolean;
-}) {
+function CreatorCard({ creator }: { creator: AdminUserRow }) {
   const approvalStatus = creator.creator_approval_status ?? "-";
   const displayName =
     creator.creator_name || creator.display_name || "表示名未設定";
+  const avatarInitial = displayName.trim().slice(0, 1).toUpperCase() || "C";
+  const socialPlatforms = creator.creator_social_platforms.map(
+    getSocialPlatformLabel
+  );
+  const registrationDate = getCreatorRegistrationDate(creator);
 
   return (
     <article
       className={`rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ${
         isSuspended(creator) ||
         isImageShort(creator) ||
-        (!isCreatorOnly &&
-          (creator.delayed_c_order_count > 0 || isMenuMissing(creator)))
+        creator.delayed_c_order_count > 0 ||
+        isMenuMissing(creator)
           ? "ring-amber-100"
           : "ring-slate-100"
       }`}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap gap-2">
-            <Pill tone="rose">クリエイター</Pill>
+          <div className="flex items-start gap-3">
+            <div
+              className="relative grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-rose-50 text-sm font-black text-[#ff5f67] ring-1 ring-rose-100"
+              aria-label={`${displayName}のプロフィール写真`}
+            >
+              <span>{avatarInitial}</span>
+              {creator.creator_avatar_url ? (
+                <img
+                  src={creator.creator_avatar_url}
+                  alt=""
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
 
-            {isApproved(creator) ? (
-              <Pill tone="green">承認済み</Pill>
-            ) : isPending(creator) ? (
-              <Pill tone="amber">未承認</Pill>
-            ) : (
-              <Pill>{getApprovalLabel(approvalStatus)}</Pill>
-            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap gap-2">
+                <Pill tone="rose">クリエイター</Pill>
 
-            {creator.creator_is_public ? (
-              <Pill tone="blue">公開中</Pill>
-            ) : (
-              <Pill>非公開</Pill>
-            )}
+                {isApproved(creator) ? (
+                  <Pill tone="green">承認済み</Pill>
+                ) : isPending(creator) ? (
+                  <Pill tone="amber">未承認</Pill>
+                ) : (
+                  <Pill>{getApprovalLabel(approvalStatus)}</Pill>
+                )}
 
-            {!isCreatorOnly &&
-              (creator.creator_stripe_onboarding_completed ? (
-                <Pill tone="green">Connect完了</Pill>
-              ) : (
-                <Pill tone="amber">Connect未完了</Pill>
-              ))}
+                {creator.creator_is_public ? (
+                  <Pill tone="blue">公開中</Pill>
+                ) : (
+                  <Pill>非公開</Pill>
+                )}
 
-            {!isCreatorOnly && isMenuMissing(creator) ? (
-              <Pill tone="amber">メニュー未作成</Pill>
-            ) : null}
+                {creator.creator_line_linked ? (
+                  <Pill tone="green">LINE連携済み</Pill>
+                ) : (
+                  <Pill tone="amber">LINE未連携</Pill>
+                )}
 
-            {isImageShort(creator) ? (
-              <Pill tone="amber">画像不足</Pill>
-            ) : null}
+                {creator.creator_stripe_onboarding_completed ? (
+                  <Pill tone="green">Connect完了</Pill>
+                ) : (
+                  <Pill tone="amber">Connect未完了</Pill>
+                )}
 
-            {!isCreatorOnly && creator.delayed_c_order_count > 0 ? (
-              <Pill tone="red">遅延案件 {creator.delayed_c_order_count}</Pill>
-            ) : null}
+                {isMenuMissing(creator) ? (
+                  <Pill tone="amber">メニュー未作成</Pill>
+                ) : null}
 
-            {isSuspended(creator) ? <Pill tone="red">停止中</Pill> : null}
+                {isImageShort(creator) ? (
+                  <Pill tone="amber">画像不足</Pill>
+                ) : null}
+
+                {creator.delayed_c_order_count > 0 ? (
+                  <Pill tone="red">遅延案件 {creator.delayed_c_order_count}</Pill>
+                ) : null}
+
+                {isSuspended(creator) ? <Pill tone="red">停止中</Pill> : null}
+              </div>
+
+              <h2 className="mt-3 truncate text-[20px] font-black tracking-[-0.045em] text-slate-950">
+                {displayName}
+              </h2>
+
+              <p className="mt-1 truncate text-sm font-semibold text-slate-400">
+                {creator.email ?? "メール未取得"}
+              </p>
+            </div>
           </div>
 
-          <h2 className="mt-3 truncate text-[20px] font-black tracking-[-0.045em] text-slate-950">
-            {displayName}
-          </h2>
-
-          <p className="mt-1 truncate text-sm font-semibold text-slate-400">
-            {creator.email ?? "メール未取得"}
-          </p>
-
-          <div
-            className={`mt-4 grid gap-3 text-sm ${
-              isCreatorOnly ? "sm:grid-cols-3" : "sm:grid-cols-2 xl:grid-cols-4"
-            }`}
-          >
+          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
               <p className="text-xs font-black text-slate-400">最終ログイン</p>
               <p className="mt-1 truncate font-black text-slate-800">
@@ -345,51 +397,42 @@ function CreatorCard({
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
               <p className="text-xs font-black text-slate-400">登録日</p>
               <p className="mt-1 truncate font-black text-slate-800">
-                {formatShortDate(creator.created_at)}
+                {formatShortDate(registrationDate)}
               </p>
               <p className="mt-1 truncate text-xs font-bold text-slate-400">
-                {formatDateTime(creator.created_at)}
+                {formatDateTime(registrationDate)}
               </p>
             </div>
 
-            {!isCreatorOnly ? (
-              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                <p className="text-xs font-black text-slate-400">受注数</p>
-                <p className="mt-1 truncate font-black text-slate-800">
-                  {creator.c_order_count}件
-                </p>
-                <p className="mt-1 truncate text-xs font-bold text-slate-400">
-                  進行中 {creator.active_c_order_count}件
-                </p>
-              </div>
-            ) : null}
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-400">受注数</p>
+              <p className="mt-1 truncate font-black text-slate-800">
+                {creator.c_order_count}件
+              </p>
+              <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                進行中 {creator.active_c_order_count}件
+              </p>
+            </div>
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="text-xs font-black text-slate-400">
-                {isCreatorOnly ? "プロフィール画像数" : "プロフィール"}
+              <p className="text-xs font-black text-slate-400">プロフィール</p>
+              <p className="mt-1 truncate font-black text-slate-800">
+                メニュー {creator.creator_menu_count}件
               </p>
-              {isCreatorOnly ? (
-                <p className="mt-1 truncate font-black text-slate-800">
-                  画像 {creator.creator_portfolio_count}枚
-                </p>
-              ) : (
-                <>
-                  <p className="mt-1 truncate font-black text-slate-800">
-                    メニュー {creator.creator_menu_count}件
-                  </p>
-                  <p className="mt-1 truncate text-xs font-bold text-slate-400">
-                    画像 {creator.creator_portfolio_count}枚
-                  </p>
-                </>
-              )}
+              <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                画像 {creator.creator_portfolio_count}枚
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-400">SNS</p>
+              <p className="mt-1 truncate font-black text-slate-800">
+                {socialPlatforms.length > 0 ? socialPlatforms.join(" / ") : "SNS未登録"}
+              </p>
             </div>
           </div>
 
-          <div
-            className={`mt-3 grid gap-3 text-sm ${
-              isCreatorOnly ? "sm:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"
-            }`}
-          >
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
               <p className="text-xs font-black text-slate-400">承認状態</p>
               <p className="mt-1 truncate font-black text-slate-800">
@@ -404,14 +447,12 @@ function CreatorCard({
               </p>
             </div>
 
-            {!isCreatorOnly ? (
-              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                <p className="text-xs font-black text-slate-400">Stripe Connect</p>
-                <p className="mt-1 truncate font-black text-slate-800">
-                  {creator.creator_stripe_onboarding_completed ? "完了" : "未完了"}
-                </p>
-              </div>
-            ) : null}
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <p className="text-xs font-black text-slate-400">Stripe Connect</p>
+              <p className="mt-1 truncate font-black text-slate-800">
+                {creator.creator_stripe_onboarding_completed ? "完了" : "未完了"}
+              </p>
+            </div>
           </div>
 
           <div className="mt-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
@@ -450,7 +491,6 @@ function CreatorCard({
 }
 
 export default function AdminCreatorsPage() {
-  const isCreatorOnly = useAdminCreatorOnlyRelease();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -488,9 +528,18 @@ export default function AdminCreatorsPage() {
   }, []);
 
   const creators = useMemo(() => {
-    return users.filter(
-      (user) => user.primary_role === "creator" || user.roles.includes("creator")
-    );
+    return users
+      .filter(
+        (user) => user.primary_role === "creator" || user.roles.includes("creator")
+      )
+      .toSorted((a, b) => {
+        const aTime = new Date(getCreatorRegistrationDate(a) ?? "").getTime();
+        const bTime = new Date(getCreatorRegistrationDate(b) ?? "").getTime();
+        const safeATime = Number.isNaN(aTime) ? -1 : aTime;
+        const safeBTime = Number.isNaN(bTime) ? -1 : bTime;
+
+        return safeBTime - safeATime || a.user_id.localeCompare(b.user_id);
+      });
   }, [users]);
 
   const counts = useMemo(() => {
@@ -504,6 +553,9 @@ export default function AdminCreatorsPage() {
       connectIncomplete: creators.filter(isConnectIncomplete).length,
       menuMissing: creators.filter(isMenuMissing).length,
       imageShort: creators.filter(isImageShort).length,
+      recent: creators.filter(isRecentCreator).length,
+      lineUnlinked: creators.filter((creator) => !creator.creator_line_linked)
+        .length,
       delayed: creators.filter((creator) => creator.delayed_c_order_count > 0)
         .length,
     };
@@ -535,6 +587,10 @@ export default function AdminCreatorsPage() {
       if (statusFilter === "delayed" && creator.delayed_c_order_count <= 0) {
         return false;
       }
+      if (statusFilter === "recent" && !isRecentCreator(creator)) return false;
+      if (statusFilter === "line_unlinked" && creator.creator_line_linked) {
+        return false;
+      }
 
       if (!normalizedQ) return true;
 
@@ -548,6 +604,8 @@ export default function AdminCreatorsPage() {
         creator.creator_stripe_onboarding_completed
           ? "connect completed connect完了"
           : "connect incomplete connect未完了",
+        creator.creator_line_linked ? "line linked line連携済み" : "line unlinked line未連携",
+        ...creator.creator_social_platforms,
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalizedQ));
@@ -578,9 +636,7 @@ export default function AdminCreatorsPage() {
             </h1>
 
             <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-              {isCreatorOnly
-                ? "Cの承認状態、公開状態、プロフィール画像、アカウント状態を確認できます。"
-                : "Cの承認状態、公開状態、Connect、メニュー、画像、受注状況を確認できます。"}
+              Cの承認状態、公開状態、Connect、メニュー、画像、受注状況を確認できます。
             </p>
           </div>
 
@@ -608,63 +664,47 @@ export default function AdminCreatorsPage() {
         </section>
       ) : null}
 
-      {isCreatorOnly ? (
-        <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-4">
-          <StatCard label="すべて" value={counts.all} />
-          <StatCard label="承認済" value={counts.approved} />
-          <StatCard label="未承認" value={counts.pending} />
-          <StatCard label="公開中" value={counts.public} />
-          <StatCard label="非公開" value={counts.notPublic} />
-          <StatCard
-            label="停止中"
-            value={counts.suspended}
-            tone={counts.suspended > 0 ? "danger" : "default"}
-          />
-          <StatCard
-            label="画像不足"
-            value={counts.imageShort}
-            tone={counts.imageShort > 0 ? "warning" : "default"}
-          />
-        </section>
-      ) : (
-        <>
-          <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="すべて" value={counts.all} />
-            <StatCard label="承認済" value={counts.approved} />
-            <StatCard label="未承認" value={counts.pending} />
-            <StatCard
-              label="Connect未完了"
-              value={counts.connectIncomplete}
-              tone={counts.connectIncomplete > 0 ? "warning" : "default"}
-            />
-            <StatCard
-              label="画像不足"
-              value={counts.imageShort}
-              tone={counts.imageShort > 0 ? "warning" : "default"}
-            />
-          </section>
+      <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="すべて" value={counts.all} />
+        <StatCard label="承認済" value={counts.approved} />
+        <StatCard label="未承認" value={counts.pending} />
+        <StatCard label="公開中" value={counts.public} />
+        <StatCard label="非公開" value={counts.notPublic} />
+        <StatCard
+          label="停止中"
+          value={counts.suspended}
+          tone={counts.suspended > 0 ? "danger" : "default"}
+        />
+      </section>
 
-          <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="公開中" value={counts.public} />
-            <StatCard label="非公開" value={counts.notPublic} />
-            <StatCard
-              label="メニュー未作成"
-              value={counts.menuMissing}
-              tone={counts.menuMissing > 0 ? "warning" : "default"}
-            />
-            <StatCard
-              label="停止中"
-              value={counts.suspended}
-              tone={counts.suspended > 0 ? "danger" : "default"}
-            />
-            <StatCard
-              label="遅延C"
-              value={counts.delayed}
-              tone={counts.delayed > 0 ? "danger" : "default"}
-            />
-          </section>
-        </>
-      )}
+      <section className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          label="Connect未完了"
+          value={counts.connectIncomplete}
+          tone={counts.connectIncomplete > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="メニュー未作成"
+          value={counts.menuMissing}
+          tone={counts.menuMissing > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="画像不足"
+          value={counts.imageShort}
+          tone={counts.imageShort > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="遅延C"
+          value={counts.delayed}
+          tone={counts.delayed > 0 ? "danger" : "default"}
+        />
+        <StatCard label="直近7日登録" value={counts.recent} />
+        <StatCard
+          label="LINE未連携"
+          value={counts.lineUnlinked}
+          tone={counts.lineUnlinked > 0 ? "warning" : "default"}
+        />
+      </section>
 
       <section className="mb-5 rounded-[28px] bg-white p-4 shadow-[0_14px_44px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
         <div className="flex flex-col gap-4">
@@ -715,25 +755,21 @@ export default function AdminCreatorsPage() {
                 tone={counts.suspended > 0 ? "danger" : "default"}
               />
 
-              {!isCreatorOnly ? (
-                <>
-                  <FilterButton
-                    label="Connect未完了"
-                    count={counts.connectIncomplete}
-                    active={statusFilter === "connect_incomplete"}
-                    onClick={() => setStatusFilter("connect_incomplete")}
-                    tone={counts.connectIncomplete > 0 ? "warning" : "default"}
-                  />
+              <FilterButton
+                label="Connect未完了"
+                count={counts.connectIncomplete}
+                active={statusFilter === "connect_incomplete"}
+                onClick={() => setStatusFilter("connect_incomplete")}
+                tone={counts.connectIncomplete > 0 ? "warning" : "default"}
+              />
 
-                  <FilterButton
-                    label="メニュー未作成"
-                    count={counts.menuMissing}
-                    active={statusFilter === "menu_missing"}
-                    onClick={() => setStatusFilter("menu_missing")}
-                    tone={counts.menuMissing > 0 ? "warning" : "default"}
-                  />
-                </>
-              ) : null}
+              <FilterButton
+                label="メニュー未作成"
+                count={counts.menuMissing}
+                active={statusFilter === "menu_missing"}
+                onClick={() => setStatusFilter("menu_missing")}
+                tone={counts.menuMissing > 0 ? "warning" : "default"}
+              />
 
               <FilterButton
                 label="画像不足"
@@ -743,15 +779,28 @@ export default function AdminCreatorsPage() {
                 tone={counts.imageShort > 0 ? "warning" : "default"}
               />
 
-              {!isCreatorOnly ? (
-                <FilterButton
-                  label="遅延C"
-                  count={counts.delayed}
-                  active={statusFilter === "delayed"}
-                  onClick={() => setStatusFilter("delayed")}
-                  tone={counts.delayed > 0 ? "danger" : "default"}
-                />
-              ) : null}
+              <FilterButton
+                label="遅延C"
+                count={counts.delayed}
+                active={statusFilter === "delayed"}
+                onClick={() => setStatusFilter("delayed")}
+                tone={counts.delayed > 0 ? "danger" : "default"}
+              />
+
+              <FilterButton
+                label="直近7日登録"
+                count={counts.recent}
+                active={statusFilter === "recent"}
+                onClick={() => setStatusFilter("recent")}
+              />
+
+              <FilterButton
+                label="LINE未連携"
+                count={counts.lineUnlinked}
+                active={statusFilter === "line_unlinked"}
+                onClick={() => setStatusFilter("line_unlinked")}
+                tone={counts.lineUnlinked > 0 ? "warning" : "default"}
+              />
             </div>
 
             <input
@@ -771,11 +820,7 @@ export default function AdminCreatorsPage() {
       ) : (
         <section className="space-y-3">
           {filteredCreators.map((creator) => (
-            <CreatorCard
-              key={creator.user_id}
-              creator={creator}
-              isCreatorOnly={isCreatorOnly}
-            />
+            <CreatorCard key={creator.user_id} creator={creator} />
           ))}
         </section>
       )}
