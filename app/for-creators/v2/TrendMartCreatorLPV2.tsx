@@ -132,9 +132,8 @@ export default function TrendMartCreatorLPV2() {
               alt="美容、サロン、旅行、グルメなどのSNSコンテンツを制作するクリエイター"
               width={1672}
               height={941}
-              quality={95}
               priority
-              sizes="(max-width: 860px) 100vw, (max-width: 920px) 90vw, (max-width: 1100px) 820px, (max-width: 1440px) 49vw, 700px"
+              unoptimized
             />
           </div>
           <div className="tmv2-hero-actions">
