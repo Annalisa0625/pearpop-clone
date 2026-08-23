@@ -531,8 +531,8 @@ export function AvatarCropPicker({
       </div>
 
       {draft ? (
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/65 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] rounded-[28px] bg-white p-4 shadow-2xl sm:p-5">
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/65 px-0 py-0 backdrop-blur-sm sm:px-4 sm:py-6">
+          <div className="flex h-[100dvh] w-full max-w-none flex-col bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] shadow-2xl sm:h-auto sm:max-w-[420px] sm:rounded-[28px] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-lg font-black tracking-[-0.04em] text-slate-950">
@@ -554,21 +554,25 @@ export function AvatarCropPicker({
               </button>
             </div>
 
-            <div className="mx-auto mt-4 w-full max-w-[300px]">
-              <div className="relative aspect-square overflow-hidden rounded-full bg-slate-100 ring-4 ring-rose-50">
+            <div className="mx-auto mt-6 w-full max-w-[420px] sm:mt-4">
+              <div className="relative aspect-square overflow-hidden bg-slate-900">
                 <canvas
                   ref={previewCanvasRef}
                   aria-label={locale === "ja" ? "プロフィール写真の切り抜きプレビュー" : "Profile photo crop preview"}
                   width={CROP_SIZE}
                   height={CROP_SIZE}
-                  className="h-full w-full touch-none select-none cursor-grab active:cursor-grabbing"
+                  className="block h-full w-full touch-none select-none cursor-grab active:cursor-grabbing"
                   onPointerDown={handlePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerEnd}
                   onPointerCancel={handlePointerEnd}
                   onWheel={handleWheel}
                 />
-                <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/10" />
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 rounded-full border border-white/80"
+                  style={{ boxShadow: "0 0 0 999px rgba(15, 23, 42, 0.48)" }}
+                />
               </div>
             </div>
 
@@ -576,7 +580,7 @@ export function AvatarCropPicker({
               {locale === "ja" ? "ドラッグで位置調整・ピンチで拡大／縮小" : "Drag to move. Pinch or scroll to zoom."}
             </p>
 
-            <div className="mt-4 grid grid-cols-[96px_1fr] gap-2">
+            <div className="mt-auto grid grid-cols-[96px_1fr] gap-2 pt-4 sm:mt-4 sm:pt-0">
               <button type="button" onClick={closeDraft} className="h-11 rounded-full bg-white text-xs font-black text-slate-600 ring-1 ring-slate-200">
                 {locale === "ja" ? "戻る" : "Back"}
               </button>
