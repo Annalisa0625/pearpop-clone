@@ -158,40 +158,30 @@ export default function TrendMartCreatorLPV2() {
         <div className="tmv2-market-stage" aria-label="企業がCreatorのプロフィールとメニューを見て依頼する画面イメージ">
           <div className="tmv2-creator-card">
             <div className="tmv2-portfolio-cover">
-              <div className="tmv2-portfolio-gallery" aria-label="Miuのポートフォリオ3件">
-                <figure className="tmv2-portfolio-item tmv2-portfolio-item--lifestyle">
+              <div className="tmv2-portfolio-gallery" aria-label="Miuのポートフォリオ2件">
+                <figure className="tmv2-portfolio-item tmv2-portfolio-item--instagram">
                   <Image
-                    src="/for-creators/v2/portfolio/miu-portfolio-lifestyle.png"
-                    alt="MiuのライフスタイルSNS投稿例"
+                    src="/for-creators/v2/portfolio/miu-portfolio-instagram.png"
+                    alt="MiuのInstagram投稿例"
                     fill
-                    sizes="(max-width: 860px) 58vw, 340px"
+                    sizes="(max-width: 860px) 45vw, 280px"
                   />
                 </figure>
-                <div className="tmv2-portfolio-gallery__side">
-                  <figure className="tmv2-portfolio-item tmv2-portfolio-item--instagram">
-                    <Image
-                      src="/for-creators/v2/portfolio/miu-portfolio-instagram.png"
-                      alt="MiuのInstagram投稿例"
-                      fill
-                      sizes="(max-width: 860px) 38vw, 210px"
-                    />
-                  </figure>
-                  <figure className="tmv2-portfolio-item tmv2-portfolio-item--tiktok">
-                    <Image
-                      src="/for-creators/v2/portfolio/miu-portfolio-tiktok.png"
-                      alt="MiuのTikTok美容投稿例"
-                      fill
-                      sizes="(max-width: 860px) 38vw, 210px"
-                    />
-                  </figure>
-                </div>
+                <figure className="tmv2-portfolio-item tmv2-portfolio-item--tiktok">
+                  <Image
+                    src="/for-creators/v2/portfolio/miu-portfolio-tiktok.png"
+                    alt="MiuのTikTok美容投稿例"
+                    fill
+                    sizes="(max-width: 860px) 45vw, 280px"
+                  />
+                </figure>
               </div>
             </div>
 
             <div className="tmv2-creator-profile">
               <div className="tmv2-avatar" aria-hidden="true">
                 <Image
-                  src="/brand/work-link/beauty-lifestyle.webp"
+                  src="/for-creators/v2/portfolio/miu-portfolio-lifestyle.png"
                   alt=""
                   fill
                   sizes="64px"
