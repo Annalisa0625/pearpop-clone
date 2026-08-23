@@ -121,9 +121,14 @@
   box-shadow: 0 28px 70px rgba(44, 31, 24, .08);
 }
 .tmv2-creator-card { overflow: hidden; border: 1px solid #e4ddd6; border-radius: 22px; background: #fff; box-shadow: 0 12px 30px rgba(46, 33, 26, .06); }
-.tmv2-portfolio-cover { position: relative; height: 210px; overflow: hidden; background: #f4eee9; }
-.tmv2-portfolio-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(40, 25, 20, .14)); }
-.tmv2-portfolio-cover img { object-fit: cover; object-position: center 32%; }
+.tmv2-portfolio-cover { position: relative; height: 250px; overflow: hidden; background: #f4eee9; }
+.tmv2-portfolio-gallery { width: 100%; height: 100%; padding: 8px; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(112px, .85fr); gap: 7px; background: linear-gradient(135deg, #f9f4ef, #f0eafb); }
+.tmv2-portfolio-gallery__side { min-width: 0; display: grid; grid-template-rows: 1fr 1fr; gap: 7px; }
+.tmv2-portfolio-item { position: relative; min-width: 0; min-height: 0; margin: 0; overflow: hidden; border-radius: 12px; background: #ddd; box-shadow: 0 7px 18px rgba(45, 33, 27, .12); isolation: isolate; }
+.tmv2-portfolio-item img { object-fit: cover; transition: none; }
+.tmv2-portfolio-item--lifestyle img { object-position: center 43%; }
+.tmv2-portfolio-item--instagram, .tmv2-portfolio-item--tiktok { background: #f7f7f7; }
+.tmv2-portfolio-item--instagram img, .tmv2-portfolio-item--tiktok img { object-fit: contain; object-position: center; }
 .tmv2-creator-profile { position: relative; padding: 18px 20px 16px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--soft-line); }
 .tmv2-avatar { position: relative; flex: 0 0 auto; width: 58px; height: 58px; overflow: hidden; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #e8e0d8, 0 8px 20px rgba(38, 24, 17, .08); background: #f3ece7; }
 .tmv2-avatar img { object-fit: cover; object-position: center 32%; transform: scale(1.2); }
@@ -333,7 +338,10 @@
   .tmv2-market-intro h2 { font-size: 28px; }
   .tmv2-market-stage { padding: 10px; border-radius: 20px; grid-template-columns: 1fr; gap: 10px; }
   .tmv2-creator-card, .tmv2-order-panel { border-radius: 16px; }
-  .tmv2-portfolio-cover { height: 150px; }
+  .tmv2-portfolio-cover { height: 220px; }
+  .tmv2-portfolio-gallery { padding: 6px; grid-template-columns: minmax(0, 1.45fr) minmax(100px, .9fr); gap: 5px; }
+  .tmv2-portfolio-gallery__side { gap: 5px; }
+  .tmv2-portfolio-item { border-radius: 9px; }
   .tmv2-creator-profile { padding: 14px 14px 12px; gap: 10px; }
   .tmv2-avatar { width: 48px; height: 48px; }
   .tmv2-creator-name-row { align-items: flex-start; }

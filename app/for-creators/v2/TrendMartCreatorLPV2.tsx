@@ -158,12 +158,34 @@ export default function TrendMartCreatorLPV2() {
         <div className="tmv2-market-stage" aria-label="企業がCreatorのプロフィールとメニューを見て依頼する画面イメージ">
           <div className="tmv2-creator-card">
             <div className="tmv2-portfolio-cover">
-              <Image
-                src="/brand/work-link/beauty-lifestyle.webp"
-                alt="韓国コスメを紹介するCreatorのポートフォリオ例"
-                fill
-                sizes="(max-width: 860px) 100vw, 560px"
-              />
+              <div className="tmv2-portfolio-gallery" aria-label="Miuのポートフォリオ3件">
+                <figure className="tmv2-portfolio-item tmv2-portfolio-item--lifestyle">
+                  <Image
+                    src="/for-creators/v2/portfolio/miu-portfolio-lifestyle.png"
+                    alt="MiuのライフスタイルSNS投稿例"
+                    fill
+                    sizes="(max-width: 860px) 58vw, 340px"
+                  />
+                </figure>
+                <div className="tmv2-portfolio-gallery__side">
+                  <figure className="tmv2-portfolio-item tmv2-portfolio-item--instagram">
+                    <Image
+                      src="/for-creators/v2/portfolio/miu-portfolio-instagram.png"
+                      alt="MiuのInstagram投稿例"
+                      fill
+                      sizes="(max-width: 860px) 38vw, 210px"
+                    />
+                  </figure>
+                  <figure className="tmv2-portfolio-item tmv2-portfolio-item--tiktok">
+                    <Image
+                      src="/for-creators/v2/portfolio/miu-portfolio-tiktok.png"
+                      alt="MiuのTikTok美容投稿例"
+                      fill
+                      sizes="(max-width: 860px) 38vw, 210px"
+                    />
+                  </figure>
+                </div>
+              </div>
             </div>
 
             <div className="tmv2-creator-profile">
@@ -392,7 +414,7 @@ export default function TrendMartCreatorLPV2() {
 
       <section className="tmv2-final" aria-labelledby="tmv2-final-title">
         <p className="tmv2-final-label">Creator登録は無料</p>
-        <h2 id="tmv2-final-title"><span>PR投稿もUGC制作も。</span><span>TrendMartでSNSの仕事を</span><span>もっと自由に。</span></h2>
+        <h2 id="tmv2-final-title"><span>PR投稿もUGC制作も</span><span>SNSの仕事を</span><span>TrendMartで</span></h2>
         <Link href={SIGNUP_HREF} className="tmv2-final-cta">無料でCreator登録 <span aria-hidden="true">→</span></Link>
       </section>
 
