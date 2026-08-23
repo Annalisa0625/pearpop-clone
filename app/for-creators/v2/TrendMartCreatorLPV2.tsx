@@ -132,8 +132,9 @@ export default function TrendMartCreatorLPV2() {
               alt="美容、サロン、旅行、グルメなどのSNSコンテンツを制作するクリエイター"
               width={1672}
               height={941}
+              quality={95}
               priority
-              sizes="(max-width: 860px) 100vw, 58vw"
+              sizes="(max-width: 860px) 100vw, (max-width: 920px) 90vw, (max-width: 1100px) 820px, (max-width: 1440px) 49vw, 700px"
             />
           </div>
           <div className="tmv2-hero-actions">
@@ -256,7 +257,7 @@ export default function TrendMartCreatorLPV2() {
             <div className="tmv2-work-code"><span>UGC</span><small>企業へ制作物を納品</small></div>
             <div className="tmv2-work-content">
               <div className="tmv2-work-copy">
-                <h3>広告素材制作 / UGC</h3>
+                <h3>UGC：広告用の素材作成</h3>
                 <p>企業の広告やSNSで使う、動画・画像コンテンツを制作して納品する仕事。</p>
                 <dl>
                   <div><dt>企業が買うもの</dt><dd>動画・画像の制作物</dd></div>
@@ -273,7 +274,8 @@ export default function TrendMartCreatorLPV2() {
         <div className="tmv2-section-intro">
           <div>
             <h2 id="tmv2-difference-title" className="tmv2-section-heading tmv2-section-heading--purple">
-              <span>TrendMartと他サービスの違い</span>
+              <span>TrendMartと</span>
+              <span>他サービスの違い</span>
             </h2>
             <p>「応募して選ばれる」だけではなく、自分の仕事と価格を公開して企業から依頼を受ける選択肢です。</p>
           </div>

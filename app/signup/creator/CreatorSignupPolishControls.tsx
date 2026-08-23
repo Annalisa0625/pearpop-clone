@@ -134,8 +134,16 @@ type CropGeometry = {
   renderedHeight: number;
   drawX: number;
   drawY: number;
-  maxX: number;
-  maxY: number;
+  maxPanX: number;
+  maxPanY: number;
+  panX: number;
+  panY: number;
+};
+
+type CropTransform = {
+  zoom: number;
+  panX: number;
+  panY: number;
 };
 
 function getCropGeometry(
@@ -143,25 +151,27 @@ function getCropGeometry(
   sourceHeight: number,
   viewportSize: number,
   zoom: number,
-  offsetX: number,
-  offsetY: number
+  panX: number,
+  panY: number
 ): CropGeometry {
   const baseScale = Math.max(viewportSize / sourceWidth, viewportSize / sourceHeight);
   const scale = baseScale * zoom;
   const renderedWidth = sourceWidth * scale;
   const renderedHeight = sourceHeight * scale;
-  const maxX = Math.max(0, (renderedWidth - viewportSize) / 2);
-  const maxY = Math.max(0, (renderedHeight - viewportSize) / 2);
-  const moveX = (offsetX / 100) * maxX;
-  const moveY = (offsetY / 100) * maxY;
+  const maxPanX = Math.max(0, (renderedWidth - viewportSize) / 2);
+  const maxPanY = Math.max(0, (renderedHeight - viewportSize) / 2);
+  const clampedPanX = clamp(panX, -maxPanX, maxPanX);
+  const clampedPanY = clamp(panY, -maxPanY, maxPanY);
 
   return {
     renderedWidth,
     renderedHeight,
-    drawX: viewportSize / 2 - renderedWidth / 2 + moveX,
-    drawY: viewportSize / 2 - renderedHeight / 2 + moveY,
-    maxX,
-    maxY,
+    drawX: viewportSize / 2 - renderedWidth / 2 + clampedPanX,
+    drawY: viewportSize / 2 - renderedHeight / 2 + clampedPanY,
+    maxPanX,
+    maxPanY,
+    panX: clampedPanX,
+    panY: clampedPanY,
   };
 }
 
@@ -169,16 +179,16 @@ function drawSquareCrop(
   ctx: CanvasRenderingContext2D,
   image: CanvasImageSource & { naturalWidth: number; naturalHeight: number },
   zoom: number,
-  offsetX: number,
-  offsetY: number
+  panX: number,
+  panY: number
 ) {
   const geometry = getCropGeometry(
     image.naturalWidth,
     image.naturalHeight,
     CROP_SIZE,
     zoom,
-    offsetX,
-    offsetY
+    panX,
+    panY
   );
 
   ctx.fillStyle = "#ffffff";
@@ -195,8 +205,8 @@ function drawSquareCrop(
 async function cropSquareImage(
   file: File,
   zoom: number,
-  offsetX: number,
-  offsetY: number
+  panX: number,
+  panY: number
 ) {
   const objectUrl = URL.createObjectURL(file);
   try {
@@ -211,7 +221,7 @@ async function cropSquareImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Could not prepare image crop");
 
-    drawSquareCrop(ctx, image, zoom, offsetX, offsetY);
+    drawSquareCrop(ctx, image, zoom, panX, panY);
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
@@ -232,7 +242,7 @@ async function cropSquareImage(
 }
 
 const MIN_ZOOM = 1;
-const MAX_ZOOM = 2.4;
+const MAX_ZOOM = 3;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -241,6 +251,14 @@ function clamp(value: number, min: number, max: number) {
 function pointerDistance(points: Array<{ x: number; y: number }>) {
   if (points.length < 2) return 0;
   return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+}
+
+function pointerMidpoint(points: Array<{ x: number; y: number }>) {
+  if (points.length < 2) return null;
+  return {
+    x: (points[0].x + points[1].x) / 2,
+    y: (points[0].y + points[1].y) / 2,
+  };
 }
 
 export function AvatarCropPicker({
@@ -260,15 +278,22 @@ export function AvatarCropPicker({
 }) {
   const [draft, setDraft] = useState<{ file: File; url: string } | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [offsetX, setOffsetX] = useState(0);
-  const [offsetY, setOffsetY] = useState(0);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
   const [saving, setSaving] = useState(false);
   const [draftImage, setDraftImage] = useState<HTMLImageElement | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const mountedRef = useRef(true);
   const activePointersRef = useRef(new Map<number, { x: number; y: number }>());
-  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
-  const cropStateRef = useRef({ zoom: MIN_ZOOM, offsetX: 0, offsetY: 0, image: null as HTMLImageElement | null });
+  const pinchStartRef = useRef<{
+    distance: number;
+    zoom: number;
+    panX: number;
+    panY: number;
+    midpointX: number;
+    midpointY: number;
+  } | null>(null);
+  const cropStateRef = useRef({ zoom: MIN_ZOOM, panX: 0, panY: 0, image: null as HTMLImageElement | null });
 
   useEffect(() => {
     return () => {
@@ -309,17 +334,17 @@ export function AvatarCropPicker({
     if (!canvas || !draftImage) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    drawSquareCrop(ctx, draftImage, zoom, offsetX, offsetY);
-  }, [draftImage, zoom, offsetX, offsetY]);
+    drawSquareCrop(ctx, draftImage, zoom, panX, panY);
+  }, [draftImage, zoom, panX, panY]);
 
   const closeDraft = () => {
     activePointersRef.current.clear();
     pinchStartRef.current = null;
     setDraft(null);
-    cropStateRef.current = { zoom: MIN_ZOOM, offsetX: 0, offsetY: 0, image: null };
+    cropStateRef.current = { zoom: MIN_ZOOM, panX: 0, panY: 0, image: null };
     setZoom(MIN_ZOOM);
-    setOffsetX(0);
-    setOffsetY(0);
+    setPanX(0);
+    setPanY(0);
   };
 
   const selectFile = (files: FileList | null) => {
@@ -327,44 +352,84 @@ export function AvatarCropPicker({
     if (!file) return;
     activePointersRef.current.clear();
     pinchStartRef.current = null;
-    cropStateRef.current = { zoom: MIN_ZOOM, offsetX: 0, offsetY: 0, image: null };
+    cropStateRef.current = { zoom: MIN_ZOOM, panX: 0, panY: 0, image: null };
     setZoom(MIN_ZOOM);
-    setOffsetX(0);
-    setOffsetY(0);
+    setPanX(0);
+    setPanY(0);
     setDraft({ file, url: URL.createObjectURL(file) });
   };
 
-  const setCrop = (nextZoom: number, nextOffsetX: number, nextOffsetY: number) => {
+  const setCrop = (nextZoom: number, nextPanX: number, nextPanY: number) => {
+    const image = cropStateRef.current.image;
+    const clampedZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+    const geometry = image
+      ? getCropGeometry(image.naturalWidth, image.naturalHeight, CROP_SIZE, clampedZoom, nextPanX, nextPanY)
+      : null;
     const next = {
-      zoom: clamp(nextZoom, MIN_ZOOM, MAX_ZOOM),
-      offsetX: clamp(nextOffsetX, -100, 100),
-      offsetY: clamp(nextOffsetY, -100, 100),
-      image: cropStateRef.current.image,
+      zoom: clampedZoom,
+      panX: geometry?.panX ?? 0,
+      panY: geometry?.panY ?? 0,
+      image,
     };
     cropStateRef.current = next;
     setZoom(next.zoom);
-    setOffsetX(next.offsetX);
-    setOffsetY(next.offsetY);
+    setPanX(next.panX);
+    setPanY(next.panY);
   };
 
   const panByScreenPixels = (deltaX: number, deltaY: number) => {
     const canvas = previewCanvasRef.current;
-    const { image, zoom: currentZoom, offsetX: currentOffsetX, offsetY: currentOffsetY } = cropStateRef.current;
+    const { image, zoom: currentZoom, panX: currentPanX, panY: currentPanY } = cropStateRef.current;
     if (!canvas || !image) return;
     const bounds = canvas.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return;
-    const geometry = getCropGeometry(image.naturalWidth, image.naturalHeight, CROP_SIZE, currentZoom, currentOffsetX, currentOffsetY);
     const cropDeltaX = deltaX * (CROP_SIZE / bounds.width);
     const cropDeltaY = deltaY * (CROP_SIZE / bounds.height);
-    const nextOffsetX = geometry.maxX ? currentOffsetX + (cropDeltaX / geometry.maxX) * 100 : 0;
-    const nextOffsetY = geometry.maxY ? currentOffsetY + (cropDeltaY / geometry.maxY) * 100 : 0;
-    setCrop(currentZoom, nextOffsetX, nextOffsetY);
+    setCrop(currentZoom, currentPanX + cropDeltaX, currentPanY + cropDeltaY);
+  };
+
+  const cropPointFromClient = (clientX: number, clientY: number) => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return null;
+    const bounds = canvas.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return null;
+    return {
+      x: (clientX - bounds.left) * (CROP_SIZE / bounds.width),
+      y: (clientY - bounds.top) * (CROP_SIZE / bounds.height),
+    };
+  };
+
+  const zoomAroundCropPoint = (
+    nextZoom: number,
+    anchorX: number,
+    anchorY: number,
+    transform: CropTransform = cropStateRef.current,
+    sourceX = anchorX,
+    sourceY = anchorY
+  ) => {
+    const clampedZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+    const zoomRatio = clampedZoom / transform.zoom;
+    const center = CROP_SIZE / 2;
+    setCrop(
+      clampedZoom,
+      anchorX - center - (sourceX - center - transform.panX) * zoomRatio,
+      anchorY - center - (sourceY - center - transform.panY) * zoomRatio
+    );
   };
 
   const resetPinch = () => {
-    const points = Array.from(activePointersRef.current.values());
-    pinchStartRef.current = points.length >= 2
-      ? { distance: pointerDistance(points), zoom: cropStateRef.current.zoom }
+    const points = Array.from(activePointersRef.current.values()).slice(0, 2);
+    const midpoint = pointerMidpoint(points);
+    const cropPoint = midpoint ? cropPointFromClient(midpoint.x, midpoint.y) : null;
+    pinchStartRef.current = cropPoint && points.length >= 2
+      ? {
+          distance: pointerDistance(points),
+          zoom: cropStateRef.current.zoom,
+          panX: cropStateRef.current.panX,
+          panY: cropStateRef.current.panY,
+          midpointX: cropPoint.x,
+          midpointY: cropPoint.y,
+        }
       : null;
   };
 
@@ -378,7 +443,7 @@ export function AvatarCropPicker({
     const previous = activePointersRef.current.get(event.pointerId);
     if (!previous) return;
     activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    const points = Array.from(activePointersRef.current.values());
+    const points = Array.from(activePointersRef.current.values()).slice(0, 2);
 
     if (points.length === 1) {
       panByScreenPixels(event.clientX - previous.x, event.clientY - previous.y);
@@ -387,8 +452,17 @@ export function AvatarCropPicker({
 
     const start = pinchStartRef.current;
     const distance = pointerDistance(points);
-    if (start && start.distance > 0 && distance > 0) {
-      setCrop(start.zoom * (distance / start.distance), cropStateRef.current.offsetX, cropStateRef.current.offsetY);
+    const midpoint = pointerMidpoint(points);
+    const cropPoint = midpoint ? cropPointFromClient(midpoint.x, midpoint.y) : null;
+    if (start && cropPoint && start.distance > 0 && distance > 0) {
+      zoomAroundCropPoint(
+        start.zoom * (distance / start.distance),
+        cropPoint.x,
+        cropPoint.y,
+        start,
+        start.midpointX,
+        start.midpointY
+      );
     }
   };
 
@@ -402,16 +476,21 @@ export function AvatarCropPicker({
 
   const handleWheel = (event: ReactWheelEvent<HTMLCanvasElement>) => {
     event.preventDefault();
-    const { zoom: currentZoom, offsetX: currentOffsetX, offsetY: currentOffsetY } = cropStateRef.current;
-    setCrop(currentZoom * Math.exp(-event.deltaY * 0.0015), currentOffsetX, currentOffsetY);
+    const cropPoint = cropPointFromClient(event.clientX, event.clientY);
+    if (!cropPoint) return;
+    zoomAroundCropPoint(
+      cropStateRef.current.zoom * Math.exp(-event.deltaY * 0.0015),
+      cropPoint.x,
+      cropPoint.y
+    );
   };
 
   const confirmCrop = async () => {
     if (!draft || saving) return;
     setSaving(true);
     try {
-      const { zoom: currentZoom, offsetX: currentOffsetX, offsetY: currentOffsetY } = cropStateRef.current;
-      const cropped = await cropSquareImage(draft.file, currentZoom, currentOffsetX, currentOffsetY);
+      const { zoom: currentZoom, panX: currentPanX, panY: currentPanY } = cropStateRef.current;
+      const cropped = await cropSquareImage(draft.file, currentZoom, currentPanX, currentPanY);
       const nextPreview = URL.createObjectURL(cropped);
       onConfirm(cropped, nextPreview);
       closeDraft();
