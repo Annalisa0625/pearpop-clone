@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   FaCamera,
   FaEllipsis,
@@ -120,6 +120,67 @@ export function MenuTypePicker({
   );
 }
 
+const CROP_SIZE = 768;
+
+type CropGeometry = {
+  renderedWidth: number;
+  renderedHeight: number;
+  drawX: number;
+  drawY: number;
+};
+
+function getCropGeometry(
+  sourceWidth: number,
+  sourceHeight: number,
+  viewportSize: number,
+  zoom: number,
+  offsetX: number,
+  offsetY: number
+): CropGeometry {
+  const baseScale = Math.max(viewportSize / sourceWidth, viewportSize / sourceHeight);
+  const scale = baseScale * zoom;
+  const renderedWidth = sourceWidth * scale;
+  const renderedHeight = sourceHeight * scale;
+  const maxX = Math.max(0, (renderedWidth - viewportSize) / 2);
+  const maxY = Math.max(0, (renderedHeight - viewportSize) / 2);
+  const moveX = (offsetX / 100) * maxX;
+  const moveY = (offsetY / 100) * maxY;
+
+  return {
+    renderedWidth,
+    renderedHeight,
+    drawX: viewportSize / 2 - renderedWidth / 2 + moveX,
+    drawY: viewportSize / 2 - renderedHeight / 2 + moveY,
+  };
+}
+
+function drawSquareCrop(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource & { naturalWidth: number; naturalHeight: number },
+  zoom: number,
+  offsetX: number,
+  offsetY: number
+) {
+  const geometry = getCropGeometry(
+    image.naturalWidth,
+    image.naturalHeight,
+    CROP_SIZE,
+    zoom,
+    offsetX,
+    offsetY
+  );
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, CROP_SIZE, CROP_SIZE);
+  ctx.drawImage(
+    image,
+    geometry.drawX,
+    geometry.drawY,
+    geometry.renderedWidth,
+    geometry.renderedHeight
+  );
+}
+
 async function cropSquareImage(
   file: File,
   zoom: number,
@@ -133,31 +194,13 @@ async function cropSquareImage(
     image.src = objectUrl;
     await image.decode();
 
-    const size = 768;
     const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = CROP_SIZE;
+    canvas.height = CROP_SIZE;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Could not prepare image crop");
 
-    const baseScale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
-    const scale = baseScale * zoom;
-    const width = image.naturalWidth * scale;
-    const height = image.naturalHeight * scale;
-    const maxX = Math.max(0, (width - size) / 2);
-    const maxY = Math.max(0, (height - size) / 2);
-    const moveX = (offsetX / 100) * maxX;
-    const moveY = (offsetY / 100) * maxY;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, size, size);
-    ctx.drawImage(
-      image,
-      size / 2 - width / 2 + moveX,
-      size / 2 - height / 2 + moveY,
-      width,
-      height
-    );
+    drawSquareCrop(ctx, image, zoom, offsetX, offsetY);
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
@@ -228,12 +271,39 @@ export function AvatarCropPicker({
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [draftImage, setDraftImage] = useState<HTMLImageElement | null>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     return () => {
       if (draft?.url) URL.revokeObjectURL(draft.url);
     };
   }, [draft]);
+
+  useEffect(() => {
+    setDraftImage(null);
+    if (!draft) return;
+
+    let active = true;
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      if (active) setDraftImage(image);
+    };
+    image.src = draft.url;
+
+    return () => {
+      active = false;
+    };
+  }, [draft]);
+
+  useEffect(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas || !draftImage) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    drawSquareCrop(ctx, draftImage, zoom, offsetX, offsetY);
+  }, [draftImage, zoom, offsetX, offsetY]);
 
   const closeDraft = () => {
     setDraft(null);
@@ -321,13 +391,12 @@ export function AvatarCropPicker({
 
             <div className="mx-auto mt-4 w-full max-w-[300px]">
               <div className="relative aspect-square overflow-hidden rounded-full bg-slate-100 ring-4 ring-rose-50">
-                <img
-                  src={draft.url}
-                  alt=""
-                  className="absolute left-1/2 top-1/2 h-full w-full max-w-none object-cover"
-                  style={{
-                    transform: `translate(calc(-50% + ${offsetX * 0.55}px), calc(-50% + ${offsetY * 0.55}px)) scale(${zoom})`,
-                  }}
+                <canvas
+                  ref={previewCanvasRef}
+                  aria-label={locale === "ja" ? "プロフィール写真の切り抜きプレビュー" : "Profile photo crop preview"}
+                  width={CROP_SIZE}
+                  height={CROP_SIZE}
+                  className="h-full w-full"
                 />
                 <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/10" />
               </div>
