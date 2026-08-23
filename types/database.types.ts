@@ -2572,6 +2572,16 @@ export type Database = {
           creator_id: string
         }[]
       }
+      complete_creator_signup: {
+        Args: {
+          p_payload: Json
+          p_user_id: string
+        }
+        Returns: {
+          creator_id: string | null
+          status: string
+        }[]
+      }
       is_creator_link_slug_available: {
         Args: {
           p_exclude_page_id?: string

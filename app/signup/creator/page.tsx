@@ -1,7 +1,7 @@
 // app/signup/creator/page.tsx
 import { Suspense } from "react";
 import { isCreatorOnlyRelease } from "@/lib/release-mode";
-import SignupCreatorClient from "./SignupCreatorClient";
+import SignupCreatorSessionGuard from "./SignupCreatorSessionGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default function SignupCreatorPage() {
         </div>
       }
     >
-      <SignupCreatorClient isCreatorOnly={isCreatorOnly} />
+      <SignupCreatorSessionGuard isCreatorOnly={isCreatorOnly} />
     </Suspense>
   );
 }

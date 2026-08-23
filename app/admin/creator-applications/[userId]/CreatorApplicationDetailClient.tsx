@@ -4,6 +4,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+function getSafeExternalUrl(value: string | null | undefined) {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 type CreatorApplication = {
   id: string;
   user_id: string;
@@ -194,9 +204,9 @@ export default function CreatorApplicationDetailClient({
 
                   <div className="md:col-span-2">
                     <div className="text-sm text-gray-500">SNS URL</div>
-                    {account.url ? (
+                    {getSafeExternalUrl(account.url) ? (
                       <a
-                        href={account.url}
+                        href={getSafeExternalUrl(account.url)!}
                         target="_blank"
                         rel="noreferrer"
                         className="break-all text-blue-600 underline"
