@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type WheelEvent as ReactWheelEvent,
+} from "react";
 import {
   FaCamera,
   FaEllipsis,
@@ -112,7 +119,7 @@ export function MenuTypePicker({
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/85 text-[17px] text-current shadow-sm ring-1 ring-black/5">
               {menuIcon(option.value)}
             </span>
-            <span className="text-[11px] font-black leading-4">{option.label}</span>
+            <span className="whitespace-pre-line text-[11px] font-black leading-4">{option.label}</span>
           </button>
         );
       })}
@@ -127,6 +134,8 @@ type CropGeometry = {
   renderedHeight: number;
   drawX: number;
   drawY: number;
+  maxX: number;
+  maxY: number;
 };
 
 function getCropGeometry(
@@ -151,6 +160,8 @@ function getCropGeometry(
     renderedHeight,
     drawX: viewportSize / 2 - renderedWidth / 2 + moveX,
     drawY: viewportSize / 2 - renderedHeight / 2 + moveY,
+    maxX,
+    maxY,
   };
 }
 
@@ -220,35 +231,16 @@ async function cropSquareImage(
   }
 }
 
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="grid gap-1.5">
-      <span className="text-[11px] font-black text-slate-600">{label}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full accent-[#ff3860]"
-      />
-    </label>
-  );
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 2.4;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function pointerDistance(points: Array<{ x: number; y: number }>) {
+  if (points.length < 2) return 0;
+  return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
 }
 
 export function AvatarCropPicker({
@@ -273,12 +265,27 @@ export function AvatarCropPicker({
   const [saving, setSaving] = useState(false);
   const [draftImage, setDraftImage] = useState<HTMLImageElement | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const mountedRef = useRef(true);
+  const activePointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const cropStateRef = useRef({ zoom: MIN_ZOOM, offsetX: 0, offsetY: 0, image: null as HTMLImageElement | null });
 
   useEffect(() => {
     return () => {
       if (draft?.url) URL.revokeObjectURL(draft.url);
     };
   }, [draft]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    cropStateRef.current.image = draftImage;
+  }, [draftImage]);
 
   useEffect(() => {
     setDraftImage(null);
@@ -306,8 +313,11 @@ export function AvatarCropPicker({
   }, [draftImage, zoom, offsetX, offsetY]);
 
   const closeDraft = () => {
+    activePointersRef.current.clear();
+    pinchStartRef.current = null;
     setDraft(null);
-    setZoom(1);
+    cropStateRef.current = { zoom: MIN_ZOOM, offsetX: 0, offsetY: 0, image: null };
+    setZoom(MIN_ZOOM);
     setOffsetX(0);
     setOffsetY(0);
   };
@@ -315,22 +325,98 @@ export function AvatarCropPicker({
   const selectFile = (files: FileList | null) => {
     const file = Array.from(files ?? []).find((item) => item.type.startsWith("image/"));
     if (!file) return;
-    setZoom(1);
+    activePointersRef.current.clear();
+    pinchStartRef.current = null;
+    cropStateRef.current = { zoom: MIN_ZOOM, offsetX: 0, offsetY: 0, image: null };
+    setZoom(MIN_ZOOM);
     setOffsetX(0);
     setOffsetY(0);
     setDraft({ file, url: URL.createObjectURL(file) });
+  };
+
+  const setCrop = (nextZoom: number, nextOffsetX: number, nextOffsetY: number) => {
+    const next = {
+      zoom: clamp(nextZoom, MIN_ZOOM, MAX_ZOOM),
+      offsetX: clamp(nextOffsetX, -100, 100),
+      offsetY: clamp(nextOffsetY, -100, 100),
+      image: cropStateRef.current.image,
+    };
+    cropStateRef.current = next;
+    setZoom(next.zoom);
+    setOffsetX(next.offsetX);
+    setOffsetY(next.offsetY);
+  };
+
+  const panByScreenPixels = (deltaX: number, deltaY: number) => {
+    const canvas = previewCanvasRef.current;
+    const { image, zoom: currentZoom, offsetX: currentOffsetX, offsetY: currentOffsetY } = cropStateRef.current;
+    if (!canvas || !image) return;
+    const bounds = canvas.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    const geometry = getCropGeometry(image.naturalWidth, image.naturalHeight, CROP_SIZE, currentZoom, currentOffsetX, currentOffsetY);
+    const cropDeltaX = deltaX * (CROP_SIZE / bounds.width);
+    const cropDeltaY = deltaY * (CROP_SIZE / bounds.height);
+    const nextOffsetX = geometry.maxX ? currentOffsetX + (cropDeltaX / geometry.maxX) * 100 : 0;
+    const nextOffsetY = geometry.maxY ? currentOffsetY + (cropDeltaY / geometry.maxY) * 100 : 0;
+    setCrop(currentZoom, nextOffsetX, nextOffsetY);
+  };
+
+  const resetPinch = () => {
+    const points = Array.from(activePointersRef.current.values());
+    pinchStartRef.current = points.length >= 2
+      ? { distance: pointerDistance(points), zoom: cropStateRef.current.zoom }
+      : null;
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    resetPinch();
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const previous = activePointersRef.current.get(event.pointerId);
+    if (!previous) return;
+    activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const points = Array.from(activePointersRef.current.values());
+
+    if (points.length === 1) {
+      panByScreenPixels(event.clientX - previous.x, event.clientY - previous.y);
+      return;
+    }
+
+    const start = pinchStartRef.current;
+    const distance = pointerDistance(points);
+    if (start && start.distance > 0 && distance > 0) {
+      setCrop(start.zoom * (distance / start.distance), cropStateRef.current.offsetX, cropStateRef.current.offsetY);
+    }
+  };
+
+  const handlePointerEnd = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    activePointersRef.current.delete(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    resetPinch();
+  };
+
+  const handleWheel = (event: ReactWheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    const { zoom: currentZoom, offsetX: currentOffsetX, offsetY: currentOffsetY } = cropStateRef.current;
+    setCrop(currentZoom * Math.exp(-event.deltaY * 0.0015), currentOffsetX, currentOffsetY);
   };
 
   const confirmCrop = async () => {
     if (!draft || saving) return;
     setSaving(true);
     try {
-      const cropped = await cropSquareImage(draft.file, zoom, offsetX, offsetY);
+      const { zoom: currentZoom, offsetX: currentOffsetX, offsetY: currentOffsetY } = cropStateRef.current;
+      const cropped = await cropSquareImage(draft.file, currentZoom, currentOffsetX, currentOffsetY);
       const nextPreview = URL.createObjectURL(cropped);
       onConfirm(cropped, nextPreview);
       closeDraft();
     } finally {
-      setSaving(false);
+      if (mountedRef.current) setSaving(false);
     }
   };
 
@@ -396,17 +482,20 @@ export function AvatarCropPicker({
                   aria-label={locale === "ja" ? "プロフィール写真の切り抜きプレビュー" : "Profile photo crop preview"}
                   width={CROP_SIZE}
                   height={CROP_SIZE}
-                  className="h-full w-full"
+                  className="h-full w-full touch-none select-none cursor-grab active:cursor-grabbing"
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerEnd}
+                  onPointerCancel={handlePointerEnd}
+                  onWheel={handleWheel}
                 />
                 <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/10" />
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <Slider label={locale === "ja" ? "拡大" : "Zoom"} value={zoom} min={1} max={2.4} step={0.05} onChange={setZoom} />
-              <Slider label={locale === "ja" ? "左右" : "Horizontal"} value={offsetX} min={-100} max={100} step={1} onChange={setOffsetX} />
-              <Slider label={locale === "ja" ? "上下" : "Vertical"} value={offsetY} min={-100} max={100} step={1} onChange={setOffsetY} />
-            </div>
+            <p className="mt-4 text-center text-[11px] font-bold text-slate-500">
+              {locale === "ja" ? "ドラッグで位置調整・ピンチで拡大／縮小" : "Drag to move. Pinch or scroll to zoom."}
+            </p>
 
             <div className="mt-4 grid grid-cols-[96px_1fr] gap-2">
               <button type="button" onClick={closeDraft} className="h-11 rounded-full bg-white text-xs font-black text-slate-600 ring-1 ring-slate-200">

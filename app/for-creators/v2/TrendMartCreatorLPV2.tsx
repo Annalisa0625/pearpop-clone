@@ -13,6 +13,7 @@ import {
   Sparkles,
   WalletCards,
 } from "lucide-react";
+import { FaTiktok } from "react-icons/fa6";
 
 const SIGNUP_HREF = "/signup/creator";
 
@@ -45,7 +46,6 @@ const faqs = [
 
 const comparisonItems = [
   {
-    code: "01",
     title: "応募型",
     subtitle: "募集案件へ応募して選考を受ける",
     points: [
@@ -56,7 +56,6 @@ const comparisonItems = [
     tone: "neutral",
   },
   {
-    code: "02",
     title: "代理店型",
     subtitle: "代理店・事務所を介して案件を受ける",
     points: [
@@ -67,7 +66,6 @@ const comparisonItems = [
     tone: "neutral",
   },
   {
-    code: "03",
     title: "TrendMart",
     subtitle: "自分の仕事を出品して企業から直接依頼",
     points: [
@@ -154,26 +152,24 @@ export default function TrendMartCreatorLPV2() {
 
       <section className="tmv2-market-section" aria-labelledby="tmv2-market-title">
         <div className="tmv2-market-intro">
-          <p>企業から見えるあなたのページ</p>
-          <h2 id="tmv2-market-title">プロフィールとメニューが、<br />そのまま仕事の入口に。</h2>
+          <h2 id="tmv2-market-title">あなただけのプロフィールと<br />メニューを作成</h2>
         </div>
 
         <div className="tmv2-market-stage" aria-label="企業がCreatorのプロフィールとメニューを見て依頼する画面イメージ">
           <div className="tmv2-creator-card">
             <div className="tmv2-portfolio-cover">
               <Image
-                src="/for-creators/v2/hero-creators.webp"
-                alt="美容・PRコンテンツのポートフォリオ例"
+                src="/brand/work-link/beauty-lifestyle.webp"
+                alt="韓国コスメを紹介するCreatorのポートフォリオ例"
                 fill
                 sizes="(max-width: 860px) 100vw, 560px"
               />
-              <span>PORTFOLIO</span>
             </div>
 
             <div className="tmv2-creator-profile">
               <div className="tmv2-avatar" aria-hidden="true">
                 <Image
-                  src="/for-creators/v2/hero-creators.webp"
+                  src="/brand/work-link/beauty-lifestyle.webp"
                   alt=""
                   fill
                   sizes="64px"
@@ -181,12 +177,11 @@ export default function TrendMartCreatorLPV2() {
               </div>
               <div className="tmv2-creator-profile__copy">
                 <div className="tmv2-creator-name-row">
-                  <strong>Mia / Beauty Creator</strong>
-                  <span className="tmv2-live-dot">依頼受付中</span>
+                  <strong>Miu / 韓国コスメ紹介</strong>
                 </div>
                 <div className="tmv2-social-badges" aria-label="対応SNS">
                   <span className="tmv2-social-badge tmv2-social-badge--instagram"><Instagram size={14} /> Instagram</span>
-                  <span className="tmv2-social-badge tmv2-social-badge--tiktok"><b>♪</b> TikTok</span>
+                  <span className="tmv2-social-badge tmv2-social-badge--tiktok"><FaTiktok size={13} /> TikTok</span>
                   <span className="tmv2-social-badge tmv2-social-badge--ugc"><Camera size={14} /> UGC</span>
                 </div>
               </div>
@@ -200,7 +195,7 @@ export default function TrendMartCreatorLPV2() {
                 <ChevronRight size={18} aria-hidden="true" />
               </div>
               <div className="tmv2-service-row">
-                <span className="tmv2-service-icon tmv2-service-icon--tiktok">♪</span>
+                <span className="tmv2-service-icon tmv2-service-icon--tiktok"><FaTiktok size={17} /></span>
                 <div><small>TikTok</small><strong>TikTok投稿</strong></div>
                 <b>¥15,000〜</b>
                 <ChevronRight size={18} aria-hidden="true" />
@@ -228,10 +223,6 @@ export default function TrendMartCreatorLPV2() {
               <div><dt>内容</dt><dd>フィード / リール投稿</dd></div>
               <div><dt>依頼時</dt><dd>条件・納期を入力</dd></div>
             </dl>
-            <div className="tmv2-order-panel__note">
-              <CheckCircle2 size={17} />
-              <span>プロフィール・実績・価格を確認してから依頼</span>
-            </div>
             <button type="button" className="tmv2-order-panel__button" tabIndex={-1}>このメニューで依頼する</button>
           </aside>
         </div>
@@ -241,10 +232,10 @@ export default function TrendMartCreatorLPV2() {
         <div className="tmv2-section-intro">
           <div>
             <h2 id="tmv2-work-title" className="tmv2-section-heading">
-              <span>TrendMartで扱う<span className="tmv2-accent-pink">仕事</span>は、</span>
-              <span><span className="tmv2-accent-purple">大きく2つ。</span></span>
+              <span>TrendMartで扱う<span className="tmv2-accent-pink">仕事</span>は</span>
+              <span><span className="tmv2-accent-purple">大きく2つ</span></span>
             </h2>
-            <p>発信する仕事と、つくって納品する仕事。両方でも、どちらかだけでも始められます。</p>
+            <p>発信する仕事と、作って納品する仕事<br />両方でも片方だけでも始められる</p>
           </div>
         </div>
         <div className="tmv2-work-grid">
@@ -282,8 +273,7 @@ export default function TrendMartCreatorLPV2() {
         <div className="tmv2-section-intro">
           <div>
             <h2 id="tmv2-difference-title" className="tmv2-section-heading tmv2-section-heading--purple">
-              <span>TrendMartの</span>
-              <span><span className="tmv2-accent-purple">直接仕事を受注できる仕組み。</span></span>
+              <span>TrendMartと他サービスの違い</span>
             </h2>
             <p>「応募して選ばれる」だけではなく、自分の仕事と価格を公開して企業から依頼を受ける選択肢です。</p>
           </div>
@@ -293,7 +283,6 @@ export default function TrendMartCreatorLPV2() {
           {comparisonItems.map((item) => (
             <article key={item.title} className={`tmv2-comparison-card ${item.tone === "trend" ? "is-trend" : ""}`}>
               <div className="tmv2-comparison-card__head">
-                <span>{item.code}</span>
                 <div><h3>{item.title}</h3><p>{item.subtitle}</p></div>
               </div>
               <ul>
@@ -306,7 +295,7 @@ export default function TrendMartCreatorLPV2() {
         <div className="tmv2-ugc-callout">
           <div className="tmv2-ugc-callout__icon"><Camera size={24} /></div>
           <div>
-            <p className="tmv2-ugc-callout__label">UGCという働き方</p>
+            <p className="tmv2-ugc-callout__label">UGC案件の魅力</p>
             <h3>投稿なしでも、制作力が仕事になる。</h3>
             <p>広告用の動画・写真を素材として企業へ納品。自分のSNSをPR投稿で埋めることなく、撮影・編集・表現力で報酬につなげられます。</p>
           </div>
@@ -316,8 +305,8 @@ export default function TrendMartCreatorLPV2() {
       <section className="tmv2-process" aria-labelledby="tmv2-process-title">
         <div className="tmv2-process-heading">
           <h2 id="tmv2-process-title" className="tmv2-section-heading tmv2-section-heading--purple">
-            <span>依頼から<span className="tmv2-accent-purple">報酬</span>まで、</span>
-            <span>案件ごとに進める。</span>
+            <span>依頼から完了まで</span>
+            <span><span className="tmv2-accent-purple">TrendMartで一括管理</span></span>
           </h2>
           <p>依頼内容・報酬・納期を確認してから受注。制作、納品、承認、報酬確認まで案件ごとに進められます。</p>
         </div>
@@ -335,13 +324,13 @@ export default function TrendMartCreatorLPV2() {
           <p className="tmv2-summary-kicker">HOW IT WORKS</p>
           <h2 id="tmv2-summary-title" className="tmv2-section-heading">
             <span><span className="tmv2-accent-pink">登録</span>から</span>
-            <span>ご利用までの流れ。</span>
+            <span>ご利用までの流れ</span>
           </h2>
           <p>スマホで登録して、仕事を公開。依頼が届いたら内容を確認し、制作・納品へ進みます。</p>
         </div>
 
         <div className="tmv2-phone-flow">
-          <PhoneFrame step="01" title="登録・メニュー作成">
+          <PhoneFrame step="1" title="登録・メニュー作成">
             <div className="tmv2-mini-header"><span>TrendMart</span><small>1 / 2</small></div>
             <div className="tmv2-mini-profile">
               <span className="tmv2-mini-avatar"><Smartphone size={18} /></span>
@@ -355,7 +344,7 @@ export default function TrendMartCreatorLPV2() {
             <div className="tmv2-mini-button">メニューを公開</div>
           </PhoneFrame>
 
-          <PhoneFrame step="02" title="依頼が届く">
+          <PhoneFrame step="2" title="依頼が届く">
             <div className="tmv2-mini-header"><span>通知</span><Bell size={15} /></div>
             <div className="tmv2-line-notice">
               <span>LINE</span>
@@ -369,15 +358,15 @@ export default function TrendMartCreatorLPV2() {
             <div className="tmv2-mini-button is-dark">依頼内容を確認</div>
           </PhoneFrame>
 
-          <PhoneFrame step="03" title="制作・納品">
+          <PhoneFrame step="3" title="制作・納品">
             <div className="tmv2-mini-header"><span>進行中の案件</span><Camera size={15} /></div>
             <div className="tmv2-mini-work-visual"><Sparkles size={22} /><span>撮影・編集</span></div>
             <div className="tmv2-mini-choice"><span><Instagram size={14} /> SNS投稿</span><span><Camera size={14} /> UGC素材</span></div>
-            <div className="tmv2-mini-upload"><FileUp size={17} /><div><small>納品</small><strong>URL / ファイルを提出</strong></div></div>
+            <div className="tmv2-mini-upload"><FileUp size={17} /><div><small>納品</small><strong>URL / ファイル</strong></div></div>
             <div className="tmv2-mini-button">納品する</div>
           </PhoneFrame>
 
-          <PhoneFrame step="04" title="承認・報酬確認">
+          <PhoneFrame step="4" title="承認・報酬確認">
             <div className="tmv2-mini-header"><span>案件完了</span><CheckCircle2 size={15} /></div>
             <div className="tmv2-mini-success"><CheckCircle2 size={32} /><strong>納品が承認されました</strong><p>おつかれさまでした</p></div>
             <div className="tmv2-mini-reward"><WalletCards size={18} /><div><small>報酬</small><strong>¥20,000</strong></div></div>
@@ -402,9 +391,8 @@ export default function TrendMartCreatorLPV2() {
 
       <section className="tmv2-final" aria-labelledby="tmv2-final-title">
         <p className="tmv2-final-label">Creator登録は無料</p>
-        <h2 id="tmv2-final-title">PR投稿も、UGC制作も。<br />自分で価格を決めて始める。</h2>
+        <h2 id="tmv2-final-title"><span>PR投稿もUGC制作も。</span><span>TrendMartでSNSの仕事を</span><span>もっと自由に。</span></h2>
         <Link href={SIGNUP_HREF} className="tmv2-final-cta">無料でCreator登録 <span aria-hidden="true">→</span></Link>
-        <p>PR投稿も、UGC制作も。届いた依頼は内容を確認してから判断できます。</p>
       </section>
 
       <footer className="tmv2-footer">
@@ -413,7 +401,6 @@ export default function TrendMartCreatorLPV2() {
           <Link href="/login">ログイン</Link>
           <Link href="/terms">利用規約</Link>
           <Link href="/privacy">プライバシーポリシー</Link>
-          <Link href="/legal">運営者情報</Link>
         </nav>
         <small>© 2026 Trendre</small>
       </footer>

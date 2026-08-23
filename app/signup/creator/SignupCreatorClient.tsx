@@ -31,6 +31,7 @@ type SocialAccountForm = {
 
 type MenuForm = {
   menu_type: string;
+  custom_menu_name: string;
   price: string;
   description: string;
 };
@@ -333,64 +334,64 @@ const AUDIENCE_COUNTRY_OPTIONS_EN: Record<string, string> = {
 const MENU_OPTIONS = [
   {
     value: "Instagram投稿",
-    labelJa: "Instagram投稿",
-    labelEn: "Instagram Feed Post",
+    labelJa: "Instagram\nフィード",
+    labelEn: "Instagram\nFeed post",
     helpJa: "Instagramのフィード投稿として紹介します。",
     helpEn: "A feed post published on Instagram.",
   },
   {
     value: "Instagramリール",
-    labelJa: "Instagramリール",
-    labelEn: "Instagram Reel",
+    labelJa: "Instagram\nリール",
+    labelEn: "Instagram\nReel",
     helpJa: "Instagramリール動画として投稿します。",
     helpEn: "A short-form video published as an Instagram Reel.",
   },
   {
     value: "Instagramストーリーズ",
-    labelJa: "Instagramストーリーズ",
-    labelEn: "Instagram Stories",
+    labelJa: "Instagram\nストーリーズ",
+    labelEn: "Instagram\nStories",
     helpJa: "Instagramストーリーズで紹介します。",
     helpEn: "A story placement published on Instagram.",
   },
   {
     value: "TikTok投稿",
-    labelJa: "TikTok投稿",
-    labelEn: "TikTok Video",
+    labelJa: "TikTok\n投稿",
+    labelEn: "TikTok\nVideo",
     helpJa: "TikTok動画として投稿します。",
     helpEn: "A video published on TikTok.",
   },
   {
     value: "YouTubeショート",
-    labelJa: "YouTubeショート",
-    labelEn: "YouTube Short",
+    labelJa: "YouTube\nショート",
+    labelEn: "YouTube\nShort",
     helpJa: "YouTube Shortsとして投稿します。",
     helpEn: "A short-form video published on YouTube Shorts.",
   },
   {
     value: "YouTube動画",
-    labelJa: "YouTube動画",
-    labelEn: "YouTube Video",
+    labelJa: "YouTube\n動画",
+    labelEn: "YouTube\nVideo",
     helpJa: "YouTube動画として投稿します。",
     helpEn: "A video published on YouTube.",
   },
   {
     value: "投稿なし・動画素材のみ納品",
-    labelJa: "動画素材のみ納品",
-    labelEn: "Video asset only",
+    labelJa: "UGC\n動画素材納品",
+    labelEn: "UGC\nVideo asset only",
     helpJa: "広告やSNSで使える動画素材だけを納品します。",
     helpEn: "Deliver video assets only. You do not post on your own account.",
   },
   {
     value: "投稿なし・写真素材のみ納品",
-    labelJa: "写真素材のみ納品",
-    labelEn: "Photo asset only",
+    labelJa: "UGC\n写真素材納品",
+    labelEn: "UGC\nPhoto asset only",
     helpJa: "広告やSNSで使える写真素材だけを納品します。",
     helpEn: "Deliver photo assets only. You do not post on your own account.",
   },
   {
     value: "イベント訪問",
-    labelJa: "イベント訪問",
-    labelEn: "Event visit",
+    labelJa: "イベント\n訪問",
+    labelEn: "Event\nVisit",
     helpJa: "店舗・イベント・展示会などに訪問して投稿または素材制作を行います。",
     helpEn: "Visit an event, store, or location for content creation.",
   },
@@ -415,6 +416,7 @@ function createEmptySocial(): SocialAccountForm {
 function createEmptyMenu(): MenuForm {
   return {
     menu_type: "",
+    custom_menu_name: "",
     price: "",
     description: "",
   };
@@ -459,6 +461,7 @@ function safeMenus(value: unknown): MenuForm[] {
 
     return {
       menu_type: safeString(row.menu_type),
+      custom_menu_name: safeString(row.custom_menu_name),
       price: safeString(row.price),
       description: "",
     };
@@ -835,6 +838,7 @@ export default function SignupCreatorClient({
             menuTitle: "メニュー",
             menuBody: "企業が購入できるメニューを1つ以上作成してください。",
             menuType: "メニュー種別",
+            customMenuName: "メニュー名",
             price: "例）11,000",
             addMenu: "メニューを追加",
 
@@ -869,6 +873,7 @@ export default function SignupCreatorClient({
             avatarRequired: "プロフィール画像を追加してください",
             portfolioRequired: "ポートフォリオ画像を3枚以上追加してください",
             menuRequired: "メニューを少なくとも1つ正しく入力してください",
+            customMenuNameRequired: "メニュー名を入力してください",
             termsRequired:
               "利用規約とプライバシーポリシーへの同意が必要です",
             signupFailed: "登録に失敗しました",
@@ -972,6 +977,7 @@ export default function SignupCreatorClient({
             menuTitle: "Menus",
             menuBody: "Create at least one menu brands can order.",
             menuType: "Menu type",
+            customMenuName: "Menu name",
             price: "Example: 11,000",
             addMenu: "Add menu",
 
@@ -1006,6 +1012,7 @@ export default function SignupCreatorClient({
             avatarRequired: "Please add a profile image",
             portfolioRequired: "Please add at least 3 portfolio images",
             menuRequired: "Please add at least one valid menu",
+            customMenuNameRequired: "Please enter a menu name",
             termsRequired: "You must agree to the Terms and Privacy Policy",
             signupFailed: "Sign up failed",
             existingEmailSignInFailed:
@@ -1365,7 +1372,13 @@ export default function SignupCreatorClient({
   const updateMenu = (index: number, key: keyof MenuForm, value: string) => {
     const nextValue = key === "price" ? formatPriceInput(value) : value;
     setMenus((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [key]: nextValue } : item))
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const next = { ...item, [key]: nextValue };
+        return key === "menu_type" && value !== "その他"
+          ? { ...next, custom_menu_name: "" }
+          : next;
+      })
     );
   };
 
@@ -1519,6 +1532,10 @@ export default function SignupCreatorClient({
       });
       if (hasInvalidMenu) {
         setError(copy.menuRequired);
+        return false;
+      }
+      if (filledMenus.some((menu) => menu.menu_type === "その他" && !menu.custom_menu_name.trim())) {
+        setError(copy.customMenuNameRequired);
         return false;
       }
       if (!agreedToTerms || !agreedToPrivacy) {
@@ -1792,7 +1809,7 @@ export default function SignupCreatorClient({
 
       const validMenus = menus
         .map((menu) => ({
-          menu_type: menu.menu_type.trim(),
+          menu_type: (menu.menu_type === "その他" ? menu.custom_menu_name : menu.menu_type).trim(),
           price: parsePriceNumber(menu.price),
           description: null,
         }))
@@ -2410,6 +2427,17 @@ export default function SignupCreatorClient({
                     onChange={(value) => updateMenu(index, "menu_type", value)}
                   />
                 </Field>
+
+                {menu.menu_type === "その他" ? (
+                  <Field label={copy.customMenuName}>
+                    <TextInput
+                      type="text"
+                      value={menu.custom_menu_name}
+                      onChange={(e) => updateMenu(index, "custom_menu_name", e.target.value)}
+                      placeholder={appLocale === "ja" ? "例）Instagramライブ配信" : "Example: Instagram live stream"}
+                    />
+                  </Field>
+                ) : null}
 
                 {menu.menu_type ? (
                   <p className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold leading-5 text-slate-500 ring-1 ring-slate-100">
