@@ -203,8 +203,8 @@ function Header({
     <section className="px-1 pb-2 pt-2 sm:px-2 sm:pb-4">
       <div className="relative">
 
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="relative flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0 sm:flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               Creator menu
             </p>
@@ -218,7 +218,7 @@ function Header({
 
           <Link
             href="/creator/menus/new"
-            className="min-h-11 shrink-0 rounded-[13px] bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.98] motion-reduce:transition-none"
+            className="min-h-11 shrink-0 self-start rounded-[13px] bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.98] motion-reduce:transition-none sm:self-auto"
           >
             + {createLabel}
           </Link>

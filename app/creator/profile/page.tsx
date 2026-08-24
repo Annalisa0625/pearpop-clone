@@ -4,6 +4,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ReactNode,
@@ -1272,6 +1273,7 @@ export default function CreatorProfilePage() {
   );
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
+  const portfolioPreviewsRef = useRef<string[]>([]);
   const [deletingPortfolioId, setDeletingPortfolioId] = useState<string | null>(
     null,
   );
@@ -1310,6 +1312,16 @@ export default function CreatorProfilePage() {
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     };
   }, [avatarPreview]);
+
+  useEffect(() => {
+    portfolioPreviewsRef.current = portfolioPreviews;
+  }, [portfolioPreviews]);
+
+  useEffect(() => {
+    return () => {
+      portfolioPreviewsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   useEffect(() => {
     setIsTrendMartStart(
@@ -1638,14 +1650,14 @@ export default function CreatorProfilePage() {
 
   const uploadImageAndGetUrl = async (
     file: File,
-    creatorIdValue: string,
+    ownerUserId: string,
     kind: "avatar" | "portfolio",
     index?: number,
   ) => {
     const ext = fileExtension(file);
     const suffix =
       typeof index === "number" ? `${Date.now()}-${index}` : `${Date.now()}`;
-    const filePath = `${creatorIdValue}/${kind}-${suffix}.${ext}`;
+    const filePath = `${ownerUserId}/${kind}-${suffix}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from(CREATOR_IMAGE_BUCKET)
@@ -1791,7 +1803,7 @@ export default function CreatorProfilePage() {
       if (avatarFile) {
         finalAvatarUrl = await uploadImageAndGetUrl(
           avatarFile,
-          creatorId,
+          creatorUserId,
           "avatar",
         );
       }
@@ -1803,7 +1815,7 @@ export default function CreatorProfilePage() {
           portfolioFiles.map(async (file, index) => {
             const publicUrl = await uploadImageAndGetUrl(
               file,
-              creatorId,
+              creatorUserId,
               "portfolio",
               index,
             );
