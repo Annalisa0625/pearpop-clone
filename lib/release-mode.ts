@@ -11,7 +11,6 @@ const BLOCKED_PAGE_PREFIXES = [
   "/creator/accepted",
   "/creator/chats",
   "/creator/jobs",
-  "/creator/menus",
   "/creator/payouts",
   "/creator/requests",
 ] as const;

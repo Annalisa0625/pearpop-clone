@@ -30,7 +30,7 @@ test("C-only blocks only the Company participant of a shared resource", () => {
   assert.equal(isCreatorOnlyCompanyResourceActor({ actorUserId: "company-user", ...resource }, {}), false);
 });
 
-test("C-only blocks Marketplace pages while allowing the Creator inquiry inbox", () => {
+test("C-only blocks Marketplace pages while allowing Creator menus and the inquiry inbox", () => {
   for (const path of [
     "/home",
     "/for-companies",
@@ -43,7 +43,6 @@ test("C-only blocks Marketplace pages while allowing the Creator inquiry inbox",
     "/creator/jobs/WORK_ID",
     "/creator/jobsAnything",
     "/creator/jobs-old",
-    "/creator/menus/new",
     "/creator/payouts",
     "/creator/requests/request-id",
     "/creator/orders/ORDER_ID",
@@ -57,6 +56,9 @@ test("C-only blocks Marketplace pages while allowing the Creator inquiry inbox",
     "/signup/creator",
     "/creator/dashboard",
     "/creator/jobs",
+    "/creator/menus",
+    "/creator/menus/new",
+    "/creator/menus/menu-id/edit",
     "/creator/link",
     "/creator/profile",
     "/creator/orders",

@@ -15,6 +15,7 @@ import { FaInstagram, FaLine, FaTiktok, FaXTwitter, FaYoutube } from "react-icon
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
+import { AvatarCropPicker } from "@/app/signup/creator/CreatorSignupPolishControls";
 import {
   CreatorBadge,
   CreatorButton,
@@ -687,61 +688,6 @@ function socialPlatformIcon(platform: string) {
   );
 }
 
-function ProfilePhotoPicker({
-  label,
-  currentUrl,
-  previewUrl,
-  noImageLabel,
-  buttonLabel,
-  onChange,
-}: {
-  label: string;
-  currentUrl: string | null;
-  previewUrl: string | null;
-  noImageLabel: string;
-  buttonLabel: string;
-  onChange: (file: File | null) => void;
-}) {
-  const src = previewUrl || currentUrl;
-
-  return (
-    <div className="flex items-center gap-5 py-1">
-      <div className="flex items-center gap-4">
-        {src ? (
-          <img
-            src={src}
-            alt={label}
-            className="h-[76px] w-[76px] shrink-0 rounded-full object-cover ring-1 ring-slate-200"
-          />
-        ) : (
-          <div className="grid h-[76px] w-[76px] shrink-0 place-items-center rounded-full bg-white text-sm font-medium text-slate-400 ring-1 ring-slate-200">
-            {noImageLabel}
-          </div>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-semibold tracking-[-0.035em] text-slate-950">
-            {label}
-          </p>
-          <label className="mt-3 inline-flex min-h-10 cursor-pointer items-center justify-center rounded-[12px] bg-white px-4 py-2 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-200 outline-none transition duration-150 hover:bg-slate-50 active:scale-[0.98] motion-reduce:transition-none">
-            {buttonLabel}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                const file = event.target.files?.[0] ?? null;
-                onChange(file);
-                event.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function PortfolioUploadBox({
   pendingCount,
   buttonLabel,
@@ -1112,10 +1058,10 @@ export default function CreatorProfilePage() {
         ? {
             title: "プロフィール",
             subtitle: "あなたらしさと得意なことが伝わるプロフィールをつくりましょう。",
-            username: "ユーザーネーム",
-            usernamePlaceholder: "例：yuna_beauty",
+            username: "表示名",
+            usernamePlaceholder: "例：ゆな｜美容",
             usernameHelp:
-              "公開プロフィールURLや検索で使われます。英小文字・数字・_・- が使えます。",
+              "企業や公開プロフィールに表示される名前です。",
             categoryTitle: "ジャンル",
             categoryBody: "得意なジャンルを5つまで選んでください。",
             categoryCount: "選択中",
@@ -1152,10 +1098,8 @@ export default function CreatorProfilePage() {
             save: "保存する",
             selectPlease: "選択してください",
             creatorNotFound: "クリエイター情報が見つかりませんでした。",
-            usernameRequired: "ユーザーネームを入力してください",
-            usernameInvalid:
-              "ユーザーネームは英小文字・数字・アンダースコア・ハイフンのみで3〜30文字です",
-            usernameDuplicate: "このユーザーネームは既に使われています",
+            usernameRequired: "表示名を入力してください",
+            usernameInvalid: "表示名は80文字以内で入力してください",
             categoryRequired: "ジャンルを1つ以上選択してください",
             categoryLimit: "ジャンルは5つまで選択できます",
             areaRequired: "対応可能エリアを1つ以上選択してください",
@@ -1207,10 +1151,10 @@ export default function CreatorProfilePage() {
         : {
             title: "Profile",
             subtitle: "Build a profile that feels like you and shows what you do best.",
-            username: "Username",
-            usernamePlaceholder: "Example: yuna_beauty",
+            username: "Display name",
+            usernamePlaceholder: "Example: Yuna Beauty",
             usernameHelp:
-              "Used for your public profile URL and search. Lowercase letters, numbers, _ and - are allowed.",
+              "The name shown to brands and on your public profile.",
             categoryTitle: "Categories",
             categoryBody: "Select up to 5 categories.",
             categoryCount: "Selected",
@@ -1247,10 +1191,8 @@ export default function CreatorProfilePage() {
             save: "Save",
             selectPlease: "Please select",
             creatorNotFound: "Creator information was not found.",
-            usernameRequired: "Please enter your username",
-            usernameInvalid:
-              "Username must be 3–30 characters using lowercase letters, numbers, underscores, or hyphens",
-            usernameDuplicate: "This username is already in use",
+            usernameRequired: "Please enter your display name",
+            usernameInvalid: "Display name must be 80 characters or fewer",
             categoryRequired: "Please select at least one category",
             categoryLimit: "You can select up to 5 categories",
             areaRequired: "Please select at least one available area",
@@ -1311,6 +1253,7 @@ export default function CreatorProfilePage() {
   const [isTrendMartStart, setIsTrendMartStart] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [country] = useState(COUNTRY_DEFAULT);
   const [prefectures, setPrefectures] = useState<string[]>([]);
   const [canReceiveProductsChoice, setCanReceiveProductsChoice] = useState("");
@@ -1361,6 +1304,12 @@ export default function CreatorProfilePage() {
 
   const portfolioTotalCount = portfolioAssets.length + portfolioFiles.length;
   const profileName = displayName || "Trendre";
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
 
   useEffect(() => {
     setIsTrendMartStart(
@@ -1603,6 +1552,20 @@ export default function CreatorProfilePage() {
       setApprovalStatus(creatorRow.approval_status ?? null);
       setCreatorIsPublic(creatorRow.is_public === true);
 
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        setError(profileError.message);
+        setLoading(false);
+        return;
+      }
+
+      setProfileUsername(profile?.username ?? null);
+
       const { data: userState, error: userStateError } = await supabase
         .from("user_states")
         .select("creator_profile_completed")
@@ -1702,15 +1665,11 @@ export default function CreatorProfilePage() {
     return data.publicUrl;
   };
 
-  const isValidPublicName = (value: string) => {
-    return /^[a-z0-9][a-z0-9_-]{2,29}$/.test(value);
-  };
-
   const validate = () => {
-    const normalizedDisplayName = displayName.trim().toLowerCase();
+    const normalizedDisplayName = displayName.trim();
 
     if (!normalizedDisplayName) return copy.usernameRequired;
-    if (!isValidPublicName(normalizedDisplayName)) return copy.usernameInvalid;
+    if (normalizedDisplayName.length > 80) return copy.usernameInvalid;
 
     if (selectedCategories.length === 0) return copy.categoryRequired;
     if (selectedCategories.length > 5) return copy.categoryLimit;
@@ -1743,12 +1702,6 @@ export default function CreatorProfilePage() {
     if (hasIncomplete) return copy.socialIncomplete;
 
     return null;
-  };
-
-  const handleImageSelect = (file: File | null) => {
-    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    setAvatarFile(file);
-    setAvatarPreview(file ? URL.createObjectURL(file) : null);
   };
 
   const handlePortfolioSelect = (files: File[]) => {
@@ -1825,29 +1778,13 @@ export default function CreatorProfilePage() {
     setSaving(true);
 
     try {
-      const normalizedDisplayName = displayName.trim().toLowerCase();
+      const normalizedDisplayName = displayName.trim();
       const normalizedPrefecture = prefectures.join("、");
       const normalizedContentLanguage = contentLanguage.trim();
       const normalizedResponseLanguage = responseLanguage.trim();
       const normalizedCanReceiveProducts = canReceiveProductsChoice === "yes";
       const normalizedSubCategories = selectedCategories.slice(0, 5);
       const normalizedMainCategory = normalizedSubCategories[0];
-
-      const { data: duplicateProfile, error: duplicateError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", normalizedDisplayName)
-        .maybeSingle();
-
-      if (duplicateError) {
-        throw duplicateError;
-      }
-
-      if (duplicateProfile && duplicateProfile.id !== creatorUserId) {
-        setError(copy.usernameDuplicate);
-        setSaving(false);
-        return;
-      }
 
       let finalAvatarUrl = avatarUrl;
 
@@ -1923,7 +1860,6 @@ export default function CreatorProfilePage() {
         .from("profiles")
         .upsert({
           id: creatorUserId,
-          username: normalizedDisplayName,
           category: normalizedMainCategory,
           avatar_url: finalAvatarUrl,
           is_public: true,
@@ -2014,7 +1950,9 @@ export default function CreatorProfilePage() {
 
       await supabase.auth.updateUser({
         data: {
-          creator_username: normalizedDisplayName,
+          ...(profileUsername ? { creator_username: profileUsername } : {}),
+          display_name: normalizedDisplayName,
+          full_name: normalizedDisplayName,
           creator_country: country,
           creator_prefecture: normalizedPrefecture || null,
           creator_city: null,
@@ -2131,13 +2069,16 @@ export default function CreatorProfilePage() {
 
       <div className="flex flex-col">
       <SectionCard className="order-1" title={copy.photoSection} description={copy.photoBody}>
-        <ProfilePhotoPicker
+        <AvatarCropPicker
           label={copy.avatar}
-          currentUrl={avatarUrl}
-          previewUrl={avatarPreview}
-          noImageLabel={copy.noImage}
-          buttonLabel={copy.imageChoose}
-          onChange={handleImageSelect}
+          previewUrl={avatarPreview ?? avatarUrl}
+          help={copy.photoBody}
+          chooseLabel={copy.imageChoose}
+          locale={safeLocale}
+          onConfirm={(file, previewUrl) => {
+            setAvatarFile(file);
+            setAvatarPreview(previewUrl);
+          }}
         />
       </SectionCard>
 
@@ -2402,7 +2343,7 @@ export default function CreatorProfilePage() {
                   </button>
                 </div>
 
-                <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {PLATFORM_OPTIONS.map((platform) => (
                     <PlatformBadge
                       key={platform}

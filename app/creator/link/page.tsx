@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BriefcaseBusiness, ChevronRight, Copy, ExternalLink, Link2, MessageSquareText, Share2, Sparkles, UserRound } from "lucide-react";
 import TrendreLinkCanvas, {
+  TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT,
+  TRENDRE_LINK_LOGICAL_CANVAS_WIDTH,
   type TrendreLinkCanvasData,
   type TrendreLinkEditableField,
   type TrendreLinkCanvasItem,
@@ -975,29 +977,22 @@ export default function CreatorLinkBuilderPage() {
   return (
     <div className="h-[100dvh] min-h-0 overflow-hidden bg-[#f3f1ed] pb-[calc(68px+env(safe-area-inset-bottom))] text-slate-950">
       <style jsx global>{`
-        .trendre-editor-preview { width: 286px; height: 555px; transition: width 320ms ease, height 320ms ease, transform 320ms ease; }
-        .trendre-editor-preview > div { width: 480px; transform: scale(.5958333); }
-        .trendre-editor-preview.is-editing { width: 196px; height: 350px; transform: translateY(-2px); }
-        .trendre-editor-preview.is-editing > div { transform: scale(.4083333); }
+        .trendre-editor-preview { --preview-scale: .55; width: calc(${TRENDRE_LINK_LOGICAL_CANVAS_WIDTH}px * var(--preview-scale)); height: calc(${TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT}px * var(--preview-scale)); transition: width 320ms ease, height 320ms ease, transform 320ms ease; }
+        .trendre-editor-preview > div { width: ${TRENDRE_LINK_LOGICAL_CANVAS_WIDTH}px; transform: scale(var(--preview-scale)); }
+        .trendre-editor-preview.is-editing { --preview-scale: .375; transform: translateY(-2px); }
         @keyframes trendre-sheet-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
         .trendre-inline-editor-panel { animation: trendre-sheet-in 300ms ease both; }
         @media (max-width: 360px), (max-height: 720px) {
-          .trendre-editor-preview { width: 238px; height: 430px; }
-          .trendre-editor-preview > div { transform: scale(.4958333); }
-          .trendre-editor-preview.is-editing { width: 146px; height: 246px; }
-          .trendre-editor-preview.is-editing > div { transform: scale(.3041667); }
+          .trendre-editor-preview { --preview-scale: .45; }
+          .trendre-editor-preview.is-editing { --preview-scale: .29; }
         }
         @media (max-height: 620px) {
-          .trendre-editor-preview { width: 190px; height: 330px; }
-          .trendre-editor-preview > div { transform: scale(.3958333); }
-          .trendre-editor-preview.is-editing { width: 100px; height: 170px; }
-          .trendre-editor-preview.is-editing > div { transform: scale(.2083333); }
+          .trendre-editor-preview { --preview-scale: .35; }
+          .trendre-editor-preview.is-editing { --preview-scale: .19; }
         }
         @media (min-height: 900px) and (min-width: 390px) {
-          .trendre-editor-preview { width: 310px; height: 604px; }
-          .trendre-editor-preview > div { transform: scale(.6458333); }
-          .trendre-editor-preview.is-editing { width: 212px; height: 400px; }
-          .trendre-editor-preview.is-editing > div { transform: scale(.4416667); }
+          .trendre-editor-preview { --preview-scale: .59; }
+          .trendre-editor-preview.is-editing { --preview-scale: .405; }
         }
         @media (prefers-reduced-motion: reduce) {
           .trendre-editor-preview, .trendre-editor-preview > div { transition: none !important; }

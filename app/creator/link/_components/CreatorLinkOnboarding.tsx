@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, Copy, ExternalLink, Images, Link2, Pencil, Plus } from "lucide-react";
 import SocialBrandIcon from "@/components/trendre-link/SocialBrandIcon";
 import StylePresetGallery from "@/components/trendre-link/StylePresetGallery";
-import TrendreLinkCanvas, { type TrendreLinkCanvasData } from "@/components/trendre-link/TrendreLinkCanvas";
+import TrendreLinkCanvas, { TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT, TRENDRE_LINK_LOGICAL_CANVAS_WIDTH, type TrendreLinkCanvasData } from "@/components/trendre-link/TrendreLinkCanvas";
 import type { CreatorLinkButtonStyle, CreatorLinkFontStyle, CreatorLinkTheme } from "@/lib/trendre-link/constants";
 import type { CreatorLinkSocialPlatform } from "@/lib/trendre-link/item-validation";
 import { CREATOR_LINK_SOCIAL_SERVICES, getCreatorLinkService, normalizeCreatorLinkServiceInput } from "@/lib/trendre-link/service-registry";
@@ -68,7 +68,11 @@ function StepShell({ step, title, description, galleryMode = false, onBack, chil
 }
 
 function Phone({ data }: { data: TrendreLinkCanvasData }) {
-  return <div className="mx-auto h-[min(43dvh,390px)] w-[220px] overflow-hidden rounded-[34px] border-[5px] border-black bg-black shadow-[0_25px_65px_rgba(0,0,0,.42)]"><div className="pointer-events-none w-[480px] origin-top-left scale-[.458333]"><TrendreLinkCanvas data={data} mode="preview" locale="ja" /></div></div>;
+  const width = 180;
+  const scale = width / TRENDRE_LINK_LOGICAL_CANVAS_WIDTH;
+  const height = TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT * scale;
+
+  return <div style={{ width, height }} className="mx-auto overflow-hidden rounded-[30px] border-[5px] border-black bg-black shadow-[0_25px_65px_rgba(0,0,0,.42)]"><div style={{ width: TRENDRE_LINK_LOGICAL_CANVAS_WIDTH, transform: `scale(${scale})` }} className="pointer-events-none origin-top-left"><TrendreLinkCanvas data={data} mode="preview" locale="ja" /></div></div>;
 }
 
 export default function CreatorLinkOnboarding(props: Props) {
