@@ -307,70 +307,88 @@ function MenuChoiceGrid({
   value,
   locale,
   onChange,
+  price,
+  priceLabel,
+  priceHelp,
+  pricePlaceholder,
+  onPriceChange,
 }: {
   value: string;
   locale: Locale;
   onChange: (value: string) => void;
+  price: string;
+  priceLabel: string;
+  priceHelp: string;
+  pricePlaceholder: string;
+  onPriceChange: (value: string) => void;
 }) {
-  const selectedMenu = getSelectedMenu(value);
-
   return (
     <div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 p-0.5 sm:grid-cols-2">
         {MENU_OPTIONS.map((option) => {
           const active = value === option.value;
           const platform = derivePlatform(option.value);
 
           return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onChange(option.value)}
-              aria-pressed={active}
-              className={`min-h-[76px] rounded-[14px] px-4 py-3 text-left outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.99] motion-reduce:transition-none ${
-                active
-                  ? "bg-rose-50 text-slate-950 ring-2 ring-[#ed3155]"
-                  : "bg-white text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className="flex h-full flex-col justify-between gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={`inline-flex h-6 items-center rounded-full border px-2 text-[10px] font-semibold ${
-                      active
-                        ? "border-slate-200 bg-white text-slate-700"
-                        : platformBadgeClass(platform, false)
-                    }`}
-                  >
-                    {platformIcon(platform)}
-                  </span>
-
-                  {active ? (
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-[#ed3155] text-[11px] font-semibold text-white">
-                      ✓
+            <div key={option.value} className="contents">
+              <button
+                type="button"
+                onClick={() => onChange(option.value)}
+                aria-pressed={active}
+                className={`min-h-[76px] min-w-0 rounded-[14px] px-4 py-3 text-left outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.99] motion-reduce:transition-none ${
+                  active
+                    ? "bg-rose-50 text-slate-950 ring-2 ring-inset ring-[#ed3155]"
+                    : "bg-white text-slate-800 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <div className="flex h-full flex-col justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`inline-flex h-6 items-center rounded-full border px-2 text-[10px] font-semibold ${
+                        active
+                          ? "border-slate-200 bg-white text-slate-700"
+                          : platformBadgeClass(platform, false)
+                      }`}
+                    >
+                      {platformIcon(platform)}
                     </span>
-                  ) : null}
-                </div>
 
-                <p className="line-clamp-2 text-[12px] font-semibold leading-4 tracking-[-0.025em]">
-                  {getMenuLabel(option, locale)}
-                </p>
-              </div>
-            </button>
+                    {active ? (
+                      <span className="grid h-5 w-5 place-items-center rounded-full bg-[#ed3155] text-[11px] font-semibold text-white">
+                        ✓
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="line-clamp-2 text-[12px] font-semibold leading-4 tracking-[-0.025em]">
+                    {getMenuLabel(option, locale)}
+                  </p>
+                </div>
+              </button>
+
+              {active ? (
+                <div className="min-w-0 rounded-[16px] bg-white p-4 ring-1 ring-inset ring-slate-200 sm:col-span-2">
+                  <div className="mb-4 flex items-start gap-2">
+                    <PlatformBadge platform={platform} />
+                    <p className="min-w-0 flex-1 text-[12px] font-medium leading-5 text-slate-600">
+                      {getMenuHelp(option, locale)}
+                    </p>
+                  </div>
+                  <CreatorField label={priceLabel} help={priceHelp}>
+                    <CreatorInput
+                      type="text"
+                      inputMode="numeric"
+                      value={price}
+                      onChange={(event) => onPriceChange(formatYenInput(event.target.value))}
+                      placeholder={pricePlaceholder}
+                    />
+                  </CreatorField>
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </div>
-
-      {selectedMenu ? (
-        <div className="mt-4 border-l-2 border-rose-400 pl-4">
-          <div className="flex items-start gap-2">
-            <PlatformBadge platform={derivePlatform(selectedMenu.value)} />
-            <p className="min-w-0 flex-1 text-[12px] font-medium leading-5 text-slate-600">
-              {getMenuHelp(selectedMenu, locale)}
-            </p>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -873,6 +891,11 @@ export default function EditMenuPage() {
           <MenuChoiceGrid
             value={menuValue}
             locale={safeLocale}
+            price={price}
+            priceLabel={copy.price}
+            priceHelp={copy.yenOnly}
+            pricePlaceholder={copy.pricePlaceholder}
+            onPriceChange={setPrice}
             onChange={(nextValue) => {
               setMenuValue(nextValue);
               if (isMaterialOnlyMenu(nextValue)) {
@@ -882,21 +905,9 @@ export default function EditMenuPage() {
           />
         </SectionCard>
 
-        <SectionCard step="2" title={copy.price} description={copy.priceHelp}>
-          <CreatorField label={copy.price} help={copy.yenOnly}>
-            <CreatorInput
-              type="text"
-              inputMode="numeric"
-              value={price}
-              onChange={(event) => setPrice(formatYenInput(event.target.value))}
-              placeholder={copy.pricePlaceholder}
-            />
-          </CreatorField>
-        </SectionCard>
-
         {selectedMenu ? (
           <SectionCard
-            step="3"
+            step="2"
             title={copy.secondaryUseTitle}
             description={
               isMaterialOnlyMenu(selectedMenu.value)

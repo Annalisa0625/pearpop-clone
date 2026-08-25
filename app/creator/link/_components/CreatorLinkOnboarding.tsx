@@ -68,11 +68,14 @@ function StepShell({ step, title, description, galleryMode = false, onBack, chil
 }
 
 function Phone({ data }: { data: TrendreLinkCanvasData }) {
-  const width = 180;
-  const scale = width / TRENDRE_LINK_LOGICAL_CANVAS_WIDTH;
-  const height = TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT * scale;
+  const frameWidth = 180;
+  const borderWidth = 5;
+  const viewportWidth = frameWidth - borderWidth * 2;
+  const scale = viewportWidth / TRENDRE_LINK_LOGICAL_CANVAS_WIDTH;
+  const viewportHeight = TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT * scale;
+  const frameHeight = viewportHeight + borderWidth * 2;
 
-  return <div style={{ width, height }} className="mx-auto overflow-hidden rounded-[30px] border-[5px] border-black bg-black shadow-[0_25px_65px_rgba(0,0,0,.42)]"><div style={{ width: TRENDRE_LINK_LOGICAL_CANVAS_WIDTH, transform: `scale(${scale})` }} className="pointer-events-none origin-top-left"><TrendreLinkCanvas data={data} mode="preview" locale="ja" /></div></div>;
+  return <div style={{ width: frameWidth, height: frameHeight, borderWidth, boxSizing: "border-box" }} className="mx-auto overflow-hidden rounded-[30px] border-solid border-black bg-black shadow-[0_25px_65px_rgba(0,0,0,.42)]"><div style={{ width: TRENDRE_LINK_LOGICAL_CANVAS_WIDTH, transform: `scale(${scale})` }} className="pointer-events-none origin-top-left"><TrendreLinkCanvas data={data} mode="preview" locale="ja" /></div></div>;
 }
 
 export default function CreatorLinkOnboarding(props: Props) {

@@ -203,28 +203,25 @@ function Header({
     <section className="px-1 pb-2 pt-2 sm:px-2 sm:pb-4">
       <div className="relative">
 
-        <div className="relative flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="relative flex items-start justify-between gap-3 sm:gap-4">
           <div className="min-w-0 sm:flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Creator menu
-            </p>
-            <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.055em] text-slate-950 sm:text-[34px]">
+            <h1 className="text-[28px] font-semibold tracking-[-0.055em] text-slate-950 sm:text-[34px]">
               {title}
             </h1>
-            <p className="mt-2 max-w-lg text-[14px] font-normal leading-6 text-slate-600">
+            <p className="mt-2 hidden max-w-lg text-[14px] font-normal leading-6 text-slate-600 sm:block">
               {subtitle}
             </p>
           </div>
 
           <Link
             href="/creator/menus/new"
-            className="min-h-11 shrink-0 self-start rounded-[13px] bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.98] motion-reduce:transition-none sm:self-auto"
+            className="min-h-11 shrink-0 rounded-[13px] bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white outline-none transition duration-150 focus-visible:ring-4 focus-visible:ring-slate-200 active:scale-[0.98] motion-reduce:transition-none"
           >
             + {createLabel}
           </Link>
         </div>
 
-        <p className="mt-5 text-[13px] font-medium text-slate-500">
+        <p className="mt-2 text-[12px] font-medium text-slate-500 sm:mt-4 sm:text-[13px]">
           {locale === "ja"
             ? `${menus.length}件のサービス · ${publicCount}件を公開中`
             : `${menus.length} offerings · ${publicCount} live`}
@@ -263,27 +260,34 @@ function MenuCard({
   onDelete: () => void;
 }) {
   const isPublic = !!menu.is_active;
+  const visibilityLabel = isPublic
+    ? locale === "ja" ? "公開中" : "Live"
+    : locale === "ja" ? "非公開" : "Private";
   const platform = inferPlatform(menu);
   const hasLegacyReferenceOnly =
     menu.price == null && !!menu.reference_price_text?.trim();
   const deniedSecondaryUse = menu.allow_secondary_use === false;
 
   return (
-    <article className="group flex min-h-[268px] flex-col rounded-[22px] bg-white p-5 transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(15,23,42,0.08)] motion-reduce:transition-none">
-      <div className="flex items-start gap-4">
+    <article className="group flex min-h-[176px] flex-col rounded-[22px] bg-white p-4 transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(15,23,42,0.08)] motion-reduce:transition-none">
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex items-center justify-between gap-2">
             <PlatformBadge platform={platform} />
+            <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-500">
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isPublic ? "bg-emerald-500" : "bg-slate-300"}`} aria-hidden="true" />
+              <span className="truncate">{visibilityLabel} · {menuFormatLabel(menu, locale)}</span>
+            </div>
           </div>
 
-          <div className="mt-3 flex items-start justify-between gap-3">
+          <div className="mt-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="line-clamp-2 text-[19px] font-semibold leading-7 tracking-[-0.04em] text-slate-950">
+              <h2 className="line-clamp-1 text-[17px] font-semibold leading-6 tracking-[-0.04em] text-slate-950">
                 {menu.title}
               </h2>
 
               {menu.description?.trim() ? (
-                <p className="mt-1 line-clamp-2 text-[13px] font-normal leading-6 text-slate-600">
+                <p className="mt-0.5 line-clamp-1 text-[12px] font-normal leading-5 text-slate-600">
                   {menu.description.trim()}
                 </p>
               ) : null}
@@ -300,10 +304,10 @@ function MenuCard({
         </div>
       </div>
 
-      <div className="mt-auto flex items-end justify-between gap-3 pb-5 pt-7">
+      <div className="mt-3 flex items-end justify-between gap-3 pb-2 pt-1">
         <div className="min-w-0">
           <p className="text-[10px] font-medium text-slate-500">{copy.price}</p>
-          <p className="mt-1 whitespace-nowrap text-[28px] font-semibold tracking-[-0.06em] tabular-nums text-slate-950">
+          <p className="mt-0.5 whitespace-nowrap text-[24px] font-semibold tracking-[-0.06em] tabular-nums text-slate-950">
             {formatPrice(
               menu.price,
               menu.currency,
@@ -320,15 +324,8 @@ function MenuCard({
         ) : null}
       </div>
 
-      <div className="mb-3 flex items-center gap-2 text-[12px] font-medium text-slate-500">
-        <span className={`h-1.5 w-1.5 rounded-full ${isPublic ? "bg-emerald-500" : "bg-slate-300"}`} aria-hidden="true" />
-        <span>{isPublic ? locale === "ja" ? "公開中" : "Live" : locale === "ja" ? "非公開" : "Private"}</span>
-        <span className="text-slate-300">·</span>
-        <span>{menuFormatLabel(menu, locale)}</span>
-      </div>
-
-      <details className="group/manage border-t border-slate-100 pt-3">
-        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between text-[12px] font-medium text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
+      <details className="group/manage border-t border-slate-100 pt-1">
+        <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between text-[12px] font-medium text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
           <span>{locale === "ja" ? "管理" : "Manage"}</span>
           <span className="text-lg leading-none tracking-[0.12em] text-slate-400" aria-hidden="true">•••</span>
         </summary>
@@ -437,8 +434,8 @@ export default function CreatorMenusPage() {
     () =>
       safeLocale === "ja"
         ? {
-            title: isCreatorOnly ? "提供メニュー・参考価格" : "メニュー・価格",
-            subtitle: isCreatorOnly ? "提供したい内容と参考価格を登録できます。" : "企業が購入できるメニューを、見やすく管理できます。",
+            title: "メニュー管理",
+            subtitle: "メニューの公開状態と価格を管理できます。",
             loginRequired: "ログインしてください",
             creatorNotFound: "クリエイター情報が見つかりません",
             toggleFailed: "公開状態の切り替えに失敗しました",
@@ -464,8 +461,8 @@ export default function CreatorMenusPage() {
             errorTitle: "エラー",
           }
         : {
-            title: isCreatorOnly ? "Services & reference rates" : "Menus & rates",
-            subtitle: isCreatorOnly ? "Register the services you offer and their reference rates." : "Manage menus brands can order.",
+            title: "Menu management",
+            subtitle: "Manage menu pricing and visibility.",
             loginRequired: "Please log in",
             creatorNotFound: "Creator information was not found",
             toggleFailed: "Failed to change visibility",

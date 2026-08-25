@@ -2542,7 +2542,9 @@ export default function CreatorProfilePage() {
       </SectionCard> : null}
       </div>
 
-      <div className="-mx-2 rounded-[18px] bg-white/96 p-2 shadow-[0_12px_36px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70 sm:mx-0">
+      <div aria-hidden="true" className="h-[76px] sm:hidden" />
+
+      <div className="creator-profile-save-dock fixed inset-x-4 bottom-[calc(80px+env(safe-area-inset-bottom))] z-40 mx-auto max-w-[864px] rounded-[18px] bg-white/96 p-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] ring-1 ring-slate-200/70 backdrop-blur-xl sm:static sm:inset-auto sm:max-w-none sm:shadow-[0_12px_36px_rgba(15,23,42,0.10)]">
         <CreatorButton
           type="button"
           onClick={handleSave}
@@ -2552,6 +2554,13 @@ export default function CreatorProfilePage() {
           {saving ? copy.saving : copy.save}
         </CreatorButton>
       </div>
+      <style jsx global>{`
+        @media (max-height: 560px) and (pointer: coarse) {
+          .creator-profile-save-dock {
+            position: static;
+          }
+        }
+      `}</style>
     </CreatorPage>
   );
 }

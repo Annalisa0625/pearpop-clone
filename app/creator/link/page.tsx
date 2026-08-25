@@ -975,24 +975,31 @@ export default function CreatorLinkBuilderPage() {
   };
 
   return (
-    <div className="h-[100dvh] min-h-0 overflow-hidden bg-[#f3f1ed] pb-[calc(68px+env(safe-area-inset-bottom))] text-slate-950">
+    <div className="trendre-link-editor-shell h-[100dvh] min-h-0 overflow-hidden bg-[#f3f1ed] pb-[calc(68px+env(safe-area-inset-bottom))] text-slate-950">
       <style jsx global>{`
-        .trendre-editor-preview { --preview-scale: .55; width: calc(${TRENDRE_LINK_LOGICAL_CANVAS_WIDTH}px * var(--preview-scale)); height: calc(${TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT}px * var(--preview-scale)); transition: width 320ms ease, height 320ms ease, transform 320ms ease; }
+        .trendre-link-editor-shell { --editor-sheet-height: min(48dvh, 380px); }
+        .trendre-editor-preview { --preview-scale: .50; --preview-border-width: 5px; box-sizing: border-box; width: calc(${TRENDRE_LINK_LOGICAL_CANVAS_WIDTH}px * var(--preview-scale) + var(--preview-border-width) * 2); height: calc(${TRENDRE_LINK_LOGICAL_CANVAS_HEIGHT}px * var(--preview-scale) + var(--preview-border-width) * 2); transition: width 320ms ease, height 320ms ease, transform 320ms ease; }
         .trendre-editor-preview > div { width: ${TRENDRE_LINK_LOGICAL_CANVAS_WIDTH}px; transform: scale(var(--preview-scale)); }
-        .trendre-editor-preview.is-editing { --preview-scale: .375; transform: translateY(-2px); }
+        .trendre-editor-preview.is-editing { --preview-scale: .21; transform: translateY(-2px); }
         @keyframes trendre-sheet-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
         .trendre-inline-editor-panel { animation: trendre-sheet-in 300ms ease both; }
-        @media (max-width: 360px), (max-height: 720px) {
+        @media (max-width: 360px) {
           .trendre-editor-preview { --preview-scale: .45; }
-          .trendre-editor-preview.is-editing { --preview-scale: .29; }
+          .trendre-editor-preview.is-editing { --preview-scale: .21; }
+        }
+        @media (max-height: 720px) {
+          .trendre-link-editor-shell { --editor-sheet-height: min(36dvh, 260px); }
+          .trendre-editor-preview { --preview-scale: .38; }
+          .trendre-editor-preview.is-editing { --preview-scale: .20; }
         }
         @media (max-height: 620px) {
-          .trendre-editor-preview { --preview-scale: .35; }
-          .trendre-editor-preview.is-editing { --preview-scale: .19; }
+          .trendre-link-editor-shell { --editor-sheet-height: min(30dvh, 180px); }
+          .trendre-editor-preview { --preview-scale: .29; }
+          .trendre-editor-preview.is-editing { --preview-scale: .18; }
         }
         @media (min-height: 900px) and (min-width: 390px) {
-          .trendre-editor-preview { --preview-scale: .59; }
-          .trendre-editor-preview.is-editing { --preview-scale: .405; }
+          .trendre-editor-preview { --preview-scale: .55; }
+          .trendre-editor-preview.is-editing { --preview-scale: .26; }
         }
         @media (prefers-reduced-motion: reduce) {
           .trendre-editor-preview, .trendre-editor-preview > div { transition: none !important; }
@@ -1013,7 +1020,7 @@ export default function CreatorLinkBuilderPage() {
 
       {toast ? <div role="status" className={`fixed left-1/2 top-[calc(68px+env(safe-area-inset-top))] z-[120] max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-full px-4 py-2 text-center text-xs font-medium shadow-md ${toast.tone === "error" ? "bg-rose-600 text-white" : toast.tone === "success" ? "bg-[#29272a] text-white" : "bg-[#fffdfa] text-slate-700 ring-1 ring-slate-200"}`}>{toast.message}</div> : null}
 
-      <main className={`relative mx-auto flex h-[calc(100%_-_60px_-_env(safe-area-inset-top))] min-h-0 w-full max-w-[720px] items-center justify-center overflow-hidden transition-[padding] duration-300 motion-reduce:transition-none ${sheet && !showFirstRun ? "pb-[min(48dvh,380px)]" : "pb-[74px]"}`}>
+      <main className={`relative mx-auto flex h-[calc(100%_-_60px_-_env(safe-area-inset-top))] min-h-0 w-full max-w-[720px] items-start justify-center overflow-hidden pt-3 transition-[padding] duration-300 motion-reduce:transition-none ${sheet && !showFirstRun ? "pb-[var(--editor-sheet-height)]" : "pb-[74px]"}`}>
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-8 top-6 h-24 rounded-full bg-white/65 blur-3xl" />
         <div className={`trendre-editor-preview relative overflow-hidden rounded-[32px] border-[5px] border-[#242326] bg-[#242326] shadow-[0_22px_60px_rgba(34,31,38,.17)] ${sheet && !showFirstRun ? "is-editing" : ""}`} aria-label="公開ページのライブプレビュー">
           <div className="origin-top-left transition-transform duration-300 motion-reduce:transition-none"><TrendreLinkCanvas data={viewData} mode="edit" forceLogicalDimensions locale={locale} editingField={editingField} onEditingFieldChange={setEditingField} onDisplayNameChange={(displayName) => setForm({ ...form, displayName })} onEditProfile={() => setSheet("profile")} onEditInquirySettings={() => setSheet("inquiry")} onAddFirstLink={() => setSheet("service")} onEditItem={openPreviewItem} onReorderLayoutOrder={setDraftLayoutOrder} onReorderSocialItems={(nextItems) => { void reorderItems(nextItems); }} selectedTarget={selectedPreviewTarget} /></div>
@@ -1030,7 +1037,7 @@ export default function CreatorLinkBuilderPage() {
       </main>
 
       {sheet ? (
-        <div className={`${showFirstRun ? "" : "fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] z-[55] mx-auto h-[min(48dvh,380px)] max-w-[720px]"}`}>
+        <div className={`${showFirstRun ? "" : "fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] z-[55] mx-auto h-[var(--editor-sheet-height)] max-w-[720px]"}`}>
         <EditorBottomSheet inline={!showFirstRun} title={sheetTitle} description={sheetDescription} closeLabel={copy.close} onClose={() => setSheet(null)}>
 
             {sheet === "links" ? <CreatorLinkItemsEditor items={items} busyItemId={itemSaving} onAdd={openAddSheet} onEdit={openLinkSheet} onToggle={(item) => void toggleItemVisibility(item)} onReorder={(nextItems) => void reorderItems(nextItems)} /> : null}
