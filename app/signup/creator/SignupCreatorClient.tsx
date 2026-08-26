@@ -1278,24 +1278,16 @@ export default function SignupCreatorClient({
       setDisplayName((prev) => (prev.trim() ? prev : oauthName));
       setEmail((prev) => (prev.trim() ? prev : oauthEmail));
 
-      const { data: existingCreator } = await supabase
-        .from("creators")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-
-      if (existingCreator) {
-        const { data: userState } = await supabase
-          .from("user_states")
-          .select("creator_profile_completed")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-
-        if (userState?.creator_profile_completed) {
+      const statusResponse = await fetch("/api/signup/creator-status", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      if (statusResponse.ok) {
+        const status = await statusResponse.json() as { completed?: boolean };
+        if (status.completed) {
           router.replace("/creator/dashboard");
           return;
         }
-        return;
       }
 
       if (hasOAuthReturn && step < 2) goToStep(2);
@@ -1305,27 +1297,24 @@ export default function SignupCreatorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasOAuthReturn, isCreatorOnly, router, supabase]);
 
+  const checkUsernameAvailability = async (candidate: string) => {
+    const response = await fetch(`/api/signup/username-availability?username=${encodeURIComponent(candidate)}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(copy.signupFailed);
+    const result = await response.json() as { available?: boolean };
+    return result.available === true;
+  };
+
   const ensureAvailableUsername = async () => {
     const current = username.trim().toLowerCase();
     if (current) {
-      const { data: duplicateProfile, error: duplicateError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", current)
-        .maybeSingle();
-      if (duplicateError) throw new Error(copy.signupFailed);
-      if (!duplicateProfile) return current;
+      if (await checkUsernameAvailability(current)) return current;
     }
 
     for (let i = 0; i < 8; i += 1) {
       const candidate = makeInternalUsername(displayName);
-      const { data: duplicateProfile, error: duplicateError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", candidate)
-        .maybeSingle();
-      if (duplicateError) throw new Error(copy.signupFailed);
-      if (!duplicateProfile) {
+      if (await checkUsernameAvailability(candidate)) {
         setUsername(candidate);
         return candidate;
       }

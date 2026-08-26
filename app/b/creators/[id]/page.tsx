@@ -14,7 +14,6 @@ type Creator = {
   display_name: string;
   avatar_url: string | null;
   category: string | null;
-  user_id: string;
 };
 
 type MenuCard = {
@@ -66,10 +65,6 @@ type CompanyGateState = {
 };
 
 type SavedCreatorRow = {
-  creator_id: string;
-};
-
-type PayoutReadyCreatorRow = {
   creator_id: string;
 };
 
@@ -888,13 +883,9 @@ export default function CreatorDetailPage() {
         }
       }
 
-      const { data: payoutReadyRows, error: payoutReadyError } =
-        await supabase.rpc("get_payout_ready_creator_ids");
-
+      const publicResponse = await fetch(`/api/public/creators/${encodeURIComponent(creatorId)}?requirePayoutReady=1`, { cache: "no-store" });
       if (!isMounted) return;
-
-      if (payoutReadyError) {
-        console.error("payout ready creator rpc error:", payoutReadyError);
+      if (!publicResponse.ok) {
         setCreator(null);
         setMenuCards([]);
         setSocialAccounts([]);
@@ -904,107 +895,16 @@ export default function CreatorDetailPage() {
         return;
       }
 
-      const isPayoutReady = ((payoutReadyRows ?? []) as PayoutReadyCreatorRow[]).some(
-  (row) => row.creator_id === creatorId
-);
-      if (!isPayoutReady) {
-        setCreator(null);
-        setMenuCards([]);
-        setSocialAccounts([]);
-        setPortfolioAssets([]);
-        setGate(nextGate);
-        setLoading(false);
-        return;
-      }
-
-      const { data: creatorData, error: creatorError } = await supabase
-        .from("creators")
-        .select("id, display_name, avatar_url, category, user_id")
-        .eq("id", creatorId)
-        .eq("is_public", true)
-        .eq("approval_status", "approved")
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (creatorError || !creatorData) {
-        console.error("creator load error:", creatorError);
-        setCreator(null);
-        setMenuCards([]);
-        setSocialAccounts([]);
-        setPortfolioAssets([]);
-        setGate(nextGate);
-        setLoading(false);
-        return;
-      }
-
-      setCreator(creatorData as Creator);
-
-      const [
-        { data: menuData, error: menuError },
-        { data: socialData, error: socialError },
-        { data: portfolioData, error: portfolioError },
-      ] = await Promise.all([
-        supabase
-          .from("creator_menus")
-          .select(
-            `
-              id,
-              creator_id,
-              title,
-              description,
-              platform,
-              sns,
-              menu_type,
-              category,
-              price,
-              currency,
-              deliverables,
-              delivery_days,
-              account_url,
-              reference_price_text,
-              allow_secondary_use,
-              notes,
-              is_active,
-              sort_order
-            `
-          )
-          .eq("creator_id", creatorData.id)
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("creator_social_accounts")
-          .select(
-            "id, creator_id, platform, audience_country, follower_range, url"
-          )
-          .eq("creator_id", creatorData.id),
-        supabase
-          .from("creator_portfolio_assets")
-          .select(
-            "id, creator_id, asset_url, asset_type, title, sort_order, is_public, created_at"
-          )
-          .eq("creator_id", creatorData.id)
-          .eq("is_public", true)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: true }),
-      ]);
-
-      if (!isMounted) return;
-
-      const nextMenus = menuError ? [] : ((menuData as MenuCard[]) ?? []);
-      const nextSocials = socialError
-        ? []
-        : ((socialData as SocialAccount[]) ?? []);
-      const nextPortfolio = portfolioError
-        ? []
-        : ((portfolioData as PortfolioAsset[]) ?? []).filter(
-            (asset) => asset.asset_type === "image"
-          );
-
-      if (menuError) console.error("menu load error:", menuError);
-      if (socialError) console.error("social load error:", socialError);
-      if (portfolioError) console.error("portfolio load error:", portfolioError);
+      const publicData = await publicResponse.json() as {
+        creator: Creator;
+        menus: MenuCard[];
+        socialAccounts: SocialAccount[];
+        portfolioAssets: PortfolioAsset[];
+      };
+      setCreator(publicData.creator);
+      const nextMenus = publicData.menus ?? [];
+      const nextSocials = publicData.socialAccounts ?? [];
+      const nextPortfolio = (publicData.portfolioAssets ?? []).filter((asset) => asset.asset_type === "image");
 
       setMenuCards(nextMenus);
       setSocialAccounts(nextSocials);

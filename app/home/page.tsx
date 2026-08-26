@@ -2016,85 +2016,20 @@ export default function HomePage() {
 
     const loadCreators = async () => {
       try {
-        const payoutResult = await supabase.rpc("get_payout_ready_creator_ids");
-
-        if (payoutResult.error) {
-          console.error("home creator ids load error", payoutResult.error);
+        const publicResponse = await fetch("/api/public/creators?limit=8", { cache: "no-store" });
+        if (!publicResponse.ok) {
+          console.error("home public creators load failed");
           return;
         }
 
-        const payoutReadyCreatorIds = Array.from(
-          new Set(
-            ((payoutResult.data ?? []) as { creator_id: string | null }[])
-              .map((row) => row.creator_id)
-              .filter((id): id is string => Boolean(id))
-          )
-        );
-
-        if (payoutReadyCreatorIds.length === 0) return;
-
-        const creatorsResult = await supabase
-          .from("creators")
-          .select(
-            `
-            id,
-            display_name,
-            avatar_url,
-            category,
-            prefecture,
-            rating,
-            total_orders,
-            creator_social_accounts (
-              platform,
-              url,
-              handle,
-              follower_range,
-              audience_country
-            )
-          `
-          )
-          .eq("approval_status", "approved")
-          .eq("is_public", true)
-          .in("id", payoutReadyCreatorIds)
-          .order("created_at", { ascending: false })
-          .limit(8);
-
-        if (creatorsResult.error) {
-          console.error("home creators load error", creatorsResult.error);
-          return;
-        }
-
-        const creatorRows = (creatorsResult.data ?? []) as CreatorRow[];
-        const creatorIds = creatorRows.map((row) => row.id);
-
-        if (creatorIds.length === 0) return;
-
-        const [menusResult, portfolioResult] = await Promise.all([
-          supabase
-            .from("creator_menus")
-            .select("id, creator_id, title, price, currency, is_active")
-            .in("creator_id", creatorIds)
-            .eq("is_active", true),
-
-          supabase
-            .from("creator_portfolio_assets")
-            .select(
-              "id, creator_id, asset_url, asset_type, sort_order, is_public, created_at"
-            )
-            .in("creator_id", creatorIds)
-            .eq("is_public", true)
-            .eq("asset_type", "image")
-            .order("sort_order", { ascending: true })
-            .order("created_at", { ascending: true }),
-        ]);
-
-        const menuRows = menusResult.error
-          ? []
-          : ((menusResult.data ?? []) as MenuRow[]);
-
-        const portfolioRows = portfolioResult.error
-          ? []
-          : ((portfolioResult.data ?? []) as PortfolioAssetRow[]);
+        const publicData = await publicResponse.json() as {
+          creators?: CreatorRow[];
+          menus?: MenuRow[];
+          portfolioAssets?: PortfolioAssetRow[];
+        };
+        const creatorRows = publicData.creators ?? [];
+        const menuRows = publicData.menus ?? [];
+        const portfolioRows = publicData.portfolioAssets ?? [];
 
         const menuMap = new Map<string, MenuRow[]>();
         for (const menu of menuRows) {

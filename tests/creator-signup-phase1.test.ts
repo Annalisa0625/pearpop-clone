@@ -36,8 +36,10 @@ test("Creator completion maps the company conflict and only derives Auth metadat
 });
 
 test("Creator signup keeps incomplete shared Creator accounts in the completion flow", () => {
-  assert.match(client, /if \(userState\?\.creator_profile_completed\) \{/);
-  assert.match(client, /Only the user-state marker means completion/);
+  assert.match(client, /api\/signup\/creator-status/);
+  assert.match(client, /if \(status\.completed\) \{/);
+  assert.doesNotMatch(client, /from\("user_states"\)/);
+  assert.doesNotMatch(client, /from\("creators"\)/);
   assert.doesNotMatch(client, /router\.replace\("\/creator\/profile\?start=trend-mart"\)/);
   assert.match(client, /companyAccountConflict/);
 });
@@ -96,15 +98,15 @@ test("completion API requires a verified Bearer token and has no public server-s
 });
 
 test("email signup reuses matching sessions and recovers Auth-only partial users", () => {
-  assert.match(client, /const normalizedEmail = email\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(client, /currentSession\.user\.email\?\.trim\(\)\.toLowerCase\(\) === normalizedEmail/);
+  assert.match(client, /const normalizedEmailValue = email\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(client, /currentSession\.user\.email\?\.trim\(\)\.toLowerCase\(\) === normalizedEmailValue/);
   assert.match(client, /await supabase\.auth\.signOut\(\)/);
   assert.match(client, /errorCode === "user_already_exists"/);
   assert.match(client, /supabase\.auth\.signInWithPassword\(/);
-  assert.match(client, /email: normalizedEmail/);
+  assert.match(client, /email: normalizedEmailValue/);
   assert.match(client, /existingEmailSignInFailed/);
   assert.match(client, /COMPANY_ACCOUNT_CONFLICT/);
-  assert.match(client, /if \(oauthSessionEmail\) \{/);
+  assert.match(client, /if \(oauthSessionEmail\) return currentSession/);
   assert.match(client, /Authorization:\s*`Bearer \$\{session\.access_token\}`/);
 });
 

@@ -24,7 +24,6 @@ type OrderStep =
 
 type Creator = {
   id: string;
-  user_id: string;
   display_name: string;
 };
 
@@ -92,9 +91,6 @@ type GateState = {
   monthlyRequestUsed: number;
   canSendRequests: boolean;
   needsBilling: boolean;
-};
-type PayoutReadyCreatorRow = {
-  creator_id: string;
 };
 const MAX_HASHTAGS = 8;
 const MIN_VISIBLE_HASHTAG_INPUTS = 3;
@@ -1164,111 +1160,23 @@ export default function CreatorRequestClient() {
       const needsBilling =
         accountReady && paidPlan && companySubscriptionStatus !== "active";
 
-      const { data: payoutReadyRows, error: payoutReadyError } =
-        await supabase.rpc("get_payout_ready_creator_ids");
-
+      const publicResponse = await fetch(`/api/public/creators/${encodeURIComponent(creatorId)}?requirePayoutReady=1`, { cache: "no-store" });
       if (!isMounted) return;
-
-      if (payoutReadyError) {
-        console.error("payout ready creator rpc error:", payoutReadyError);
+      if (!publicResponse.ok) {
         setCreator(null);
         setLoading(false);
         return;
       }
 
-      const isPayoutReady = ((payoutReadyRows ?? []) as PayoutReadyCreatorRow[]).some(
-        (row) => row.creator_id === creatorId
-      );
-
-      if (!isPayoutReady) {
-        setCreator(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data: creatorData, error: creatorError } = await supabase
-        .from("creators")
-        .select("id, user_id, display_name")
-        .eq("id", creatorId)
-        .eq("approval_status", "approved")
-        .eq("is_public", true)
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (creatorError || !creatorData) {
-        console.error("creator load error:", creatorError);
-        setCreator(null);
-        setLoading(false);
-        return;
-      }
-
-      setCreator(creatorData as Creator);
-
-      const [
-        { data: menuData, error: menuError },
-        { data: socialData, error: socialError },
-      ] = await Promise.all([
-        supabase
-          .from("creator_menus")
-          .select(
-            `
-            id,
-            creator_id,
-            title,
-            description,
-            platform,
-            sns,
-            menu_type,
-            category,
-            price,
-            currency,
-            deliverables,
-            delivery_days,
-            account_url,
-            reference_price_text,
-            allow_secondary_use,
-            notes,
-            is_active,
-            sort_order
-          `
-          )
-          .eq("creator_id", creatorData.id)
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("creator_social_accounts")
-          .select("id, creator_id, platform, audience_country")
-          .eq("creator_id", creatorData.id),
-      ]);
-
-      if (!isMounted) return;
-
-      if (menuError) {
-        console.error(menuError);
-        setMenus([]);
-      } else {
-        const nextMenus = (menuData as CreatorMenu[]) ?? [];
-        setMenus(nextMenus);
-
-        const defaultSelectedId =
-          initialMenuId && nextMenus.some((menu) => menu.id === initialMenuId)
-            ? initialMenuId
-            : nextMenus[0]?.id ?? "";
-
-        setForm((prev) => ({
-          ...prev,
-          creator_menu_id: defaultSelectedId,
-        }));
-      }
-
-      if (socialError) {
-        console.error(socialError);
-        setSocialAccounts([]);
-      } else {
-        setSocialAccounts((socialData as SocialAccount[]) ?? []);
-      }
+      const publicData = await publicResponse.json() as { creator: Creator; menus: CreatorMenu[]; socialAccounts: SocialAccount[] };
+      setCreator(publicData.creator);
+      const nextMenus = publicData.menus ?? [];
+      setMenus(nextMenus);
+      const defaultSelectedId = initialMenuId && nextMenus.some((menu) => menu.id === initialMenuId)
+        ? initialMenuId
+        : nextMenus[0]?.id ?? "";
+      setForm((prev) => ({ ...prev, creator_menu_id: defaultSelectedId }));
+      setSocialAccounts(publicData.socialAccounts ?? []);
 
       setGate({
         isLoggedIn: true,

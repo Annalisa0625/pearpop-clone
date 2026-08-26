@@ -1681,28 +1681,6 @@ export default function CompanyCreatorsPage() {
           setCurrentUserId(user?.id ?? null);
         }
 
-        const payoutResult = await supabase.rpc("get_payout_ready_creator_ids");
-
-        if (payoutResult.error) {
-          console.error("payout ready creator ids load error", payoutResult.error);
-
-          if (isMounted) {
-            setCreators([]);
-            setSavedCreatorIds([]);
-            setError(copy.fetchError);
-          }
-
-          return;
-        }
-
-        const payoutReadyCreatorIds = Array.from(
-          new Set(
-            ((payoutResult.data ?? []) as { creator_id: string | null }[])
-              .map((row) => row.creator_id)
-              .filter((id): id is string => Boolean(id))
-          )
-        );
-
         let savedRows: SavedCreatorRow[] = [];
 
         if (user) {
@@ -1718,90 +1696,34 @@ export default function CompanyCreatorsPage() {
           }
         }
 
-        if (payoutReadyCreatorIds.length === 0) {
-          if (isMounted) {
-            setCreators([]);
-            setSavedCreatorIds(savedRows.map((row) => row.creator_id));
+        const rows: CreatorRow[] = [];
+        const menuRows: MenuRow[] = [];
+        const portfolioRows: PortfolioAssetRow[] = [];
+        const pageLimit = 50;
+        let offset = 0;
+
+        while (true) {
+          const publicResponse = await fetch(
+            `/api/public/creators?limit=${pageLimit}&offset=${offset}`,
+            { cache: "no-store" }
+          );
+          if (!publicResponse.ok) {
+            if (isMounted) setError(copy.fetchError);
+            return;
           }
 
-          return;
-        }
+          const publicData = await publicResponse.json() as {
+            creators?: CreatorRow[];
+            menus?: MenuRow[];
+            portfolioAssets?: PortfolioAssetRow[];
+          };
+          const pageCreators = publicData.creators ?? [];
+          rows.push(...pageCreators);
+          menuRows.push(...(publicData.menus ?? []));
+          portfolioRows.push(...(publicData.portfolioAssets ?? []));
 
-        const creatorsResult = await supabase
-          .from("creators")
-          .select(
-            `
-            id,
-            display_name,
-            avatar_url,
-            category,
-            prefecture,
-            can_receive_products,
-            rating,
-            total_orders,
-            creator_social_accounts (
-              platform,
-              url,
-              handle,
-              follower_range,
-              audience_country
-            )
-            `
-          )
-          .eq("approval_status", "approved")
-          .eq("is_public", true)
-          .in("id", payoutReadyCreatorIds)
-          .order("created_at", { ascending: false });
-
-        if (creatorsResult.error) {
-          console.error({
-            creatorsError: creatorsResult.error,
-          });
-
-          if (isMounted) {
-            setError(copy.fetchError);
-          }
-
-          return;
-        }
-
-        const rows = (creatorsResult.data ?? []) as CreatorRow[];
-        const creatorIds = rows.map((row) => row.id);
-
-        let menuRows: MenuRow[] = [];
-        let portfolioRows: PortfolioAssetRow[] = [];
-
-        if (creatorIds.length > 0) {
-          const [menusResult, portfolioResult] = await Promise.all([
-            supabase
-              .from("creator_menus")
-              .select("id, creator_id, title, price, currency, is_active")
-              .in("creator_id", creatorIds)
-              .eq("is_active", true),
-
-            supabase
-              .from("creator_portfolio_assets")
-              .select(
-                "id, creator_id, asset_url, asset_type, sort_order, is_public, created_at"
-              )
-              .in("creator_id", creatorIds)
-              .eq("is_public", true)
-              .eq("asset_type", "image")
-              .order("sort_order", { ascending: true })
-              .order("created_at", { ascending: true }),
-          ]);
-
-          if (menusResult.error) {
-            console.error("creator menus load error", menusResult.error);
-          } else {
-            menuRows = (menusResult.data ?? []) as MenuRow[];
-          }
-
-          if (portfolioResult.error) {
-            console.error("creator portfolio load error", portfolioResult.error);
-          } else {
-            portfolioRows = (portfolioResult.data ?? []) as PortfolioAssetRow[];
-          }
+          if (pageCreators.length < pageLimit) break;
+          offset += pageCreators.length;
         }
 
         const menuMap = new Map<string, MenuRow[]>();

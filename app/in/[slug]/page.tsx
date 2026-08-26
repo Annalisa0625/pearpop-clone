@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getOrderablePublicCreatorBySlugOrId } from "@/lib/public-creators/server";
 import { isCreatorOnlyRelease } from "@/lib/release-mode";
 import {
   isCreatorLinkItemType,
@@ -34,7 +35,6 @@ type PageProps = {
 
 type Creator = {
   id: string;
-  user_id: string;
   display_name: string;
   avatar_url: string | null;
   category: string | null;
@@ -76,9 +76,6 @@ type CreatorMenu = {
   deliverables: string | null;
 };
 
-type PayoutReadyCreatorRow = {
-  creator_id: string;
-};
 
 type CreatorLinkPageRow = Pick<
   Database["public"]["Tables"]["creator_link_pages"]["Row"],
@@ -176,12 +173,6 @@ function normalizeSlug(value: string) {
   } catch {
     return "";
   }
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -337,104 +328,21 @@ const loadTrendreLink = cache(
 );
 
 async function loadCreator(slug: string) {
-  const supabase = await createSupabaseServerClient();
   const normalizedSlug = normalizeSlug(slug);
-
-  if (!normalizedSlug) {
+  if (!normalizedSlug) return null;
+  try {
+    const data = await getOrderablePublicCreatorBySlugOrId(normalizedSlug);
+    if (!data) return null;
+    return {
+      creator: data.creator as Creator,
+      socialAccounts: data.socialAccounts.slice(0, 6) as SocialAccount[],
+      portfolioAssets: data.portfolioAssets.slice(0, 6) as PortfolioAsset[],
+      menus: data.menus.slice(0, 6) as CreatorMenu[],
+    };
+  } catch {
+    console.error("public creator load failed");
     return null;
   }
-
-  let creator: Creator | null = null;
-
-  const { data: slugCreator, error: slugError } = await supabase
-    .from("creators")
-    .select("id, user_id, display_name, avatar_url, category, public_slug")
-    .eq("public_slug", normalizedSlug)
-    .eq("is_public", true)
-    .eq("approval_status", "approved")
-    .maybeSingle();
-
-  if (slugError) {
-    console.error("public creator slug load error:", slugError);
-  }
-
-  if (slugCreator) {
-    creator = slugCreator as Creator;
-  }
-
-  if (!creator && isUuid(normalizedSlug)) {
-    const { data: idCreator, error: idError } = await supabase
-      .from("creators")
-      .select("id, user_id, display_name, avatar_url, category, public_slug")
-      .eq("id", normalizedSlug)
-      .eq("is_public", true)
-      .eq("approval_status", "approved")
-      .maybeSingle();
-
-    if (idError) {
-      console.error("public creator id load error:", idError);
-    }
-
-    if (idCreator) {
-      creator = idCreator as Creator;
-    }
-  }
-
-  if (!creator) {
-    return null;
-  }
-
-  const { data: payoutReadyRows, error: payoutReadyError } = await supabase.rpc(
-    "get_payout_ready_creator_ids"
-  );
-
-  if (payoutReadyError) {
-    console.error("public creator payout ready check error:", payoutReadyError);
-    return null;
-  }
-
-  const isPayoutReady = ((payoutReadyRows ?? []) as PayoutReadyCreatorRow[]).some(
-    (row) => row.creator_id === creator?.id
-  );
-
-  if (!isPayoutReady) {
-    return null;
-  }
-
-  const [
-    { data: socialData },
-    { data: portfolioData },
-    { data: menuData },
-  ] = await Promise.all([
-    supabase
-      .from("creator_social_accounts")
-      .select("id, platform, follower_range, url, audience_country")
-      .eq("creator_id", creator.id),
-    supabase
-      .from("creator_portfolio_assets")
-      .select("id, asset_url, title, sort_order")
-      .eq("creator_id", creator.id)
-      .eq("is_public", true)
-      .eq("asset_type", "image")
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true })
-      .limit(6),
-    supabase
-      .from("creator_menus")
-      .select("id, title, menu_type, platform, sns, category, deliverables")
-      .eq("creator_id", creator.id)
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: false })
-      .limit(6),
-  ]);
-
-  return {
-    creator,
-    socialAccounts: (socialData ?? []) as SocialAccount[],
-    portfolioAssets: (portfolioData ?? []) as PortfolioAsset[],
-    menus: (menuData ?? []) as CreatorMenu[],
-  };
 }
 
 export async function generateMetadata({

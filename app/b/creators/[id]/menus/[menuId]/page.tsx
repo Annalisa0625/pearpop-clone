@@ -3,12 +3,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 
 type Creator = {
   id: string;
-  user_id: string;
   display_name: string;
   category: string | null;
 };
@@ -91,7 +89,6 @@ function menuTypeLabel(
 export default function MenuDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
 
@@ -164,64 +161,17 @@ export default function MenuDetailPage() {
     const load = async () => {
       setLoading(true);
 
-      const { data: creatorData, error: creatorError } = await supabase
-        .from("creators")
-        .select("id, user_id, display_name, category")
-        .eq("id", creatorId)
-        .eq("is_public", true)
-        .eq("approval_status", "approved")
-        .maybeSingle();
-
+      const response = await fetch(`/api/public/creators/${encodeURIComponent(creatorId)}`, { cache: "no-store" });
       if (!isMounted) return;
-
-      if (creatorError || !creatorData) {
-        console.error("creator load error:", creatorError);
+      if (!response.ok) {
         setCreator(null);
         setMenu(null);
         setLoading(false);
         return;
       }
-
-      setCreator(creatorData as Creator);
-
-      const { data, error } = await supabase
-        .from("creator_menus")
-        .select(
-          `
-          id,
-          creator_id,
-          title,
-          description,
-          platform,
-          sns,
-          menu_type,
-          category,
-          price,
-          currency,
-          deliverables,
-          delivery_days,
-          allow_secondary_use,
-          notes,
-          account_url,
-          reference_price_text,
-          is_active,
-          created_at,
-          updated_at
-        `
-        )
-        .eq("id", menuId)
-        .eq("creator_id", creatorData.id)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (error || !data) {
-        console.error("menu detail load error:", error);
-        setMenu(null);
-      } else {
-        setMenu(data as Menu);
-      }
+      const data = await response.json() as { creator: Creator; menus: Menu[] };
+      setCreator(data.creator);
+      setMenu(data.menus?.find((item) => item.id === menuId) ?? null);
 
       setLoading(false);
     };
@@ -231,7 +181,7 @@ export default function MenuDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [creatorId, menuId, supabase]);
+  }, [creatorId, menuId]);
 
   if (loading) return <p className="p-6">{copy.loading}</p>;
   if (!creator) return <p className="p-6">{copy.creatorNotFound}</p>;
