@@ -2,7 +2,6 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type InquiryType =
   | "pr_post"
@@ -94,13 +93,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data: creator, error: creatorError } = await supabaseAdmin
+  const { data: creator, error: creatorError } = await supabase
     .from("creators")
     .select("id, user_id")
     .eq("id", creatorId)
     .eq("is_public", true)
     .eq("approval_status", "approved")
-    .eq("is_suspended", false)
     .maybeSingle();
 
   if (creatorError) {

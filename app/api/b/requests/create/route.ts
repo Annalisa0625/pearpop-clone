@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 function getMonthKey(date: Date) {
   return `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}`;
@@ -320,7 +319,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data: creatorRow, error: creatorError } = await supabaseAdmin
+  const { data: creatorRow, error: creatorError } = await supabase
     .from("creators")
     .select("id, approval_status")
     .eq("id", creator_user_id)
@@ -343,7 +342,7 @@ export async function POST(req: Request) {
 
   // Free / Standard は日本向けクリエイターのみ
   if (companyPlanCode === "free" || companyPlanCode === "standard") {
-    const { data: socialRows, error: socialError } = await supabaseAdmin
+    const { data: socialRows, error: socialError } = await supabase
       .from("creator_social_accounts")
       .select("audience_country")
       .eq("creator_id", creator_user_id);

@@ -4,10 +4,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 
 type Creator = {
   id: string;
+  user_id: string;
   display_name: string;
   category: string | null;
 };
@@ -91,6 +93,7 @@ function menuTypeLabel(
 export default function CreatorMenusPage() {
   const params = useParams();
   const creatorId = params.id as string;
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
   const safeLocale = locale === "en" ? "en" : "ja";
 
@@ -156,17 +159,65 @@ export default function CreatorMenusPage() {
     const fetchMenus = async () => {
       setLoading(true);
 
-      const response = await fetch(`/api/public/creators/${encodeURIComponent(creatorId)}`, { cache: "no-store" });
+      const { data: creatorData, error: creatorError } = await supabase
+        .from("creators")
+        .select("id, user_id, display_name, category")
+        .eq("id", creatorId)
+        .eq("is_public", true)
+        .eq("approval_status", "approved")
+        .maybeSingle();
+
       if (!isMounted) return;
-      if (!response.ok) {
+
+      if (creatorError || !creatorData) {
+        console.error("creator load error:", creatorError);
         setCreator(null);
         setMenus([]);
         setLoading(false);
         return;
       }
-      const data = await response.json() as { creator: Creator; menus: Menu[] };
-      setCreator(data.creator);
-      setMenus(data.menus ?? []);
+
+      setCreator(creatorData as Creator);
+
+      const { data, error } = await supabase
+        .from("creator_menus")
+        .select(
+          `
+          id,
+          creator_id,
+          title,
+          description,
+          platform,
+          sns,
+          menu_type,
+          category,
+          price,
+          currency,
+          deliverables,
+          delivery_days,
+          allow_secondary_use,
+          notes,
+          account_url,
+          reference_price_text,
+          is_active,
+          created_at,
+          updated_at,
+          sort_order
+        `
+        )
+        .eq("creator_id", creatorData.id)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("menu list load error:", error);
+        setMenus([]);
+      } else {
+        setMenus((data as Menu[]) ?? []);
+      }
 
       setLoading(false);
     };
@@ -176,7 +227,7 @@ export default function CreatorMenusPage() {
     return () => {
       isMounted = false;
     };
-  }, [creatorId]);
+  }, [creatorId, supabase]);
 
   if (loading) return <p className="p-6">{copy.loading}</p>;
 
