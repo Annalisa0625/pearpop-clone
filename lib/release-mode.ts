@@ -54,7 +54,6 @@ export function isCreatorOnlyRelease(
 }
 
 export function isCreatorOnlyBlockedPagePath(pathname: string) {
-  if (pathname === "/creator/jobs") return false;
   if (pathname.startsWith("/creator/jobs")) return true;
 
   return (

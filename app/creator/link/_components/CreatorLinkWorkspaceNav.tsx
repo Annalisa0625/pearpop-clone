@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useCreatorOnlyRelease } from "@/app/creator/CreatorReleaseMode";
 
 type IconProps = { className?: string };
 type NavItem = { href: string; label: string; icon: ReactNode };
@@ -61,11 +62,16 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function CreatorLinkWorkspaceNav() {
+  const isCreatorOnly = useCreatorOnlyRelease();
+  const navItems = isCreatorOnly
+    ? NAV_ITEMS.filter((item) => item.href !== "/creator/jobs")
+    : NAV_ITEMS;
+
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200/70 bg-white/94 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-[560px] grid-cols-5 gap-1">
-          {NAV_ITEMS.map((item) => {
+        <div className={`mx-auto grid max-w-[560px] gap-1 ${isCreatorOnly ? "grid-cols-4" : "grid-cols-5"}`}>
+          {navItems.map((item) => {
             const active = item.href === "/creator/link";
             return (
               <Link

@@ -293,7 +293,7 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
   const navItems: NavItem[] = [
     { href: "/creator/dashboard", label: "Home", icon: <House className="h-[22px] w-[22px]" /> },
     { href: "/creator/orders", label: "Order", icon: <ReceiptText className="h-[22px] w-[22px]" /> },
-    { href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> },
+    ...(!isCreatorOnly ? [{ href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> }] : []),
     { href: "/creator/link", label: "Link", icon: <Link2 className="h-[22px] w-[22px]" /> },
     { href: "/creator/profile", label: "Profile", icon: <UserRound className="h-[22px] w-[22px]" /> },
   ];
@@ -425,7 +425,7 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-[60] bg-gradient-to-t from-[#f7f6f3] via-[#f7f6f3]/96 to-transparent px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-3">
-        <div className="mx-auto grid max-w-[560px] grid-cols-5 gap-1 rounded-[24px] bg-white/94 px-1 shadow-[0_10px_36px_rgba(32,28,36,0.10)] ring-1 ring-black/[0.045] backdrop-blur-xl">
+        <div className={`mx-auto grid max-w-[560px] gap-1 rounded-[24px] bg-white/94 px-1 shadow-[0_10px_36px_rgba(32,28,36,0.10)] ring-1 ring-black/[0.045] backdrop-blur-xl ${isCreatorOnly ? "grid-cols-4" : "grid-cols-5"}`}>
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href, detailContext);
             return (
