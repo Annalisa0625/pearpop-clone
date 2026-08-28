@@ -74,6 +74,14 @@ type SocialAccountForm = {
   audience_country: string;
 };
 
+type CanonicalSocialAccount = {
+  platform: string;
+  url: string;
+  handle: string;
+  follower_range: string;
+  audience_country: string;
+};
+
 type LineLinkInfo = {
   id?: string;
   line_user_id?: string | null;
@@ -453,6 +461,56 @@ function buildSocialPreview(platform: string, handle: string) {
   if (platform === "X") return `https://x.com/${normalized}`;
 
   return normalized;
+}
+
+function canonicalizeSocialAccounts(
+  accounts: SocialAccountForm[],
+): CanonicalSocialAccount[] {
+  return accounts
+    .map((item) => {
+      const platform = item.platform.trim();
+      const handle = normalizeHandle(item.username_or_url);
+      const follower_range = item.follower_range.trim();
+      const audience_country = item.audience_country.trim();
+
+      return {
+        platform,
+        url: buildSocialPreview(platform, handle),
+        handle,
+        follower_range,
+        audience_country,
+      };
+    })
+    .filter(
+      (item) =>
+        item.platform &&
+        item.url &&
+        item.handle &&
+        item.follower_range &&
+        item.audience_country,
+    );
+}
+
+function socialSnapshotKey(account: CanonicalSocialAccount) {
+  return JSON.stringify([
+    account.platform,
+    account.url,
+    account.handle,
+    account.follower_range,
+    account.audience_country,
+  ]);
+}
+
+function areCanonicalSocialAccountsEqual(
+  left: CanonicalSocialAccount[],
+  right: CanonicalSocialAccount[],
+) {
+  if (left.length !== right.length) return false;
+
+  const leftKeys = left.map(socialSnapshotKey).sort();
+  const rightKeys = right.map(socialSnapshotKey).sort();
+
+  return leftKeys.every((value, index) => value === rightKeys[index]);
 }
 
 function extractHandleFromUrl(platform: string, url: string, handle?: string | null) {
@@ -1111,6 +1169,8 @@ export default function CreatorProfilePage() {
             missingCreatorId: "creator_id を取得できませんでした。",
             missingUserId: "user_id を取得できませんでした。",
             saved: "保存しました。",
+            savedMetadataSyncFailed:
+              "プロフィールは保存されましたが、アカウント情報の同期に失敗しました。再度お試しください。",
             saveError: "保存中にエラーが発生しました。",
             uploadFailed: "画像アップロードに失敗しました。",
             settings: "関連設定",
@@ -1204,6 +1264,8 @@ export default function CreatorProfilePage() {
             missingCreatorId: "Could not retrieve creator_id.",
             missingUserId: "Could not retrieve user_id.",
             saved: "Saved.",
+            savedMetadataSyncFailed:
+              "Your profile was saved, but account information could not be synced. Please try again.",
             saveError: "An error occurred while saving.",
             uploadFailed: "Failed to upload image.",
             settings: "Related settings",
@@ -1281,6 +1343,9 @@ export default function CreatorProfilePage() {
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountForm[]>([
     createEmptySocial(),
   ]);
+  const [socialAccountsSnapshot, setSocialAccountsSnapshot] = useState<
+    CanonicalSocialAccount[]
+  >([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1623,7 +1688,7 @@ export default function CreatorProfilePage() {
       const socialRows =
         (socials as SocialAccountRow[] | null)?.filter(Boolean) ?? [];
 
-      setSocialAccounts(
+      const nextSocialAccounts =
         socialRows.length > 0
           ? socialRows.map((row) => ({
               platform: row.platform,
@@ -1635,8 +1700,10 @@ export default function CreatorProfilePage() {
               follower_range: row.follower_range,
               audience_country: row.audience_country || "日本",
             }))
-          : [createEmptySocial()],
-      );
+          : [createEmptySocial()];
+
+      setSocialAccounts(nextSocialAccounts);
+      setSocialAccountsSnapshot(canonicalizeSocialAccounts(nextSocialAccounts));
 
       await loadPortfolioAssets(creatorRow.id);
       void loadLineStatus();
@@ -1840,140 +1907,58 @@ export default function CreatorProfilePage() {
         }
       }
 
-      const now = new Date().toISOString();
       const shouldPublishCreator =
         isTrendMartStart &&
         !marketplaceProfileCompleted &&
         !creatorIsPublic;
+      const canonicalSocialAccounts = canonicalizeSocialAccounts(socialAccounts);
+      const socialAccountsChanged = !areCanonicalSocialAccountsEqual(
+        socialAccountsSnapshot,
+        canonicalSocialAccounts,
+      );
 
-      const { error: creatorUpdateError } = await supabase
-        .from("creators")
-        .update({
-          display_name: normalizedDisplayName,
+      const profileSaveResponse = await fetch("/api/creator/profile", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: normalizedDisplayName,
           category: normalizedMainCategory,
           country,
           prefecture: normalizedPrefecture || null,
-          city: null,
-          can_receive_products: normalizedCanReceiveProducts,
-          content_language: normalizedContentLanguage,
-          response_language: normalizedResponseLanguage,
-          sub_categories: normalizedSubCategories,
-          avatar_url: finalAvatarUrl,
-          ...(shouldPublishCreator ? { is_public: true } : {}),
-          updated_at: now,
-        })
-        .eq("id", creatorId);
+          canReceiveProducts: normalizedCanReceiveProducts,
+          contentLanguage: normalizedContentLanguage,
+          responseLanguage: normalizedResponseLanguage,
+          subCategories: normalizedSubCategories,
+          avatarUrl: finalAvatarUrl,
+          shouldPublishCreator,
+          socialAccountsChanged,
+          ...(socialAccountsChanged
+            ? { socialAccounts: canonicalSocialAccounts }
+            : {}),
+        }),
+      });
 
-      if (creatorUpdateError) {
-        throw creatorUpdateError;
+      if (!profileSaveResponse.ok) {
+        throw new Error("profile_save_failed");
       }
 
-      const { error: profileUpdateError } = await supabase
-        .from("profiles")
-        .upsert({
-          id: creatorUserId,
-          category: normalizedMainCategory,
-          avatar_url: finalAvatarUrl,
-          is_public: true,
-          public_profile_completed: true,
-          onboarding_completed: true,
-          updated_at: now,
-        });
-
-      if (profileUpdateError) {
-        throw profileUpdateError;
-      }
-
-      const { data: existingState } = await supabase
-        .from("user_states")
-        .select("user_id")
-        .eq("user_id", creatorUserId)
-        .maybeSingle();
-
-      if (existingState) {
-        const { error: stateUpdateError } = await supabase
-          .from("user_states")
-          .update({
-            creator_profile_completed: true,
-            onboarding_completed: true,
-            updated_at: now,
-          })
-          .eq("user_id", creatorUserId);
-
-        if (stateUpdateError) throw stateUpdateError;
-      } else {
-        const { error: stateInsertError } = await supabase
-          .from("user_states")
-          .insert({
-            user_id: creatorUserId,
-            creator_profile_completed: true,
-            onboarding_completed: true,
-            updated_at: now,
-          });
-
-        if (stateInsertError) throw stateInsertError;
-      }
-
-      setMarketplaceProfileCompleted(true);
-      if (shouldPublishCreator) setCreatorIsPublic(true);
-
-      const cleanedSocials = socialAccounts
-        .map((item) => ({
-          platform: item.platform.trim(),
-          username_or_url: normalizeHandle(item.username_or_url),
-          follower_range: item.follower_range.trim(),
-          audience_country: item.audience_country.trim(),
-        }))
-        .filter(
-          (item) =>
-            item.platform &&
-            item.username_or_url &&
-            item.follower_range &&
-            item.audience_country,
-        );
-
-      const { error: deleteSocialError } = await supabase
-        .from("creator_social_accounts")
-        .delete()
-        .eq("creator_id", creatorId);
-
-      if (deleteSocialError) {
-        throw deleteSocialError;
-      }
-
-      if (cleanedSocials.length > 0) {
-        const payload = cleanedSocials.map((item) => ({
-          creator_id: creatorId,
-          platform: item.platform,
-          url: buildSocialPreview(item.platform, item.username_or_url),
-          handle: normalizeHandle(item.username_or_url),
-          follower_range: item.follower_range,
-          audience_country: item.audience_country,
-        }));
-
-        const { error: insertSocialError } = await supabase
-          .from("creator_social_accounts")
-          .insert(payload);
-
-        if (insertSocialError) {
-          throw insertSocialError;
-        }
-      }
-
-      await supabase.auth.updateUser({
+      const { error: metadataError } = await supabase.auth.updateUser({
         data: {
           ...(profileUsername ? { creator_username: profileUsername } : {}),
           display_name: normalizedDisplayName,
           full_name: normalizedDisplayName,
           creator_country: country,
           creator_prefecture: normalizedPrefecture || null,
-          creator_city: null,
           creator_can_receive_products: normalizedCanReceiveProducts,
           creator_content_language: normalizedContentLanguage,
           creator_response_language: normalizedResponseLanguage,
           creator_sub_categories: normalizedSubCategories,
         },
       });
+
+      setMarketplaceProfileCompleted(true);
+      if (shouldPublishCreator) setCreatorIsPublic(true);
 
       setDisplayName(normalizedDisplayName);
       setPrefectures(splitPrefectures(normalizedPrefecture));
@@ -1982,6 +1967,7 @@ export default function CreatorProfilePage() {
       setResponseLanguage(normalizedResponseLanguage);
       setSelectedCategories(normalizedSubCategories);
       setAvatarUrl(finalAvatarUrl ?? null);
+      setSocialAccountsSnapshot(canonicalSocialAccounts);
       setAvatarFile(null);
 
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
@@ -1993,7 +1979,7 @@ export default function CreatorProfilePage() {
 
       await loadPortfolioAssets(creatorId);
 
-      setSuccess(copy.saved);
+      setSuccess(metadataError ? copy.savedMetadataSyncFailed : copy.saved);
       router.refresh();
     } catch (e) {
       console.error(e);

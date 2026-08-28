@@ -2582,6 +2582,15 @@ export type Database = {
           status: string
         }[]
       }
+      save_creator_profile: {
+        Args: {
+          p_payload: Json
+          p_user_id: string
+        }
+        Returns: {
+          creator_id: string
+        }[]
+      }
       is_creator_link_slug_available: {
         Args: {
           p_exclude_page_id?: string
