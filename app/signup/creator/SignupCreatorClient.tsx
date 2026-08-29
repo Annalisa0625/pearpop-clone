@@ -2477,6 +2477,8 @@ export default function SignupCreatorClient({
                   }
                 >
                   <SelectInput
+                    size={3}
+                    className="!h-auto py-1"
                     value={menu.price.replace(/,/g, "")}
                     onChange={(e) => {
                       updateMenu(index, "price", e.target.value);
