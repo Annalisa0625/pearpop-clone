@@ -60,6 +60,21 @@ export default function CreatorPricePickerCollapseBehavior() {
       listbox.style.removeProperty("display");
     };
 
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const option = target.closest<HTMLElement>('[role="option"]');
+      if (!option) return;
+
+      const field = option.closest("label");
+      const currentListbox = field?.querySelector<HTMLElement>(PRICE_LISTBOX_SELECTOR);
+      if (!currentListbox) return;
+
+      currentListbox.dataset.pricePickerOpen = "false";
+      currentListbox.style.display = "none";
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Enter" && event.key !== " ") return;
 
@@ -91,11 +106,13 @@ export default function CreatorPricePickerCollapseBehavior() {
     });
 
     document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("click", handleClick);
     document.addEventListener("keydown", handleKeyDown, true);
 
     return () => {
       observer.disconnect();
       document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("click", handleClick);
       document.removeEventListener("keydown", handleKeyDown, true);
     };
   }, []);
