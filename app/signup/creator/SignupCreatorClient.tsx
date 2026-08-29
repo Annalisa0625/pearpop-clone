@@ -1984,7 +1984,7 @@ export default function SignupCreatorClient({
                 <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-[#06c755]/10 blur-3xl" />
                 <div className="relative">
                   <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">✓</span>
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">✓</span>
                     {appLocale === "ja"
                       ? isCreatorOnly ? "登録が完了しました" : "登録内容を保存しました"
                       : "Your registration has been saved"}
@@ -2476,22 +2476,42 @@ export default function SignupCreatorClient({
                       : "Minimum JPY 3,000 · JPY 500 increments"
                   }
                 >
-                  <SelectInput
-                    size={3}
-                    className="!h-auto py-1"
-                    value={menu.price.replace(/,/g, "")}
-                    onChange={(e) => {
-                      updateMenu(index, "price", e.target.value);
-                      setError(null);
-                    }}
+                  {menu.price ? (
+                    <div className="mb-1.5 rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-[#ff3860] ring-1 ring-rose-100">
+                      {appLocale === "ja" ? "選択中" : "Selected"}: ¥{parsePriceNumber(menu.price).toLocaleString("ja-JP")}
+                    </div>
+                  ) : null}
+                  <div
+                    role="listbox"
+                    aria-label={appLocale === "ja" ? "メニュー金額" : "Menu price"}
+                    className="h-[120px] snap-y snap-mandatory overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 [scrollbar-width:thin]"
                   >
-                    <option value="">{copy.price}</option>
-                    {CREATOR_MENU_PRICE_OPTIONS.map((price) => (
-                      <option key={price} value={String(price)}>
-                        ¥{price.toLocaleString("ja-JP")}
-                      </option>
-                    ))}
-                  </SelectInput>
+                    {CREATOR_MENU_PRICE_OPTIONS.map((price) => {
+                      const selected = parsePriceNumber(menu.price) === price;
+                      return (
+                        <button
+                          key={price}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            updateMenu(index, "price", String(price));
+                            setError(null);
+                          }}
+                          className={`flex h-10 w-full snap-start items-center justify-between rounded-xl px-3 text-left text-sm font-black transition ${
+                            selected
+                              ? "bg-[#ff3860] text-white"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>¥{price.toLocaleString("ja-JP")}</span>
+                          <span aria-hidden="true">{selected ? "✓" : ""}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </Field>
               </div>
             </div>
