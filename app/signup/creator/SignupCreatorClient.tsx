@@ -61,6 +61,7 @@ const CREATOR_IMAGE_BUCKET =
 
 const TOTAL_STEPS = 7;
 const COUNTRY_DEFAULT = "日本";
+const MIN_CREATOR_MENU_PRICE = 3000;
 
 const GENDER_OPTIONS = [
   { value: "", ja: "選択", en: "Select" },
@@ -1523,6 +1524,10 @@ export default function SignupCreatorClient({
         setError(copy.menuRequired);
         return false;
       }
+      if (filledMenus.some((menu) => parsePriceNumber(menu.price) < MIN_CREATOR_MENU_PRICE)) {
+        setError(appLocale === "ja" ? "3,000円以上で入力してください" : "Please enter JPY 3,000 or more");
+        return false;
+      }
       if (filledMenus.some((menu) => menu.menu_type === "その他" && !menu.custom_menu_name.trim())) {
         setError(copy.customMenuNameRequired);
         return false;
@@ -1802,7 +1807,7 @@ export default function SignupCreatorClient({
           price: parsePriceNumber(menu.price),
           description: null,
         }))
-        .filter((menu) => menu.menu_type && menu.price > 0);
+        .filter((menu) => menu.menu_type && menu.price >= MIN_CREATOR_MENU_PRICE);
       if (validMenus.length === 0) throw new Error(copy.menuRequired);
 
       const internalUsername = username.trim().toLowerCase() || (await ensureAvailableUsername());
@@ -2434,12 +2439,32 @@ export default function SignupCreatorClient({
                   </p>
                 ) : null}
 
-                <Field label={appLocale === "ja" ? "金額（円）" : "Price (JPY)"}>
+                <Field
+                  label={appLocale === "ja" ? "金額（円）" : "Price (JPY)"}
+                  help={appLocale === "ja" ? "最低3,000円" : "Minimum JPY 3,000"}
+                >
                   <TextInput
                     type="text"
                     inputMode="numeric"
                     value={menu.price}
-                    onChange={(e) => updateMenu(index, "price", e.target.value)}
+                    onChange={(e) => {
+                      updateMenu(index, "price", e.target.value);
+                      setError(null);
+                    }}
+                    onBlur={() => {
+                      const priceNumber = parsePriceNumber(menu.price);
+                      if (
+                        menu.price.trim() &&
+                        Number.isFinite(priceNumber) &&
+                        priceNumber < MIN_CREATOR_MENU_PRICE
+                      ) {
+                        setError(
+                          appLocale === "ja"
+                            ? "3,000円以上で入力してください"
+                            : "Please enter JPY 3,000 or more"
+                        );
+                      }
+                    }}
                     placeholder={copy.price}
                   />
                 </Field>
