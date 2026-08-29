@@ -108,12 +108,14 @@ function parseBody(value: unknown): ProfileSaveInput | null {
   const subCategories = rawCategories.map((item) => requiredText(item, 120));
   if (subCategories.some((item) => !item)) return null;
 
-  const socialAccounts = value.socialAccountsChanged
-    ? parseSocialAccounts(value.socialAccounts)
-    : undefined;
-
-  if (value.socialAccountsChanged && !socialAccounts) return null;
-  if (!value.socialAccountsChanged && value.socialAccounts !== undefined) return null;
+  let socialAccounts: SocialAccountInput[] | undefined;
+  if (value.socialAccountsChanged) {
+    const parsedSocialAccounts = parseSocialAccounts(value.socialAccounts);
+    if (!parsedSocialAccounts) return null;
+    socialAccounts = parsedSocialAccounts;
+  } else if (value.socialAccounts !== undefined) {
+    return null;
+  }
 
   return {
     displayName,
