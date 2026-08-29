@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import CreatorPricePickerCollapseBehavior from "./CreatorPricePickerCollapseBehavior";
 import SignupCreatorClient from "./SignupCreatorClient";
 
 const SIGNUP_DRAFT_KEY = "trendre_creator_signup_draft_v8_compact";
@@ -127,5 +128,10 @@ export default function SignupCreatorSessionGuard({
     );
   }
 
-  return <SignupCreatorClient isCreatorOnly={isCreatorOnly} />;
+  return (
+    <>
+      <CreatorPricePickerCollapseBehavior />
+      <SignupCreatorClient isCreatorOnly={isCreatorOnly} />
+    </>
+  );
 }
