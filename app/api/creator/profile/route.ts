@@ -16,8 +16,8 @@ type SocialAccountInput = {
   platform: string;
   url: string;
   handle: string;
-  followerRange: string;
-  audienceCountry: string;
+  follower_range: string;
+  audience_country: string;
 };
 
 type ProfileSaveInput = {
@@ -62,14 +62,14 @@ function parseSocialAccounts(value: unknown): SocialAccountInput[] | null {
     const platform = requiredText(item.platform, 40);
     const url = requiredText(item.url, 2048);
     const handle = requiredText(item.handle, 320);
-    const followerRange = requiredText(item.followerRange, 80);
-    const audienceCountry = requiredText(item.audienceCountry, 120);
+    const follower_range = requiredText(item.follower_range, 80);
+    const audience_country = requiredText(item.audience_country, 120);
 
-    if (!platform || !ALLOWED_SOCIAL_PLATFORMS.has(platform) || !url || !handle || !followerRange || !audienceCountry) {
+    if (!platform || !ALLOWED_SOCIAL_PLATFORMS.has(platform) || !url || !handle || !follower_range || !audience_country) {
       return null;
     }
 
-    socials.push({ platform, url, handle, followerRange, audienceCountry });
+    socials.push({ platform, url, handle, follower_range, audience_country });
   }
 
   return socials;
@@ -184,8 +184,8 @@ export async function POST(request: NextRequest) {
               platform: account.platform,
               url: account.url,
               handle: account.handle,
-              follower_range: account.followerRange,
-              audience_country: account.audienceCountry,
+              follower_range: account.follower_range,
+              audience_country: account.audience_country,
             })),
           }
         : {}),
