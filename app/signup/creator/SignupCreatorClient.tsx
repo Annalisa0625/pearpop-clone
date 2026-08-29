@@ -62,6 +62,18 @@ const CREATOR_IMAGE_BUCKET =
 const TOTAL_STEPS = 7;
 const COUNTRY_DEFAULT = "日本";
 const MIN_CREATOR_MENU_PRICE = 3000;
+const CREATOR_MENU_PRICE_STEP = 500;
+const MAX_CREATOR_MENU_PRICE = 300000;
+const CREATOR_MENU_PRICE_OPTIONS = Array.from(
+  {
+    length:
+      Math.floor(
+        (MAX_CREATOR_MENU_PRICE - MIN_CREATOR_MENU_PRICE) /
+          CREATOR_MENU_PRICE_STEP
+      ) + 1,
+  },
+  (_, index) => MIN_CREATOR_MENU_PRICE + index * CREATOR_MENU_PRICE_STEP
+);
 
 const GENDER_OPTIONS = [
   { value: "", ja: "選択", en: "Select" },
@@ -840,7 +852,7 @@ export default function SignupCreatorClient({
             menuBody: "企業が購入できるメニューを1つ以上作成してください。",
             menuType: "メニュー種別",
             customMenuName: "メニュー名",
-            price: "例）11,000",
+            price: "金額を選択",
             addMenu: "メニューを追加",
 
             termsTitle: "確認",
@@ -979,7 +991,7 @@ export default function SignupCreatorClient({
             menuBody: "Create at least one menu brands can order.",
             menuType: "Menu type",
             customMenuName: "Menu name",
-            price: "Example: 11,000",
+            price: "Select price",
             addMenu: "Add menu",
 
             termsTitle: "Confirm",
@@ -1528,6 +1540,18 @@ export default function SignupCreatorClient({
         setError(appLocale === "ja" ? "3,000円以上で入力してください" : "Please enter JPY 3,000 or more");
         return false;
       }
+      if (
+        filledMenus.some(
+          (menu) => parsePriceNumber(menu.price) % CREATOR_MENU_PRICE_STEP !== 0
+        )
+      ) {
+        setError(
+          appLocale === "ja"
+            ? "500円単位で選択してください"
+            : "Please select a price in JPY 500 increments"
+        );
+        return false;
+      }
       if (filledMenus.some((menu) => menu.menu_type === "その他" && !menu.custom_menu_name.trim())) {
         setError(copy.customMenuNameRequired);
         return false;
@@ -1807,7 +1831,12 @@ export default function SignupCreatorClient({
           price: parsePriceNumber(menu.price),
           description: null,
         }))
-        .filter((menu) => menu.menu_type && menu.price >= MIN_CREATOR_MENU_PRICE);
+        .filter(
+          (menu) =>
+            menu.menu_type &&
+            menu.price >= MIN_CREATOR_MENU_PRICE &&
+            menu.price % CREATOR_MENU_PRICE_STEP === 0
+        );
       if (validMenus.length === 0) throw new Error(copy.menuRequired);
 
       const internalUsername = username.trim().toLowerCase() || (await ensureAvailableUsername());
@@ -2441,32 +2470,26 @@ export default function SignupCreatorClient({
 
                 <Field
                   label={appLocale === "ja" ? "金額（円）" : "Price (JPY)"}
-                  help={appLocale === "ja" ? "最低3,000円" : "Minimum JPY 3,000"}
+                  help={
+                    appLocale === "ja"
+                      ? "最低3,000円・500円単位"
+                      : "Minimum JPY 3,000 · JPY 500 increments"
+                  }
                 >
-                  <TextInput
-                    type="text"
-                    inputMode="numeric"
-                    value={menu.price}
+                  <SelectInput
+                    value={menu.price.replace(/,/g, "")}
                     onChange={(e) => {
                       updateMenu(index, "price", e.target.value);
                       setError(null);
                     }}
-                    onBlur={() => {
-                      const priceNumber = parsePriceNumber(menu.price);
-                      if (
-                        menu.price.trim() &&
-                        Number.isFinite(priceNumber) &&
-                        priceNumber < MIN_CREATOR_MENU_PRICE
-                      ) {
-                        setError(
-                          appLocale === "ja"
-                            ? "3,000円以上で入力してください"
-                            : "Please enter JPY 3,000 or more"
-                        );
-                      }
-                    }}
-                    placeholder={copy.price}
-                  />
+                  >
+                    <option value="">{copy.price}</option>
+                    {CREATOR_MENU_PRICE_OPTIONS.map((price) => (
+                      <option key={price} value={String(price)}>
+                        ¥{price.toLocaleString("ja-JP")}
+                      </option>
+                    ))}
+                  </SelectInput>
                 </Field>
               </div>
             </div>
