@@ -798,7 +798,7 @@ export default function AdminUserDetailPage() {
                         {menu.title ?? menu.menu_title ?? menu.platform ?? "メニュー"}
                       </p>
                       <p className="mt-1 text-xs font-bold text-slate-400">
-                        {menu.platform ?? "-"} / {menu.is_active ? "公開" : "非公開"}
+                        {menu.platform ?? "-"} / {formatPrice(menu.price, menu.currency)} / {menu.is_active ? "公開" : "非公開"}
                       </p>
                     </div>
                   ))}
