@@ -2441,7 +2441,11 @@ export default function SignupCreatorClient({
 
                 <Field
                   label={appLocale === "ja" ? "金額（円）" : "Price (JPY)"}
-                  help={appLocale === "ja" ? "最低3,000円" : "Minimum JPY 3,000"}
+                  help={
+                    appLocale === "ja"
+                      ? "3,000円以上で入力してください"
+                      : "Please enter JPY 3,000 or more"
+                  }
                 >
                   <TextInput
                     type="text"
