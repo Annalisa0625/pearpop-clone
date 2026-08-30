@@ -41,6 +41,8 @@ type SocialAccount = {
   url: string;
 };
 
+const MIN_CREATOR_MENU_PRICE = 3000;
+
 const MENU_OPTIONS: MenuOption[] = [
   {
     value: "Instagram投稿",
@@ -547,7 +549,7 @@ export default function NewMenuPage() {
             denySecondaryUse: "二次利用を認めない",
             menuRequired: "SNS種別を選択してください",
             priceRequired: "価格を入力してください",
-            priceInvalid: "価格は1以上の数字で入力してください",
+            priceInvalid: "3,000円以上で入力してください",
             previewBody: "メニューを選択してください",
             public: "公開中",
           }
@@ -574,7 +576,7 @@ export default function NewMenuPage() {
             denySecondaryUse: "Do not allow secondary use",
             menuRequired: "Please select a menu",
             priceRequired: "Please enter a price",
-            priceInvalid: "Price must be a number greater than 0",
+            priceInvalid: "Please enter JPY 3,000 or more",
             previewBody: "Select a menu",
             public: "Public",
           },
@@ -595,7 +597,7 @@ export default function NewMenuPage() {
 
     const priceNumber = parseYenInput(price);
 
-    if (priceNumber <= 0) {
+    if (priceNumber < MIN_CREATOR_MENU_PRICE) {
       return copy.priceInvalid;
     }
 
@@ -703,9 +705,12 @@ export default function NewMenuPage() {
             locale={safeLocale}
             price={price}
             priceLabel={copy.price}
-            priceHelp={copy.yenOnly}
+            priceHelp={copy.priceInvalid}
             pricePlaceholder={copy.pricePlaceholder}
-            onPriceChange={setPrice}
+            onPriceChange={(value) => {
+              setPrice(value);
+              setError(null);
+            }}
             onChange={(nextValue) => {
               setMenuValue(nextValue);
               if (isMaterialOnlyMenu(nextValue)) {
