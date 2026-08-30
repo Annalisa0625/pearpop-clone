@@ -62,18 +62,6 @@ const CREATOR_IMAGE_BUCKET =
 const TOTAL_STEPS = 7;
 const COUNTRY_DEFAULT = "日本";
 const MIN_CREATOR_MENU_PRICE = 3000;
-const CREATOR_MENU_PRICE_STEP = 500;
-const MAX_CREATOR_MENU_PRICE = 300000;
-const CREATOR_MENU_PRICE_OPTIONS = Array.from(
-  {
-    length:
-      Math.floor(
-        (MAX_CREATOR_MENU_PRICE - MIN_CREATOR_MENU_PRICE) /
-          CREATOR_MENU_PRICE_STEP
-      ) + 1,
-  },
-  (_, index) => MIN_CREATOR_MENU_PRICE + index * CREATOR_MENU_PRICE_STEP
-);
 
 const GENDER_OPTIONS = [
   { value: "", ja: "選択", en: "Select" },
@@ -852,7 +840,7 @@ export default function SignupCreatorClient({
             menuBody: "企業が購入できるメニューを1つ以上作成してください。",
             menuType: "メニュー種別",
             customMenuName: "メニュー名",
-            price: "金額を選択",
+            price: "例）11,000",
             addMenu: "メニューを追加",
 
             termsTitle: "確認",
@@ -991,7 +979,7 @@ export default function SignupCreatorClient({
             menuBody: "Create at least one menu brands can order.",
             menuType: "Menu type",
             customMenuName: "Menu name",
-            price: "Select price",
+            price: "Example: 11,000",
             addMenu: "Add menu",
 
             termsTitle: "Confirm",
@@ -1540,18 +1528,6 @@ export default function SignupCreatorClient({
         setError(appLocale === "ja" ? "3,000円以上で入力してください" : "Please enter JPY 3,000 or more");
         return false;
       }
-      if (
-        filledMenus.some(
-          (menu) => parsePriceNumber(menu.price) % CREATOR_MENU_PRICE_STEP !== 0
-        )
-      ) {
-        setError(
-          appLocale === "ja"
-            ? "500円単位で選択してください"
-            : "Please select a price in JPY 500 increments"
-        );
-        return false;
-      }
       if (filledMenus.some((menu) => menu.menu_type === "その他" && !menu.custom_menu_name.trim())) {
         setError(copy.customMenuNameRequired);
         return false;
@@ -1831,12 +1807,7 @@ export default function SignupCreatorClient({
           price: parsePriceNumber(menu.price),
           description: null,
         }))
-        .filter(
-          (menu) =>
-            menu.menu_type &&
-            menu.price >= MIN_CREATOR_MENU_PRICE &&
-            menu.price % CREATOR_MENU_PRICE_STEP === 0
-        );
+        .filter((menu) => menu.menu_type && menu.price >= MIN_CREATOR_MENU_PRICE);
       if (validMenus.length === 0) throw new Error(copy.menuRequired);
 
       const internalUsername = username.trim().toLowerCase() || (await ensureAvailableUsername());
@@ -1984,7 +1955,7 @@ export default function SignupCreatorClient({
                 <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-[#06c755]/10 blur-3xl" />
                 <div className="relative">
                   <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">✓</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">✓</span>
                     {appLocale === "ja"
                       ? isCreatorOnly ? "登録が完了しました" : "登録内容を保存しました"
                       : "Your registration has been saved"}
@@ -2470,48 +2441,32 @@ export default function SignupCreatorClient({
 
                 <Field
                   label={appLocale === "ja" ? "金額（円）" : "Price (JPY)"}
-                  help={
-                    appLocale === "ja"
-                      ? "最低3,000円・500円単位"
-                      : "Minimum JPY 3,000 · JPY 500 increments"
-                  }
+                  help={appLocale === "ja" ? "最低3,000円" : "Minimum JPY 3,000"}
                 >
-                  {menu.price ? (
-                    <div className="mb-1.5 rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-[#ff3860] ring-1 ring-rose-100">
-                      {appLocale === "ja" ? "選択中" : "Selected"}: ¥{parsePriceNumber(menu.price).toLocaleString("ja-JP")}
-                    </div>
-                  ) : null}
-                  <div
-                    role="listbox"
-                    aria-label={appLocale === "ja" ? "メニュー金額" : "Menu price"}
-                    className="h-[120px] snap-y snap-mandatory overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 [scrollbar-width:thin]"
-                  >
-                    {CREATOR_MENU_PRICE_OPTIONS.map((price) => {
-                      const selected = parsePriceNumber(menu.price) === price;
-                      return (
-                        <button
-                          key={price}
-                          type="button"
-                          role="option"
-                          aria-selected={selected}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            updateMenu(index, "price", String(price));
-                            setError(null);
-                          }}
-                          className={`flex h-10 w-full snap-start items-center justify-between rounded-xl px-3 text-left text-sm font-black transition ${
-                            selected
-                              ? "bg-[#ff3860] text-white"
-                              : "text-slate-700 hover:bg-slate-50"
-                          }`}
-                        >
-                          <span>¥{price.toLocaleString("ja-JP")}</span>
-                          <span aria-hidden="true">{selected ? "✓" : ""}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <TextInput
+                    type="text"
+                    inputMode="numeric"
+                    value={menu.price}
+                    onChange={(e) => {
+                      updateMenu(index, "price", e.target.value);
+                      setError(null);
+                    }}
+                    onBlur={() => {
+                      const priceNumber = parsePriceNumber(menu.price);
+                      if (
+                        menu.price.trim() &&
+                        Number.isFinite(priceNumber) &&
+                        priceNumber < MIN_CREATOR_MENU_PRICE
+                      ) {
+                        setError(
+                          appLocale === "ja"
+                            ? "3,000円以上で入力してください"
+                            : "Please enter JPY 3,000 or more"
+                        );
+                      }
+                    }}
+                    placeholder={copy.price}
+                  />
                 </Field>
               </div>
             </div>

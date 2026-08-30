@@ -59,7 +59,6 @@ const RESERVED_USERNAMES = new Set([
 ]);
 const VALID_GENDERS = new Set(["男性", "女性", "その他"]);
 const MIN_CREATOR_MENU_PRICE = 3000;
-const CREATOR_MENU_PRICE_STEP = 500;
 
 function normalizeUsername(input: string) {
   return input.trim().toLowerCase();
@@ -228,9 +227,6 @@ export async function POST(req: Request) {
     if (normalizedMenus.some((menu) => !menu.menu_type || !Number.isFinite(menu.price) || menu.price <= 0)) return errorResponse("メニュー種別と価格を正しく入力してください", 400);
     if (normalizedMenus.some((menu) => menu.price < MIN_CREATOR_MENU_PRICE)) {
       return errorResponse("3,000円以上で入力してください", 400, "MENU_PRICE_TOO_LOW");
-    }
-    if (normalizedMenus.some((menu) => menu.price % CREATOR_MENU_PRICE_STEP !== 0)) {
-      return errorResponse("金額は500円単位で選択してください", 400, "MENU_PRICE_STEP_INVALID");
     }
 
     const authorization = req.headers.get("authorization") ?? "";
