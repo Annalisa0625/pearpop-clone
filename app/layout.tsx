@@ -12,11 +12,11 @@ export const metadata = {
     "Trendre is a creator marketing marketplace for brands and creators.",
   applicationName: "Trendre",
   openGraph: {
-    title: "Trendre",
+    title: "Trend Mart",
     description:
-      "Trendre is a creator marketing marketplace for brands and creators.",
+      "Trend Mart is a creator marketing marketplace for brands and creators.",
     url: "https://trendre.jp",
-    siteName: "Trendre",
+    siteName: "Trend Mart",
     type: "website",
     locale: "ja_JP",
     images: [
@@ -24,15 +24,15 @@ export const metadata = {
         url: "https://trendre.jp/brand/trendre-search-preview.jpg",
         width: 1200,
         height: 630,
-        alt: "Trendre",
+        alt: "Trend Mart",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Trendre",
+    title: "Trend Mart",
     description:
-      "Trendre is a creator marketing marketplace for brands and creators.",
+      "Trend Mart is a creator marketing marketplace for brands and creators.",
     images: ["https://trendre.jp/brand/trendre-search-preview.jpg"],
   },
   appleWebApp: {
