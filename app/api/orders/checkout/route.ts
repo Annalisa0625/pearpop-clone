@@ -74,6 +74,8 @@ type ServerDeps = {
   calculateOrderFees: (args: {
     menuPriceAmount: number;
     buyerPlanCode: string | null | undefined;
+    buyerCompanyCreatedAt?: string | null;
+    calculatedAt?: Date;
   }) => any;
   normalizeInternalPlanCode: (value: string | null | undefined) => string;
 };
@@ -246,7 +248,7 @@ async function getCompany(args: {
   const result: any = await withTimeout(
     args.supabaseAdmin
       .from("companies")
-      .select("company_name, contact_email, approval_status")
+      .select("company_name, contact_email, approval_status, created_at")
       .eq("user_id", args.userId)
       .maybeSingle(),
     DB_TIMEOUT_MS,
@@ -1167,9 +1169,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const orderCalculatedAt = new Date();
     const fees = calculateOrderFees({
       menuPriceAmount,
       buyerPlanCode: planCode,
+      buyerCompanyCreatedAt: company.created_at,
+      calculatedAt: orderCalculatedAt,
     });
 
     const stripeAmount = toStripeAmount(fees.buyerTotalAmount, currency);

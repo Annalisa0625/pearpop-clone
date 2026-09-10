@@ -5,7 +5,22 @@ export type InternalCompanyPlanCode = "free" | "standard" | "global_pro";
 export type PublicCompanyPlanName = "basic" | "pro" | "premium";
 
 export const CREATOR_TRANSACTION_FEE_BPS = 1500;
-export const DEFAULT_BUYER_MARKETPLACE_FEE_BPS = 1000;
+export const DEFAULT_BUYER_MARKETPLACE_FEE_BPS = 2000;
+export const EARLY_COMPANY_BUYER_MARKETPLACE_FEE_BPS = 500;
+
+export const EARLY_COMPANY_PREREGISTRATION_CUTOFF =
+  "2026-09-30T14:59:59.999Z";
+export const EARLY_COMPANY_CAMPAIGN_START = "2026-09-30T15:00:00.000Z";
+export const EARLY_COMPANY_CAMPAIGN_END = "2027-09-30T15:00:00.000Z";
+
+type FeeCalculationTime = string | number | Date | null | undefined;
+
+function toEpochMilliseconds(value: FeeCalculationTime) {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return Date.parse(value);
+  return Number.NaN;
+}
 
 export function normalizeInternalPlanCode(
   value: string | null | undefined
@@ -29,17 +44,27 @@ export function toPublicPlanName(
 }
 
 export function getBuyerMarketplaceFeeBps(
-  planCode: string | null | undefined
+  _planCode: string | null | undefined,
+  buyerCompanyCreatedAt?: FeeCalculationTime,
+  calculatedAt: FeeCalculationTime = new Date()
 ) {
-  const normalized = normalizeInternalPlanCode(planCode);
+  const companyCreatedAt = toEpochMilliseconds(buyerCompanyCreatedAt);
+  const orderTime = toEpochMilliseconds(calculatedAt);
+  const preregistrationCutoff = Date.parse(EARLY_COMPANY_PREREGISTRATION_CUTOFF);
+  const campaignStart = Date.parse(EARLY_COMPANY_CAMPAIGN_START);
+  const campaignEnd = Date.parse(EARLY_COMPANY_CAMPAIGN_END);
 
-  // Collabstr寄せの初期方針:
-  // Basic / Pro は 10%、Premium は 5%。
-  if (normalized === "global_pro") {
-    return 500;
+  if (
+    Number.isFinite(companyCreatedAt) &&
+    Number.isFinite(orderTime) &&
+    companyCreatedAt <= preregistrationCutoff &&
+    campaignStart <= orderTime &&
+    orderTime < campaignEnd
+  ) {
+    return EARLY_COMPANY_BUYER_MARKETPLACE_FEE_BPS;
   }
 
-  return 1000;
+  return DEFAULT_BUYER_MARKETPLACE_FEE_BPS;
 }
 
 export function getCreatorTransactionFeeBps() {
@@ -49,10 +74,14 @@ export function getCreatorTransactionFeeBps() {
 export function calculateOrderFees(args: {
   menuPriceAmount: number;
   buyerPlanCode: string | null | undefined;
+  buyerCompanyCreatedAt?: FeeCalculationTime;
+  calculatedAt?: FeeCalculationTime;
 }) {
   const menuPriceAmount = Math.max(0, Math.round(args.menuPriceAmount));
   const buyerMarketplaceFeeRateBps = getBuyerMarketplaceFeeBps(
-    args.buyerPlanCode
+    args.buyerPlanCode,
+    args.buyerCompanyCreatedAt,
+    args.calculatedAt
   );
   const creatorTransactionFeeRateBps = getCreatorTransactionFeeBps();
 
