@@ -222,10 +222,6 @@ export default function CompanyDashboardClient() {
       companyResult,
       userStateResult,
       savedCreatorsResult,
-      legacyPendingResult,
-      legacyAcceptedResult,
-      legacyDeliveredResult,
-      legacyCompletedResult,
       orderPendingResult,
       orderAcceptedResult,
       orderDeliveredResult,
@@ -249,30 +245,6 @@ export default function CompanyDashboardClient() {
         .eq("b_user_id", user.id),
 
       supabase
-        .from("requests")
-        .select("id", { count: "exact", head: true })
-        .eq("b_user_id", user.id)
-        .eq("status", "pending"),
-
-      supabase
-        .from("requests")
-        .select("id", { count: "exact", head: true })
-        .eq("b_user_id", user.id)
-        .eq("status", "accepted"),
-
-      supabase
-        .from("requests")
-        .select("id", { count: "exact", head: true })
-        .eq("b_user_id", user.id)
-        .eq("status", "delivered"),
-
-      supabase
-        .from("requests")
-        .select("id", { count: "exact", head: true })
-        .eq("b_user_id", user.id)
-        .eq("status", "completed"),
-
-      supabase
         .from("orders")
         .select("id", { count: "exact", head: true })
         .eq("b_user_id", user.id)
@@ -282,7 +254,7 @@ export default function CompanyDashboardClient() {
         .from("orders")
         .select("id", { count: "exact", head: true })
         .eq("b_user_id", user.id)
-        .in("status", ["accepted_captured", "in_progress"]),
+        .in("status", ["accepted_captured", "in_progress", "revision_requested"]),
 
       supabase
         .from("orders")
@@ -299,10 +271,6 @@ export default function CompanyDashboardClient() {
 
     const countErrors = [
       savedCreatorsResult.error,
-      legacyPendingResult.error,
-      legacyAcceptedResult.error,
-      legacyDeliveredResult.error,
-      legacyCompletedResult.error,
       orderPendingResult.error,
       orderAcceptedResult.error,
       orderDeliveredResult.error,
@@ -337,13 +305,10 @@ export default function CompanyDashboardClient() {
       ),
       savedCount: savedCreatorsResult.count ?? 0,
       counts: {
-        pending: (legacyPendingResult.count ?? 0) + (orderPendingResult.count ?? 0),
-        accepted:
-          (legacyAcceptedResult.count ?? 0) + (orderAcceptedResult.count ?? 0),
-        delivered:
-          (legacyDeliveredResult.count ?? 0) + (orderDeliveredResult.count ?? 0),
-        completed:
-          (legacyCompletedResult.count ?? 0) + (orderCompletedResult.count ?? 0),
+        pending: orderPendingResult.count ?? 0,
+        accepted: orderAcceptedResult.count ?? 0,
+        delivered: orderDeliveredResult.count ?? 0,
+        completed: orderCompletedResult.count ?? 0,
       },
     };
   }, [router]);
