@@ -1,5 +1,13 @@
 // File: app/api/orders/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import {
+  buildCheckoutPayloadFingerprint,
+  checkoutAttemptMatchesOrder,
+  getCheckoutSessionIdempotencyKey,
+  getExistingCheckoutSessionAction,
+  isCheckoutAttemptUniqueViolation,
+  normalizeCheckoutAttemptId,
+} from "@/lib/orders/checkout-idempotency";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +58,7 @@ type NormalizedReferenceAsset = {
 };
 
 type CheckoutBody = {
+  checkout_attempt_id?: string;
   creator_id?: string;
   creator_menu_id?: string;
   project_type?: string;
@@ -152,6 +161,14 @@ async function loadServerDeps(): Promise<ServerDeps> {
     calculateOrderFees: (feesModule as any).calculateOrderFees,
     normalizeInternalPlanCode: (feesModule as any).normalizeInternalPlanCode,
   };
+}
+
+let serverDepsLoader: () => Promise<ServerDeps> = loadServerDeps;
+
+export function __setCheckoutServerDepsLoaderForTests(
+  loader?: () => Promise<ServerDeps>
+) {
+  serverDepsLoader = loader ?? loadServerDeps;
 }
 
 function getBearerToken(req: NextRequest) {
@@ -370,13 +387,16 @@ async function findOrCreateStripeCustomer(args: {
   }
 
   return withTimeout(
-    args.stripe.customers.create({
-      email: args.email,
-      name: args.companyName ?? args.email,
-      metadata: {
-        supabase_user_id: args.userId,
+    args.stripe.customers.create(
+      {
+        email: args.email,
+        name: args.companyName ?? args.email,
+        metadata: {
+          supabase_user_id: args.userId,
+        },
       },
-    }),
+      { idempotencyKey: `trendmart_customer:${args.userId}` }
+    ),
     STRIPE_TIMEOUT_MS,
     "Stripe顧客情報の作成に時間がかかっています"
   );
@@ -411,6 +431,39 @@ function getString(value: unknown) {
 function getNullableString(value: unknown) {
   const text = getString(value);
   return text ? text : null;
+}
+
+function getCheckoutAttemptId(value: unknown) {
+  return normalizeCheckoutAttemptId(value);
+}
+
+function isUniqueViolation(error: any) {
+  return isCheckoutAttemptUniqueViolation(error);
+}
+
+function getSnapshotAmount(value: unknown, fallback: number) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? amount : fallback;
+}
+
+async function findCheckoutOrder(args: {
+  supabaseAdmin: any;
+  bUserId: string;
+  checkoutAttemptId: string;
+}) {
+  const result: any = await withTimeout(
+    args.supabaseAdmin
+      .from("orders")
+      .select("*")
+      .eq("b_user_id", args.bUserId)
+      .eq("checkout_attempt_id", args.checkoutAttemptId)
+      .maybeSingle(),
+    DB_TIMEOUT_MS,
+    "既存注文の取得に時間がかかっています"
+  );
+
+  if (result?.error) throw result.error;
+  return result?.data ?? null;
 }
 
 function getBoolean(value: unknown) {
@@ -716,7 +769,23 @@ async function safePersistReferenceAssets(args: {
   if (args.referenceAssets.length === 0) return;
 
   try {
-    const assetRows = args.referenceAssets.map((asset) => ({
+    const existingResult: any = await withTimeout(
+      args.supabaseAdmin
+        .from("order_reference_assets")
+        .select("storage_path")
+        .eq("order_id", args.orderId),
+      DB_OPTIONAL_TIMEOUT_MS,
+      "reference assets lookup timeout"
+    );
+
+    if (existingResult?.error) throw existingResult.error;
+
+    const existingPaths = new Set(
+      (existingResult?.data ?? []).map((asset: any) => asset.storage_path)
+    );
+    const assetRows = args.referenceAssets
+      .filter((asset) => !existingPaths.has(asset.storage_path))
+      .map((asset) => ({
       order_id: args.orderId,
       b_user_id: args.bUserId,
       creator_user_id: args.creatorUserId,
@@ -728,7 +797,9 @@ async function safePersistReferenceAssets(args: {
       mime_type: asset.mime_type,
       size_bytes: asset.size_bytes,
       sort_order: asset.sort_order,
-    }));
+      }));
+
+    if (assetRows.length === 0) return;
 
     const result: any = await withTimeout(
       args.supabaseAdmin
@@ -739,6 +810,30 @@ async function safePersistReferenceAssets(args: {
     );
 
     if (result?.error) {
+      if (isUniqueViolation(result.error)) {
+        const afterConflictResult: any = await withTimeout(
+          args.supabaseAdmin
+            .from("order_reference_assets")
+            .select("storage_path")
+            .eq("order_id", args.orderId),
+          DB_OPTIONAL_TIMEOUT_MS,
+          "reference assets conflict lookup timeout"
+        );
+
+        if (afterConflictResult?.error) throw afterConflictResult.error;
+
+        const persistedPaths = new Set(
+          (afterConflictResult?.data ?? []).map(
+            (asset: any) => asset.storage_path
+          )
+        );
+        const allPersisted = assetRows.every((asset) =>
+          persistedPaths.has(asset.storage_path)
+        );
+
+        if (allPersisted) return;
+      }
+
       throw result.error;
     }
   } catch (error) {
@@ -757,6 +852,8 @@ async function safePersistReferenceAssets(args: {
         reference_assets_count: args.referenceAssets.length,
       },
     });
+
+    throw error;
   }
 }
 
@@ -775,7 +872,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    deps = await loadServerDeps();
+    deps = await serverDepsLoader();
 
     const {
       supabaseAdmin,
@@ -901,6 +998,7 @@ export async function POST(req: NextRequest) {
 
     const creatorId = getString(body.creator_id);
     const creatorMenuId = getString(body.creator_menu_id);
+    const checkoutAttemptId = getCheckoutAttemptId(body.checkout_attempt_id);
     const projectType = normalizeProjectType(body.project_type);
     const productName = getString(body.product_name);
     const freeOfferDetail = getNullableString(body.free_offer_detail);
@@ -924,6 +1022,13 @@ export async function POST(req: NextRequest) {
 
     const { assets: referenceAssets, error: referenceAssetsError } =
       normalizeReferenceAssets(body.reference_assets, user.id);
+
+    if (!checkoutAttemptId) {
+      return NextResponse.json(
+        { error: "Checkout attempt IDが正しくありません" },
+        { status: 400 }
+      );
+    }
 
     if (referenceAssetsError) {
       return NextResponse.json(
@@ -1195,6 +1300,102 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const checkoutPayloadFingerprint = buildCheckoutPayloadFingerprint({
+      creatorId,
+      creatorMenuId,
+      projectType: projectType ?? "",
+      productName,
+      freeOfferDetail,
+      productUrl,
+      deadline,
+      requirements,
+      hasFreeOffer,
+      wantsSecondaryUse: requestedSecondaryUse,
+      prAccount,
+      prHashtags,
+      postNotes,
+      referenceAssets,
+    });
+
+    let existingOrder = await findCheckoutOrder({
+      supabaseAdmin,
+      bUserId: user.id,
+      checkoutAttemptId,
+    });
+
+    if (
+      existingOrder &&
+      !checkoutAttemptMatchesOrder(existingOrder, creator.id, menu.id)
+    ) {
+      return NextResponse.json(
+        { error: "このCheckout attemptは別の注文に使用されています" },
+        { status: 409 }
+      );
+    }
+
+    if (
+      existingOrder &&
+      existingOrder.metadata?.checkout_payload_fingerprint !==
+        checkoutPayloadFingerprint
+    ) {
+      return NextResponse.json(
+        {
+          code: "checkout_attempt_payload_mismatch",
+          error: "このCheckout attemptは別の注文内容に使用されています",
+        },
+        { status: 409 }
+      );
+    }
+
+    let expiredSessionId: string | null = null;
+
+    if (existingOrder?.stripe_checkout_session_id) {
+      const existingSession: any = await withTimeout(
+        getStripe().checkout.sessions.retrieve(
+          existingOrder.stripe_checkout_session_id
+        ),
+        STRIPE_SESSION_TIMEOUT_MS,
+        "既存Checkoutの取得に時間がかかっています"
+      );
+
+      const existingSessionAction = getExistingCheckoutSessionAction(
+        existingSession
+      );
+
+      if (existingSessionAction === "reuse_open") {
+        await safePersistReferenceAssets({
+          supabaseAdmin,
+          orderId: existingOrder.id,
+          bUserId: user.id,
+          creatorUserId: existingOrder.creator_user_id ?? creator.user_id,
+          referenceAssets,
+        });
+
+        return NextResponse.json({
+          url: existingSession.url,
+          order_id: existingOrder.id,
+          checkout_session_id: existingSession.id,
+          reused: true,
+        });
+      }
+
+      if (existingSessionAction === "already_completed") {
+        return NextResponse.json(
+          {
+            code: "checkout_already_completed",
+            order_id: existingOrder.id,
+          },
+          { status: 409 }
+        );
+      }
+
+      if (existingSessionAction === "replace_expired") {
+        expiredSessionId = existingSession.id;
+      } else {
+        throw new Error("既存Checkoutを再利用できません");
+      }
+    }
+
     const stripe = getStripe();
     const baseUrl = getBaseUrl();
 
@@ -1203,7 +1404,10 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       email,
       companyName: company.company_name ?? null,
-      existingCustomerId: userState.stripe_customer_id ?? null,
+      existingCustomerId:
+        existingOrder?.stripe_customer_id ??
+        userState.stripe_customer_id ??
+        null,
     });
 
     await upsertUserState({
@@ -1216,6 +1420,7 @@ export async function POST(req: NextRequest) {
 
     const orderInsert = {
       b_user_id: user.id,
+      checkout_attempt_id: checkoutAttemptId,
       creator_id: creator.id,
       creator_user_id: creator.user_id,
       creator_menu_id: menu.id,
@@ -1277,6 +1482,7 @@ export async function POST(req: NextRequest) {
 
       metadata: {
         source: "orders_checkout_api_v5_manual_bank_payout",
+        checkout_payload_fingerprint: checkoutPayloadFingerprint,
         plan_code: planCode,
         plan_public_name: fees.buyerPlanPublicNameSnapshot,
         payment_flow: "manual_capture",
@@ -1293,22 +1499,85 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const orderResult: any = await withTimeout(
-      supabaseAdmin
-        .from("orders")
-        .insert(orderInsert as never)
-        .select("id")
-        .single(),
-      DB_TIMEOUT_MS,
-      "注文情報の作成に時間がかかっています"
-    );
+    let order: any = existingOrder;
+    let orderWasNew = false;
 
-    if (orderResult?.error || !orderResult?.data) {
-      throw orderResult?.error ?? new Error("Order creation failed");
+    if (!order) {
+      const orderResult: any = await withTimeout(
+        supabaseAdmin
+          .from("orders")
+          .insert(orderInsert as never)
+          .select("id")
+          .single(),
+        DB_TIMEOUT_MS,
+        "注文情報の作成に時間がかかっています"
+      );
+
+      if (orderResult?.error || !orderResult?.data) {
+        if (!isUniqueViolation(orderResult?.error)) {
+          throw orderResult?.error ?? new Error("Order creation failed");
+        }
+
+        order = await findCheckoutOrder({
+          supabaseAdmin,
+          bUserId: user.id,
+          checkoutAttemptId,
+        });
+
+        if (!order) {
+          throw orderResult.error;
+        }
+
+        if (!checkoutAttemptMatchesOrder(order, creator.id, menu.id)) {
+          return NextResponse.json(
+            { error: "このCheckout attemptは別の注文に使用されています" },
+            { status: 409 }
+          );
+        }
+
+        if (
+          order.metadata?.checkout_payload_fingerprint !==
+          checkoutPayloadFingerprint
+        ) {
+          return NextResponse.json(
+            {
+              code: "checkout_attempt_payload_mismatch",
+              error: "このCheckout attemptは別の注文内容に使用されています",
+            },
+            { status: 409 }
+          );
+        }
+      } else {
+        order = orderResult.data;
+        orderWasNew = true;
+        createdOrderId = order.id;
+      }
     }
 
-    const order = orderResult.data;
-    createdOrderId = order.id;
+    const orderSnapshot = orderWasNew ? null : order;
+    const checkoutCurrency = normalizeCurrency(orderSnapshot?.currency ?? currency);
+    const checkoutMenuPriceAmount = getSnapshotAmount(
+      orderSnapshot?.menu_price_amount,
+      fees.menuPriceAmount
+    );
+    const checkoutBuyerMarketplaceFeeAmount = getSnapshotAmount(
+      orderSnapshot?.buyer_marketplace_fee_amount,
+      fees.buyerMarketplaceFeeAmount
+    );
+    const checkoutBuyerTotalAmount = getSnapshotAmount(
+      orderSnapshot?.buyer_total_amount,
+      fees.buyerTotalAmount
+    );
+    const checkoutStripeAmount = getSnapshotAmount(
+      orderSnapshot?.stripe_amount,
+      stripeAmount
+    );
+    const checkoutMenuTitle = orderSnapshot?.menu_title_snapshot ?? menu.title;
+    const checkoutMenuDescription =
+      orderSnapshot?.menu_description_snapshot ?? menu.description;
+    const checkoutCustomerId = orderSnapshot?.stripe_customer_id ?? customer.id;
+    const checkoutCreatorUserId =
+      orderSnapshot?.creator_user_id ?? creator.user_id;
 
     const successUrl = `${baseUrl}/b/orders/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/b/creators/${creator.id}/request?menuId=${menu.id}&checkout=cancelled`;
@@ -1316,14 +1585,14 @@ export async function POST(req: NextRequest) {
     const lineItems: any[] = [
       {
         price_data: {
-          currency: currency.toLowerCase(),
-          unit_amount: toStripeAmount(fees.menuPriceAmount, currency),
+          currency: checkoutCurrency.toLowerCase(),
+          unit_amount: toStripeAmount(checkoutMenuPriceAmount, checkoutCurrency),
           product_data: {
-            name: menu.title,
-            description: menu.description?.slice(0, 500) ?? undefined,
+            name: checkoutMenuTitle,
+            description: checkoutMenuDescription?.slice(0, 500) ?? undefined,
             metadata: {
-              creator_id: creator.id,
-              creator_menu_id: menu.id,
+              creator_id: orderSnapshot?.creator_id ?? creator.id,
+              creator_menu_id: orderSnapshot?.creator_menu_id ?? menu.id,
               order_id: order.id,
               item_type: "creator_menu",
             },
@@ -1333,18 +1602,19 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    if (fees.buyerMarketplaceFeeAmount > 0) {
+    if (checkoutBuyerMarketplaceFeeAmount > 0) {
       lineItems.push({
         price_data: {
-          currency: currency.toLowerCase(),
+          currency: checkoutCurrency.toLowerCase(),
           unit_amount: toStripeAmount(
-            fees.buyerMarketplaceFeeAmount,
-            currency
+            checkoutBuyerMarketplaceFeeAmount,
+            checkoutCurrency
           ),
           product_data: {
             name: "Trendre marketplace fee",
             description: `Buyer marketplace fee ${
-              fees.buyerMarketplaceFeeRateBps / 100
+              (orderSnapshot?.buyer_marketplace_fee_rate_bps ??
+                fees.buyerMarketplaceFeeRateBps) / 100
             }%`,
             metadata: {
               order_id: order.id,
@@ -1356,10 +1626,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const sessionIdempotencyKey = getCheckoutSessionIdempotencyKey(
+      order.id,
+      expiredSessionId
+    );
+
     const session: any = await withTimeout(
       stripe.checkout.sessions.create({
         mode: "payment",
-        customer: customer.id,
+        customer: checkoutCustomerId,
         client_reference_id: order.id,
         payment_method_types: ["card"],
         line_items: lineItems,
@@ -1369,26 +1644,34 @@ export async function POST(req: NextRequest) {
             order_id: order.id,
             supabase_user_id: user.id,
             b_user_id: user.id,
-            creator_id: creator.id,
-            creator_user_id: creator.user_id,
-            creator_menu_id: menu.id,
+            creator_id: orderSnapshot?.creator_id ?? creator.id,
+            creator_user_id: orderSnapshot?.creator_user_id ?? creator.user_id,
+            creator_menu_id: orderSnapshot?.creator_menu_id ?? menu.id,
             payment_flow: "manual_capture",
-            payout_method: payoutMethod,
-            payout_profile_status: payoutProfile?.status ?? null,
-            project_type: projectType,
-            fulfillment_type: fulfillmentType,
-            preparation_status: initialPreparationStatus,
-            menu_price_amount: String(fees.menuPriceAmount),
+            payout_method: orderSnapshot?.payout_method ?? payoutMethod,
+            payout_profile_status:
+              orderSnapshot?.metadata?.payout_profile_status ??
+              payoutProfile?.status ??
+              null,
+            project_type: orderSnapshot?.project_type ?? projectType,
+            fulfillment_type: orderSnapshot?.fulfillment_type ?? fulfillmentType,
+            preparation_status:
+              orderSnapshot?.preparation_status ?? initialPreparationStatus,
+            menu_price_amount: String(checkoutMenuPriceAmount),
             buyer_marketplace_fee_amount: String(
-              fees.buyerMarketplaceFeeAmount
+              checkoutBuyerMarketplaceFeeAmount
             ),
-            buyer_total_amount: String(fees.buyerTotalAmount),
+            buyer_total_amount: String(checkoutBuyerTotalAmount),
             creator_transaction_fee_amount: String(
-              fees.creatorTransactionFeeAmount
+              orderSnapshot?.creator_transaction_fee_amount ??
+                fees.creatorTransactionFeeAmount
             ),
-            creator_payout_amount: String(fees.creatorPayoutAmount),
+            creator_payout_amount: String(
+              orderSnapshot?.creator_payout_amount ?? fees.creatorPayoutAmount
+            ),
             platform_gross_revenue_amount: String(
-              fees.platformGrossRevenueAmount
+              orderSnapshot?.platform_gross_revenue_amount ??
+                fees.platformGrossRevenueAmount
             ),
           },
         },
@@ -1396,20 +1679,24 @@ export async function POST(req: NextRequest) {
           order_id: order.id,
           supabase_user_id: user.id,
           b_user_id: user.id,
-          creator_id: creator.id,
-          creator_user_id: creator.user_id,
-          creator_menu_id: menu.id,
+          creator_id: orderSnapshot?.creator_id ?? creator.id,
+          creator_user_id: orderSnapshot?.creator_user_id ?? creator.user_id,
+          creator_menu_id: orderSnapshot?.creator_menu_id ?? menu.id,
           payment_flow: "manual_capture",
-          payout_method: payoutMethod,
-          payout_profile_status: payoutProfile?.status ?? null,
-          project_type: projectType,
-          fulfillment_type: fulfillmentType,
-          preparation_status: initialPreparationStatus,
+          payout_method: orderSnapshot?.payout_method ?? payoutMethod,
+          payout_profile_status:
+            orderSnapshot?.metadata?.payout_profile_status ??
+            payoutProfile?.status ??
+            null,
+          project_type: orderSnapshot?.project_type ?? projectType,
+          fulfillment_type: orderSnapshot?.fulfillment_type ?? fulfillmentType,
+          preparation_status:
+            orderSnapshot?.preparation_status ?? initialPreparationStatus,
         },
         success_url: successUrl,
         cancel_url: cancelUrl,
         allow_promotion_codes: false,
-      }),
+      }, { idempotencyKey: sessionIdempotencyKey }),
       STRIPE_SESSION_TIMEOUT_MS,
       "Stripe Checkoutの作成に時間がかかっています"
     );
@@ -1442,32 +1729,34 @@ export async function POST(req: NextRequest) {
       supabaseAdmin,
       orderId: order.id,
       bUserId: user.id,
-      creatorUserId: creator.user_id,
+      creatorUserId: checkoutCreatorUserId,
       referenceAssets,
     });
 
-    await safeInsertOrderEvent({
-      supabaseAdmin,
-      orderId: order.id,
-      actorUserId: user.id,
-      eventType: "stripe_checkout_session_created",
-      eventData: {
-        stripe_checkout_session_id: session.id,
-        checkout_amount: stripeAmount,
-        menu_price_amount: fees.menuPriceAmount,
-        buyer_marketplace_fee_amount: fees.buyerMarketplaceFeeAmount,
-        buyer_total_amount: fees.buyerTotalAmount,
-        creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
-        creator_payout_amount: fees.creatorPayoutAmount,
-        platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
-        payout_method: payoutMethod,
-        payout_profile_status: payoutProfile?.status ?? null,
-        project_type: projectType,
-        fulfillment_type: fulfillmentType,
-        preparation_status: initialPreparationStatus,
-        reference_assets_count: referenceAssets.length,
-      },
-    });
+    if (orderWasNew || expiredSessionId) {
+      await safeInsertOrderEvent({
+        supabaseAdmin,
+        orderId: order.id,
+        actorUserId: user.id,
+        eventType: "stripe_checkout_session_created",
+        eventData: {
+          stripe_checkout_session_id: session.id,
+          checkout_amount: checkoutStripeAmount,
+          menu_price_amount: checkoutMenuPriceAmount,
+          buyer_marketplace_fee_amount: checkoutBuyerMarketplaceFeeAmount,
+          buyer_total_amount: checkoutBuyerTotalAmount,
+          creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
+          creator_payout_amount: fees.creatorPayoutAmount,
+          platform_gross_revenue_amount: fees.platformGrossRevenueAmount,
+          payout_method: payoutMethod,
+          payout_profile_status: payoutProfile?.status ?? null,
+          project_type: projectType,
+          fulfillment_type: fulfillmentType,
+          preparation_status: initialPreparationStatus,
+          reference_assets_count: referenceAssets.length,
+        },
+      });
+    }
 
     return NextResponse.json({
       url: session.url,
@@ -1478,10 +1767,10 @@ export async function POST(req: NextRequest) {
       reference_assets_count: referenceAssets.length,
       payout_method: payoutMethod,
       amount: {
-        currency,
-        menu_price_amount: fees.menuPriceAmount,
-        buyer_marketplace_fee_amount: fees.buyerMarketplaceFeeAmount,
-        buyer_total_amount: fees.buyerTotalAmount,
+        currency: checkoutCurrency,
+        menu_price_amount: checkoutMenuPriceAmount,
+        buyer_marketplace_fee_amount: checkoutBuyerMarketplaceFeeAmount,
+        buyer_total_amount: checkoutBuyerTotalAmount,
         creator_transaction_fee_amount: fees.creatorTransactionFeeAmount,
         creator_payout_amount: fees.creatorPayoutAmount,
         platform_gross_revenue_amount: fees.platformGrossRevenueAmount,

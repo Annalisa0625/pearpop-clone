@@ -1851,6 +1851,67 @@ ${usageNote}${deliveryNote}${freeOfferBlock}${providedAssetsNote}${postNotesBloc
         controller.abort();
       }, CHECKOUT_TIMEOUT_MS);
 
+      const checkoutPayload = {
+        creator_id: creator.id,
+        creator_menu_id: selectedMenu.id,
+        project_type: form.project_type,
+        product_name: form.product_name.trim() || selectedMenu.title,
+        free_offer_detail: needsFreeOfferDetail
+          ? form.free_offer_detail.trim()
+          : null,
+        product_url: form.product_url.trim() || null,
+        deadline: null,
+        requirements: buildFinalRequirements(),
+        pr_account: form.pr_account,
+        pr_hashtags: cleanHashtags,
+        post_notes: form.note.trim() || null,
+        reference_assets: referenceAssets.map((asset, index) => ({
+          storage_path: asset.storage_path,
+          file_name: asset.file_name,
+          file_type: asset.file_type,
+          mime_type: asset.mime_type,
+          size_bytes: asset.size_bytes,
+          sort_order: index,
+        })),
+        has_free_offer:
+          form.project_type === "visit_experience" ||
+          form.project_type === "product_delivery",
+        wants_secondary_use: selectedMenuIsUgc,
+      };
+      const attemptStorageKey = `trendmart_checkout_attempt:${creator.id}:${selectedMenu.id}`;
+      const payloadSnapshot = JSON.stringify(checkoutPayload);
+      let checkoutAttemptId = "";
+
+      try {
+        const saved = window.sessionStorage.getItem(attemptStorageKey);
+        const parsed = saved ? JSON.parse(saved) : null;
+
+        if (
+          parsed &&
+          parsed.payloadSnapshot === payloadSnapshot &&
+          typeof parsed.attemptId === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            parsed.attemptId
+          )
+        ) {
+          checkoutAttemptId = parsed.attemptId;
+        }
+      } catch {
+        // sessionStorage is best-effort only; a new attempt remains safe server-side.
+      }
+
+      if (!checkoutAttemptId) {
+        checkoutAttemptId = crypto.randomUUID();
+        try {
+          window.sessionStorage.setItem(
+            attemptStorageKey,
+            JSON.stringify({ attemptId: checkoutAttemptId, payloadSnapshot })
+          );
+        } catch {
+          // The request remains valid when storage is unavailable.
+        }
+      }
+
       let res: Response;
 
       try {
@@ -1862,31 +1923,8 @@ ${usageNote}${deliveryNote}${freeOfferBlock}${providedAssetsNote}${postNotesBloc
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            creator_id: creator.id,
-            creator_menu_id: selectedMenu.id,
-            project_type: form.project_type,
-            product_name: form.product_name.trim() || selectedMenu.title,
-            free_offer_detail: needsFreeOfferDetail
-              ? form.free_offer_detail.trim()
-              : null,
-            product_url: form.product_url.trim() || null,
-            deadline: null,
-            requirements: buildFinalRequirements(),
-            pr_account: form.pr_account,
-            pr_hashtags: cleanHashtags,
-            post_notes: form.note.trim() || null,
-            reference_assets: referenceAssets.map((asset, index) => ({
-              storage_path: asset.storage_path,
-              file_name: asset.file_name,
-              file_type: asset.file_type,
-              mime_type: asset.mime_type,
-              size_bytes: asset.size_bytes,
-              sort_order: index,
-            })),
-            has_free_offer:
-              form.project_type === "visit_experience" ||
-              form.project_type === "product_delivery",
-            wants_secondary_use: selectedMenuIsUgc,
+            ...checkoutPayload,
+            checkout_attempt_id: checkoutAttemptId,
           }),
         });
       } finally {
