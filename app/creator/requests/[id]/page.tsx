@@ -11,6 +11,9 @@ import {
   getRequestStatusMeta,
 } from "@/lib/i18n/requestStatus";
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorRequestDetailDictionary } from "@/lib/i18n/creatorRequests";
 
 type RequestDetail = {
   id: string;
@@ -26,28 +29,24 @@ type RequestDetail = {
   wants_secondary_use?: boolean;
 };
 
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+function formatDate(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleDateString(creatorLocaleTags[locale]);
 }
 
-function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
+function formatDateTime(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+  return date.toLocaleString(creatorLocaleTags[locale]);
 }
 
-function formatBudget(value: number | null | undefined, locale: "ja" | "en") {
-  if (value == null) return locale === "ja" ? "未設定" : "Not set";
-
-  if (locale === "ja") {
-    return `¥${value.toLocaleString("ja-JP")}`;
-  }
-
-  return `JPY ${value.toLocaleString("en-US")}`;
+function formatBudget(value: number | null | undefined, locale: AppLocale) {
+  const copy = creatorRequestDetailDictionary[locale];
+  if (value == null) return copy.unset;
+  return copy.budget(value);
 }
 
 export default function CreatorRequestDetailPage() {
@@ -57,87 +56,7 @@ export default function CreatorRequestDetailPage() {
   const { locale } = useAppLocale();
   const t = useMemo(() => getCommonText(locale), [locale]);
 
-  const copy = useMemo(
-    () =>
-      locale === "ja"
-        ? {
-            loading: "読み込み中...",
-            loadFailed: "取得に失敗しました",
-            notFound: "依頼が見つかりません",
-            loadError: "取得エラー",
-            dataError: "データ取得エラー",
-            title: "依頼詳細",
-            backToList: "一覧へ戻る",
-            productName: "商品名",
-            productUrl: "URL",
-            requestedPlatform: "希望媒体",
-            requestedBudget: "希望価格",
-            secondaryUse: "二次利用希望",
-            deadline: "期限",
-            memo: "メモ",
-            status: "ステータス",
-            unset: "未設定",
-            empty: "未入力",
-            none: "なし",
-            yes: "あり",
-            no: "なし",
-            createdAt: "作成日",
-            deliverSectionTitle: "投稿URL提出",
-            deliverPlaceholder: "Instagram投稿URLなど",
-            deliverSubmit: "提出する",
-            deliveredUrlLabel: "提出済みURL",
-            accept: "承認する",
-            reject: "拒否する",
-            acceptConfirm: "本当に承認しますか？",
-            rejectConfirm: "本当に拒否しますか？",
-            actionError: "エラーが発生しました",
-            acceptedAlert: "承認しました。",
-            rejectedAlert: "拒否しました",
-            deliverRequired: "投稿URLを入力してください",
-            deliverFailed: "納品に失敗しました",
-            deliveredAlert: "納品しました",
-            networkError: "通信エラー",
-          }
-        : {
-            loading: "Loading...",
-            loadFailed: "Failed to load request.",
-            notFound: "Request not found.",
-            loadError: "Failed to load data.",
-            dataError: "Data load error.",
-            title: "Request Details",
-            backToList: "Back to List",
-            productName: "Product Name",
-            productUrl: "URL",
-            requestedPlatform: "Requested Platform",
-            requestedBudget: "Requested Budget",
-            secondaryUse: "Secondary Use",
-            deadline: "Deadline",
-            memo: "Memo",
-            status: "Status",
-            unset: "Not set",
-            empty: "Not entered",
-            none: "None",
-            yes: "Yes",
-            no: "No",
-            createdAt: "Created At",
-            deliverSectionTitle: "Submit Post URL",
-            deliverPlaceholder: "Instagram post URL, etc.",
-            deliverSubmit: "Submit",
-            deliveredUrlLabel: "Submitted URL",
-            accept: "Approve",
-            reject: "Reject",
-            acceptConfirm: "Are you sure you want to approve this request?",
-            rejectConfirm: "Are you sure you want to reject this request?",
-            actionError: "Something went wrong.",
-            acceptedAlert: "Approved.",
-            rejectedAlert: "Rejected.",
-            deliverRequired: "Please enter the post URL.",
-            deliverFailed: "Failed to submit delivery.",
-            deliveredAlert: "Submitted successfully.",
-            networkError: "Network error.",
-          },
-    [locale]
-  );
+  const copy = creatorRequestDetailDictionary[locale];
 
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [userId, setUserId] = useState<string | null>(null);

@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorQuoteStatusDictionary, getCreatorOrdersCopy } from "@/lib/i18n/creatorOrders";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type {
   CreatorLinkInquiryInboxResponse,
@@ -83,20 +86,20 @@ function EmptyIcon() {
   );
 }
 
-function formatDate(value: string, locale: "ja" | "en") {
+function formatDate(value: string, locale: AppLocale) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+  return date.toLocaleDateString(creatorLocaleTags[locale], {
     month: "numeric",
     day: "numeric",
   });
 }
 
-function formatMoney(value: number | null, currency: string | null, locale: "ja" | "en") {
-  if (value == null) return locale === "ja" ? "金額未設定" : "Amount pending";
+function formatMoney(value: number | null, currency: string | null, locale: AppLocale) {
+  if (value == null) return getCreatorOrdersCopy(locale, false).amountPending;
   const safeCurrency = currency || "JPY";
   try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    return new Intl.NumberFormat(creatorLocaleTags[locale], {
       style: "currency",
       currency: safeCurrency,
       maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
@@ -106,47 +109,31 @@ function formatMoney(value: number | null, currency: string | null, locale: "ja"
   }
 }
 
-function formatBudget(value: string | null, locale: "ja" | "en") {
-  if (!value?.trim()) return locale === "ja" ? "予算は要相談" : "Budget to discuss";
+function formatBudget(value: string | null, locale: AppLocale) {
+  if (!value?.trim()) return getCreatorOrdersCopy(locale, false).budgetDiscuss;
   const trimmed = value.trim();
   const normalizedNumber = trimmed.replace(/[¥￥,\s]/g, "");
   if (/^\d+$/.test(normalizedNumber)) {
-    return `¥${Number(normalizedNumber).toLocaleString(locale === "ja" ? "ja-JP" : "en-US")}`;
+    return `¥${Number(normalizedNumber).toLocaleString(creatorLocaleTags[locale])}`;
   }
   return trimmed;
 }
 
-function deadlineText(value: string | null, locale: "ja" | "en") {
-  if (!value) return locale === "ja" ? "回答期限を確認" : "Check reply deadline";
+function deadlineText(value: string | null, locale: AppLocale) {
+  const copy = getCreatorOrdersCopy(locale, false);
+  if (!value) return copy.checkDeadline;
   const time = new Date(value).getTime();
   if (Number.isNaN(time)) return value;
   const diff = time - Date.now();
-  if (diff <= 0) return locale === "ja" ? "回答期限を過ぎています" : "Reply deadline passed";
+  if (diff <= 0) return copy.deadlinePassed;
   const hours = Math.ceil(diff / (60 * 60 * 1000));
-  if (hours <= 24) return locale === "ja" ? `${hours}時間以内に回答` : `Reply within ${hours}h`;
+  if (hours <= 24) return copy.withinHours(hours);
   const days = Math.ceil(hours / 24);
-  return locale === "ja" ? `${days}日以内に回答` : `Reply within ${days}d`;
+  return copy.withinDays(days);
 }
 
-function quoteStatusText(status: string, locale: "ja" | "en") {
-  if (locale === "en") {
-    if (status === "new") return "Create a quote";
-    if (status === "creator_reviewing") return "Quote in progress";
-    if (status === "quoted" || status === "sent") return "Waiting for the company";
-    if (status === "accepted") return "Quote approved";
-    if (status === "declined") return "Quote declined";
-    if (status === "expired") return "Quote expired";
-    if (status === "cancelled") return "Quote cancelled";
-    return "Review the request";
-  }
-  if (status === "new") return "見積もりを作成してください";
-  if (status === "creator_reviewing") return "見積もりを作成中";
-  if (status === "quoted" || status === "sent") return "企業の回答を待っています";
-  if (status === "accepted") return "企業が見積もりを承認しました";
-  if (status === "declined") return "企業が見積もりを見送りました";
-  if (status === "expired") return "見積もりの期限が切れました";
-  if (status === "cancelled") return "見積もりは取り消されています";
-  return "依頼内容を確認してください";
+function quoteStatusText(status: string, locale: AppLocale) {
+  return creatorQuoteStatusDictionary[locale][status] ?? creatorQuoteStatusDictionary[locale].unknown;
 }
 
 function quoteStatusClass(status: string) {
@@ -156,7 +143,8 @@ function quoteStatusClass(status: string) {
   return "text-slate-500";
 }
 
-function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: "ja" | "en"; isCreatorOnly: boolean }) {
+function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: AppLocale; isCreatorOnly: boolean }) {
+  const copy = getCreatorOrdersCopy(locale, isCreatorOnly);
   const isNew = item.kind === "quote" && item.status === "new";
   const urgent = item.kind === "order" && item.deadline
     ? new Date(item.deadline).getTime() - Date.now() <= 24 * 60 * 60 * 1000
@@ -173,12 +161,12 @@ function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: "j
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
-            {isNew ? <span className="h-2 w-2 rounded-full bg-[#ed3155]" aria-label={locale === "ja" ? "新着" : "New"} /> : null}
+            {isNew ? <span className="h-2 w-2 rounded-full bg-[#ed3155]" aria-label={copy.newLabel} /> : null}
             {isCreatorOnly
-              ? locale === "ja" ? "仕事相談" : "Work inquiry"
+              ? copy.workInquiry
               : item.kind === "order"
-              ? locale === "ja" ? "注文" : "Order"
-              : locale === "ja" ? "見積もり依頼" : "Quote request"}
+              ? copy.order
+              : copy.quoteRequest}
           </p>
           <time className="shrink-0 text-[11px] font-medium text-slate-400" dateTime={item.createdAt}>
             {formatDate(item.createdAt, locale)}
@@ -202,7 +190,7 @@ function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: "j
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-[16px] font-semibold tabular-nums tracking-[-0.02em] text-slate-950">
             {isCreatorOnly
-              ? locale === "ja" ? "相談内容を確認" : "Review inquiry"
+              ? copy.reviewInquiry
               : item.kind === "order"
               ? formatMoney(item.amount, item.currency, locale)
               : item.quoteAmount != null
@@ -211,7 +199,7 @@ function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: "j
           </p>
           <p className={`text-[11px] font-medium ${statusClass}`}>
             {isCreatorOnly
-              ? locale === "ja" ? "新しい相談" : "New inquiry"
+              ? copy.newInquiry
               : item.kind === "order"
               ? deadlineText(item.deadline, locale)
               : quoteStatusText(item.status, locale)}
@@ -224,7 +212,6 @@ function OrderRow({ item, locale, isCreatorOnly }: { item: OrderItem; locale: "j
 
 export default function CreatorOrdersPage() {
   const { locale } = useAppLocale();
-  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const isCreatorOnly = useCreatorOnlyRelease();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [items, setItems] = useState<OrderItem[]>([]);
@@ -232,27 +219,7 @@ export default function CreatorOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const copy = safeLocale === "ja"
-    ? {
-        title: isCreatorOnly ? "仕事相談" : "受注",
-        all: "すべて",
-        orders: "注文",
-        quotes: isCreatorOnly ? "仕事相談" : "見積もり依頼",
-        emptyTitle: "新しい依頼はありません",
-        emptyBody: isCreatorOnly ? "新しい仕事相談が届くと、ここに表示されます。" : "注文や見積もり依頼が届くと、ここに表示されます。",
-        loadError: "受注情報を読み込めませんでした。",
-        retry: "再読み込み",
-      }
-    : {
-        title: "Orders",
-        all: "All",
-        orders: "Orders",
-        quotes: "Quote requests",
-        emptyTitle: "Nothing needs your attention",
-        emptyBody: "New orders and quote requests will appear here.",
-        loadError: "Could not load orders.",
-        retry: "Reload",
-      };
+  const copy = getCreatorOrdersCopy(locale, isCreatorOnly);
 
   const load = async () => {
     setLoading(true);
@@ -285,8 +252,8 @@ export default function CreatorOrdersPage() {
         id: order.id,
         createdAt: order.created_at,
         href: `/creator/orders/${order.id}`,
-        title: order.product_name || order.menu_title_snapshot || (safeLocale === "ja" ? "注文内容" : "Order details"),
-        description: order.menu_title_snapshot || (safeLocale === "ja" ? "内容を確認して回答してください" : "Review and respond"),
+        title: order.product_name || order.menu_title_snapshot || copy.orderDetails,
+        description: order.menu_title_snapshot || copy.reviewAndRespond,
         amount: order.creator_payout_amount,
         currency: order.currency,
         deadline: order.creator_accept_deadline,
@@ -300,8 +267,8 @@ export default function CreatorOrdersPage() {
           id: inquiry.id,
           createdAt: inquiry.created_at,
           href: `/creator/orders/inquiries/${inquiry.id}`,
-          title: inquiry.company_name || inquiry.contact_name || (safeLocale === "ja" ? "見積もり依頼" : "Quote request"),
-          description: inquiry.product_name || inquiry.purpose || inquiry.message || (safeLocale === "ja" ? "依頼内容を確認してください" : "Review the request"),
+          title: inquiry.company_name || inquiry.contact_name || copy.quoteRequest,
+          description: inquiry.product_name || inquiry.purpose || inquiry.message || copy.reviewRequest,
           status: inquiry.quote_status || inquiry.status,
           budget: inquiry.budget_text,
           quoteAmount: inquiry.quote_amount ?? null,
@@ -398,7 +365,7 @@ export default function CreatorOrdersPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {visibleItems.map((item) => (
-              <OrderRow key={`${item.kind}:${item.id}`} item={item} locale={safeLocale} isCreatorOnly={isCreatorOnly} />
+              <OrderRow key={`${item.kind}:${item.id}`} item={item} locale={locale} isCreatorOnly={isCreatorOnly} />
             ))}
           </div>
         )}

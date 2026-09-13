@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorJobsDictionary } from "@/lib/i18n/creatorJobs";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 
@@ -107,17 +110,17 @@ function EmptyIcon() {
   );
 }
 
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+function formatDate(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+  return date.toLocaleDateString(creatorLocaleTags[locale], {
     month: "numeric",
     day: "numeric",
   });
 }
 
-function formatChatTimestamp(value: string | null | undefined, locale: "ja" | "en") {
+function formatChatTimestamp(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -128,18 +131,18 @@ function formatChatTimestamp(value: string | null | undefined, locale: "ja" | "e
   const diffDays = Math.floor((today.getTime() - target.getTime()) / 86400000);
 
   if (diffDays <= 0) {
-    return date.toLocaleTimeString(locale === "ja" ? "ja-JP" : "en-US", {
+    return date.toLocaleTimeString(creatorLocaleTags[locale], {
       hour: "2-digit",
       minute: "2-digit",
     });
   }
-  if (diffDays === 1) return locale === "ja" ? "昨日" : "Yesterday";
-  if (diffDays <= 6) return locale === "ja" ? `${diffDays}日前` : `${diffDays}d ago`;
+  if (diffDays === 1) return creatorJobsDictionary[locale].yesterday;
+  if (diffDays <= 6) return creatorJobsDictionary[locale].daysAgo(diffDays);
   return formatDate(value, locale);
 }
 
-function getOrderTitle(order: Pick<OrderRow, "product_name" | "menu_title_snapshot">) {
-  return order.product_name?.trim() || order.menu_title_snapshot?.trim() || "案件";
+function getOrderTitle(order: Pick<OrderRow, "product_name" | "menu_title_snapshot">, locale: AppLocale) {
+  return order.product_name?.trim() || order.menu_title_snapshot?.trim() || creatorJobsDictionary[locale].untitled;
 }
 
 function getMessageText(message: MessageRow | null, fallback: string) {
@@ -166,35 +169,31 @@ function countUnreadMessages(chat: ChatRow | null, messages: MessageRow[], userI
   return Math.max(count, 1);
 }
 
-function getNextAction(order: ActiveOrder, locale: "ja" | "en") {
-  const ja = locale === "ja";
+function getNextAction(order: ActiveOrder, locale: AppLocale) {
+  const actions = creatorJobsDictionary[locale].actions;
 
   if (order.status === "revision_requested") {
     return {
-      title: ja ? "修正内容を確認してください" : "Review requested changes",
-      body: ja ? "内容を確認して再提出へ進みます" : "Review the details and submit again",
+      ...actions.revision,
       urgent: true,
     };
   }
   if (order.status === "delivered") {
     return {
-      title: ja ? "依頼元の確認待ち" : "Waiting for review",
-      body: ja ? "納品内容を確認してもらっています" : "The delivery is being reviewed",
+      ...actions.review,
       urgent: false,
     };
   }
   if (order.fulfillmentType === "product_shipping") {
     if (order.preparationStatus === "waiting_shipping_address") {
       return {
-        title: ja ? "配送先を入力してください" : "Add a shipping address",
-        body: ja ? "商品の発送に必要な情報を登録します" : "Add the details needed for shipping",
+        ...actions.address,
         urgent: true,
       };
     }
     if (["waiting_shipment", "shipped"].includes(order.preparationStatus ?? "")) {
       return {
-        title: ja ? "商品の到着を待っています" : "Waiting for the product",
-        body: ja ? "届いたら受取確認へ進みます" : "Confirm when the product arrives",
+        ...actions.shipment,
         urgent: false,
       };
     }
@@ -204,8 +203,7 @@ function getNextAction(order: ActiveOrder, locale: "ja" | "en") {
     !["schedule_confirmed", "ready_to_start"].includes(order.preparationStatus ?? "")
   ) {
     return {
-      title: ja ? "日程を調整してください" : "Schedule the visit",
-      body: ja ? "候補日を確認して日程を決めます" : "Review dates and confirm the schedule",
+      ...actions.schedule,
       urgent: true,
     };
   }
@@ -214,20 +212,18 @@ function getNextAction(order: ActiveOrder, locale: "ja" | "en") {
     ["waiting_materials", "materials_provided"].includes(order.preparationStatus ?? "")
   ) {
     return {
-      title: ja ? "素材を確認してください" : "Review the materials",
-      body: ja ? "受け取った素材を確認して作業を始めます" : "Review the supplied materials and start",
+      ...actions.materials,
       urgent: true,
     };
   }
 
   return {
-    title: ja ? "次の作業を確認してください" : "Check your next step",
-    body: ja ? "案件を開くと、今必要な作業を確認できます" : "Open the job to see what to do next",
+    ...actions.next,
     urgent: false,
   };
 }
 
-function JobRow({ order, locale }: { order: ActiveOrder; locale: "ja" | "en" }) {
+function JobRow({ order, locale }: { order: ActiveOrder; locale: AppLocale }) {
   const action = getNextAction(order, locale);
   return (
     <Link href={`/creator/orders/${order.id}`} className="group flex min-h-[126px] items-start gap-3 px-1 py-5 outline-none transition duration-150 hover:pl-2 focus-visible:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:bg-white/70 motion-reduce:transition-none sm:px-2">
@@ -249,7 +245,7 @@ function JobRow({ order, locale }: { order: ActiveOrder; locale: "ja" | "en" }) 
   );
 }
 
-function ChatRowItem({ item, locale, fallback }: { item: ChatItem; locale: "ja" | "en"; fallback: string }) {
+function ChatRowItem({ item, locale, fallback }: { item: ChatItem; locale: AppLocale; fallback: string }) {
   const unread = item.unreadCount > 0;
   return (
     <Link href={`/creator/chats/${item.order.id}`} className="group flex min-h-[104px] items-center gap-3 px-1 py-4 outline-none transition duration-150 hover:pl-2 focus-visible:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-200 active:bg-white/70 motion-reduce:transition-none sm:px-2">
@@ -283,7 +279,6 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 
 export default function CreatorJobsPage() {
   const { locale } = useAppLocale();
-  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const isCreatorOnly = useCreatorOnlyRelease();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [tab, setTab] = useState<TabKey>("jobs");
@@ -292,31 +287,7 @@ export default function CreatorJobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const copy = safeLocale === "ja"
-    ? {
-        title: "仕事",
-        jobs: "進行中",
-        messages: "メッセージ",
-        emptyJobs: "進行中の仕事はありません",
-        emptyJobsBody: "成立した依頼は、ここで準備から納品まで進めます。",
-        emptyMessages: "メッセージはありません",
-        emptyMessagesBody: "案件のやりとりが始まると、ここに表示されます。",
-        noMessage: "まだメッセージはありません",
-        loadError: "仕事を読み込めませんでした。",
-        retry: "再読み込み",
-      }
-    : {
-        title: "Jobs",
-        jobs: "Active",
-        messages: "Messages",
-        emptyJobs: "No active jobs",
-        emptyJobsBody: "Accepted work will appear here from preparation through delivery.",
-        emptyMessages: "No messages",
-        emptyMessagesBody: "Job conversations will appear here.",
-        noMessage: "No messages yet",
-        loadError: "Could not load jobs.",
-        retry: "Reload",
-      };
+  const copy = creatorJobsDictionary[locale];
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -347,7 +318,7 @@ export default function CreatorJobsPage() {
 
       const nextOrders: ActiveOrder[] = ((data ?? []) as unknown as OrderRow[]).map((order) => ({
         id: order.id,
-        title: getOrderTitle(order),
+        title: getOrderTitle(order, locale),
         status: order.status,
         updatedAt: order.updated_at,
         createdAt: order.created_at,
@@ -429,7 +400,7 @@ export default function CreatorJobsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isCreatorOnly, supabase]);
+  }, [isCreatorOnly, locale, supabase]);
 
   useEffect(() => {
     void loadJobs();
@@ -500,12 +471,12 @@ export default function CreatorJobsPage() {
         ) : tab === "jobs" ? (
           orders.length > 0 ? (
             <div className="divide-y divide-slate-100">
-              {orders.map((order) => <JobRow key={order.id} order={order} locale={safeLocale} />)}
+              {orders.map((order) => <JobRow key={order.id} order={order} locale={locale} />)}
             </div>
           ) : <EmptyState title={copy.emptyJobs} body={copy.emptyJobsBody} />
         ) : chatItems.length > 0 ? (
           <div className="divide-y divide-slate-100">
-            {chatItems.map((item) => <ChatRowItem key={item.order.id} item={item} locale={safeLocale} fallback={copy.noMessage} />)}
+            {chatItems.map((item) => <ChatRowItem key={item.order.id} item={item} locale={locale} fallback={copy.noMessage} />)}
           </div>
         ) : <EmptyState title={copy.emptyMessages} body={copy.emptyMessagesBody} />}
       </section>

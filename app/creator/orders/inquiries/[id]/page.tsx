@@ -11,72 +11,49 @@ import type {
 } from "@/lib/trendre-link/inquiry-quote";
 import type { CreatorLinkInquiryDetailResponse, CreatorLinkInquiryListItem } from "@/lib/trendre-link/inquiry-inbox";
 import { useCreatorOnlyRelease } from "../../../CreatorReleaseMode";
+import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorInquiryDictionary, creatorInquiryValueLabels, creatorQuoteStatusDictionary } from "@/lib/i18n/creatorOrders";
 
-const valueLabels: Record<string, string> = {
-  pr_post: "PR投稿", ugc: "UGC制作",
-  visit_experience: "来店・体験", product_delivery: "商品提供", provided_assets: "素材提供",
-  instagram: "Instagram", tiktok: "TikTok", x: "X", youtube: "YouTube", other: "その他",
-  photo_image: "写真・画像素材", video: "動画素材",
-  paid_ads: "広告で使用", owned_social: "自社SNSへ掲載",
-  website_lp_ec: "自社Webサイト・LP・ECサイトへ掲載", digital_signage: "デジタルサイネージ・看板へ掲載",
-  chat: "チャットで相談", in_person: "対面で打ち合わせ", online: "オンラインで打ち合わせ", not_needed: "打ち合わせ不要",
-  awareness: "認知を広げたい", product_launch: "新商品を知ってほしい", sales: "購入につなげたい",
-  store_visit: "来店を増やしたい", content_asset: "広告素材がほしい",
-  feed_post: "フィード投稿", reel: "リール", stories: "ストーリーズ", live_stream: "ライブ配信",
-  short_video: "ショート動画", standard_post: "通常投稿", thread_post: "スレッド投稿",
-  video_post: "動画投稿", long_video: "長尺動画",
-  feed: "フィード投稿", story: "ストーリーズ", photo: "写真素材", live: "ライブ配信",
-  product_review: "商品レビュー", visit_event: "来店・体験",
-  provided: "商品・サービスを提供する", not_provided: "提供なし", consult: "相談して決める",
-  organic: "自社SNS・Webサイトで利用", none: "二次利用なし", undecided: "相談して決める",
-};
-
-function label(value: string | null | undefined) {
-  return value ? valueLabels[value] ?? value : null;
+function label(value: string | null | undefined, locale:AppLocale) {
+  return value ? creatorInquiryValueLabels[locale][value] ?? value : null;
 }
 
-function list(values: string[] | null | undefined) {
-  return values?.length ? values.map((value) => label(value)).join(" / ") : null;
+function list(values: string[] | null | undefined,locale:AppLocale) {
+  return values?.length ? values.map((value) => label(value,locale)).join(" / ") : null;
 }
 
-function formatDate(value: string) {
+function formatDate(value: string,locale:AppLocale) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ja-JP", {
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString(creatorLocaleTags[locale], {
     year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
   });
 }
 
-function formatMoney(value: number | string | null | undefined) {
+function formatMoney(value: number | string | null | undefined,locale:AppLocale) {
   if (value === null || value === undefined || value === "") return null;
   const amount = typeof value === "number" ? value : Number(String(value).replace(/\D/g, ""));
-  return Number.isFinite(amount) ? new Intl.NumberFormat("ja-JP", {
+  return Number.isFinite(amount) ? new Intl.NumberFormat(creatorLocaleTags[locale], {
     style: "currency", currency: "JPY", maximumFractionDigits: 0,
   }).format(amount) : String(value);
 }
 
-function safeReplyMailto(email: string | null | undefined) {
+function safeReplyMailto(email: string | null | undefined,subjectText:string) {
   const normalized = email?.trim() ?? "";
   if (!/^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i.test(normalized)) return null;
   const address = encodeURIComponent(normalized).replace(/%40/i, "@");
-  const subject = encodeURIComponent("Trendre Linkからのお問い合わせについて");
+  const subject = encodeURIComponent(subjectText);
   return `mailto:${address}?subject=${subject}`;
 }
 
-function statusLabel(status: string) {
-  if (status === "new") return "見積もりを作成してください";
-  if (status === "creator_reviewing") return "確認中";
-  if (status === "quoted") return "企業の回答待ち";
-  if (status === "converted") return "成立済み";
-  if (status === "declined") return "辞退済み";
-  return status;
+function statusLabel(status: string,locale:AppLocale) {
+  const labels={ja:{new:"見積もりを作成してください",creator_reviewing:"確認中",quoted:"企業の回答待ち",converted:"成立済み",declined:"辞退済み"},en:{new:"Create a quote",creator_reviewing:"Reviewing",quoted:"Waiting for the company",converted:"Converted",declined:"Declined"},ko:{new:"견적을 작성해 주세요",creator_reviewing:"확인 중",quoted:"브랜드 답변 대기 중",converted:"협업 성사",declined:"거절 완료"},"zh-TW":{new:"請建立報價",creator_reviewing:"確認中",quoted:"等待品牌回覆",converted:"合作已成立",declined:"已婉拒"}}[locale];
+  return labels[status as keyof typeof labels] ?? status;
 }
 
-function quoteStatusLabel(status: string) {
-  if (status === "accepted") return "企業が見積もりを承認しました";
-  if (status === "declined") return "企業が見積もりを見送りました";
-  if (status === "expired") return "見積もりの有効期限が切れました";
-  if (status === "cancelled") return "見積もりは取り消されています";
-  return "企業の回答待ち";
+function quoteStatusLabel(status: string,locale:AppLocale) {
+  return creatorQuoteStatusDictionary[locale][status] ?? creatorQuoteStatusDictionary[locale].quoted;
 }
 
 function quoteCardClass(status: string) {
@@ -105,15 +82,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return <section><h2 className="px-1 pb-2 text-[13px] font-semibold text-slate-900">{title}</h2><dl className="divide-y divide-slate-100 overflow-hidden rounded-[16px] bg-white ring-1 ring-slate-200/70">{children}</dl></section>;
 }
 
-function deliverablesText(data: CreatorLinkInquiryListItem["request_data"] | undefined) {
+function deliverablesText(data: CreatorLinkInquiryListItem["request_data"] | undefined,locale:AppLocale) {
   if (!data?.deliverables_by_platform) return null;
   return Object.entries(data.deliverables_by_platform).map(([platform, items]) => {
-    const details = items.map((item) => `${item.type === "other" ? item.other_text || "その他" : label(item.type)} ${item.count}件`).join("、");
-    return `${label(platform)}: ${details}`;
+    const details = items.map((item) => `${item.type === "other" ? item.other_text || creatorInquiryValueLabels[locale].other : label(item.type,locale)} ${creatorInquiryDictionary[locale].itemCount(item.count)}`).join("、");
+    return `${label(platform,locale)}: ${details}`;
   }).join("\n");
 }
 
 export default function CreatorInquiryDetailPage() {
+  const {locale}=useAppLocale();
+  const copy=creatorInquiryDictionary[locale];
   const isCreatorOnly = useCreatorOnlyRelease();
   const params = useParams<{ id: string }>();
   const [inquiry, setInquiry] = useState<CreatorLinkInquiryListItem | null>(null);
@@ -143,10 +122,10 @@ export default function CreatorInquiryDetailPage() {
         return;
       }
       const inquiryBody = await inquiryResponse.json() as CreatorLinkInquiryDetailResponse;
-      if (!inquiryResponse.ok || !inquiryBody.ok) throw new Error(inquiryBody.ok ? "依頼を読み込めませんでした。" : inquiryBody.error);
+      if (!inquiryResponse.ok || !inquiryBody.ok) throw new Error(inquiryBody.ok ? copy.loadFailed : inquiryBody.error);
       loadedInquiry = inquiryBody.inquiry;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "依頼を読み込めませんでした。");
+      setError(cause instanceof Error ? cause.message : copy.loadFailed);
       setLoading(false);
       return;
     }
@@ -174,7 +153,7 @@ export default function CreatorInquiryDetailPage() {
         setNotification(quoteBody.notification ?? null);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "依頼を読み込めませんでした。");
+      setError(cause instanceof Error ? cause.message : copy.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -190,8 +169,8 @@ export default function CreatorInquiryDetailPage() {
     if (!inquiry) return null;
     // Do not use inquiry_type_title_snapshot here: it is the form title
     // ("PR案件を依頼する"), not the request actually selected by the company.
-    return label(requestMode || inquiry.purpose || inquiry.inquiry_type);
-  }, [inquiry, requestMode]);
+    return label(requestMode || inquiry.purpose || inquiry.inquiry_type,locale);
+  }, [inquiry, locale, requestMode]);
   const isNewPr = requestMode === "pr_post";
   const isNewUgc = requestMode === "ugc";
   const effectiveQuoteStatus = useMemo(() => {
@@ -205,7 +184,7 @@ export default function CreatorInquiryDetailPage() {
   const isSimpleLinkInquiry = inquiry?.inquiry_type === "other";
   const isCreatorOnlySimpleInquiry = isCreatorOnly && isSimpleLinkInquiry;
   const canManageQuote = !isSimpleLinkInquiry && (!effectiveQuoteStatus || effectiveQuoteStatus === "sent");
-  const replyMailto = safeReplyMailto(inquiry?.contact_email);
+  const replyMailto = safeReplyMailto(inquiry?.contact_email,copy.mailSubject);
 
   const openQuote = () => {
     if (!canManageQuote) return;
@@ -217,8 +196,8 @@ export default function CreatorInquiryDetailPage() {
 
   const sendQuote = async () => {
     if (sending) return;
-    if (!canManageQuote) return setFormError("企業が回答済みのため、見積もりを変更できません。");
-    if (!/^[1-9]\d*$/.test(amount) || Number(amount) < 1000) return setFormError("見積金額は1,000円以上の整数で入力してください。");
+    if (!canManageQuote) return setFormError(copy.quoteLocked);
+    if (!/^[1-9]\d*$/.test(amount) || Number(amount) < 1000) return setFormError(copy.quoteInvalid);
     setSending(true);
     setFormError("");
     setSendNotice("");
@@ -228,7 +207,7 @@ export default function CreatorInquiryDetailPage() {
         body: JSON.stringify({ quotedAmount: amount, note }),
       });
       const body = await response.json() as CreatorInquiryQuoteResponse;
-      if (!response.ok || !body.ok || !body.quote) throw new Error(body.ok ? "見積もりを送信できませんでした。" : body.error);
+      if (!response.ok || !body.ok || !body.quote) throw new Error(body.ok ? copy.quoteFailed : body.error);
       setQuote(body.quote);
       setInquiry((current) => current ? { ...current, status: "quoted" } : current);
       const notificationFailed =
@@ -238,12 +217,12 @@ export default function CreatorInquiryDetailPage() {
       setNotification(body.notification ?? null);
       setSendNotice(
         notificationFailed
-          ? "見積もりは保存されましたが、通知メールを送信できませんでした"
-          : "見積もりを送信しました"
+          ? copy.quoteSavedMailFailed
+          : copy.quoteSent
       );
       setSheetOpen(false);
     } catch (cause) {
-      setFormError(cause instanceof Error ? cause.message : "見積もりを送信できませんでした。");
+      setFormError(cause instanceof Error ? cause.message : copy.quoteFailed);
     } finally {
       setSending(false);
     }
@@ -263,19 +242,19 @@ export default function CreatorInquiryDetailPage() {
       setSendNoticeWarning(!body.notification.sent);
       setSendNotice(
         body.notification.sent
-          ? "通知メールを再送しました"
-          : "通知メールを送信できませんでした"
+          ? copy.mailResent
+          : copy.mailFailed
       );
     } catch {
       setSendNoticeWarning(true);
-      setSendNotice("通知メールを送信できませんでした");
+      setSendNotice(copy.mailFailed);
     } finally {
       setResending(false);
     }
   };
 
   const decline = async () => {
-    if (!inquiry || declining || !canManageQuote || !window.confirm("この依頼を辞退しますか？")) return;
+    if (!inquiry || declining || !canManageQuote || !window.confirm(copy.declineConfirm)) return;
     setDeclining(true);
     try {
       const response = await fetch(`/api/creator/link/inquiries/${inquiry.id}`, {
@@ -284,21 +263,21 @@ export default function CreatorInquiryDetailPage() {
       if (!response.ok) throw new Error();
       window.location.assign("/creator/orders");
     } catch {
-      setError("辞退できませんでした。");
+      setError(copy.declineFailed);
       setDeclining(false);
     }
   };
 
   const socials = data?.company_social_accounts;
   const socialDisplay = socials && Object.keys(socials).length
-    ? Object.entries(socials).map(([platform, username]) => `${label(platform)}: ${username}`).join("\n")
+    ? Object.entries(socials).map(([platform, username]) => `${label(platform,locale)}: ${username}`).join("\n")
     : null;
   const freeOfferDetails = data?.has_free_offer
     ? [
         data.free_offer_item,
-        data.free_offer_quantity ? `数量: ${data.free_offer_quantity}` : null,
-        data.free_offer_frequency ? `提供回数: ${data.free_offer_frequency}` : null,
-        data.free_offer_people ? `対象人数: ${data.free_offer_people}` : null,
+        data.free_offer_quantity ? copy.quantity(data.free_offer_quantity) : null,
+        data.free_offer_frequency ? copy.frequency(data.free_offer_frequency) : null,
+        data.free_offer_people ? copy.people(data.free_offer_people) : null,
         data.free_offer_conditions,
       ].filter(Boolean).join("\n")
     : null;
@@ -306,81 +285,81 @@ export default function CreatorInquiryDetailPage() {
   return (
     <div className="mx-auto w-full max-w-3xl pb-8 pt-1">
       <header className="flex h-12 items-center justify-between">
-        <Link href="/creator/orders" aria-label="受注一覧へ戻る" className="flex h-10 w-10 items-center justify-center rounded-full text-xl">‹</Link>
-        <h1 className="text-[14px] font-semibold">{isCreatorOnlySimpleInquiry ? "仕事相談" : "見積もり依頼"}</h1>
+        <Link href="/creator/orders" aria-label={copy.back} className="flex h-10 w-10 items-center justify-center rounded-full text-xl">‹</Link>
+        <h1 className="text-[14px] font-semibold">{isCreatorOnlySimpleInquiry ? copy.simpleTitle : copy.title}</h1>
         {inquiry && canManageQuote && !["declined", "converted"].includes(inquiry.status) ? (
-          <button type="button" onClick={() => void decline()} disabled={declining} className="px-2 text-[12px] font-medium text-rose-600 disabled:opacity-50">辞退</button>
+          <button type="button" onClick={() => void decline()} disabled={declining} className="px-2 text-[12px] font-medium text-rose-600 disabled:opacity-50">{copy.decline}</button>
         ) : <span className="w-10" />}
       </header>
 
       {loading ? <div className="mt-4 h-64 animate-pulse rounded-[18px] bg-white ring-1 ring-slate-100" /> : error && !inquiry ? (
-        <div className="mt-4 rounded-[18px] bg-white px-6 py-12 text-center ring-1 ring-slate-200"><p className="text-sm">{error}</p><button type="button" onClick={() => void load()} className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm text-white">再読み込み</button></div>
+        <div className="mt-4 rounded-[18px] bg-white px-6 py-12 text-center ring-1 ring-slate-200"><p className="text-sm">{error}</p><button type="button" onClick={() => void load()} className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm text-white">{copy.reload}</button></div>
       ) : inquiry ? <>
         <section className="px-1 pb-5 pt-3">
-          <p className="text-[12px] text-slate-500">{isSimpleLinkInquiry ? "新しいお問い合わせ" : quote && effectiveQuoteStatus ? quoteStatusLabel(effectiveQuoteStatus) : statusLabel(inquiry.status)}</p>
+          <p className="text-[12px] text-slate-500">{isSimpleLinkInquiry ? copy.newInquiry : quote && effectiveQuoteStatus ? quoteStatusLabel(effectiveQuoteStatus,locale) : statusLabel(inquiry.status,locale)}</p>
           <h2 className="mt-3 text-[25px] font-semibold tracking-[-0.04em] text-slate-950">{inquiry.company_name || inquiry.contact_name}</h2>
           {!isCreatorOnlySimpleInquiry ? <p className="mt-2 text-[14px] text-slate-500">{[requestType, inquiry.product_name].filter(Boolean).join(" · ")}</p> : null}
         </section>
 
         {quote && !isSimpleLinkInquiry ? <section className={`mb-5 rounded-[18px] px-5 py-5 text-white ${quoteCardClass(effectiveQuoteStatus || quote.status)}`}>
-          <div className="flex items-start justify-between"><div><p className="text-[11px] text-white/55">送信済みの見積もり</p><p className="mt-2 text-[27px] font-semibold">{formatMoney(quote.quoted_amount)}</p></div><span className="max-w-[150px] text-right text-[11px] leading-5 text-white/70">{quoteStatusLabel(effectiveQuoteStatus || quote.status)}</span></div>
-          <div className="mt-4 border-t border-white/10 pt-4"><p className="text-[10px] text-white/45">受取予定額</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.creator_payout_amount)}</p></div>
-          {quote.note ? <p className="mt-4 border-t border-white/10 pt-4 text-[12px] leading-6 text-white/75">企業への備考: {quote.note}</p> : null}
+          <div className="flex items-start justify-between"><div><p className="text-[11px] text-white/55">{copy.sentQuote}</p><p className="mt-2 text-[27px] font-semibold">{formatMoney(quote.quoted_amount,locale)}</p></div><span className="max-w-[150px] text-right text-[11px] leading-5 text-white/70">{quoteStatusLabel(effectiveQuoteStatus || quote.status,locale)}</span></div>
+          <div className="mt-4 border-t border-white/10 pt-4"><p className="text-[10px] text-white/45">{copy.expected}</p><p className="mt-1 text-[13px] font-semibold">{formatMoney(quote.creator_payout_amount,locale)}</p></div>
+          {quote.note ? <p className="mt-4 border-t border-white/10 pt-4 text-[12px] leading-6 text-white/75">{copy.note}: {quote.note}</p> : null}
         </section> : null}
 
         <div className="space-y-5">
           {isCreatorOnlySimpleInquiry ? <>
-            <Section title="お問い合わせ">
-              <Row name="件名" value={inquiry.purpose} />
-              <Row name="お問い合わせ内容" value={inquiry.message} />
+            <Section title={copy.inquiry}>
+              <Row name={copy.subject} value={inquiry.purpose} />
+              <Row name={copy.inquiryBody} value={inquiry.message} />
             </Section>
-            <Section title="送信者情報">
-              <Row name="お名前" value={inquiry.contact_name} />
-              <Row name="メール" value={inquiry.contact_email} />
-              <Row name="受信日時" value={formatDate(inquiry.created_at)} />
+            <Section title={copy.sender}>
+              <Row name={copy.name} value={inquiry.contact_name} />
+              <Row name={copy.email} value={inquiry.contact_email} />
+              <Row name={copy.received} value={formatDate(inquiry.created_at,locale)} />
             </Section>
-            {replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">メールで返信する</a> : null}
+            {replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">{copy.replyMail}</a> : null}
           </> : <>
-            <Section title="依頼内容">
-              <Row name="依頼形式" value={requestType} />
-              {isNewPr ? <Row name="案件タイプ" value={label(data?.project_type)} /> : null}
-              {isNewPr ? <Row name="SNS" value={list(data?.requested_platforms) || label(data?.other_platform)} /> : null}
-              {isNewPr ? <Row name="制作物・制作数" value={deliverablesText(data)} /> : null}
-              {isNewUgc ? <Row name="制作物" value={[list(data?.ugc_deliverable_types), data?.ugc_other_deliverable].filter(Boolean).join(" / ")} /> : null}
-              {isNewUgc ? <Row name="制作数" value={data?.deliverable_count ? `${data.deliverable_count}件` : null} /> : null}
-              {isNewUgc ? <Row name="利用用途" value={[list(data?.usage_purposes), data?.usage_other].filter(Boolean).join(" / ")} /> : null}
-              {isNewUgc ? <Row name="打ち合わせ" value={label(data?.meeting_method)} /> : null}
-              {!requestMode ? <Row name="SNS" value={inquiry.requested_platform} /> : null}
-              {!requestMode ? <Row name="制作物" value={list(data?.content_formats)} /> : null}
-              {!requestMode ? <Row name="制作数" value={data?.deliverable_count ? `${data.deliverable_count}件` : null} /> : null}
+            <Section title={copy.request}>
+              <Row name={copy.requestMode} value={requestType} />
+              {isNewPr ? <Row name={copy.projectType} value={label(data?.project_type,locale)} /> : null}
+              {isNewPr ? <Row name={copy.sns} value={list(data?.requested_platforms,locale) || label(data?.other_platform,locale)} /> : null}
+              {isNewPr ? <Row name={copy.deliverables} value={deliverablesText(data,locale)} /> : null}
+              {isNewUgc ? <Row name={copy.deliverable} value={[list(data?.ugc_deliverable_types,locale), data?.ugc_other_deliverable].filter(Boolean).join(" / ")} /> : null}
+              {isNewUgc ? <Row name={copy.count} value={data?.deliverable_count ? copy.itemCount(data.deliverable_count) : null} /> : null}
+              {isNewUgc ? <Row name={copy.usage} value={[list(data?.usage_purposes,locale), data?.usage_other].filter(Boolean).join(" / ")} /> : null}
+              {isNewUgc ? <Row name={copy.meeting} value={label(data?.meeting_method,locale)} /> : null}
+              {!requestMode ? <Row name={copy.sns} value={inquiry.requested_platform} /> : null}
+              {!requestMode ? <Row name={copy.deliverable} value={list(data?.content_formats,locale)} /> : null}
+              {!requestMode ? <Row name={copy.count} value={data?.deliverable_count ? copy.itemCount(data.deliverable_count) : null} /> : null}
             </Section>
 
-            <Section title="商品・条件・予算">
-              <Row name="商品・サービス" value={inquiry.product_name || data?.product_name} />
-              <Row name="商品URL" value={data?.product_url} href={data?.product_url} />
-              <Row name="希望時期" value={inquiry.desired_timing || data?.desired_timing} />
-              <Row name="予算" value={formatMoney(inquiry.budget_text || data?.budget_text)} />
-              {isNewPr ? <Row name="目的" value={[label(data?.campaign_goal), data?.campaign_goal_other].filter(Boolean).join(" / ")} /> : null}
-              {!requestMode ? <Row name="目的" value={label(data?.campaign_goal)} /> : null}
-              <Row name="無償提供" value={data?.has_free_offer !== undefined ? (data.has_free_offer ? "あり" : "なし") : label(inquiry.offer_type)} />
-              <Row name="提供内容" value={freeOfferDetails} />
+            <Section title={copy.conditions}>
+              <Row name={copy.product} value={inquiry.product_name || data?.product_name} />
+              <Row name={copy.productUrl} value={data?.product_url} href={data?.product_url} />
+              <Row name={copy.timing} value={inquiry.desired_timing || data?.desired_timing} />
+              <Row name={copy.budget} value={formatMoney(inquiry.budget_text || data?.budget_text,locale)} />
+              {isNewPr ? <Row name={copy.goal} value={[label(data?.campaign_goal,locale), data?.campaign_goal_other].filter(Boolean).join(" / ")} /> : null}
+              {!requestMode ? <Row name={copy.goal} value={label(data?.campaign_goal,locale)} /> : null}
+              <Row name={copy.freeOffer} value={data?.has_free_offer !== undefined ? (data.has_free_offer ? copy.yes : copy.no) : label(inquiry.offer_type,locale)} />
+              <Row name={copy.offerDetails} value={freeOfferDetails} />
             </Section>
 
-            {(data?.selling_points || data?.reference_url || data?.additional_notes || (!requestMode && (data?.key_message || inquiry.message))) ? <Section title="特徴・参考情報">
-              <Row name="特徴・アピール" value={data?.selling_points || data?.key_message} />
-              <Row name="参考URL" value={data?.reference_url} href={data?.reference_url} />
-              <Row name="その他の補足" value={data?.additional_notes || inquiry.message} />
+            {(data?.selling_points || data?.reference_url || data?.additional_notes || (!requestMode && (data?.key_message || inquiry.message))) ? <Section title={copy.references}>
+              <Row name={copy.sellingPoints} value={data?.selling_points || data?.key_message} />
+              <Row name={copy.referenceUrl} value={data?.reference_url} href={data?.reference_url} />
+              <Row name={copy.additional} value={data?.additional_notes || inquiry.message} />
             </Section> : null}
 
-            <Section title="企業情報">
-              <Row name="会社・ブランド" value={inquiry.company_name} />
-              <Row name="担当者" value={inquiry.contact_name} />
-              <Row name="メール" value={inquiry.contact_email} />
-              <Row name="Webサイト" value={data?.company_website} href={data?.company_website} />
-              <Row name="企業SNS" value={socialDisplay} />
-              <Row name="受信日時" value={formatDate(inquiry.created_at)} />
+            <Section title={copy.company}>
+              <Row name={copy.companyBrand} value={inquiry.company_name} />
+              <Row name={copy.contact} value={inquiry.contact_name} />
+              <Row name={copy.email} value={inquiry.contact_email} />
+              <Row name={copy.website} value={data?.company_website} href={data?.company_website} />
+              <Row name={copy.companySns} value={socialDisplay} />
+              <Row name={copy.received} value={formatDate(inquiry.created_at,locale)} />
             </Section>
-            {isSimpleLinkInquiry && replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">メールで返信する</a> : null}
+            {isSimpleLinkInquiry && replyMailto ? <a href={replyMailto} className="flex min-h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-[14px] font-semibold text-slate-800">{copy.replyMail}</a> : null}
           </>}
         </div>
 
@@ -403,24 +382,24 @@ export default function CreatorInquiryDetailPage() {
             disabled={resending}
             className="mt-3 w-full rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-slate-800 ring-1 ring-slate-200 disabled:opacity-50"
           >
-            {resending ? "通知メールを再送しています…" : "通知メールを再送する"}
+            {resending ? copy.resending : copy.resend}
           </button>
         ) : null}
         {error ? <p className="mt-4 text-[13px] text-rose-600">{error}</p> : null}
-        {!['declined', 'converted'].includes(inquiry.status) && canManageQuote ? <div className="sticky bottom-[76px] z-20 mt-5 bg-gradient-to-t from-[#f6f7f9] via-[#f6f7f9] to-transparent pb-2 pt-6"><button type="button" onClick={openQuote} className="h-[52px] w-full rounded-full bg-slate-950 text-[14px] font-semibold text-white">{quote ? "見積もりを確認・編集" : "見積もりを作成"}</button></div> : null}
+        {!['declined', 'converted'].includes(inquiry.status) && canManageQuote ? <div className="sticky bottom-[76px] z-20 mt-5 bg-gradient-to-t from-[#f6f7f9] via-[#f6f7f9] to-transparent pb-2 pt-6"><button type="button" onClick={openQuote} className="h-[52px] w-full rounded-full bg-slate-950 text-[14px] font-semibold text-white">{quote ? copy.editQuote : copy.createQuote}</button></div> : null}
       </> : null}
 
       {sheetOpen ? <div className="fixed inset-0 z-[170] flex items-end justify-center bg-slate-950/40 backdrop-blur-[2px]">
-        <button type="button" aria-label="閉じる" onClick={() => !sending && setSheetOpen(false)} className="absolute inset-0" />
-        <section role="dialog" aria-modal="true" aria-label="見積もりを作成" className="relative z-10 w-full max-w-xl rounded-t-[26px] bg-white px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-3">
+        <button type="button" aria-label={copy.close} onClick={() => !sending && setSheetOpen(false)} className="absolute inset-0" />
+        <section role="dialog" aria-modal="true" aria-label={copy.createQuote} className="relative z-10 w-full max-w-xl rounded-t-[26px] bg-white px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-3">
           <div className="mx-auto h-1 w-10 rounded-full bg-slate-200" />
-          <div className="mt-4 flex items-center justify-between"><h2 className="text-[19px] font-semibold">見積もりを作成</h2><button type="button" onClick={() => setSheetOpen(false)} className="h-9 w-9 rounded-full bg-slate-100">×</button></div>
+          <div className="mt-4 flex items-center justify-between"><h2 className="text-[19px] font-semibold">{copy.createQuote}</h2><button type="button" aria-label={copy.close} onClick={() => setSheetOpen(false)} className="h-9 w-9 rounded-full bg-slate-100">×</button></div>
           <div className="mt-5 space-y-5">
-            <label className="block"><span className="text-[13px] font-semibold">見積金額 <span className="text-rose-500">必須</span></span><div className="mt-2 flex h-[52px] items-center rounded-[14px] bg-slate-50 px-4 ring-1 ring-slate-200"><span className="mr-2 text-slate-400">¥</span><input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} placeholder="100000" className="min-w-0 flex-1 bg-transparent text-[20px] font-semibold outline-none" /></div><span className="mt-2 block text-[11px] text-slate-400">企業にはサービス手数料を加算した金額が表示されます。</span></label>
-            <label className="block"><span className="text-[13px] font-semibold">企業への備考 <span className="text-slate-400">任意</span></span><textarea rows={4} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} placeholder="企業へ伝えておきたいこと" className="mt-2 w-full resize-none rounded-[14px] bg-slate-50 px-4 py-3 text-[14px] leading-6 outline-none ring-1 ring-slate-200" /></label>
+            <label className="block"><span className="text-[13px] font-semibold">{copy.amount} <span className="text-rose-500">{copy.required}</span></span><div className="mt-2 flex h-[52px] items-center rounded-[14px] bg-slate-50 px-4 ring-1 ring-slate-200"><span className="mr-2 text-slate-400">¥</span><input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} placeholder="100000" className="min-w-0 flex-1 bg-transparent text-[20px] font-semibold outline-none" /></div><span className="mt-2 block text-[11px] text-slate-400">{copy.feeNote}</span></label>
+            <label className="block"><span className="text-[13px] font-semibold">{copy.note} <span className="text-slate-400">{copy.optional}</span></span><textarea rows={4} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} placeholder={copy.notePlaceholder} className="mt-2 w-full resize-none rounded-[14px] bg-slate-50 px-4 py-3 text-[14px] leading-6 outline-none ring-1 ring-slate-200" /></label>
           </div>
           {formError ? <p role="alert" className="mt-4 text-[13px] text-rose-600">{formError}</p> : null}
-          <button type="button" onClick={() => void sendQuote()} disabled={sending} className="mt-6 h-[52px] w-full rounded-full bg-slate-950 text-[14px] font-semibold text-white disabled:opacity-50">{sending ? "送信中…" : "見積もりを送信"}</button>
+          <button type="button" onClick={() => void sendQuote()} disabled={sending} className="mt-6 h-[52px] w-full rounded-full bg-slate-950 text-[14px] font-semibold text-white disabled:opacity-50">{sending ? copy.sending : copy.send}</button>
         </section>
       </div> : null}
     </div>

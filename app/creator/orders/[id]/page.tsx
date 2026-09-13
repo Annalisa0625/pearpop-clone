@@ -13,6 +13,9 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorOrderDetailTranslations } from "@/lib/i18n/creatorOrders";
 
 type FulfillmentType = "material_provided" | "product_shipping" | "visit";
 
@@ -204,14 +207,14 @@ async function fetchWithTimeout(
   }
 }
 
-function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
+function formatDateTime(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "-";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+  return date.toLocaleString(creatorLocaleTags[locale], {
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
@@ -219,14 +222,14 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
   });
 }
 
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+function formatDate(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "-";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+  return date.toLocaleDateString(creatorLocaleTags[locale], {
     year: "numeric",
     month: "numeric",
     day: "numeric",
@@ -236,14 +239,14 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
 function formatPrice(
   value: number | null | undefined,
   currency: string | null | undefined,
-  locale: "ja" | "en"
+  locale: AppLocale
 ) {
-  if (value == null) return locale === "ja" ? "未設定" : "Not set";
+  if (value == null) return {ja:"未設定",en:"Not set",ko:"미설정","zh-TW":"尚未設定"}[locale];
 
   const safeCurrency = currency || "JPY";
 
   try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    return new Intl.NumberFormat(creatorLocaleTags[locale], {
       style: "currency",
       currency: safeCurrency,
       maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
@@ -442,19 +445,16 @@ function isPostalAddressResult(value: any): value is PostalAddressResult {
 
 function fulfillmentLabel(
   value: string | null | undefined,
-  locale: "ja" | "en"
+  locale: AppLocale
 ) {
   const type = normalizeFulfillmentType(value);
 
-  if (locale === "ja") {
-    if (type === "product_shipping") return "商品提供型";
-    if (type === "visit") return "来店型";
-    return "素材提供型";
-  }
-
-  if (type === "product_shipping") return "Product shipping";
-  if (type === "visit") return "Visit";
-  return "Material provided";
+  return {
+    ja:{product_shipping:"商品提供型",visit:"来店型",material_provided:"素材提供型"},
+    en:{product_shipping:"Product shipping",visit:"Visit",material_provided:"Material provided"},
+    ko:{product_shipping:"상품 제공",visit:"방문 체험",material_provided:"소재 제공"},
+    "zh-TW":{product_shipping:"提供商品",visit:"到店體驗",material_provided:"提供素材"},
+  }[locale][type];
 }
 
 
@@ -512,41 +512,21 @@ function PlatformMenuBadge({
   );
 }
 
-function transferLabel(value: string | null, locale: "ja" | "en") {
+function transferLabel(value: string | null, locale: AppLocale) {
   const status = value || "not_started";
 
-  if (locale === "ja") {
-    if (status === "transferred") return "反映済み";
-    if (status === "pending") return "確認中";
-    if (status === "failed") return "運営が確認中";
-    return "完了後に反映";
-  }
-
-  if (status === "transferred") return "Reflected";
-  if (status === "pending") return "Checking";
-  if (status === "failed") return "Support is checking";
-  return "After completion";
+  const labels:Record<AppLocale,Record<string,string>>={ja:{transferred:"反映済み",pending:"確認中",failed:"運営が確認中",default:"完了後に反映"},en:{transferred:"Reflected",pending:"Checking",failed:"Support is checking",default:"After completion"},ko:{transferred:"반영 완료",pending:"확인 중",failed:"운영팀 확인 중",default:"완료 후 반영"},"zh-TW":{transferred:"已列入",pending:"確認中",failed:"營運團隊確認中",default:"完成後列入"}};
+  return labels[locale][status] ?? labels[locale].default;
 }
 
 function payoutStatusLabel(
   status: OrderDetail["payout_status"] | null | undefined,
-  locale: "ja" | "en"
+  locale: AppLocale
 ) {
   const normalized = status || "unpaid";
 
-  if (locale === "ja") {
-    if (normalized === "paid") return "支払済み";
-    if (normalized === "pending") return "支払予定";
-    if (normalized === "withheld") return "保留中";
-    if (normalized === "failed") return "確認中";
-    return "未払い";
-  }
-
-  if (normalized === "paid") return "Paid";
-  if (normalized === "pending") return "Scheduled";
-  if (normalized === "withheld") return "On hold";
-  if (normalized === "failed") return "Checking";
-  return "Unpaid";
+  const labels:Record<AppLocale,Record<string,string>>={ja:{paid:"支払済み",pending:"支払予定",withheld:"保留中",failed:"確認中",unpaid:"未払い"},en:{paid:"Paid",pending:"Scheduled",withheld:"On hold",failed:"Checking",unpaid:"Unpaid"},ko:{paid:"지급 완료",pending:"지급 예정",withheld:"보류 중",failed:"확인 중",unpaid:"미지급"},"zh-TW":{paid:"已付款",pending:"預計付款",withheld:"暫緩中",failed:"確認中",unpaid:"尚未付款"}};
+  return labels[locale][normalized] ?? labels[locale].unpaid;
 }
 
 function payoutStatusTone(
@@ -569,28 +549,21 @@ function payoutStatusTone(
   return "bg-slate-50 text-slate-600 ring-slate-100";
 }
 
-function creatorPayoutScheduleText(order: OrderDetail, locale: "ja" | "en") {
+function creatorPayoutScheduleText(order: OrderDetail, locale: AppLocale) {
+  const text={ja:{paid:(d:string)=>`支払日：${d}`,due:(d:string)=>`支払予定：${d}`,complete:"完了後、月末締め・翌月末までに支払い予定",later:"完了後に支払い予定へ反映されます"},en:{paid:(d:string)=>`Paid on ${d}`,due:(d:string)=>`Expected by ${d}`,complete:"Scheduled after completion, based on the monthly payout cycle",later:"Added to payout schedule after completion"},ko:{paid:(d:string)=>`지급일: ${d}`,due:(d:string)=>`지급 예정일: ${d}`,complete:"완료 후 월말 정산, 다음 달 말까지 지급 예정",later:"완료 후 지급 예정 내역에 반영됩니다"},"zh-TW":{paid:(d:string)=>`付款日期：${d}`,due:(d:string)=>`預計付款：${d}`,complete:"完成後於月底結算，預計次月底前付款",later:"完成後將列入預計付款項目"}}[locale];
   if (order.payout_paid_at) {
-    return locale === "ja"
-      ? `支払日：${formatDate(order.payout_paid_at, locale)}`
-      : `Paid on ${formatDate(order.payout_paid_at, locale)}`;
+    return text.paid(formatDate(order.payout_paid_at, locale));
   }
 
   if (order.payout_due_at) {
-    return locale === "ja"
-      ? `支払予定：${formatDate(order.payout_due_at, locale)}`
-      : `Expected by ${formatDate(order.payout_due_at, locale)}`;
+    return text.due(formatDate(order.payout_due_at, locale));
   }
 
   if (order.completed_at || order.status === "completed") {
-    return locale === "ja"
-      ? "完了後、月末締め・翌月末までに支払い予定"
-      : "Scheduled after completion, based on the monthly payout cycle";
+    return text.complete;
   }
 
-  return locale === "ja"
-    ? "完了後に支払い予定へ反映されます"
-    : "Added to payout schedule after completion";
+  return text.later;
 }
 
 function estimateCreatorNetPayout(order: OrderDetail) {
@@ -686,19 +659,11 @@ function getFreeOfferDetail(order: OrderDetail) {
 
 function getFreeOfferDetailTitle(
   order: OrderDetail,
-  locale: "ja" | "en"
+  locale: AppLocale
 ) {
   const type = normalizeFulfillmentType(order.fulfillment_type);
 
-  if (locale === "ja") {
-    if (type === "product_shipping") return "提供される商品";
-    if (type === "visit") return "提供される体験・サービス";
-    return "提供内容";
-  }
-
-  if (type === "product_shipping") return "Provided product";
-  if (type === "visit") return "Provided experience / service";
-  return "Provided details";
+  return {ja:{product_shipping:"提供される商品",visit:"提供される体験・サービス",material_provided:"提供内容"},en:{product_shipping:"Provided product",visit:"Provided experience / service",material_provided:"Provided details"},ko:{product_shipping:"제공되는 상품",visit:"제공되는 체험·서비스",material_provided:"제공 내용"},"zh-TW":{product_shipping:"提供的商品",visit:"提供的體驗或服務",material_provided:"提供內容"}}[locale][type];
 }
 
 function extractRequirementSection(
@@ -1161,7 +1126,7 @@ function OrderSummaryBox({
   copy,
 }: {
   order: OrderDetail;
-  locale: "ja" | "en";
+  locale: AppLocale;
   copy: any;
 }) {
   const deadline = order.creator_accept_deadline || order.deadline;
@@ -1212,24 +1177,15 @@ function OrderSummaryBox({
 }
 
 
-function getCreatorOrderStatusLabel(order: OrderDetail, locale: "ja" | "en") {
-  if (locale === "ja") {
-    if (isCheckoutPending(order)) return "確認中";
-    if (isWaitingForCreator(order)) return "返答待ち";
-    if (order.status === "revision_requested") return "修正依頼";
-    if (order.status === "delivered") return "確認待ち";
-    if (order.status === "completed") return "完了";
-    if (isTerminalStatus(order.status)) return "終了";
-    return "対応中";
-  }
-
-  if (isCheckoutPending(order)) return "Checking";
-  if (isWaitingForCreator(order)) return "Waiting";
-  if (order.status === "revision_requested") return "Revision";
-  if (order.status === "delivered") return "Review";
-  if (order.status === "completed") return "Completed";
-  if (isTerminalStatus(order.status)) return "Ended";
-  return "Active";
+function getCreatorOrderStatusLabel(order: OrderDetail, locale: AppLocale) {
+  const labels={ja:{checking:"確認中",waiting:"返答待ち",revision:"修正依頼",review:"確認待ち",completed:"完了",ended:"終了",active:"対応中"},en:{checking:"Checking",waiting:"Waiting",revision:"Revision",review:"Review",completed:"Completed",ended:"Ended",active:"Active"},ko:{checking:"확인 중",waiting:"답변 대기",revision:"수정 요청",review:"확인 대기",completed:"완료",ended:"종료",active:"진행 중"},"zh-TW":{checking:"確認中",waiting:"等待回覆",revision:"修改要求",review:"等待確認",completed:"已完成",ended:"已結束",active:"處理中"}}[locale];
+  if (isCheckoutPending(order)) return labels.checking;
+  if (isWaitingForCreator(order)) return labels.waiting;
+  if (order.status === "revision_requested") return labels.revision;
+  if (order.status === "delivered") return labels.review;
+  if (order.status === "completed") return labels.completed;
+  if (isTerminalStatus(order.status)) return labels.ended;
+  return labels.active;
 }
 
 function getCreatorOrderStatusTone(order: OrderDetail) {
@@ -1263,7 +1219,7 @@ function CreatorOrderHeader({
   backHref,
 }: {
   order: OrderDetail;
-  locale: "ja" | "en";
+  locale: AppLocale;
   copy: any;
   backHref: string;
 }) {
@@ -1272,13 +1228,8 @@ function CreatorOrderHeader({
   const deadline = isWaitingForCreator(order)
     ? order.creator_accept_deadline
     : order.deadline;
-  const deadlineLabel = isWaitingForCreator(order)
-    ? locale === "ja"
-      ? "返答期限"
-      : "Reply by"
-    : locale === "ja"
-      ? "目安"
-      : "Due";
+  const deadlineLabels={ja:{reply:"返答期限",due:"目安"},en:{reply:"Reply by",due:"Due"},ko:{reply:"답변 기한",due:"예정일"},"zh-TW":{reply:"回覆期限",due:"預計日期"}}[locale];
+  const deadlineLabel = isWaitingForCreator(order) ? deadlineLabels.reply : deadlineLabels.due;
 
   return (
     <Surface className="overflow-hidden">
@@ -1343,7 +1294,7 @@ function InstructionFocusCard({
   onCopy,
 }: {
   order: OrderDetail;
-  locale: "ja" | "en";
+  locale: AppLocale;
   copy: any;
   assets: ReferenceAsset[];
   assetsLoading: boolean;
@@ -1358,40 +1309,33 @@ function InstructionFocusCard({
 }) {
   const hasMaterialAssets = assetsLoading || assets.length > 0;
   const mainInstruction = requestNote || "";
+  const ui={
+    ja:{adYes:"広告素材としての利用あり",adNo:"広告素材としての利用なし",usageYes:"納品物を広告素材・SNS投稿・LP・バナー等に使用する可能性があります。使用範囲・期間・掲載先は、注文内容またはチャットで確認してください。",usageNo:"この案件の成果物は、注文内容の確認・投稿URLの確認目的で使用されます。広告素材としての利用は含まれていません。",offerHelp:"注文を受ける前に、提供内容・数量・利用条件を確認してください。",about:"案件について",aboutBody:"進め方と利用範囲を先に確認できます。",scope:"利用範囲",requestHelp:"依頼元からの制作・投稿に関する要望です。",postHelp:"投稿文に貼り付けるアカウント表記やハッシュタグです。",notesHelp:"投稿で触れてほしい内容や、避けてほしい表現です。",references:"参考資料",referenceBody:(count:number)=>`見本・確認用の資料です。投稿に必ず含める素材ではありません。${count>0?` ${count}件`:""}`},
+    en:{adYes:"Usage in ads allowed",adNo:"No ad usage",usageYes:"Deliverables may be used in ads, social posts, landing pages, banners, or similar materials. Confirm scope, duration, and placement in the order details or chat.",usageNo:"Deliverables are used to review the order and submitted URL. Ad usage is not included in this order.",offerHelp:"Review the provided item, quantity, and usage conditions before accepting.",about:"About this order",aboutBody:"Review the flow and usage scope first.",scope:"Usage scope",requestHelp:"Requests from the requester for production or posting.",postHelp:"Account mentions and hashtags to paste into the post.",notesHelp:"Points to mention and expressions to avoid.",references:"Reference files",referenceBody:(count:number)=>`Files for reference and review. They are not necessarily assets to include in the post.${count>0?` ${count} files`:""}`},
+    ko:{adYes:"광고 소재 활용 가능",adNo:"광고 소재 활용 없음",usageYes:"납품물은 광고, SNS 게시물, 랜딩 페이지, 배너 등에 사용될 수 있습니다. 사용 범위와 기간, 게재 위치는 주문 내용이나 채팅에서 확인해 주세요.",usageNo:"결과물은 주문 내용과 제출 URL 확인에 사용되며 광고 소재 활용은 포함되지 않습니다.",offerHelp:"주문을 수락하기 전에 제공 내용, 수량과 이용 조건을 확인해 주세요.",about:"협업 안내",aboutBody:"진행 방식과 사용 범위를 먼저 확인해 주세요.",scope:"사용 범위",requestHelp:"브랜드가 요청한 제작 및 게시 관련 내용입니다.",postHelp:"게시물에 넣을 계정 태그와 해시태그입니다.",notesHelp:"게시물에 포함할 내용과 피해야 할 표현입니다.",references:"참고 자료",referenceBody:(count:number)=>`제작 참고 및 확인용 자료이며 게시물에 반드시 포함할 소재는 아닙니다.${count>0?` ${count}개`:""}`},
+    "zh-TW":{adYes:"可作為廣告素材使用",adNo:"不作為廣告素材使用",usageYes:"交付內容可能用於廣告、社群貼文、活動頁面或橫幅等。請在訂單內容或聊天室確認使用範圍、期間與刊登位置。",usageNo:"本次成果僅用於確認訂單內容與提交的 URL，不包含廣告素材使用權。",offerHelp:"接受訂單前，請確認提供內容、數量與使用條件。",about:"合作說明",aboutBody:"先確認進行方式與使用範圍。",scope:"使用範圍",requestHelp:"品牌對製作與發布內容的需求。",postHelp:"需要放入貼文的帳號標示與主題標籤。",notesHelp:"貼文需提及的重點與應避免的說法。",references:"參考資料",referenceBody:(count:number)=>`供製作參考與確認，不一定需要放入貼文。${count>0?` 共 ${count} 份`:""}`},
+  }[locale];
   const secondaryUseText = order.wants_secondary_use
-    ? locale === "ja"
-      ? "広告素材としての利用あり"
-      : "Usage in ads allowed"
-    : locale === "ja"
-      ? "広告素材としての利用なし"
-      : "No ad usage";
+    ? ui.adYes
+    : ui.adNo;
 
   const usageNoteBody = order.wants_secondary_use
-    ? locale === "ja"
-      ? "納品物を広告素材・SNS投稿・LP・バナー等に使用する可能性があります。使用範囲・期間・掲載先は、注文内容またはチャットで確認してください。"
-      : "Deliverables may be used in ads, social posts, landing pages, banners, or similar materials. Confirm scope, duration, and placement in the order details or chat."
-    : locale === "ja"
-      ? "この案件の成果物は、注文内容の確認・投稿URLの確認目的で使用されます。広告素材としての利用は含まれていません。"
-      : "Deliverables are used to review the order and submitted URL. Ad usage is not included in this order.";
+    ? ui.usageYes
+    : ui.usageNo;
 
   const freeOfferDetail = getFreeOfferDetail(order);
   const freeOfferTitle = getFreeOfferDetailTitle(order, locale);
-  const freeOfferHelp =
-    locale === "ja"
-      ? "注文を受ける前に、提供内容・数量・利用条件を確認してください。"
-      : "Review the provided item, quantity, and usage conditions before accepting.";
+  const freeOfferHelp = ui.offerHelp;
 
   return (
     <Surface className="overflow-hidden">
       <div className="px-4 py-3.5 sm:px-5">
         <div className="min-w-0">
           <h2 className="text-[18px] font-bold tracking-[-0.03em] text-slate-950">
-            {locale === "ja" ? "案件について" : "About this order"}
+            {ui.about}
           </h2>
           <p className="mt-1 text-[12px] font-medium leading-5 text-slate-600">
-            {locale === "ja"
-              ? "進め方と利用範囲を先に確認できます。"
-              : "Review the flow and usage scope first."}
+            {ui.aboutBody}
           </p>
         </div>
 
@@ -1418,7 +1362,7 @@ function InstructionFocusCard({
           }`}
         >
           <p className="text-[12px] font-semibold text-slate-800">
-            {locale === "ja" ? "利用範囲" : "Usage scope"}
+            {ui.scope}
           </p>
           <p className="mt-1 text-[12px] font-medium leading-6 text-slate-700">
             {usageNoteBody}
@@ -1445,9 +1389,7 @@ function InstructionFocusCard({
               {copy.requestNote}
             </p>
             <p className="mt-0.5 text-[11px] font-medium leading-5 text-slate-500">
-              {locale === "ja"
-                ? "依頼元からの制作・投稿に関する要望です。"
-                : "Requests from the requester for production or posting."}
+              {ui.requestHelp}
             </p>
             <div className="mt-2">
               <PlainTextBox value={mainInstruction} emptyLabel={copy.notSet} />
@@ -1463,9 +1405,7 @@ function InstructionFocusCard({
                   {copy.postInstructionTitle}
                 </p>
                 <p className="mt-0.5 text-[11px] font-medium leading-5 text-slate-500">
-                  {locale === "ja"
-                    ? "投稿文に貼り付けるアカウント表記やハッシュタグです。"
-                    : "Account mentions and hashtags to paste into the post."}
+                  {ui.postHelp}
                 </p>
               </div>
               <button
@@ -1489,9 +1429,7 @@ function InstructionFocusCard({
               {copy.postNotes}
             </p>
             <p className="mt-0.5 text-[11px] font-medium leading-5 text-slate-500">
-              {locale === "ja"
-                ? "投稿で触れてほしい内容や、避けてほしい表現です。"
-                : "Points to mention and expressions to avoid."}
+              {ui.notesHelp}
             </p>
             <div className="mt-2">
               <PlainTextBox value={postNotes} emptyLabel={copy.notSet} />
@@ -1520,12 +1458,10 @@ function InstructionFocusCard({
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div className="min-w-0">
                 <p className="text-[14px] font-semibold tracking-[-0.02em] text-slate-950">
-                  {locale === "ja" ? "参考資料" : "Reference files"}
+                  {ui.references}
                 </p>
                 <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-5 text-slate-500">
-                  {locale === "ja"
-                    ? `見本・確認用の資料です。投稿に必ず含める素材ではありません。${assets.length > 0 ? ` ${assets.length}件` : ""}`
-                    : `Files for reference and review. They are not necessarily assets to include in the post.${assets.length > 0 ? ` ${assets.length} files` : ""}`}
+                  {ui.referenceBody(assets.length)}
                 </p>
               </div>
               <ChevronIcon open={false} />
@@ -1553,7 +1489,7 @@ function CreatorPayoutSummaryCard({
   copy,
 }: {
   order: OrderDetail;
-  locale: "ja" | "en";
+  locale: AppLocale;
   copy: any;
 }) {
   const estimate = estimateCreatorNetPayout(order);
@@ -1599,7 +1535,7 @@ function CreatorPayoutSummaryCard({
         <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
           <DetailRow label={copy.payoutStatus} value={payoutStatus} strong />
           <DetailRow
-            label={locale === "ja" ? "支払い予定" : "Schedule"}
+            label={{ja:"支払い予定",en:"Schedule",ko:"지급 일정","zh-TW":"付款時程"}[locale]}
             value={scheduleText}
           />
         </div>
@@ -2308,7 +2244,7 @@ function PreparationGuidanceBox({
   copy,
 }: {
   order: OrderDetail;
-  locale: "ja" | "en";
+  locale: AppLocale;
   chatHref: string;
   canChat: boolean;
   copy: any;
@@ -2326,7 +2262,31 @@ function PreparationGuidanceBox({
   let body = "";
   let detail: ReactNode = null;
 
-  if (locale === "ja") {
+  if (locale === "ko" || locale === "zh-TW") {
+    const ko = locale === "ko";
+    if (fulfillmentType === "material_provided") {
+      icon = <LinkIcon />;
+      title = beforeAccept ? (ko ? "소재와 조건을 확인해 주세요" : "請確認素材與合作條件") : (ko ? "제작을 진행해 주세요" : "開始製作內容");
+      body = beforeAccept ? (ko ? "수락 전에 게시 조건과 PR 표기를 확인해 주세요." : "接受前請確認發布條件與 PR 標示。") : (ko ? "필요한 내용을 확인하고 제작과 게시를 진행해 주세요." : "確認需求後開始製作與發布內容。");
+      detail = order.materials_confirmed_at ? <p className="mt-2 text-[11px] font-semibold text-slate-500">{ko ? "확인 일시" : "確認時間"}：{formatDateTime(order.materials_confirmed_at, locale)}</p> : null;
+    }
+    if (fulfillmentType === "product_shipping") {
+      icon = <PackageIcon />;
+      if (preparationStatus === "waiting_shipping_address") {
+        title = beforeAccept ? (ko ? "상품이 제공되는 협업입니다" : "這次合作會提供商品") : (ko ? "배송지를 공유해 주세요" : "請分享收件地址");
+        body = beforeAccept ? (ko ? "수락 후 상품을 받을 배송지를 공유합니다." : "接受訂單後，需要分享商品收件地址。") : (ko ? "상품을 받을 배송지를 입력해 주세요." : "請填寫商品收件地址。");
+      } else if (preparationStatus === "waiting_shipment") { title=ko?"상품 발송을 기다리고 있어요":"等待商品出貨"; body=ko?"배송지는 공유되었습니다. 상품이 발송될 때까지 기다려 주세요.":"收件地址已分享，請等待品牌出貨。"; }
+      else if (preparationStatus === "shipped") { title=ko?"상품 도착을 확인해 주세요":"請確認商品是否送達"; body=ko?"상품이 도착하면 내용을 확인하고 수령을 완료해 주세요.":"收到商品後請確認內容並完成收件確認。"; }
+      else { title=ko?"제작을 진행해 주세요":"開始製作內容"; body=ko?"상품을 확인하고 제작과 게시를 진행해 주세요.":"確認商品內容後開始製作與發布。"; }
+    }
+    if (fulfillmentType === "visit") {
+      icon=<CalendarIcon />;
+      if (preparationStatus === "schedule_confirmed") { title=ko?"방문 일정을 확인해 주세요":"請確認到訪日期"; body=ko?"방문 날짜, 장소와 촬영 규칙을 확인하고 준비해 주세요.":"確認日期、地點與拍攝規範，做好到訪準備。"; }
+      else { title=beforeAccept?(ko?"방문 일정을 조율합니다":"接受後安排到訪日期"):(ko?"방문 일정을 상의해 주세요":"請討論到訪日期"); body=beforeAccept?(ko?"수락 후 채팅에서 날짜, 장소와 촬영 규칙을 조율할 수 있습니다.":"接受訂單後，可透過聊天室討論日期、地點與拍攝規範。"):(ko?"채팅에서 방문 날짜, 장소와 촬영 규칙을 확인해 주세요.":"請透過聊天室確認日期、地點與拍攝規範。"); }
+      const hasVisitDetails=Boolean(order.visit_scheduled_at)||Boolean(order.visit_location)||Boolean(order.visit_notes);
+      detail=hasVisitDetails?<div className="mt-3 grid gap-1.5 rounded-[14px] bg-slate-50/80 px-3 py-2.5 ring-1 ring-slate-100">{order.visit_scheduled_at?<div className="flex items-center justify-between gap-3"><span className="text-[11px] font-semibold text-slate-500">{ko?"방문일":"到訪日期"}</span><span className="text-right text-[12px] font-semibold text-slate-800">{formatDateTime(order.visit_scheduled_at,locale)}</span></div>:null}{order.visit_location?<div className="flex items-center justify-between gap-3"><span className="text-[11px] font-semibold text-slate-500">{ko?"장소":"地點"}</span><span className="min-w-0 truncate text-right text-[12px] font-semibold text-slate-800">{order.visit_location}</span></div>:null}{order.visit_notes?<p className="whitespace-pre-line text-[12px] font-medium leading-6 text-slate-700">{order.visit_notes}</p>:null}</div>:null;
+    }
+  } else if (locale === "ja") {
     if (fulfillmentType === "material_provided") {
       icon = <LinkIcon />;
       title = beforeAccept ? "素材・条件を確認しましょう" : "制作を進めましょう";
@@ -2538,60 +2498,12 @@ function DeliveryActionBox({
   );
 }
 
-function getPassiveNoticeCopy(order: OrderDetail, locale: "ja" | "en") {
-  if (locale === "ja") {
-    if (isCheckoutPending(order)) {
-      return {
-        title: "注文の準備中です",
-        body: "確認が完了すると、対応するか選べるようになります。",
-      };
-    }
-
-    if (order.status === "delivered") {
-      return {
-        title: "確認を待っています",
-        body: "送信したURLの確認が完了するまでお待ちください。",
-      };
-    }
-
-    if (order.status === "completed") {
-      return {
-        title: "注文が完了しました",
-        body: "お疲れさまでした。報酬の状況は報酬ページで確認できます。",
-      };
-    }
-
-    return {
-      title: "注文を確認しています",
-      body: "少し時間をおいて再度ご確認ください。",
-    };
-  }
-
-  if (isCheckoutPending(order)) {
-    return {
-      title: "Preparing this order",
-      body: "You will be able to respond once confirmation is complete.",
-    };
-  }
-
-  if (order.status === "delivered") {
-    return {
-      title: "Waiting for review",
-      body: "Please wait while your submitted URL is reviewed.",
-    };
-  }
-
-  if (order.status === "completed") {
-    return {
-      title: "This order is complete",
-      body: "Great work. You can check payout status from your payouts page.",
-    };
-  }
-
-  return {
-    title: "Checking this order",
-    body: "Please check again in a moment.",
-  };
+function getPassiveNoticeCopy(order: OrderDetail, locale: AppLocale) {
+  const copy={ja:{checkout:{title:"注文の準備中です",body:"確認が完了すると、対応するか選べるようになります。"},delivered:{title:"確認を待っています",body:"送信したURLの確認が完了するまでお待ちください。"},completed:{title:"注文が完了しました",body:"お疲れさまでした。報酬の状況は報酬ページで確認できます。"},other:{title:"注文を確認しています",body:"少し時間をおいて再度ご確認ください。"}},en:{checkout:{title:"Preparing this order",body:"You will be able to respond once confirmation is complete."},delivered:{title:"Waiting for review",body:"Please wait while your submitted URL is reviewed."},completed:{title:"This order is complete",body:"Great work. You can check payout status from your payouts page."},other:{title:"Checking this order",body:"Please check again in a moment."}},ko:{checkout:{title:"주문을 준비하고 있습니다",body:"확인이 완료되면 수락 여부를 선택할 수 있습니다."},delivered:{title:"브랜드 확인 대기 중",body:"제출한 URL의 확인이 끝날 때까지 기다려 주세요."},completed:{title:"주문이 완료되었습니다",body:"수고하셨습니다. 수익 페이지에서 정산 상태를 확인할 수 있습니다."},other:{title:"주문을 확인하고 있습니다",body:"잠시 후 다시 확인해 주세요."}},"zh-TW":{checkout:{title:"訂單準備中",body:"確認完成後即可選擇是否接受。"},delivered:{title:"等待品牌確認",body:"請等待品牌確認你提交的 URL。"},completed:{title:"訂單已完成",body:"辛苦了，可前往收益頁面查看付款狀態。"},other:{title:"訂單確認中",body:"請稍後再回來查看。"}}}[locale];
+  if(isCheckoutPending(order)) return copy.checkout;
+  if(order.status==="delivered") return copy.delivered;
+  if(order.status==="completed") return copy.completed;
+  return copy.other;
 }
 
 function PassiveNoticeBox({
@@ -2621,7 +2533,7 @@ function CreatorDetailSheet({
   timingText,
 }: {
   order: OrderDetail;
-  locale: "ja" | "en";
+  locale: AppLocale;
   copy: any;
   timingText: string;
 }) {
@@ -2739,13 +2651,13 @@ export default function CreatorOrderDetailPage() {
   const orderId = params.id as string;
 
   const { locale } = useAppLocale();
-  const safeLocale = locale === "en" ? "en" : "ja";
+  const legacyLocale = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const mountedRef = useRef(true);
 
-  const copy = useMemo(
+  const baseCopy = useMemo(
     () =>
-      safeLocale === "ja"
+      legacyLocale === "ja"
         ? {
             loading: "読み込み中...",
             notFound: "注文が見つかりませんでした。",
@@ -3113,8 +3025,10 @@ export default function CreatorOrderDetailPage() {
               "If anything is unclear, you can message from the chat.",
             chatCtaButton: "Open chat",
           },
-    [safeLocale]
+    [legacyLocale]
   );
+  const translatedCopy = creatorOrderDetailTranslations[locale];
+  const copy = translatedCopy ? { ...baseCopy, ...translatedCopy } : baseCopy;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [referenceAssets, setReferenceAssets] = useState<ReferenceAsset[]>([]);
@@ -3669,7 +3583,7 @@ export default function CreatorOrderDetailPage() {
     Math.max(mediaAssets.length - 1, 0)
   );
 
-  const passiveNotice = getPassiveNoticeCopy(order, safeLocale);
+  const passiveNotice = getPassiveNoticeCopy(order, locale);
   const canChat = canOpenChat(order);
   const fulfillmentType = normalizeFulfillmentType(order.fulfillment_type);
   const shouldShowPreparation =
@@ -3681,7 +3595,7 @@ export default function CreatorOrderDetailPage() {
     <div className="max-w-full touch-pan-y space-y-3 overflow-x-hidden overscroll-y-contain pb-28">
       <CreatorOrderHeader
         order={order}
-        locale={safeLocale}
+        locale={locale}
         copy={copy}
         backHref={backHref}
       />
@@ -3734,7 +3648,7 @@ export default function CreatorOrderDetailPage() {
       {shouldShowPreparation ? (
         <PreparationGuidanceBox
           order={order}
-          locale={safeLocale}
+          locale={locale}
           canChat={canChat}
           chatHref={`/creator/chats/${order.id}`}
           copy={copy}
@@ -3743,7 +3657,7 @@ export default function CreatorOrderDetailPage() {
 
       <InstructionFocusCard
         order={order}
-        locale={safeLocale}
+        locale={locale}
         copy={copy}
         assets={mediaAssets}
         assetsLoading={referenceAssetsLoading}
@@ -3773,7 +3687,7 @@ export default function CreatorOrderDetailPage() {
         <PassiveNoticeBox title={passiveNotice.title} body={passiveNotice.body} />
       ) : null}
 
-      <CreatorPayoutSummaryCard order={order} locale={safeLocale} copy={copy} />
+      <CreatorPayoutSummaryCard order={order} locale={locale} copy={copy} />
 
     </div>
   );

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorRequestsDictionary } from "@/lib/i18n/creatorRequests";
 import {
   CreatorCard,
   CreatorEmptyState,
@@ -132,7 +135,7 @@ async function fetchWithTimeout(
   }
 }
 
-function formatDate(value: string | null | undefined, locale: "ja" | "en") {
+function formatDate(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "-";
 
   const date = new Date(value);
@@ -141,13 +144,13 @@ function formatDate(value: string | null | undefined, locale: "ja" | "en") {
     return value;
   }
 
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+  return date.toLocaleDateString(creatorLocaleTags[locale], {
     month: "numeric",
     day: "numeric",
   });
 }
 
-function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
+function formatDateTime(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "-";
 
   const date = new Date(value);
@@ -156,7 +159,7 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
     return value;
   }
 
-  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+  return date.toLocaleString(creatorLocaleTags[locale], {
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
@@ -167,16 +170,16 @@ function formatDateTime(value: string | null | undefined, locale: "ja" | "en") {
 function formatPrice(
   value: number | null | undefined,
   currency: string | null | undefined,
-  locale: "ja" | "en"
+  locale: AppLocale
 ) {
   if (value == null) {
-    return locale === "ja" ? "未設定" : "Not set";
+    return creatorRequestsDictionary[locale].notSet;
   }
 
   const safeCurrency = currency || "JPY";
 
   try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    return new Intl.NumberFormat(creatorLocaleTags[locale], {
       style: "currency",
       currency: safeCurrency,
       maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
@@ -241,17 +244,15 @@ function isUnreadForUser(chat: ChatRow | null, userId: string | null) {
 
 function getAcceptDeadlineLabel(
   value: string | null | undefined,
-  locale: "ja" | "en"
+  locale: AppLocale
 ) {
   if (!value) return null;
 
   if (isExpired(value)) {
-    return locale === "ja" ? "返答期限切れ" : "Expired";
+    return creatorRequestsDictionary[locale].expired;
   }
 
-  return locale === "ja"
-    ? `返答期限 ${formatDateTime(value, locale)}`
-    : `Reply by ${formatDateTime(value, locale)}`;
+  return creatorRequestsDictionary[locale].replyBy(formatDateTime(value, locale));
 }
 
 function getItemHref(item: PendingItem) {
@@ -446,7 +447,7 @@ function HeaderSummary({
     unreadSuffix: string;
     noOrdersShort: string;
   };
-  locale: "ja" | "en";
+  locale: AppLocale;
 }) {
   const hasOrders = count > 0;
 
@@ -465,7 +466,7 @@ function HeaderSummary({
         {unreadCount > 0 ? (
           <StatusPill tone="blue">
             {copy.unreadLabel} {unreadCount}
-            {locale === "ja" ? copy.unreadSuffix : ""}
+            {copy.unreadSuffix}
           </StatusPill>
         ) : null}
       </div>
@@ -502,7 +503,7 @@ function OrderCard({
   urgent,
 }: {
   item: PendingItem;
-  locale: "ja" | "en";
+  locale: AppLocale;
   copy: {
     unnamedProduct: string;
     orderDate: string;
@@ -582,69 +583,10 @@ function OrderCard({
 
 export default function CreatorRequestsPage() {
   const { locale } = useAppLocale();
-  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const mountedRef = useRef(true);
 
-  const copy = useMemo(
-    () =>
-      safeLocale === "ja"
-        ? {
-            title: "注文",
-            subtitle: "受ける前の注文を確認できます。",
-            actionBubble: "注文を確認しましょう",
-            actionBody:
-              "内容・報酬・実施条件を確認して、受けるか判断できます。",
-            noOrdersShort: "新しい注文が届くと、ここに表示されます。",
-            fetchError: "注文の取得に失敗しました。",
-            partialFetchError:
-              "一部の情報を取得できませんでした。注文自体は表示できる範囲で表示しています。",
-            authTimeout:
-              "ログイン情報の取得に時間がかかっています。ページを再読み込みしてください。",
-            unnamedProduct: "商品名未設定",
-            orderDate: "注文日",
-            menu: "メニュー",
-            payout: "受取予定",
-            replyLimit: "返答期限",
-            empty: "届いている注文はありません",
-            emptyBody: "新しい注文が届くとここに表示されます。",
-            profileCta: "プロフィールを整える",
-            newMessage: "新着メッセージ",
-            checkDetail: "内容を確認してください",
-            errorTitle: "エラー",
-            noticeTitle: "一部読み込みに失敗しました",
-            unreadLabel: "新着",
-            unreadSuffix: "件",
-          }
-        : {
-            title: "Orders",
-            subtitle: "Review orders before accepting.",
-            actionBubble: "Review your order",
-            actionBody:
-              "Check the details, payout, and requirements before deciding.",
-            noOrdersShort: "New orders will appear here.",
-            fetchError: "Failed to load orders.",
-            partialFetchError:
-              "Some information could not be loaded. Showing available orders.",
-            authTimeout:
-              "Loading your login session is taking too long. Please reload the page.",
-            unnamedProduct: "No product name",
-            orderDate: "Order date",
-            menu: "Menu",
-            payout: "Expected",
-            replyLimit: "Reply by",
-            empty: "No incoming orders",
-            emptyBody: "New orders will appear here.",
-            profileCta: "Update profile",
-            newMessage: "New message",
-            checkDetail: "Check details",
-            errorTitle: "Error",
-            noticeTitle: "Partial loading issue",
-            unreadLabel: "New",
-            unreadSuffix: "",
-          },
-    [safeLocale]
-  );
+  const copy = creatorRequestsDictionary[locale];
 
   const [items, setItems] = useState<PendingItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -1019,7 +961,7 @@ export default function CreatorRequestsPage() {
         count={items.length}
         unreadCount={unreadCount}
         copy={copy}
-        locale={safeLocale}
+        locale={locale}
       />
 
       {error ? (
@@ -1049,7 +991,7 @@ export default function CreatorRequestsPage() {
             <OrderCard
               key={`${item.kind}-${item.id}`}
               item={item}
-              locale={safeLocale}
+              locale={locale}
               copy={copy}
               unread={unread}
               urgent={urgent}
