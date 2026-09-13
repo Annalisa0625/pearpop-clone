@@ -1,6 +1,24 @@
 import { NextResponse } from "next/server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal/release";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { canonicalizeCreatorLocation } from "@/lib/creator/country";
+
+type SignupServerDeps = {
+  supabaseAdmin: any;
+};
+
+async function loadSignupServerDeps(): Promise<SignupServerDeps> {
+  const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
+  return { supabaseAdmin };
+}
+
+let signupServerDepsLoader: () => Promise<SignupServerDeps> =
+  loadSignupServerDeps;
+
+export function __setSignupServerDepsLoaderForTests(
+  loader?: () => Promise<SignupServerDeps>,
+) {
+  signupServerDepsLoader = loader ?? loadSignupServerDeps;
+}
 
 type SocialAccountInput = {
   platform: string;
@@ -169,8 +187,21 @@ export async function POST(req: Request) {
     const normalizedUsername = normalizeUsername(body.username ?? "");
     const normalizedDisplayName = body.display_name?.trim() || body.full_name?.trim() || normalizedUsername;
     const normalizedFullName = body.full_name?.trim() || normalizedDisplayName;
-    const normalizedCountry = body.country?.trim() || "日本";
-    const normalizedPrefecture = body.prefecture?.trim() || null;
+    const creatorLocation = canonicalizeCreatorLocation(
+      body.country,
+      body.prefecture,
+    );
+    if (!creatorLocation.ok) {
+      if (creatorLocation.error === "invalid_country") {
+        return errorResponse("国を選択してください", 400);
+      }
+      if (creatorLocation.error === "prefecture_required") {
+        return errorResponse("対応可能エリアを1つ以上選択してください", 400);
+      }
+      return errorResponse("対応可能エリアに不正な値が含まれています", 400);
+    }
+    const normalizedCountry = creatorLocation.country;
+    const normalizedPrefecture = creatorLocation.prefecture;
     const normalizedContentLanguage = body.content_language?.trim() || "日本語";
     const normalizedResponseLanguage = body.response_language?.trim() || "日本語";
     const normalizedGender = body.gender?.trim() || null;
@@ -198,7 +229,6 @@ export async function POST(req: Request) {
     if (normalizedSubCategories.length > 5) return errorResponse("ジャンルは5つまで選択できます", 400);
     const normalizedMainCategory = body.main_category?.trim() || normalizedSubCategories[0] || "";
     if (!normalizedMainCategory) return errorResponse("ジャンルを選択してください", 400);
-    if (!normalizedCountry) return errorResponse("国を選択してください", 400);
     if (!body.agreed_to_terms || !body.agreed_to_privacy) return errorResponse("利用規約とプライバシーポリシーへの同意が必要です", 400);
 
     if (!Array.isArray(body.social_accounts) || body.social_accounts.length === 0) return errorResponse("SNSアカウントを少なくとも1件追加してください", 400);
@@ -229,6 +259,7 @@ export async function POST(req: Request) {
       return errorResponse("3,000円以上で入力してください", 400, "MENU_PRICE_TOO_LOW");
     }
 
+    const { supabaseAdmin } = await signupServerDepsLoader();
     const authorization = req.headers.get("authorization") ?? "";
     const accessToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
     if (!accessToken) return errorResponse("認証トークンが必要です", 401);
@@ -273,7 +304,7 @@ export async function POST(req: Request) {
         bio: body.short_bio?.trim() || "",
         category: normalizedMainCategory,
         country: normalizedCountry,
-        prefecture: normalizedPrefecture ?? "",
+        prefecture: normalizedPrefecture,
         can_receive_products: normalizedCanReceiveProducts,
         content_language: normalizedContentLanguage,
         response_language: normalizedResponseLanguage,

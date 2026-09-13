@@ -13,6 +13,16 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import CountrySelector from "@/components/creator/CountrySelector";
+import {
+  canonicalizeCreatorLocation,
+  DEFAULT_CREATOR_COUNTRY,
+  getCreatorLocationAfterCountryChange,
+  JAPAN_PREFECTURES,
+  parseCreatorPrefectures,
+  restoreCreatorSignupDraftLocation,
+  type CreatorCountry,
+} from "@/lib/creator/country";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import {
   AvatarCropPicker,
@@ -60,7 +70,6 @@ const CREATOR_IMAGE_BUCKET =
   process.env.NEXT_PUBLIC_CREATOR_IMAGE_BUCKET || "creator-assets";
 
 const TOTAL_STEPS = 7;
-const COUNTRY_DEFAULT = "日本";
 const MIN_CREATOR_MENU_PRICE = 3000;
 
 const GENDER_OPTIONS = [
@@ -70,68 +79,15 @@ const GENDER_OPTIONS = [
   { value: "その他", ja: "その他", en: "Other" },
 ];
 
-const PREFECTURE_OPTIONS = [
-  "北海道",
-  "青森県",
-  "岩手県",
-  "宮城県",
-  "秋田県",
-  "山形県",
-  "福島県",
-  "茨城県",
-  "栃木県",
-  "群馬県",
-  "埼玉県",
-  "千葉県",
-  "東京都",
-  "神奈川県",
-  "新潟県",
-  "富山県",
-  "石川県",
-  "福井県",
-  "山梨県",
-  "長野県",
-  "岐阜県",
-  "静岡県",
-  "愛知県",
-  "三重県",
-  "滋賀県",
-  "京都府",
-  "大阪府",
-  "兵庫県",
-  "奈良県",
-  "和歌山県",
-  "鳥取県",
-  "島根県",
-  "岡山県",
-  "広島県",
-  "山口県",
-  "徳島県",
-  "香川県",
-  "愛媛県",
-  "高知県",
-  "福岡県",
-  "佐賀県",
-  "長崎県",
-  "熊本県",
-  "大分県",
-  "宮崎県",
-  "鹿児島県",
-  "沖縄県",
-];
-
 const PREFECTURE_DELIMITER = "、";
 
 function parseSelectedPrefectures(value: string) {
-  return value
-    .split(PREFECTURE_DELIMITER)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return parseCreatorPrefectures(value);
 }
 
 function joinSelectedPrefectures(items: string[]) {
   return Array.from(new Set(items))
-    .filter((item) => PREFECTURE_OPTIONS.includes(item))
+    .filter((item) => (JAPAN_PREFECTURES as readonly string[]).includes(item))
     .join(PREFECTURE_DELIMITER);
 }
 
@@ -754,6 +710,7 @@ export default function SignupCreatorClient({
             displayBody: "あとから変更できます。",
             displayName: "ユーザーネーム",
             displayNamePlaceholder: "例：Yuna Beauty",
+            country: "対象国",
             gender: "性別",
             birthDate: "生年月日",
 
@@ -811,6 +768,8 @@ export default function SignupCreatorClient({
 
             areaTitle: "対応エリア",
             areaBody: "訪問・体験案件で対応できるエリアをすべて選んでください。",
+            nonJapanAreaTitle: "商品配送PR",
+            nonJapanAreaBody: "商品配送PRの受付可否を設定してください。",
             prefecture: "対応可能エリア",
             selectPrefecture: "複数選択できます",
             productPr: "商品配送PR",
@@ -893,6 +852,7 @@ export default function SignupCreatorClient({
             displayBody: "You can edit this later.",
             displayName: "Username",
             displayNamePlaceholder: "Example: Yuna Beauty",
+            country: "Country",
             gender: "Gender",
             birthDate: "Date of birth",
 
@@ -950,6 +910,8 @@ export default function SignupCreatorClient({
 
             areaTitle: "Area",
             areaBody: "Select all areas where you can accept visit or experience jobs.",
+            nonJapanAreaTitle: "Product shipping PR",
+            nonJapanAreaBody: "Choose whether you accept shipped product PR.",
             prefecture: "Available areas",
             selectPrefecture: "Multiple selections allowed",
             productPr: "Product shipping PR",
@@ -1046,7 +1008,7 @@ export default function SignupCreatorClient({
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
 
-  const [country] = useState(COUNTRY_DEFAULT);
+  const [country, setCountry] = useState<CreatorCountry>(DEFAULT_CREATOR_COUNTRY);
   const [prefecture, setPrefecture] = useState("");
   const [canReceiveProductsChoice, setCanReceiveProductsChoice] = useState("");
 
@@ -1136,6 +1098,7 @@ export default function SignupCreatorClient({
     setEmail("");
     setPassword("");
     setPasswordConfirm("");
+    setCountry(DEFAULT_CREATOR_COUNTRY);
     setPrefecture("");
     setCanReceiveProductsChoice("");
     setActiveGenreGroup(GENRE_GROUPS[0].key);
@@ -1176,7 +1139,9 @@ export default function SignupCreatorClient({
       setGender(safeString(draft.gender));
       setBirthDate(safeString(draft.birthDate));
       setEmail(safeString(draft.email));
-      setPrefecture(safeString(draft.prefecture));
+      const draftLocation = restoreCreatorSignupDraftLocation(draft);
+      setCountry(draftLocation.country);
+      setPrefecture(draftLocation.prefecture);
       setCanReceiveProductsChoice(safeString(draft.canReceiveProductsChoice));
       setActiveGenreGroup(safeString(draft.activeGenreGroup, GENRE_GROUPS[0].key));
       setSelectedCategories(safeStringArray(draft.selectedCategories));
@@ -1345,6 +1310,16 @@ export default function SignupCreatorClient({
     });
   };
 
+  const handleCountryChange = (nextCountry: CreatorCountry) => {
+    const location = getCreatorLocationAfterCountryChange(
+      nextCountry,
+      prefecture,
+    );
+    setCountry(location.country);
+    setPrefecture(location.prefecture ?? "");
+    setError(null);
+  };
+
   const updateSocial = (index: number, key: keyof SocialAccountForm, value: string) => {
     setSocialAccounts((prev) =>
       prev.map((item, i) => (i === index ? { ...item, [key]: value } : item))
@@ -1472,7 +1447,8 @@ export default function SignupCreatorClient({
     }
 
     if (step === 3) {
-      if (!prefecture.trim()) {
+      const location = canonicalizeCreatorLocation(country, prefecture);
+      if (!location.ok) {
         setError(copy.areaRequired);
         return false;
       }
@@ -1615,7 +1591,7 @@ export default function SignupCreatorClient({
           creator_username: internalUsername,
           creator_gender: gender,
           creator_birth_date: birthDate,
-          creator_prefecture: prefecture,
+          creator_prefecture: country === "日本" ? prefecture : null,
           creator_can_receive_products: canReceiveProductsChoice === "yes",
         },
       },
@@ -1794,6 +1770,13 @@ export default function SignupCreatorClient({
   const handleFinish = async () => {
     const valid = await validateStep();
     if (!valid) return;
+
+    const location = canonicalizeCreatorLocation(country, prefecture);
+    if (!location.ok) {
+      setError(copy.areaRequired);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -1837,8 +1820,8 @@ export default function SignupCreatorClient({
           portfolio_assets: portfolioAssets,
           gender,
           birth_date: birthDate,
-          country,
-          prefecture: prefecture.trim(),
+          country: location.country,
+          prefecture: location.prefecture,
           city: null,
           can_receive_products: canReceiveProductsChoice === "yes",
           main_category: selectedCategories[0],
@@ -2081,6 +2064,13 @@ export default function SignupCreatorClient({
             <Field label={copy.displayName}>
               <TextInput value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={copy.displayNamePlaceholder} />
             </Field>
+            <Field label={copy.country}>
+              <CountrySelector
+                value={country}
+                onChange={handleCountryChange}
+                ariaLabel={copy.country}
+              />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label={copy.gender}>
                 <SelectInput value={gender} onChange={(e) => setGender(e.target.value)}>
@@ -2224,35 +2214,41 @@ export default function SignupCreatorClient({
     if (step === 3) {
       const selectedPrefectures = parseSelectedPrefectures(prefecture);
       return (
-        <StepShell title={copy.areaTitle} body={copy.areaBody}>
+        <StepShell
+          title={country === "日本" ? copy.areaTitle : copy.nonJapanAreaTitle}
+          body={country === "日本" ? copy.areaBody : copy.nonJapanAreaBody}
+        >
           <div className="grid gap-3">
-            <Field label={copy.prefecture} help={copy.selectPrefecture}>
-              <div className="grid max-h-[280px] grid-cols-2 gap-1.5 overflow-y-auto rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100 sm:grid-cols-3">
-                {PREFECTURE_OPTIONS.map((item) => {
-                  const selected = selectedPrefectures.includes(item);
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => togglePrefecture(item)}
-                      className={`min-h-[38px] rounded-xl px-2.5 py-2 text-left text-xs font-black transition ${selected ? "bg-[#ff3860] text-white shadow-[0_8px_18px_rgba(255,56,96,0.18)]" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`}
-                    >
-                      {selected ? "✓ " : ""}{item}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {selectedPrefectures.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {selectedPrefectures.map((item) => (
-                    <button key={item} type="button" onClick={() => togglePrefecture(item)} className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-[#ff3860] ring-1 ring-rose-100">
-                      {item} ×
-                    </button>
-                  ))}
+            {country === "日本" ? (
+              <Field label={copy.prefecture} help={copy.selectPrefecture}>
+                <div className="grid max-h-[280px] grid-cols-2 gap-1.5 overflow-y-auto rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100 sm:grid-cols-3">
+                  {JAPAN_PREFECTURES.map((item) => {
+                    const selected = selectedPrefectures.includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => togglePrefecture(item)}
+                        aria-pressed={selected}
+                        className={`min-h-[38px] rounded-xl px-2.5 py-2 text-left text-xs font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-100 ${selected ? "bg-[#ff3860] text-white shadow-[0_8px_18px_rgba(255,56,96,0.18)]" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`}
+                      >
+                        {selected ? "✓ " : ""}{item}
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : null}
-            </Field>
+
+                {selectedPrefectures.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {selectedPrefectures.map((item) => (
+                      <button key={item} type="button" onClick={() => togglePrefecture(item)} className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-[#ff3860] ring-1 ring-rose-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-100">
+                        {item} ×
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </Field>
+            ) : null}
 
             <Field label={copy.productPr}>
               <div className="grid gap-2">

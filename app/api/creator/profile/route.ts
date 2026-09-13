@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { canonicalizeCreatorLocation } from "@/lib/creator/country";
+
+type ProfileServerDeps = {
+  createSupabaseServerClient: () => Promise<any>;
+  supabaseAdmin: any;
+};
+
+async function loadProfileServerDeps(): Promise<ProfileServerDeps> {
+  const [serverModule, adminModule] = await Promise.all([
+    import("@/lib/supabase/server"),
+    import("@/lib/supabaseAdmin"),
+  ]);
+  return {
+    createSupabaseServerClient: serverModule.createSupabaseServerClient,
+    supabaseAdmin: adminModule.supabaseAdmin,
+  };
+}
+
+let profileServerDepsLoader: () => Promise<ProfileServerDeps> =
+  loadProfileServerDeps;
+
+export function __setProfileServerDepsLoaderForTests(
+  loader?: () => Promise<ProfileServerDeps>,
+) {
+  profileServerDepsLoader = loader ?? loadProfileServerDeps;
+}
 
 const ALLOWED_SOCIAL_PLATFORMS = new Set([
   "Instagram",
@@ -80,8 +104,10 @@ function parseBody(value: unknown): ProfileSaveInput | null {
 
   const displayName = requiredText(value.displayName, 80);
   const category = requiredText(value.category, 120);
-  const country = requiredText(value.country, 120);
-  const prefecture = nullableText(value.prefecture, 500);
+  const creatorLocation = canonicalizeCreatorLocation(
+    value.country,
+    value.prefecture,
+  );
   const contentLanguage = requiredText(value.contentLanguage, 80);
   const responseLanguage = requiredText(value.responseLanguage, 80);
   const avatarUrl = nullableText(value.avatarUrl, 2048);
@@ -90,8 +116,7 @@ function parseBody(value: unknown): ProfileSaveInput | null {
   if (
     !displayName ||
     !category ||
-    !country ||
-    prefecture === undefined ||
+    !creatorLocation.ok ||
     !contentLanguage ||
     !responseLanguage ||
     avatarUrl === undefined ||
@@ -120,8 +145,8 @@ function parseBody(value: unknown): ProfileSaveInput | null {
   return {
     displayName,
     category,
-    country,
-    prefecture,
+    country: creatorLocation.country,
+    prefecture: creatorLocation.prefecture,
     canReceiveProducts: value.canReceiveProducts,
     contentLanguage,
     responseLanguage,
@@ -134,6 +159,8 @@ function parseBody(value: unknown): ProfileSaveInput | null {
 }
 
 export async function POST(request: NextRequest) {
+  const { createSupabaseServerClient, supabaseAdmin } =
+    await profileServerDepsLoader();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
