@@ -5,121 +5,15 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
-
-function LocaleTabs({
-  locale,
-  setLocale,
-}: {
-  locale: "ja" | "en";
-  setLocale: (locale: "ja" | "en") => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setLocale("ja")}
-        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
-          locale === "ja"
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        JA
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setLocale("en")}
-        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
-          locale === "en"
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        EN
-      </button>
-    </div>
-  );
-}
+import LocaleSelector from "@/components/i18n/LocaleSelector";
+import { creatorOnboardingDictionary } from "@/lib/i18n/creatorOnboarding";
 
 export default function CreatorOnboardingPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const { locale, setLocale } = useAppLocale();
-
-  const copy = useMemo(
-    () =>
-      locale === "ja"
-        ? {
-            badge: "Creator Onboarding",
-            title: "クリエイター向けご案内",
-            checkingError: "ログイン状態を確認できませんでした。",
-            completeError: "案内の完了処理に失敗しました。",
-            processing: "処理中...",
-            skipping: "処理中...",
-            finishing: "完了中...",
-            skip: "スキップ",
-            back: "戻る",
-            next: "次へ",
-            start: "開始する",
-          }
-        : {
-            badge: "Creator Onboarding",
-            title: "Creator Guide",
-            checkingError: "We could not confirm your login status.",
-            completeError: "Failed to complete onboarding.",
-            processing: "Processing...",
-            skipping: "Processing...",
-            finishing: "Finishing...",
-            skip: "Skip",
-            back: "Back",
-            next: "Next",
-            start: "Get Started",
-          },
-    [locale]
-  );
-
-  const slides = useMemo(
-    () =>
-      locale === "ja"
-        ? [
-            {
-              title: "ようこそ",
-              body: "このサービスは、企業があなたの参考条件やSNS情報を見て直接依頼できる仕組みです。",
-            },
-            {
-              title: "まずやること",
-              body: "承認後は、ダッシュボードから参考条件カードを追加してください。媒体や参考価格、二次利用可否などを登録できます。",
-            },
-            {
-              title: "案件の流れ",
-              body: "企業から依頼が届いたら、承認または拒否できます。承認後は案件詳細ページ内でチャットし、納品URLを提出します。",
-            },
-            {
-              title: "今後の設定",
-              body: "今後、報酬受け取り設定や支払い関連の設定を追加予定です。現時点ではダッシュボードと参考条件カードの整備を優先してください。",
-            },
-          ]
-        : [
-            {
-              title: "Welcome",
-              body: "This service lets companies review your rate cards and social account information, then send requests to you directly.",
-            },
-            {
-              title: "What to do first",
-              body: "After approval, add your rate cards from the dashboard. You can register platforms, reference pricing, and whether secondary use is allowed.",
-            },
-            {
-              title: "How projects work",
-              body: "When a company sends a request, you can approve or reject it. After approval, you will chat inside the request detail page and later submit your delivery URL.",
-            },
-            {
-              title: "What comes next",
-              body: "Payout settings and payment-related setup will be added later. For now, please focus on preparing your dashboard and rate cards.",
-            },
-          ],
-    [locale]
-  );
+  const { locale, setLocale } = useAppLocale({ allLocales: true });
+  const copy = creatorOnboardingDictionary[locale];
+  const slides = copy.slides;
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -177,7 +71,12 @@ export default function CreatorOnboardingPage() {
     <div className="min-h-screen bg-gray-50 px-4 py-8 md:px-6 md:py-12">
       <div className="mx-auto max-w-3xl">
         <div className="mb-4 flex justify-end">
-          <LocaleTabs locale={locale} setLocale={setLocale} />
+          <LocaleSelector
+            value={locale}
+            onChange={setLocale}
+            ariaLabel={copy.languageLabel}
+            variant="select"
+          />
         </div>
 
         <div className="rounded-2xl border bg-white p-6 shadow-sm">

@@ -14,8 +14,20 @@ import { useRouter } from "next/navigation";
 import { Link2 } from "lucide-react";
 import { FaInstagram, FaLine, FaTiktok, FaXTwitter, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { getLegacyContentLocale, useAppLocale } from "@/lib/i18n/locale";
+import { useAppLocale } from "@/lib/i18n/locale";
 import type { AppLocale } from "@/lib/i18n/types";
+import {
+  creatorProfileAudienceCountryLabels,
+  creatorProfileCategoryLabels,
+  creatorProfileDateLocales,
+  creatorProfileDictionary,
+  creatorProfileFollowerRangeLabels,
+  creatorProfileGenreGroupLabels,
+  creatorProfileLanguageLabels,
+  creatorProfilePrefectureLabels,
+  localizeCreatorProfileValue,
+  type CreatorProfileCopy,
+} from "@/lib/i18n/creatorProfile";
 import LocaleSelector from "@/components/i18n/LocaleSelector";
 import CountrySelector from "@/components/creator/CountrySelector";
 import {
@@ -38,15 +50,6 @@ import {
   CreatorSelect,
   CreatorSkeleton,
 } from "@/app/creator/_components/CreatorDesignSystem";
-
-type Locale = "ja" | "en";
-
-const PROFILE_FOUNDATION_COPY = {
-  ja: { title: "プロフィール", country: "対象国", uiLanguage: "UI言語", uiLanguageBody: "Trend Martの画面表示に使う言語です。活動国や対応言語とは別に設定できます。", save: "保存する", saving: "保存中..." },
-  en: { title: "Profile", country: "Country", uiLanguage: "UI language", uiLanguageBody: "Choose the language used in Trend Mart. This is separate from your country and supported languages.", save: "Save", saving: "Saving..." },
-  ko: { title: "프로필", country: "활동 국가", uiLanguage: "UI 언어", uiLanguageBody: "Trend Mart 화면에 사용할 언어입니다. 활동 국가 및 지원 언어와 별도로 설정할 수 있습니다.", save: "저장", saving: "저장 중..." },
-  "zh-TW": { title: "個人檔案", country: "活動國家／地區", uiLanguage: "介面語言", uiLanguageBody: "選擇 Trend Mart 的介面語言。此設定與活動國家／地區及可使用語言分開管理。", save: "儲存", saving: "儲存中..." },
-} satisfies Record<AppLocale, Record<string, string>>;
 
 type CreatorRow = {
   id: string;
@@ -108,12 +111,6 @@ type LineLinkInfo = {
   is_enabled?: boolean | null;
   linked_at?: string | null;
   blocked_at?: string | null;
-};
-
-type LocaleOption = {
-  value: string;
-  ja: string;
-  en: string;
 };
 
 const CREATOR_IMAGE_BUCKET =
@@ -253,19 +250,6 @@ const FOLLOWER_RANGE_OPTIONS = [
   "1,000,000以上",
 ];
 
-const FOLLOWER_RANGE_OPTIONS_EN: Record<string, string> = {
-  "1,000未満": "Under 1,000",
-  "1,000〜5,000": "1,000–5,000",
-  "5,000〜10,000": "5,000–10,000",
-  "10,000〜30,000": "10,000–30,000",
-  "30,000〜50,000": "30,000–50,000",
-  "50,000〜100,000": "50,000–100,000",
-  "100,000〜300,000": "100,000–300,000",
-  "300,000〜500,000": "300,000–500,000",
-  "500,000〜1,000,000": "500,000–1,000,000",
-  "1,000,000以上": "1,000,000+",
-};
-
 const AUDIENCE_COUNTRY_OPTIONS = [
   "日本",
   "韓国",
@@ -288,35 +272,7 @@ const AUDIENCE_COUNTRY_OPTIONS = [
   "その他",
 ];
 
-const AUDIENCE_COUNTRY_OPTIONS_EN: Record<string, string> = {
-  日本: "Japan",
-  韓国: "Korea",
-  台湾: "Taiwan",
-  香港: "Hong Kong",
-  中国: "China",
-  タイ: "Thailand",
-  ベトナム: "Vietnam",
-  インドネシア: "Indonesia",
-  フィリピン: "Philippines",
-  マレーシア: "Malaysia",
-  シンガポール: "Singapore",
-  インド: "India",
-  アメリカ: "United States",
-  カナダ: "Canada",
-  イギリス: "United Kingdom",
-  フランス: "France",
-  ドイツ: "Germany",
-  オーストラリア: "Australia",
-  その他: "Other",
-};
-
-const LANGUAGE_OPTIONS: LocaleOption[] = [
-  { value: "日本語", ja: "日本語", en: "Japanese" },
-  { value: "英語", ja: "英語", en: "English" },
-  { value: "韓国語", ja: "韓国語", en: "Korean" },
-  { value: "中国語", ja: "中国語", en: "Chinese" },
-  { value: "その他", ja: "その他", en: "Other" },
-];
+const LANGUAGE_OPTIONS = ["日本語", "英語", "韓国語", "中国語", "その他"];
 
 const MENU_PREVIEW_BADGES = [
   "Instagram投稿",
@@ -334,18 +290,6 @@ function createEmptySocial(): SocialAccountForm {
   };
 }
 
-function optionLabel(option: LocaleOption, locale: Locale) {
-  return locale === "ja" ? option.ja : option.en;
-}
-
-function formatOption(
-  value: string,
-  locale: Locale,
-  enMap: Record<string, string>,
-) {
-  return locale === "ja" ? value : enMap[value] ?? value;
-}
-
 function fileExtension(file: File) {
   const parts = file.name.split(".");
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
@@ -361,12 +305,12 @@ function toggleString(list: string[], value: string) {
     : [...list, value];
 }
 
-function getSocialConfig(platform: string, locale: Locale) {
+function getSocialConfig(platform: string, copy: CreatorProfileCopy) {
   if (platform === "Instagram") {
     return {
       prefix: "instagram.com/",
       placeholder: "yourname",
-      guide: locale === "ja" ? "@なしで入力" : "No @ needed.",
+      guide: copy.socialNoAt,
     };
   }
 
@@ -374,7 +318,7 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "tiktok.com/@",
       placeholder: "yourname",
-      guide: locale === "ja" ? "@なしで入力" : "No @ needed.",
+      guide: copy.socialNoAt,
     };
   }
 
@@ -382,7 +326,7 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "youtube.com/@",
       placeholder: "yourchannel",
-      guide: locale === "ja" ? "ハンドル名を入力" : "Enter handle.",
+      guide: copy.socialHandleGuide,
     };
   }
 
@@ -390,7 +334,7 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "x.com/",
       placeholder: "yourname",
-      guide: locale === "ja" ? "ユーザー名を入力" : "Enter username.",
+      guide: copy.socialUsernameGuide,
     };
   }
 
@@ -398,14 +342,14 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "",
       placeholder: "https://example.com",
-      guide: locale === "ja" ? "URLを入力" : "Enter URL.",
+      guide: copy.socialUrlGuide,
     };
   }
 
   return {
     prefix: "",
-    placeholder: locale === "ja" ? "ユーザー名" : "Username",
-    guide: locale === "ja" ? "SNS種別を選択してください" : "Select SNS type.",
+    placeholder: copy.socialUsernamePlaceholder,
+    guide: copy.socialSelectGuide,
   };
 }
 
@@ -502,28 +446,6 @@ function extractHandleFromUrl(platform: string, url: string, handle?: string | n
   } catch {
     return value.replace(/^@/, "");
   }
-}
-
-function getPublicStatusLabel(
-  status: string | null,
-  isPublic: boolean,
-  locale: Locale,
-) {
-  if (!isPublic) {
-    return locale === "ja" ? "企業に非表示" : "Hidden from companies";
-  }
-
-  if (locale === "ja") {
-    if (status === "approved") return "企業に表示中";
-    if (status === "pending") return "確認中";
-    if (status === "rejected") return "確認が必要";
-    return "確認中";
-  }
-
-  if (status === "approved") return "Visible";
-  if (status === "pending") return "Reviewing";
-  if (status === "rejected") return "Needs check";
-  return "Reviewing";
 }
 
 function getPublicStatusTone(
@@ -810,14 +732,14 @@ function SectionCard({
   );
 }
 
-function formatLineDate(value: string | null | undefined, locale: Locale) {
+function formatLineDate(value: string | null | undefined, locale: AppLocale) {
   if (!value) return "";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return "";
 
-  return new Intl.DateTimeFormat(locale === "ja" ? "ja-JP" : "en-US", {
+  return new Intl.DateTimeFormat(creatorProfileDateLocales[locale], {
     month: "short",
     day: "numeric",
   }).format(date);
@@ -839,26 +761,8 @@ function LineConnectionCard({
   onUnlink,
   onTest,
 }: {
-  locale: Locale;
-  copy: {
-    lineTitle: string;
-    lineBody: string;
-    lineLinked: string;
-    lineNotLinked: string;
-    lineConnectedAs: string;
-    lineGenerate: string;
-    lineGenerating: string;
-    lineUnlink: string;
-    lineUnlinking: string;
-    lineCodeLabel: string;
-    lineCodeHelp: string;
-    lineExpires: string;
-    lineOpenLine: string;
-    lineOfficialMissing: string;
-    lineLoading: string;
-    lineTestSend: string;
-    lineTestSending: string;
-  };
+  locale: AppLocale;
+  copy: CreatorProfileCopy;
   loading: boolean;
   linked: boolean;
   linkInfo: LineLinkInfo | null;
@@ -894,19 +798,11 @@ function LineConnectionCard({
           </div>
 
           <p className="mt-1.5 max-w-xl text-[14px] font-normal leading-6 text-slate-600">
-            {!linked && isCreatorOnly && locale === "ja"
-              ? "仕事相談や大切なお知らせをLINEで受け取れます。"
-              : !linked && isCreatorOnly
-                ? "Receive work inquiries and important updates on LINE."
-              : !linked && locale === "ja"
-              ? "新しい依頼やメッセージ、修正の連絡をLINEですぐ受け取れます。仕事のチャンスを見逃さないために連携しておきましょう。"
+            {isCreatorOnly
+              ? copy.lineCreatorOnlyBody
               : !linked
-                ? "Get new requests, messages, and revision updates on LINE so you never miss work."
-                : isCreatorOnly && locale === "ja"
-                  ? "仕事相談や大切なお知らせをLINEで受け取れます。"
-                  : isCreatorOnly
-                    ? "Receive work inquiries and important updates on LINE."
-                    : copy.lineBody}
+                ? copy.lineMarketplacePrompt
+                : copy.lineBody}
           </p>
 
           {linked ? (
@@ -980,7 +876,7 @@ function LineConnectionCard({
                 disabled={generating}
                 className="min-h-12 rounded-[14px] bg-[#06c755] px-5 py-3 text-[13px] font-semibold text-white shadow-[0_10px_26px_rgba(6,199,85,0.18)] outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(6,199,85,0.24)] focus-visible:ring-4 focus-visible:ring-emerald-200 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transform-none motion-reduce:transition-none"
               >
-                {generating ? copy.lineGenerating : isCreatorOnly ? (locale === "ja" ? "LINEを連携する" : "Connect LINE") : copy.lineGenerate}
+                {generating ? copy.lineGenerating : isCreatorOnly ? copy.lineConnect : copy.lineGenerate}
               </button>
             )}
 
@@ -1068,215 +964,12 @@ export default function CreatorProfilePage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale({ allLocales: true });
-  // Long-form profile copy remains ja/en until the full translation phase.
-  // Korean and Traditional Chinese deliberately fall back to Japanese here.
-  const safeLocale: Locale = getLegacyContentLocale(locale);
+  const copy = creatorProfileDictionary[locale];
+  const copyRef = useRef(copy);
 
-  const baseCopy = useMemo(
-    () =>
-      safeLocale === "ja"
-        ? {
-            title: "プロフィール",
-            subtitle: "あなたらしさと得意なことが伝わるプロフィールをつくりましょう。",
-            username: "表示名",
-            usernamePlaceholder: "例：ゆな｜美容",
-            usernameHelp:
-              "企業や公開プロフィールに表示される名前です。",
-            country: "対象国",
-            categoryTitle: "ジャンル",
-            categoryBody: "得意なジャンルを5つまで選んでください。",
-            categoryCount: "選択中",
-            areaTitle: "対応エリア",
-            areaBody: "対応できるエリアをすべて選び、商品配送PRの可否を設定します。",
-            nonJapanAreaBody: "対象国と商品配送PRの可否を設定します。",
-            prefecture: "対応可能エリア",
-            selectPrefecture: "対応できる都道府県を選択",
-            productPr: "商品配送PR",
-            productPrYes: "商品を受け取ってPRできる",
-            productPrNo: "商品配送PRは受け付けない",
-            contentLanguage: "発信言語",
-            responseLanguage: "対応言語",
-            photoSection: "プロフィール画像",
-            photoBody: "あなたの雰囲気が伝わる一枚を選びましょう。",
-            avatar: "プロフィール画像",
-            imageChoose: "写真を選択",
-            noImage: "画像なし",
-            portfolioTitle: "ポートフォリオ",
-            portfolioBody: "企業に見せたい実績画像だけを追加します。",
-            portfolioUpload: "画像を追加",
-            portfolioEmpty: "投稿実績や雰囲気が伝わる画像を追加してください。",
-            selectedImages: "選択中",
-            socialTitle: "SNSアカウント",
-            socialBody: "活動しているアカウントとオーディエンスをまとめます。",
-            socialItem: "SNS",
-            socialHandle: "ユーザーネーム / URL",
-            followerRange: "フォロワー数",
-            audienceCountry: "主な視聴者",
-            urlPreview: "URL",
-            addSocial: "SNSを追加",
-            remove: "削除",
-            removeConfirm: "この画像を削除しますか？",
-            saving: "保存中...",
-            save: "保存する",
-            selectPlease: "選択してください",
-            creatorNotFound: "クリエイター情報が見つかりませんでした。",
-            usernameRequired: "表示名を入力してください",
-            usernameInvalid: "表示名は80文字以内で入力してください",
-            categoryRequired: "ジャンルを1つ以上選択してください",
-            categoryLimit: "ジャンルは5つまで選択できます",
-            areaRequired: "対応可能エリアを1つ以上選択してください",
-            productPrRequired: "商品配送PRの可否を選択してください",
-            languageRequired: "発信言語と対応言語を選択してください",
-            socialRequired: "SNSを少なくとも1件、正しく入力してください",
-            socialIncomplete: "SNSに未入力の項目があります",
-            missingCreatorId: "creator_id を取得できませんでした。",
-            missingUserId: "user_id を取得できませんでした。",
-            saved: "保存しました。",
-            savedMetadataSyncFailed:
-              "プロフィールは保存されましたが、アカウント情報の同期に失敗しました。再度お試しください。",
-            saveError: "保存中にエラーが発生しました。",
-            uploadFailed: "画像アップロードに失敗しました。",
-            settings: "関連設定",
-            menusTitle: "メニューの追加・編集",
-            menusBody: "提供するサービスと料金を設定",
-            payoutsTitle: "報酬受け取り",
-            payoutsBody: "受取設定と報酬履歴を確認",
-            statusPrefix: "表示状態",
-            japanesePrefectureOnly: "日本以外の場合は地域名を入力できます。",
-            snsGuide: "SNS種別を選ぶと入力形式が変わります。",
-            portfolioRecommended: "3枚以上がおすすめ",
-            lineTitle: "LINE通知",
-            lineBody:
-              "注文を受けるには、LINEで通知を受け取る設定が必要です。新しい注文・チャット・修正依頼を見逃さないようにできます。",
-            lineLinked: "連携済み",
-            lineNotLinked: "未連携",
-            lineConnectedAs: "連携中",
-            lineGenerate: "LINEで通知を受け取る",
-            lineGenerating: "LINEを開いています...",
-            lineUnlink: "連携を解除",
-            lineUnlinking: "解除中...",
-            lineCodeLabel: "LINE連携コード",
-            lineCodeHelp:
-              "LINE公式アカウントを友だち追加し、この6桁コードをそのまま送信してください。",
-            lineExpires: "有効期限",
-            lineOpenLine: "LINEで通知を受け取る",
-            lineOfficialMissing: "LINE公式URL未設定",
-            lineLoading: "確認中",
-            lineTestSend: "テスト通知を送る",
-            lineTestSending: "送信中...",
-            lineCodeCreated: "LINE連携を開始しました。",
-            lineTestSent: "LINEにテスト通知を送信しました。",
-            lineUnlinked: "LINE連携を解除しました。",
-            lineLoadFailed: "LINE連携状況を取得できませんでした。",
-            lineCreateFailed: "LINE連携を開始できませんでした。",
-            lineUnlinkFailed: "LINE連携を解除できませんでした。",
-            lineTestFailed: "LINEテスト通知を送信できませんでした。",
-          }
-        : {
-            title: "Profile",
-            subtitle: "Build a profile that feels like you and shows what you do best.",
-            username: "Display name",
-            usernamePlaceholder: "Example: Yuna Beauty",
-            usernameHelp:
-              "The name shown to brands and on your public profile.",
-            country: "Country",
-            categoryTitle: "Categories",
-            categoryBody: "Select up to 5 categories.",
-            categoryCount: "Selected",
-            areaTitle: "Area",
-            areaBody: "Select every area you can support and set your product PR setting.",
-            nonJapanAreaBody: "Set your country and product shipping PR preference.",
-            prefecture: "Available areas",
-            selectPrefecture: "Select all available areas",
-            productPr: "Product shipping PR",
-            productPrYes: "I can receive products",
-            productPrNo: "I do not accept shipped product PR",
-            contentLanguage: "Content language",
-            responseLanguage: "Response language",
-            photoSection: "Profile image",
-            photoBody: "Choose a photo that captures your style.",
-            avatar: "Profile image",
-            imageChoose: "Choose photo",
-            noImage: "No image",
-            portfolioTitle: "Portfolio",
-            portfolioBody: "Add only images you want brands to review.",
-            portfolioUpload: "Add image",
-            portfolioEmpty: "Add images that show your past posts or style.",
-            selectedImages: "Selected",
-            socialTitle: "Social accounts",
-            socialBody: "Bring your social presence and audience together.",
-            socialItem: "SNS",
-            socialHandle: "Username / URL",
-            followerRange: "Follower range",
-            audienceCountry: "Main audience country",
-            urlPreview: "URL",
-            addSocial: "Add social",
-            remove: "Remove",
-            removeConfirm: "Delete this image?",
-            saving: "Saving...",
-            save: "Save",
-            selectPlease: "Please select",
-            creatorNotFound: "Creator information was not found.",
-            usernameRequired: "Please enter your display name",
-            usernameInvalid: "Display name must be 80 characters or fewer",
-            categoryRequired: "Please select at least one category",
-            categoryLimit: "You can select up to 5 categories",
-            areaRequired: "Please select at least one available area",
-            productPrRequired: "Please select whether you can receive products",
-            languageRequired: "Please select content and response languages",
-            socialRequired: "Please add at least one valid social account",
-            socialIncomplete: "One or more social account fields are incomplete",
-            missingCreatorId: "Could not retrieve creator_id.",
-            missingUserId: "Could not retrieve user_id.",
-            saved: "Saved.",
-            savedMetadataSyncFailed:
-              "Your profile was saved, but account information could not be synced. Please try again.",
-            saveError: "An error occurred while saving.",
-            uploadFailed: "Failed to upload image.",
-            settings: "Related settings",
-            menusTitle: "Add or edit menus",
-            menusBody: "Set the services and rates you offer.",
-            payoutsTitle: "Payouts",
-            payoutsBody: "Check payout setup and history.",
-            statusPrefix: "Status",
-            japanesePrefectureOnly: "Enter the area name for countries outside Japan.",
-            snsGuide: "Input format changes by SNS type.",
-            portfolioRecommended: "3+ recommended",
-            lineTitle: "LINE notifications",
-            lineBody:
-              "Receive new order, message, revision, and completion alerts on LINE.",
-            lineLinked: "Linked",
-            lineNotLinked: "Not linked",
-            lineConnectedAs: "Connected as",
-            lineGenerate: "Receive notifications on LINE",
-            lineGenerating: "Opening LINE...",
-            lineUnlink: "Unlink",
-            lineUnlinking: "Unlinking...",
-            lineCodeLabel: "LINE link code",
-            lineCodeHelp:
-              "Add the official LINE account and send this 6-character code in the chat.",
-            lineExpires: "Expires",
-            lineOpenLine: "Open LINE",
-            lineOfficialMissing: "LINE URL not set",
-            lineLoading: "Checking",
-            lineTestSend: "Send test",
-            lineTestSending: "Sending...",
-            lineCodeCreated: "LINE linking started.",
-            lineTestSent: "Test notification sent to LINE.",
-            lineUnlinked: "LINE connection removed.",
-            lineLoadFailed: "Failed to load LINE connection status.",
-            lineCreateFailed: "Failed to start LINE linking.",
-            lineUnlinkFailed: "Failed to unlink LINE.",
-            lineTestFailed: "Failed to send LINE test notification.",
-          },
-    [safeLocale],
-  );
-
-  const copy = useMemo(
-    () => ({ ...baseCopy, ...PROFILE_FOUNDATION_COPY[locale] }),
-    [baseCopy, locale],
-  );
-
+  useEffect(() => {
+    copyRef.current = copy;
+  }, [copy]);
   const [creatorId, setCreatorId] = useState<string | null>(null);
   const [creatorUserId, setCreatorUserId] = useState<string | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
@@ -1576,7 +1269,7 @@ export default function CreatorProfilePage() {
       }
 
       if (!creator) {
-        setError(copy.creatorNotFound);
+        setError(copyRef.current.creatorNotFound);
         setLoading(false);
         return;
       }
@@ -1688,7 +1381,7 @@ export default function CreatorProfilePage() {
 
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [copy.creatorNotFound, router, supabase]);
+  }, [router, supabase]);
 
   const uploadImageAndGetUrl = async (
     file: File,
@@ -2051,7 +1744,7 @@ export default function CreatorProfilePage() {
       </section>
 
       {error ? (
-        <CreatorNotice tone="red" title="Error" description={error} />
+        <CreatorNotice tone="red" title={copy.errorTitle} description={error} />
       ) : null}
 
       {success ? (
@@ -2072,7 +1765,7 @@ export default function CreatorProfilePage() {
           previewUrl={avatarPreview ?? avatarUrl}
           help={copy.photoBody}
           chooseLabel={copy.imageChoose}
-          locale={safeLocale}
+          locale={locale}
           onConfirm={(file, previewUrl) => {
             setAvatarFile(file);
             setAvatarPreview(previewUrl);
@@ -2082,7 +1775,7 @@ export default function CreatorProfilePage() {
 
       <section className="order-2 border-t border-slate-200/80 py-7 sm:py-9">
         <div className="mb-4">
-          <h2 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">{safeLocale === "ja" ? "販売サービス" : "Services"}</h2>
+          <h2 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">{copy.servicesTitle}</h2>
         </div>
         <OfferingLink
           href="/creator/menus"
@@ -2101,7 +1794,7 @@ export default function CreatorProfilePage() {
                 onClick={() => toggleCategory(item)}
                 className="creator-profile-control border-b border-slate-300 px-0.5 py-1 text-[12px] font-medium text-slate-700 outline-none hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-200"
               >
-                {item} ×
+                {localizeCreatorProfileValue(locale, item, creatorProfileCategoryLabels)} ×
               </button>
             ))}
           </div>
@@ -2109,7 +1802,7 @@ export default function CreatorProfilePage() {
 
         <details className="group">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between border-y border-slate-200/80 py-3 text-[13px] font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
-            <span>{safeLocale === "ja" ? "ジャンルを編集" : "Edit genres"}</span>
+            <span>{copy.editGenres}</span>
             <span className="text-slate-400 transition group-open:rotate-180" aria-hidden="true">⌄</span>
           </summary>
           <div className="pt-4">
@@ -2130,7 +1823,7 @@ export default function CreatorProfilePage() {
                       : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
-                  {safeLocale === "ja" ? group.ja : group.en}
+                  {localizeCreatorProfileValue(locale, group.key, creatorProfileGenreGroupLabels)}
                 </button>
               );
             })}
@@ -2164,7 +1857,7 @@ export default function CreatorProfilePage() {
                     : "text-slate-700 hover:bg-white"
                 }`}
               >
-                {item}
+                {localizeCreatorProfileValue(locale, item, creatorProfileCategoryLabels)}
               </button>
             );
           })}
@@ -2211,7 +1904,7 @@ export default function CreatorProfilePage() {
                       }
                       className="creator-profile-control border-b border-slate-300 px-0.5 py-1 text-[12px] font-medium text-slate-700 outline-none hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-200"
                     >
-                      {item} ×
+                      {localizeCreatorProfileValue(locale, item, creatorProfilePrefectureLabels)} ×
                     </button>
                   ))}
                 </div>
@@ -2219,7 +1912,7 @@ export default function CreatorProfilePage() {
 
               <details className="group">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between border-y border-slate-200/80 py-3 text-[13px] font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
-                  <span>{safeLocale === "ja" ? "活動エリアを編集" : "Edit areas"}</span>
+                  <span>{copy.editAreas}</span>
                   <span className="text-slate-400 transition group-open:rotate-180" aria-hidden="true">⌄</span>
                 </summary>
               <div className="creator-profile-options mt-2 grid max-h-[288px] grid-cols-2 gap-x-2 gap-y-1 overflow-y-auto py-2 pr-1 sm:grid-cols-3">
@@ -2241,7 +1934,7 @@ export default function CreatorProfilePage() {
                       }`}
                     >
                       {selected ? "✓ " : ""}
-                      {item}
+                      {localizeCreatorProfileValue(locale, item, creatorProfilePrefectureLabels)}
                     </button>
                   );
                 })}
@@ -2288,8 +1981,8 @@ export default function CreatorProfilePage() {
               >
                 <option value="">{copy.selectPlease}</option>
                 {LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {optionLabel(option, safeLocale)}
+                  <option key={option} value={option}>
+                    {localizeCreatorProfileValue(locale, option, creatorProfileLanguageLabels)}
                   </option>
                 ))}
               </CreatorSelect>
@@ -2302,8 +1995,8 @@ export default function CreatorProfilePage() {
               >
                 <option value="">{copy.selectPlease}</option>
                 {LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {optionLabel(option, safeLocale)}
+                  <option key={option} value={option}>
+                    {localizeCreatorProfileValue(locale, option, creatorProfileLanguageLabels)}
                   </option>
                 ))}
               </CreatorSelect>
@@ -2315,7 +2008,7 @@ export default function CreatorProfilePage() {
       <SectionCard className="order-3" id="sns" title={copy.socialTitle} description={copy.socialBody}>
         <div className="space-y-3">
           {socialAccounts.map((social, index) => {
-            const config = getSocialConfig(social.platform, safeLocale);
+            const config = getSocialConfig(social.platform, copy);
             const previewUrl = buildSocialPreview(
               social.platform,
               social.username_or_url,
@@ -2336,8 +2029,8 @@ export default function CreatorProfilePage() {
                         {social.platform || `${copy.socialItem} ${index + 1}`}
                       </p>
                       <p className="truncate text-[11px] font-medium text-slate-500">
-                        {social.username_or_url || (safeLocale === "ja" ? "アカウントを設定" : "Set up account")}
-                        {social.follower_range ? ` · ${social.follower_range}` : ""}
+                        {social.username_or_url || copy.setupAccount}
+                        {social.follower_range ? ` · ${localizeCreatorProfileValue(locale, social.follower_range, creatorProfileFollowerRangeLabels)}` : ""}
                       </p>
                     </div>
                   </div>
@@ -2414,11 +2107,7 @@ export default function CreatorProfilePage() {
                       <option value="">{copy.followerRange}</option>
                       {FOLLOWER_RANGE_OPTIONS.map((item) => (
                         <option key={item} value={item}>
-                          {formatOption(
-                            item,
-                            safeLocale,
-                            FOLLOWER_RANGE_OPTIONS_EN,
-                          )}
+                          {localizeCreatorProfileValue(locale, item, creatorProfileFollowerRangeLabels)}
                         </option>
                       ))}
                     </CreatorSelect>
@@ -2432,11 +2121,7 @@ export default function CreatorProfilePage() {
                       <option value="">{copy.audienceCountry}</option>
                       {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
                         <option key={item} value={item}>
-                          {formatOption(
-                            item,
-                            safeLocale,
-                            AUDIENCE_COUNTRY_OPTIONS_EN,
-                          )}
+                          {localizeCreatorProfileValue(locale, item, creatorProfileAudienceCountryLabels)}
                         </option>
                       ))}
                     </CreatorSelect>
@@ -2514,7 +2199,7 @@ export default function CreatorProfilePage() {
       </SectionCard>
 
       <LineConnectionCard
-        locale={safeLocale}
+        locale={locale}
         copy={copy}
         loading={lineLoading}
         linked={lineLinked}
@@ -2530,7 +2215,7 @@ export default function CreatorProfilePage() {
         onTest={() => void sendLineTestNotification()}
       />
 
-      {!isCreatorOnly ? <SectionCard className="order-7" title={safeLocale === "ja" ? "報酬の受け取り" : copy.settings}>
+      {!isCreatorOnly ? <SectionCard className="order-7" title={copy.payoutsSectionTitle}>
         <section className="grid gap-2">
           <QuickLink
             href="/creator/payouts"
