@@ -8,14 +8,15 @@ import { Clapperboard, Circle, MapPin } from "lucide-react";
 import { FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorMenuCommonDictionary, creatorMenuFormatDictionary, creatorMenuListDictionary, localizeCreatorMenuRecord } from "@/lib/i18n/creatorMenus";
 import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import {
   CreatorNotice,
   CreatorPage,
   CreatorSkeleton,
 } from "@/app/creator/_components/CreatorDesignSystem";
-
-type Locale = "ja" | "en";
 
 type CreatorMenu = {
   id: string;
@@ -50,13 +51,13 @@ function formatPrice(
   value: number | null,
   currency: string | null | undefined,
   legacyReferenceText: string | null,
-  locale: Locale,
+  locale: AppLocale,
 ) {
   const safeCurrency = currency || "JPY";
 
   if (value != null) {
     try {
-      return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+      return new Intl.NumberFormat(creatorLocaleTags[locale], {
         style: "currency",
         currency: safeCurrency,
         maximumFractionDigits: safeCurrency === "JPY" ? 0 : 2,
@@ -69,7 +70,7 @@ function formatPrice(
 
   if (legacyReferenceText?.trim()) return legacyReferenceText.trim();
 
-  return locale === "ja" ? "未設定" : "Not set";
+  return creatorMenuCommonDictionary[locale].notSet;
 }
 
 function normalizePlatform(value: string | null | undefined) {
@@ -88,33 +89,20 @@ function inferPlatform(menu: CreatorMenu) {
   return menu.platform || menu.sns || "Menu";
 }
 
-function menuFormatLabel(menu: CreatorMenu, locale: Locale) {
+function menuFormatLabel(menu: CreatorMenu, locale: AppLocale) {
   const title = menu.title ?? "";
+  const labels = creatorMenuFormatDictionary[locale];
 
-  if (title.includes("Instagram投稿")) return locale === "ja" ? "投稿" : "Post";
-  if (title.includes("Instagramリール")) return locale === "ja" ? "リール" : "Reel";
-  if (title.includes("Instagramストーリーズ")) return locale === "ja" ? "ストーリーズ" : "Stories";
-  if (title.includes("TikTok")) return locale === "ja" ? "動画" : "Video";
-  if (title.includes("YouTubeショート")) return locale === "ja" ? "ショート" : "Short";
-  if (title.includes("YouTube動画")) return locale === "ja" ? "動画" : "Video";
-  if (title.includes("動画素材")) return locale === "ja" ? "動画素材" : "Video asset";
-  if (title.includes("写真素材")) return locale === "ja" ? "写真素材" : "Photo asset";
-  if (title.includes("イベント")) return locale === "ja" ? "訪問" : "Visit";
-
-  const labels: Record<string, { ja: string; en: string }> = {
-    post: { ja: "投稿", en: "Post" },
-    short_video: { ja: "ショート動画", en: "Short video" },
-    story: { ja: "ストーリー", en: "Story" },
-    video: { ja: "動画", en: "Video" },
-    ugc: { ja: "UGC制作", en: "UGC" },
-    ugc_video: { ja: "動画素材", en: "Video asset" },
-    ugc_photo: { ja: "写真素材", en: "Photo asset" },
-    event_visit: { ja: "訪問", en: "Visit" },
-    package: { ja: "セット", en: "Package" },
-    other: { ja: "その他", en: "Other" },
-  };
-
-  return labels[menu.menu_type ?? ""]?.[locale] || (locale === "ja" ? "メニュー" : "Menu");
+  if (title.includes("Instagram投稿")) return labels.post;
+  if (title.includes("Instagramリール")) return labels.reel;
+  if (title.includes("Instagramストーリーズ")) return labels.stories;
+  if (title.includes("TikTok")) return labels.video;
+  if (title.includes("YouTubeショート")) return labels.short;
+  if (title.includes("YouTube動画")) return labels.video;
+  if (title.includes("動画素材")) return labels.videoAsset;
+  if (title.includes("写真素材")) return labels.photoAsset;
+  if (title.includes("イベント")) return labels.visit;
+  return labels[menu.menu_type ?? ""] || creatorMenuCommonDictionary[locale].genericMenu;
 }
 
 function platformBadgeClass(platform: string) {
@@ -189,13 +177,13 @@ function Header({
   subtitle,
   createLabel,
   menus,
-  locale,
+  serviceCount,
 }: {
   title: string;
   subtitle: string;
   createLabel: string;
   menus: CreatorMenu[];
-  locale: Locale;
+  serviceCount: (all: number, live: number) => string;
 }) {
   const publicCount = menus.filter((menu) => !!menu.is_active).length;
 
@@ -222,9 +210,7 @@ function Header({
         </div>
 
         <p className="mt-2 text-[12px] font-medium text-slate-500 sm:mt-4 sm:text-[13px]">
-          {locale === "ja"
-            ? `${menus.length}件のサービス · ${publicCount}件を公開中`
-            : `${menus.length} offerings · ${publicCount} live`}
+          {serviceCount(menus.length, publicCount)}
         </p>
       </div>
     </section>
@@ -241,7 +227,7 @@ function MenuCard({
   onDelete,
 }: {
   menu: CreatorMenu;
-  locale: Locale;
+  locale: AppLocale;
   copy: {
     price: string;
     viewAccount: string;
@@ -260,10 +246,11 @@ function MenuCard({
   onDelete: () => void;
 }) {
   const isPublic = !!menu.is_active;
-  const visibilityLabel = isPublic
-    ? locale === "ja" ? "公開中" : "Live"
-    : locale === "ja" ? "非公開" : "Private";
-  const platform = inferPlatform(menu);
+  const commonCopy = creatorMenuCommonDictionary[locale];
+  const visibilityLabel = isPublic ? commonCopy.live : commonCopy.private;
+  const inferredPlatform = inferPlatform(menu);
+  const platform = inferredPlatform === "Menu" ? commonCopy.genericMenu : inferredPlatform;
+  const localizedMenu = localizeCreatorMenuRecord(locale, menu.title, menu.description);
   const hasLegacyReferenceOnly =
     menu.price == null && !!menu.reference_price_text?.trim();
   const deniedSecondaryUse = menu.allow_secondary_use === false;
@@ -283,12 +270,12 @@ function MenuCard({
           <div className="mt-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="line-clamp-1 text-[17px] font-semibold leading-6 tracking-[-0.04em] text-slate-950">
-                {menu.title}
+                {localizedMenu.title}
               </h2>
 
-              {menu.description?.trim() ? (
+            {localizedMenu.description?.trim() ? (
                 <p className="mt-0.5 line-clamp-1 text-[12px] font-normal leading-5 text-slate-600">
-                  {menu.description.trim()}
+                  {localizedMenu.description.trim()}
                 </p>
               ) : null}
             </div>
@@ -326,7 +313,7 @@ function MenuCard({
 
       <details className="group/manage border-t border-slate-100 pt-1">
         <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between text-[12px] font-medium text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-rose-200 [&::-webkit-details-marker]:hidden">
-          <span>{locale === "ja" ? "管理" : "Manage"}</span>
+          <span>{commonCopy.manage}</span>
           <span className="text-lg leading-none tracking-[0.12em] text-slate-400" aria-hidden="true">•••</span>
         </summary>
 
@@ -427,68 +414,15 @@ export default function CreatorMenusPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale: Locale = locale === "en" ? "en" : "ja";
   const isCreatorOnly = useCreatorOnlyRelease();
 
-  const copy = useMemo(
-    () =>
-      safeLocale === "ja"
-        ? {
-            title: "メニュー管理",
-            subtitle: "メニューの公開状態と価格を管理できます。",
-            loginRequired: "ログインしてください",
-            creatorNotFound: "クリエイター情報が見つかりません",
-            toggleFailed: "公開状態の切り替えに失敗しました",
-            confirmDelete:
-              "このメニューを削除しますか？企業側からも表示されなくなります。",
-            deleteFailed: "削除に失敗しました",
-            loadFailed: "メニューの取得に失敗しました",
-            createNew: "作成",
-            emptyTitle: "まだメニューがありません",
-            empty:
-              isCreatorOnly ? "Instagram投稿、TikTok動画、UGC制作など、提供したい内容と参考価格を登録しましょう。" : "Instagram投稿、TikTok動画、UGC制作など、企業が注文できるメニューを作成しましょう。",
-            price: "価格",
-            secondaryUseDenied: "二次利用不可",
-            makePrivate: "非公開にする",
-            makePublic: "公開する",
-            edit: "編集",
-            delete: "削除",
-            deleting: "削除中",
-            updating: "更新中",
-            legacyPriceNotice:
-              isCreatorOnly ? "旧形式の参考価格です。編集画面で内容と価格を確認できます。" : "旧形式の参考価格です。編集画面で固定価格にすると注文されやすくなります。",
-            viewAccount: "SNSを開く",
-            errorTitle: "エラー",
-          }
-        : {
-            title: "Menu management",
-            subtitle: "Manage menu pricing and visibility.",
-            loginRequired: "Please log in",
-            creatorNotFound: "Creator information was not found",
-            toggleFailed: "Failed to change visibility",
-            confirmDelete:
-              "Delete this menu? It will no longer be visible to companies.",
-            deleteFailed: "Failed to delete the menu",
-            loadFailed: "Failed to load menus",
-            createNew: "Create",
-            emptyTitle: "No menus yet",
-            empty:
-              isCreatorOnly ? "Register the services you offer and their reference rates, such as Instagram posts, TikTok videos, or UGC creation." : "Create menus companies can order, such as Instagram posts, TikTok videos, or UGC creation.",
-            price: "Price",
-            secondaryUseDenied: "No reuse",
-            makePrivate: "Make private",
-            makePublic: "Make public",
-            edit: "Edit",
-            delete: "Delete",
-            deleting: "Deleting",
-            updating: "Updating",
-            legacyPriceNotice:
-              isCreatorOnly ? "This menu uses a legacy reference price. Review its details and price from the edit page." : "This menu uses a legacy reference price. Set a fixed price from the edit page.",
-            viewAccount: "Open SNS",
-            errorTitle: "Error",
-          },
-    [isCreatorOnly, safeLocale],
-  );
+  const listCopy = creatorMenuListDictionary[locale];
+  const copy = {
+    ...listCopy,
+    empty: isCreatorOnly ? listCopy.emptyCreatorOnly : listCopy.emptyMarketplace,
+    legacyPriceNotice: isCreatorOnly ? listCopy.legacyCreatorOnly : listCopy.legacyMarketplace,
+    errorTitle: creatorMenuCommonDictionary[locale].errorTitle,
+  };
 
   const fetchMenus = async () => {
     setLoading(true);
@@ -654,7 +588,7 @@ export default function CreatorMenusPage() {
         subtitle={copy.subtitle}
         createLabel={copy.createNew}
         menus={menus}
-        locale={safeLocale}
+        serviceCount={copy.serviceCount}
       />
 
       {error ? (
@@ -677,7 +611,7 @@ export default function CreatorMenusPage() {
             <MenuCard
               key={menu.id}
               menu={menu}
-              locale={safeLocale}
+              locale={locale}
               copy={copy}
               accountUrl={resolveAccountUrl(menu)}
               isLoading={actionLoadingId === menu.id}

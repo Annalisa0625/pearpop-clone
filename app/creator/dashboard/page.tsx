@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAppLocale } from "@/lib/i18n/locale";
+import { creatorLocaleTags, getCreatorDashboardCopy } from "@/lib/i18n/creatorDashboard";
+import type { AppLocale } from "@/lib/i18n/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import type { CreatorLinkInquiryInboxResponse } from "@/lib/trendre-link/inquiry-inbox";
@@ -67,10 +69,10 @@ function TrendIcon() {
   );
 }
 
-function formatShortDate(value: string, locale: "ja" | "en") {
+function formatShortDate(value: string, locale: AppLocale) {
   const date = new Date(`${value}T00:00:00+09:00`);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+  return date.toLocaleDateString(creatorLocaleTags[locale], {
     month: "numeric",
     day: "numeric",
   });
@@ -86,7 +88,7 @@ function LineChart({
   points: SeriesPoint[];
   metric: Metric;
   period: Period;
-  locale: "ja" | "en";
+  locale: AppLocale;
   emptyText: string;
 }) {
   const width = 340;
@@ -262,7 +264,6 @@ function Promotion({
 
 export default function CreatorDashboardPage() {
   const { locale } = useAppLocale();
-  const safeLocale: "ja" | "en" = locale === "en" ? "en" : "ja";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const isCreatorOnly = useCreatorOnlyRelease();
   const [state, setState] = useState<HomeState>(EMPTY_HOME);
@@ -272,57 +273,7 @@ export default function CreatorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
-  const copy = safeLocale === "ja"
-    ? {
-        greeting: "こんにちは",
-        overview: "今日の状況を確認しましょう。",
-        access: "アクセス",
-        link: "リンク",
-        profile: "プロフィール",
-        opens: "回",
-        seven: "7日",
-        thirty: "30日",
-        ninety: "90日",
-        chartEmpty: "公開ページが開かれると、ここに推移が表示されます",
-        chartLoading: "アクセスを読み込んでいます",
-        attention: "対応が必要",
-        orders: isCreatorOnly ? "仕事相談" : "注文・見積もり依頼",
-        ordersBody: isCreatorOnly ? "新しい相談を確認します" : "成立前の依頼を確認します",
-        jobs: "進行中の仕事",
-        jobsBody: "成立後の案件を進めます",
-        startMartTitle: "企業から見つけてもらう",
-        startMartBody: "公開プロフィールを整えると、企業の検索やメニュー注文から新しい仕事につながります。",
-        startMartCta: "プロフィールを作成",
-        startLinkTitle: "SNSから相談を受け付ける",
-        startLinkBody: "専用リンクをSNSプロフィールに置いて、企業から相談や見積もり依頼を直接受け取れます。",
-        startLinkCta: "リンクを作成",
-        loading: "ホームを読み込んでいます…",
-      }
-    : {
-        greeting: "Hello",
-        overview: "Here is what is happening today.",
-        access: "Traffic",
-        link: "Link",
-        profile: "Profile",
-        opens: "views",
-        seven: "7D",
-        thirty: "30D",
-        ninety: "90D",
-        chartEmpty: "Traffic will appear here after your public page is opened",
-        chartLoading: "Loading traffic",
-        attention: "Needs attention",
-        orders: isCreatorOnly ? "Work inquiries" : "Orders and quote requests",
-        ordersBody: isCreatorOnly ? "Review new inquiries" : "Review work before agreement",
-        jobs: "Active jobs",
-        jobsBody: "Continue work after agreement",
-        startMartTitle: "Help companies discover you",
-        startMartBody: "Publish your profile to appear in company searches and receive menu orders.",
-        startMartCta: "Create profile",
-        startLinkTitle: "Receive inquiries from social media",
-        startLinkBody: "Add your dedicated link to social profiles and receive inquiries and quote requests.",
-        startLinkCta: "Create link",
-        loading: "Loading Home…",
-      };
+  const copy = getCreatorDashboardCopy(locale, isCreatorOnly);
 
   useEffect(() => {
     let cancelled = false;
@@ -432,7 +383,7 @@ export default function CreatorDashboardPage() {
   return (
     <div className="mx-auto w-full max-w-4xl pb-6 pt-1 sm:pb-8 sm:pt-2">
       <section className="px-0.5 pb-5 pt-2 sm:pb-6 sm:pt-3">
-        <h1 className="text-[28px] font-semibold leading-[1.2] tracking-[-0.05em] text-slate-950 sm:text-[31px]">{copy.greeting}、{state.displayName}</h1>
+        <h1 className="text-[28px] font-semibold leading-[1.2] tracking-[-0.05em] text-slate-950 sm:text-[31px]">{copy.greeting}{copy.greetingSeparator}{state.displayName}</h1>
         <p className="mt-2 text-[13px] font-medium leading-6 text-slate-500 sm:text-sm">{copy.overview}</p>
       </section>
 
@@ -442,12 +393,12 @@ export default function CreatorDashboardPage() {
           <div>
             <p className="text-[12px] font-semibold leading-5 text-slate-500">{copy.access}</p>
             <p className="mt-0.5 flex items-baseline gap-1.5 text-[42px] font-semibold leading-none tracking-[-0.065em] tabular-nums text-slate-950 sm:text-[44px]">
-              {activeTotal.toLocaleString(safeLocale === "ja" ? "ja-JP" : "en-US")}
+              {activeTotal.toLocaleString(creatorLocaleTags[locale])}
               <span className="text-[13px] font-medium tracking-normal text-slate-500">{copy.opens}</span>
             </p>
           </div>
 
-          <div className="flex min-h-10 rounded-[13px] bg-[#f3f2ef] p-1 text-[12px] font-semibold text-slate-500" role="group" aria-label={safeLocale === "ja" ? "集計期間" : "Analytics period"}>
+          <div className="flex min-h-10 rounded-[13px] bg-[#f3f2ef] p-1 text-[12px] font-semibold text-slate-500" role="group" aria-label={copy.periodLabel}>
             {([7, 30, 90] as Period[]).map((value) => (
               <button
                 key={value}
@@ -462,7 +413,7 @@ export default function CreatorDashboardPage() {
           </div>
         </div>
 
-        <div className="mt-5 flex gap-7 border-b border-slate-200/70" role="tablist" aria-label={safeLocale === "ja" ? "アクセス種別" : "Traffic type"}>
+        <div className="mt-5 flex gap-7 border-b border-slate-200/70" role="tablist" aria-label={copy.trafficTypeLabel}>
           {(["link", "profile"] as Metric[]).map((value) => (
             <button
               key={value}
@@ -482,7 +433,7 @@ export default function CreatorDashboardPage() {
           points={activePoints}
           metric={metric}
           period={period}
-          locale={safeLocale}
+          locale={locale}
           emptyText={analyticsLoading ? copy.chartLoading : copy.chartEmpty}
         />
       </section>

@@ -13,6 +13,9 @@ import { Clapperboard, Circle, MapPin } from "lucide-react";
 import { FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import { creatorLocaleTags } from "@/lib/i18n/creatorDashboard";
+import { creatorMenuCommonDictionary, creatorMenuEditorDictionary, creatorMenuOptionDictionary } from "@/lib/i18n/creatorMenus";
 import {
   CreatorButton,
   CreatorField,
@@ -23,7 +26,7 @@ import {
   CreatorStickyFooter,
 } from "@/app/creator/_components/CreatorDesignSystem";
 
-type Locale = "ja" | "en";
+type Locale = AppLocale;
 
 type MenuOption = {
   value: string;
@@ -119,11 +122,11 @@ const MENU_OPTIONS: MenuOption[] = [
 ];
 
 function getMenuLabel(option: MenuOption, locale: Locale) {
-  return locale === "ja" ? option.labelJa : option.labelEn;
+  return creatorMenuOptionDictionary[locale][option.value]?.label ?? option.labelJa;
 }
 
 function getMenuHelp(option: MenuOption, locale: Locale) {
-  return locale === "ja" ? option.helpJa : option.helpEn;
+  return creatorMenuOptionDictionary[locale][option.value]?.help ?? option.helpJa;
 }
 
 function getSelectedMenu(value: string) {
@@ -180,11 +183,11 @@ function formatPrice(value: string, locale: Locale) {
   const amount = parseYenInput(value);
 
   if (!Number.isFinite(amount) || amount <= 0) {
-    return locale === "ja" ? "未設定" : "Not set";
+    return creatorMenuCommonDictionary[locale].notSet;
   }
 
   try {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    return new Intl.NumberFormat(creatorLocaleTags[locale], {
       style: "currency",
       currency: "JPY",
       maximumFractionDigits: 0,
@@ -238,11 +241,13 @@ function Header({
   subtitle,
   backLabel,
   onBack,
+  locale,
 }: {
   title: string;
   subtitle: string;
   backLabel: string;
   onBack: () => void;
+  locale: Locale;
 }) {
   return (
     <section className="px-1 pb-2 pt-2 sm:px-2 sm:pb-4">
@@ -250,7 +255,7 @@ function Header({
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Menu setup
+              {creatorMenuCommonDictionary[locale].setup}
             </p>
             <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.055em] text-slate-950 sm:text-[34px]">
               {title}
@@ -418,7 +423,7 @@ function PreviewCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            Preview
+            {creatorMenuCommonDictionary[locale].preview}
           </p>
           <h2 className="mt-2 text-[22px] font-semibold tracking-[-0.055em] text-slate-950">
             {selectedMenu ? getMenuLabel(selectedMenu, locale) : body}
@@ -441,7 +446,7 @@ function PreviewCard({
           <div className="min-w-0">
             <PlatformBadge platform={platform} />
             <p className="mt-3 text-[11px] font-medium text-slate-500">
-              {locale === "ja" ? "表示価格" : "Display price"}
+              {creatorMenuCommonDictionary[locale].displayPrice}
             </p>
             <p className="mt-1 whitespace-nowrap text-[28px] font-semibold tracking-[-0.06em] text-slate-950">
               {formatPrice(price, locale)}
@@ -457,16 +462,10 @@ function PreviewCard({
               }`}
             >
               {isMaterial
-                ? locale === "ja"
-                  ? "素材利用あり"
-                  : "Asset use"
+                ? creatorMenuCommonDictionary[locale].assetUse
                 : secondaryUseDenied
-                  ? locale === "ja"
-                    ? "二次利用不可"
-                    : "No reuse"
-                  : locale === "ja"
-                    ? "二次利用可"
-                    : "Reuse OK"}
+                  ? creatorMenuCommonDictionary[locale].noReuse
+                  : creatorMenuCommonDictionary[locale].reuseOk}
             </span>
           ) : null}
         </div>
@@ -630,74 +629,8 @@ export default function EditMenuPage() {
   const menuId = typeof params?.id === "string" ? params.id : "";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale } = useAppLocale();
-  const safeLocale: Locale = locale === "en" ? "en" : "ja";
-
-  const copy = useMemo(
-    () =>
-      safeLocale === "ja"
-        ? {
-            title: "メニュー編集",
-            subtitle: "企業に表示される内容を、わかりやすく整えます。",
-            back: "戻る",
-            save: "更新する",
-            saving: "更新中...",
-            loading: "読み込み中...",
-            loginRequired: "ログインしてください",
-            creatorNotFound: "クリエイター情報が見つかりません",
-            notFound: "メニューが見つかりませんでした",
-            updateFailed: "メニューの更新に失敗しました",
-            menu: "SNS種別",
-            menuHelp: "販売するSNS種別・納品内容を1つ選択します。",
-            price: "価格",
-            priceHelp:
-              "企業が注文する際の基本価格です。あとからいつでも変更できます。",
-            yenOnly: "JPY / 日本円",
-            pricePlaceholder: "例）11,000",
-            secondaryUseTitle: "二次利用",
-            secondaryUseBody:
-              "納品物は広告ブランドのSNSによって二次利用・引用されることがあります。",
-            materialUseNote:
-              "素材はブランドのSNSやHPにて使用されることがあります。",
-            denySecondaryUse: "二次利用を認めない",
-            menuRequired: "SNS種別を選択してください",
-            priceRequired: "価格を入力してください",
-            priceInvalid: "3,000円以上で入力してください",
-            previewBody: "メニューを選択してください",
-            public: "公開中",
-            private: "非公開",
-          }
-        : {
-            title: "Edit menu",
-            subtitle: "Polish the content shown to brands.",
-            back: "Back",
-            save: "Update",
-            saving: "Updating...",
-            loading: "Loading...",
-            loginRequired: "Please log in",
-            creatorNotFound: "Creator information was not found",
-            notFound: "Menu was not found",
-            updateFailed: "Failed to update the menu",
-            menu: "SNS type",
-            menuHelp: "Choose one SNS type or deliverable you can offer.",
-            price: "Price",
-            priceHelp: "Base price brands will pay when ordering.",
-            yenOnly: "JPY / Japanese yen",
-            pricePlaceholder: "Example: 11,000",
-            secondaryUseTitle: "Secondary use",
-            secondaryUseBody:
-              "Deliverables may be reused or quoted by the brand on its social accounts.",
-            materialUseNote:
-              "Assets may be used on the brand's social accounts or website.",
-            denySecondaryUse: "Do not allow secondary use",
-            menuRequired: "Please select a menu",
-            priceRequired: "Please enter a price",
-            priceInvalid: "Please enter JPY 3,000 or more",
-            previewBody: "Select a menu",
-            public: "Public",
-            private: "Private",
-          },
-    [safeLocale],
-  );
+  const editorCopy = creatorMenuEditorDictionary[locale];
+  const copy = { ...editorCopy, title: editorCopy.editTitle, subtitle: editorCopy.editSubtitle, save: editorCopy.update, saving: editorCopy.updating, priceHelp: editorCopy.editPriceHelp };
 
   const [menuValue, setMenuValue] = useState("");
   const [price, setPrice] = useState("");
@@ -882,17 +815,18 @@ export default function EditMenuPage() {
         subtitle={copy.subtitle}
         backLabel={copy.back}
         onBack={() => router.push("/creator/menus")}
+        locale={locale}
       />
 
       {error ? (
-        <CreatorNotice tone="red" title="Error" description={error} />
+        <CreatorNotice tone="red" title={creatorMenuCommonDictionary[locale].errorTitle} description={error} />
       ) : null}
 
       <form id="creator-menu-form" onSubmit={handleUpdate} className="space-y-3">
         <SectionCard step="1" title={copy.menu} description={copy.menuHelp}>
           <MenuChoiceGrid
             value={menuValue}
-            locale={safeLocale}
+            locale={locale}
             price={price}
             priceLabel={copy.price}
             priceHelp={copy.priceInvalid}
@@ -948,7 +882,7 @@ export default function EditMenuPage() {
         <PreviewCard
           selectedMenu={selectedMenu}
           price={price}
-          locale={safeLocale}
+          locale={locale}
           statusLabel={isActive === false ? copy.private : copy.public}
           body={copy.previewBody}
           secondaryUseDenied={secondaryUseDenied}
