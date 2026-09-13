@@ -19,6 +19,8 @@ import {
   FaXTwitter,
   FaYoutube,
 } from "react-icons/fa6";
+import { creatorSignupAvatarCropCopy } from "@/lib/i18n/creatorSignup";
+import type { AppLocale } from "@/lib/i18n/types";
 
 export const SOCIAL_PLATFORM_OPTIONS = [
   "Instagram",
@@ -273,9 +275,10 @@ export function AvatarCropPicker({
   label: string;
   help: string;
   chooseLabel: string;
-  locale: "ja" | "en";
+  locale: AppLocale;
   onConfirm: (file: File, previewUrl: string) => void;
 }) {
+  const copy = creatorSignupAvatarCropCopy[locale];
   const [draft, setDraft] = useState<{ file: File; url: string } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -506,7 +509,7 @@ export function AvatarCropPicker({
           {previewUrl ? (
             <img src={previewUrl} alt={label} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[11px] font-black text-slate-300">Icon</div>
+            <div className="flex h-full w-full items-center justify-center text-[11px] font-black text-slate-300">{copy.empty}</div>
           )}
         </div>
 
@@ -514,9 +517,7 @@ export function AvatarCropPicker({
           <p className="text-sm font-black text-slate-950">{label}</p>
           <p className="mt-1 text-[11px] font-bold leading-5 text-slate-400">{help}</p>
           <label className="mt-2 inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#ff3860] px-4 text-xs font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.20)] transition hover:bg-[#ff4f58]">
-            {previewUrl
-              ? locale === "ja" ? "写真を調整・変更" : "Adjust or change"
-              : chooseLabel}
+            {previewUrl ? copy.adjustOrChange : chooseLabel}
             <input
               type="file"
               accept="image/*"
@@ -536,19 +537,17 @@ export function AvatarCropPicker({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-lg font-black tracking-[-0.04em] text-slate-950">
-                  {locale === "ja" ? "プロフィール写真を調整" : "Adjust profile photo"}
+                  {copy.title}
                 </p>
                 <p className="mt-1 text-[11px] font-bold leading-5 text-slate-500">
-                  {locale === "ja"
-                    ? "丸いアイコンに入る位置を確認してから確定してください。"
-                    : "Position the photo inside the round profile icon, then confirm."}
+                  {copy.body}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closeDraft}
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-100 text-lg font-black text-slate-500"
-                aria-label={locale === "ja" ? "閉じる" : "Close"}
+                aria-label={copy.close}
               >
                 ×
               </button>
@@ -558,7 +557,7 @@ export function AvatarCropPicker({
               <div className="relative aspect-square overflow-hidden bg-slate-900">
                 <canvas
                   ref={previewCanvasRef}
-                  aria-label={locale === "ja" ? "プロフィール写真の切り抜きプレビュー" : "Profile photo crop preview"}
+                  aria-label={copy.preview}
                   width={CROP_SIZE}
                   height={CROP_SIZE}
                   className="block h-full w-full touch-none select-none cursor-grab active:cursor-grabbing"
@@ -577,12 +576,12 @@ export function AvatarCropPicker({
             </div>
 
             <p className="mt-4 text-center text-[11px] font-bold text-slate-500">
-              {locale === "ja" ? "ドラッグで位置調整・ピンチで拡大／縮小" : "Drag to move. Pinch or scroll to zoom."}
+              {copy.gesture}
             </p>
 
             <div className="mt-auto grid grid-cols-[96px_1fr] gap-2 pt-4 sm:mt-4 sm:pt-0">
               <button type="button" onClick={closeDraft} className="h-11 rounded-full bg-white text-xs font-black text-slate-600 ring-1 ring-slate-200">
-                {locale === "ja" ? "戻る" : "Back"}
+                {copy.back}
               </button>
               <button
                 type="button"
@@ -590,9 +589,7 @@ export function AvatarCropPicker({
                 disabled={saving}
                 className="h-11 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.22)] disabled:opacity-60"
               >
-                {saving
-                  ? locale === "ja" ? "調整中..." : "Cropping..."
-                  : locale === "ja" ? "この位置で確定" : "Use this crop"}
+                {saving ? copy.cropping : copy.confirm}
               </button>
             </div>
           </div>

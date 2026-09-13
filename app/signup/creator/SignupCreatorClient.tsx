@@ -12,8 +12,20 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { getLegacyContentLocale, useAppLocale } from "@/lib/i18n/locale";
+import { useAppLocale } from "@/lib/i18n/locale";
 import type { AppLocale } from "@/lib/i18n/types";
+import {
+  creatorSignupAudienceCountryLabels,
+  creatorSignupCategoryLabels,
+  creatorSignupDictionary,
+  creatorSignupFollowerRangeLabels,
+  creatorSignupGenderLabels,
+  creatorSignupGenreLabels,
+  creatorSignupMenuCopy,
+  creatorSignupPrefectureLabels,
+  creatorSignupStepTitles,
+  localizeCreatorSignupValue,
+} from "@/lib/i18n/creatorSignup";
 import LocaleSelector from "@/components/i18n/LocaleSelector";
 import CountrySelector from "@/components/creator/CountrySelector";
 import {
@@ -31,30 +43,6 @@ import {
   MenuTypePicker,
   SocialPlatformPicker,
 } from "./CreatorSignupPolishControls";
-
-type Locale = "ja" | "en";
-
-const SIGNUP_FOUNDATION_COPY = {
-  ja: {
-    uiLanguage: "UI言語", displayTitle: "基本情報", displayBody: "あとから変更できます。", displayName: "ユーザーネーム", country: "対象国", gender: "性別", birthDate: "生年月日", accountTitle: "ログイン", accountBody: "Google、またはメールで登録します。", categoryTitle: "ジャンル", categoryBody: "得意なジャンルを5つまで選んでください。", areaTitle: "対応エリア", nonJapanAreaTitle: "商品配送PR", socialTitle: "SNS", socialBody: "企業が確認するSNSを1つ以上登録してください。", imagesTitle: "写真", imagesBody: "プロフィール画像1枚とポートフォリオ画像3枚以上が必要です。", menuTitle: "メニュー", menuBody: "企業が購入できるメニューを1つ以上作成してください。", continue: "次へ", back: "戻る", finish: "登録する", login: "ログイン", reset: "最初から", selectPlease: "選択してください",
-  },
-  en: {
-    uiLanguage: "UI language", displayTitle: "Basic info", displayBody: "You can edit this later.", displayName: "Username", country: "Country", gender: "Gender", birthDate: "Date of birth", accountTitle: "Login", accountBody: "Continue with Google or email.", categoryTitle: "Categories", categoryBody: "Select up to 5 categories.", areaTitle: "Area", nonJapanAreaTitle: "Product shipping PR", socialTitle: "Socials", socialBody: "Add at least one social account.", imagesTitle: "Images", imagesBody: "Add one profile image and at least three portfolio images.", menuTitle: "Menus", menuBody: "Create at least one menu brands can order.", continue: "Next", back: "Back", finish: "Sign up", login: "Login", reset: "Reset", selectPlease: "Please select",
-  },
-  ko: {
-    uiLanguage: "UI 언어", displayTitle: "기본 정보", displayBody: "나중에 변경할 수 있습니다.", displayName: "사용자 이름", country: "활동 국가", gender: "성별", birthDate: "생년월일", accountTitle: "로그인", accountBody: "Google 또는 이메일로 가입하세요.", categoryTitle: "카테고리", categoryBody: "잘하는 분야를 최대 5개까지 선택해 주세요.", areaTitle: "활동 지역", nonJapanAreaTitle: "제품 배송 홍보", socialTitle: "SNS", socialBody: "기업이 확인할 SNS 계정을 1개 이상 등록해 주세요.", imagesTitle: "사진", imagesBody: "프로필 사진 1장과 포트폴리오 사진 3장 이상이 필요합니다.", menuTitle: "서비스", menuBody: "기업이 구매할 수 있는 서비스를 1개 이상 만들어 주세요.", continue: "다음", back: "이전", finish: "가입하기", login: "로그인", reset: "처음부터", selectPlease: "선택해 주세요",
-  },
-  "zh-TW": {
-    uiLanguage: "介面語言", displayTitle: "基本資訊", displayBody: "之後仍可修改。", displayName: "使用者名稱", country: "活動國家／地區", gender: "性別", birthDate: "出生日期", accountTitle: "登入", accountBody: "使用 Google 或電子郵件註冊。", categoryTitle: "內容類別", categoryBody: "請選擇最多 5 個擅長領域。", areaTitle: "服務地區", nonJapanAreaTitle: "商品寄送宣傳", socialTitle: "社群帳號", socialBody: "請至少新增一個供品牌查看的社群帳號。", imagesTitle: "照片", imagesBody: "需要 1 張個人檔案照片及至少 3 張作品集照片。", menuTitle: "服務項目", menuBody: "請建立至少一項可供品牌購買的服務。", continue: "下一步", back: "返回", finish: "完成註冊", login: "登入", reset: "重新開始", selectPlease: "請選擇",
-  },
-} satisfies Record<AppLocale, Record<string, string>>;
-
-const SIGNUP_STEP_TITLES: Record<AppLocale, string[]> = {
-  ja: ["基本", "ログイン", "ジャンル", "エリア", "SNS", "写真", "メニュー"],
-  en: ["Basic", "Login", "Categories", "Area", "Socials", "Images", "Menus"],
-  ko: ["기본", "로그인", "카테고리", "지역", "SNS", "사진", "서비스"],
-  "zh-TW": ["基本", "登入", "類別", "地區", "社群", "照片", "服務"],
-};
 
 type SocialAccountForm = {
   platform: string;
@@ -96,12 +84,7 @@ const CREATOR_IMAGE_BUCKET =
 const TOTAL_STEPS = 7;
 const MIN_CREATOR_MENU_PRICE = 3000;
 
-const GENDER_OPTIONS = [
-  { value: "", ja: "選択", en: "Select" },
-  { value: "女性", ja: "女性", en: "Female" },
-  { value: "男性", ja: "男性", en: "Male" },
-  { value: "その他", ja: "その他", en: "Other" },
-];
+const GENDER_OPTIONS = ["", "女性", "男性", "その他"] as const;
 
 const PREFECTURE_DELIMITER = "、";
 
@@ -255,18 +238,6 @@ const FOLLOWER_RANGE_OPTIONS = [
   "1,000,000以上",
 ];
 
-const FOLLOWER_RANGE_OPTIONS_EN: Record<string, string> = {
-  "1,000未満": "Under 1,000",
-  "1,000〜5,000": "1,000–5,000",
-  "5,000〜10,000": "5,000–10,000",
-  "10,000〜30,000": "10,000–30,000",
-  "30,000〜50,000": "30,000–50,000",
-  "50,000〜100,000": "50,000–100,000",
-  "100,000〜300,000": "100,000–300,000",
-  "300,000〜500,000": "300,000–500,000",
-  "500,000〜1,000,000": "500,000–1,000,000",
-  "1,000,000以上": "1,000,000+",
-};
 
 const AUDIENCE_COUNTRY_OPTIONS = [
   "日本",
@@ -290,100 +261,19 @@ const AUDIENCE_COUNTRY_OPTIONS = [
   "その他",
 ];
 
-const AUDIENCE_COUNTRY_OPTIONS_EN: Record<string, string> = {
-  日本: "Japan",
-  韓国: "Korea",
-  台湾: "Taiwan",
-  香港: "Hong Kong",
-  中国: "China",
-  タイ: "Thailand",
-  ベトナム: "Vietnam",
-  インドネシア: "Indonesia",
-  フィリピン: "Philippines",
-  マレーシア: "Malaysia",
-  シンガポール: "Singapore",
-  インド: "India",
-  アメリカ: "United States",
-  カナダ: "Canada",
-  イギリス: "United Kingdom",
-  フランス: "France",
-  ドイツ: "Germany",
-  オーストラリア: "Australia",
-  その他: "Other",
-};
 
 const MENU_OPTIONS = [
-  {
-    value: "Instagram投稿",
-    labelJa: "Instagram\nフィード",
-    labelEn: "Instagram\nFeed post",
-    helpJa: "Instagramのフィード投稿として紹介します。",
-    helpEn: "A feed post published on Instagram.",
-  },
-  {
-    value: "Instagramリール",
-    labelJa: "Instagram\nリール",
-    labelEn: "Instagram\nReel",
-    helpJa: "Instagramリール動画として投稿します。",
-    helpEn: "A short-form video published as an Instagram Reel.",
-  },
-  {
-    value: "Instagramストーリーズ",
-    labelJa: "Instagram\nストーリーズ",
-    labelEn: "Instagram\nStories",
-    helpJa: "Instagramストーリーズで紹介します。",
-    helpEn: "A story placement published on Instagram.",
-  },
-  {
-    value: "TikTok投稿",
-    labelJa: "TikTok\n投稿",
-    labelEn: "TikTok\nVideo",
-    helpJa: "TikTok動画として投稿します。",
-    helpEn: "A video published on TikTok.",
-  },
-  {
-    value: "YouTubeショート",
-    labelJa: "YouTube\nショート",
-    labelEn: "YouTube\nShort",
-    helpJa: "YouTube Shortsとして投稿します。",
-    helpEn: "A short-form video published on YouTube Shorts.",
-  },
-  {
-    value: "YouTube動画",
-    labelJa: "YouTube\n動画",
-    labelEn: "YouTube\nVideo",
-    helpJa: "YouTube動画として投稿します。",
-    helpEn: "A video published on YouTube.",
-  },
-  {
-    value: "投稿なし・動画素材のみ納品",
-    labelJa: "UGC\n動画素材納品",
-    labelEn: "UGC\nVideo asset only",
-    helpJa: "広告やSNSで使える動画素材だけを納品します。",
-    helpEn: "Deliver video assets only. You do not post on your own account.",
-  },
-  {
-    value: "投稿なし・写真素材のみ納品",
-    labelJa: "UGC\n写真素材納品",
-    labelEn: "UGC\nPhoto asset only",
-    helpJa: "広告やSNSで使える写真素材だけを納品します。",
-    helpEn: "Deliver photo assets only. You do not post on your own account.",
-  },
-  {
-    value: "イベント訪問",
-    labelJa: "イベント\n訪問",
-    labelEn: "Event\nVisit",
-    helpJa: "店舗・イベント・展示会などに訪問して投稿または素材制作を行います。",
-    helpEn: "Visit an event, store, or location for content creation.",
-  },
-  {
-    value: "その他",
-    labelJa: "その他",
-    labelEn: "Other",
-    helpJa: "上記以外のメニューです。",
-    helpEn: "Use this for custom services.",
-  },
-];
+  "Instagram投稿",
+  "Instagramリール",
+  "Instagramストーリーズ",
+  "TikTok投稿",
+  "YouTubeショート",
+  "YouTube動画",
+  "投稿なし・動画素材のみ納品",
+  "投稿なし・写真素材のみ納品",
+  "イベント訪問",
+  "その他",
+] as const;
 
 function createEmptySocial(): SocialAccountForm {
   return {
@@ -510,12 +400,13 @@ function getAgeFromBirthDate(value: string) {
   return age;
 }
 
-function getSocialConfig(platform: string, locale: Locale) {
+function getSocialConfig(platform: string, locale: AppLocale) {
+  const copy = creatorSignupDictionary[locale];
   if (platform === "Instagram") {
     return {
       prefix: "instagram.com/",
       placeholder: "yourname",
-      guide: locale === "ja" ? "@なしで入力" : "No @ needed.",
+      guide: copy.socialNoAt,
     };
   }
 
@@ -523,7 +414,7 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "tiktok.com/@",
       placeholder: "yourname",
-      guide: locale === "ja" ? "@なしで入力" : "No @ needed.",
+      guide: copy.socialNoAt,
     };
   }
 
@@ -531,7 +422,7 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "youtube.com/@",
       placeholder: "yourchannel",
-      guide: locale === "ja" ? "ハンドル名を入力" : "Enter handle.",
+      guide: copy.socialHandleGuide,
     };
   }
 
@@ -539,7 +430,7 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "x.com/",
       placeholder: "yourname",
-      guide: locale === "ja" ? "ユーザー名を入力" : "Enter username.",
+      guide: copy.socialUsernameGuide,
     };
   }
 
@@ -547,14 +438,14 @@ function getSocialConfig(platform: string, locale: Locale) {
     return {
       prefix: "",
       placeholder: "https://example.com",
-      guide: locale === "ja" ? "URLを入力" : "Enter URL.",
+      guide: copy.socialUrlGuide,
     };
   }
 
   return {
     prefix: "",
-    placeholder: locale === "ja" ? "ユーザー名" : "Username",
-    guide: locale === "ja" ? "SNS種別を選択してください" : "Select SNS type.",
+    placeholder: copy.socialUsernamePlaceholder,
+    guide: copy.socialSelectGuide,
   };
 }
 
@@ -571,24 +462,16 @@ function buildSocialPreview(platform: string, handle: string) {
   return normalized;
 }
 
-function formatOption(
-  value: string,
-  locale: Locale,
-  enMap: Record<string, string>
-) {
-  return locale === "ja" ? value : enMap[value] ?? value;
+function getMenuLabel(value: string, locale: AppLocale) {
+  if (!(MENU_OPTIONS as readonly string[]).includes(value)) {
+    return value || creatorSignupDictionary[locale].notSelected;
+  }
+  return creatorSignupMenuCopy[locale][value]?.label ?? value;
 }
 
-function getMenuLabel(value: string, locale: Locale) {
-  const item = MENU_OPTIONS.find((option) => option.value === value);
-  if (!item) return value || (locale === "ja" ? "未選択" : "Not selected");
-  return locale === "ja" ? item.labelJa : item.labelEn;
-}
-
-function getMenuHelp(value: string, locale: Locale) {
-  const item = MENU_OPTIONS.find((option) => option.value === value);
-  if (!item) return "";
-  return locale === "ja" ? item.helpJa : item.helpEn;
+function getMenuHelp(value: string, locale: AppLocale) {
+  if (!(MENU_OPTIONS as readonly string[]).includes(value)) return "";
+  return creatorSignupMenuCopy[locale][value]?.help ?? "";
 }
 
 function fileExtension(file: File) {
@@ -722,305 +605,8 @@ export default function SignupCreatorClient({
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale({ allLocales: true });
-  // Long-form page copy remains ja/en until the full translation phase. New
-  // locales deliberately fall back to Japanese instead of being treated as English.
-  const appLocale: Locale = getLegacyContentLocale(locale);
-
-  const baseCopy = useMemo(
-    () =>
-      appLocale === "ja"
-        ? {
-            step: "STEP",
-
-            displayTitle: "基本情報",
-            displayBody: "あとから変更できます。",
-            displayName: "ユーザーネーム",
-            displayNamePlaceholder: "例：Yuna Beauty",
-            country: "対象国",
-            gender: "性別",
-            birthDate: "生年月日",
-
-            accountTitle: "ログイン",
-            accountBody: "Google、またはメールで登録します。",
-            oauthConnected: "Google連携済み",
-            email: "メールアドレス",
-            password: "パスワード（8文字以上）",
-            passwordConfirm: "パスワードをもう一度入力",
-            passwordLengthOk: "8文字以上",
-            passwordMatch: "パスワードが一致しています",
-            passwordMismatch: "2つのパスワードが一致していません",
-            signUpWithGoogle: "Googleで続ける",
-            orText: "または",
-
-            lineSetupTitle: "LINE通知を設定",
-            lineSetupBody:
-              "新しい注文・チャット・修正依頼・納品承認をLINEで受け取れます。",
-            lineSetupBadge: "推奨",
-            lineSetupHeadline:
-              "注文を見逃さないために、LINE通知を設定しましょう",
-            lineSetupLead:
-              "ボタンを押すとLINEに移動します。許可後は自動でTrend Martに戻り、通知連携が完了します。",
-            lineBenefitOrder: "新しい注文が届いたらすぐ通知",
-            lineBenefitChat: "チャットや修正依頼も見逃しにくい",
-            lineBenefitPrivate: "LINEの友だちや企業には表示されません",
-            lineStepAdd: "1. 公式LINEを開く",
-            lineStepSend: "2. コードを送信",
-            lineStepDone: "3. 連携完了",
-            lineCodeLabel: "連携コード",
-            lineCodeHelp: "このコードをTrend Mart公式LINEのトークに送信してください。",
-            lineOpenButton: "LINEで通知を受け取る",
-            lineCopyCode: "コードをコピー",
-            lineCopied: "コードをコピーしました",
-            lineRefreshCode: "コードを再発行",
-            lineCheckStatus: "連携を確認",
-            lineChecking: "確認中...",
-            lineCreateCode: "連携コードを発行する",
-            lineCreatingCode: "発行中...",
-            lineSkip: "あとで設定する",
-            lineContinue: "次へ進む",
-            lineLinkedTitle: "LINE通知の設定が完了しました",
-            lineLinkedBody:
-              "新しい注文や重要な連絡をLINEで受け取れるようになりました。",
-            lineUnlinkedMessage:
-              "まだ連携を確認できません。公式LINEにコードを送信したあと、もう一度確認してください。",
-            lineOfficialMissing:
-              "LINE公式アカウントURLが未設定です。NEXT_PUBLIC_LINE_OFFICIAL_URLを確認してください。",
-            lineCodeFailed:
-              "LINE連携コードの発行に失敗しました。少し時間を置いて再度お試しください。",
-
-            categoryTitle: "ジャンル",
-            categoryBody: "得意なジャンルを5つまで選んでください。",
-            categoryCount: "選択中",
-
-            areaTitle: "対応エリア",
-            areaBody: "訪問・体験案件で対応できるエリアをすべて選んでください。",
-            nonJapanAreaTitle: "商品配送PR",
-            nonJapanAreaBody: "商品配送PRの受付可否を設定してください。",
-            prefecture: "対応可能エリア",
-            selectPrefecture: "複数選択できます",
-            productPr: "商品配送PR",
-            productPrYes: "商品を受け取ってPRできる",
-            productPrNo: "商品配送PRは受け付けない",
-
-            socialTitle: "SNS",
-            socialBody: "企業が確認するSNSを1つ以上登録してください。",
-            platform: "SNS種別",
-            socialHandle: "ユーザーネーム",
-            followerRange: "フォロワー数",
-            audienceCountry: "主なフォロワー層",
-            urlPreview: "URL",
-            addSocial: "SNSを追加",
-            remove: "削除",
-
-            imagesTitle: "写真",
-            imagesBody: "プロフィール画像1枚とポートフォリオ画像3枚以上が必要です。",
-            avatar: "プロフィール画像",
-            avatarHelp: "丸いアイコンに入る位置を調整してから保存します。",
-            avatarChoose: "画像を選択",
-            portfolio: "ポートフォリオ画像",
-            portfolioHelp: "最低3枚。雰囲気が伝わる写真を選んでください。",
-            portfolioChoose: "画像を追加",
-
-            menuTitle: "メニュー",
-            menuBody: "企業が購入できるメニューを1つ以上作成してください。",
-            menuType: "メニュー種別",
-            customMenuName: "メニュー名",
-            price: "例）11,000",
-            addMenu: "メニューを追加",
-
-            termsTitle: "確認",
-            termsLabel: "利用規約に同意する",
-            privacyLabel: "プライバシーポリシーに同意する",
-            termsLink: "利用規約",
-            privacyLink: "プライバシーポリシー",
-
-            continue: "次へ",
-            back: "戻る",
-            finish: "登録する",
-            loading: "処理中...",
-            selectPlease: "選択してください",
-            login: "ログイン",
-            reset: "最初から",
-
-            displayNameRequired: "ユーザーネームを入力してください",
-            genderRequired: "性別を選択してください",
-            birthDateRequired: "生年月日を選択してください",
-            ageRequired: "18歳以上の方のみ登録できます",
-            emailRequired: "メールアドレスを入力してください",
-            emailInvalid: "メールアドレスの形式が正しくありません",
-            passwordRequired: "パスワードは8文字以上必要です",
-            passwordConfirmRequired: "確認用パスワードを入力してください",
-            passwordMismatchError: "2つのパスワードが一致していません",
-            categoryRequired: "ジャンルを1つ以上選択してください",
-            categoryLimit: "ジャンルは5つまで選択できます",
-            areaRequired: "対応可能エリアを1つ以上選択してください",
-            productPrRequired: "商品配送PRの可否を選択してください",
-            socialRequired: "SNSを少なくとも1件、正しく入力してください",
-            avatarRequired: "プロフィール画像を追加してください",
-            portfolioRequired: "ポートフォリオ画像を3枚以上追加してください",
-            menuRequired: "メニューを少なくとも1つ正しく入力してください",
-            customMenuNameRequired: "メニュー名を入力してください",
-            termsRequired:
-              "利用規約とプライバシーポリシーへの同意が必要です",
-            signupFailed: "登録に失敗しました",
-            existingEmailSignInFailed:
-              "このメールアドレスはすでに登録されています。登録時のパスワードを確認するか、別のメールアドレスを使用してください。",
-            companyAccountConflict:
-              "このメールアドレスは企業アカウントに登録されています。Creator登録には別のアカウントを使用してください。",
-            imageUploadFailed: "画像のアップロードに失敗しました",
-            sessionMissing:
-              "アカウント作成後のログイン状態を確認できませんでした。Supabase Authでメール確認が必須になっている可能性があります。",
-          }
-        : {
-            step: "STEP",
-
-            displayTitle: "Basic info",
-            displayBody: "You can edit this later.",
-            displayName: "Username",
-            displayNamePlaceholder: "Example: Yuna Beauty",
-            country: "Country",
-            gender: "Gender",
-            birthDate: "Date of birth",
-
-            accountTitle: "Login",
-            accountBody: "Continue with Google or email.",
-            oauthConnected: "Google connected",
-            email: "Email",
-            password: "Password (8+ characters)",
-            passwordConfirm: "Enter password again",
-            passwordLengthOk: "8 or more characters",
-            passwordMatch: "Passwords match",
-            passwordMismatch: "Passwords do not match",
-            signUpWithGoogle: "Continue with Google",
-            orText: "or",
-
-            lineSetupTitle: "Set up LINE notifications",
-            lineSetupBody:
-              "Get new orders, chat messages, revision requests, and completion updates on LINE.",
-            lineSetupBadge: "Recommended",
-            lineSetupHeadline:
-              "Set up LINE notifications so you do not miss new orders",
-            lineSetupLead:
-              "Tap the button to open LINE. After allowing access, you will automatically return to Trendre.",
-            lineBenefitOrder: "Get notified as soon as a new order arrives",
-            lineBenefitChat: "Do not miss chats or revision requests",
-            lineBenefitPrivate: "Your LINE friends and brands will not see it",
-            lineStepAdd: "1. Open official LINE",
-            lineStepSend: "2. Send the code",
-            lineStepDone: "3. Connected",
-            lineCodeLabel: "Link code",
-            lineCodeHelp: "Send this code to the Trendre official LINE chat.",
-            lineOpenButton: "Receive notifications on LINE",
-            lineCopyCode: "Copy code",
-            lineCopied: "Code copied",
-            lineRefreshCode: "Issue new code",
-            lineCheckStatus: "Check connection",
-            lineChecking: "Checking...",
-            lineCreateCode: "Issue link code",
-            lineCreatingCode: "Issuing...",
-            lineSkip: "Set up later",
-            lineContinue: "Continue",
-            lineLinkedTitle: "LINE notifications are ready",
-            lineLinkedBody:
-              "You can now receive new orders and important updates on LINE.",
-            lineUnlinkedMessage:
-              "Connection has not been confirmed yet. Send the code to the official LINE chat, then check again.",
-            lineOfficialMissing:
-              "The official LINE URL is not configured. Please check NEXT_PUBLIC_LINE_OFFICIAL_URL.",
-            lineCodeFailed:
-              "Could not issue a LINE link code. Please try again later.",
-
-            categoryTitle: "Categories",
-            categoryBody: "Select up to 5 categories.",
-            categoryCount: "Selected",
-
-            areaTitle: "Area",
-            areaBody: "Select all areas where you can accept visit or experience jobs.",
-            nonJapanAreaTitle: "Product shipping PR",
-            nonJapanAreaBody: "Choose whether you accept shipped product PR.",
-            prefecture: "Available areas",
-            selectPrefecture: "Multiple selections allowed",
-            productPr: "Product shipping PR",
-            productPrYes: "I can receive products",
-            productPrNo: "I do not accept shipped product PR",
-
-            socialTitle: "Socials",
-            socialBody: "Add at least one social account.",
-            platform: "SNS type",
-            socialHandle: "Username",
-            followerRange: "Follower range",
-            audienceCountry: "Main audience country",
-            urlPreview: "URL",
-            addSocial: "Add social",
-            remove: "Remove",
-
-            imagesTitle: "Images",
-            imagesBody: "Add one profile image and at least three portfolio images.",
-            avatar: "Profile image",
-            avatarHelp: "Adjust the crop for the round profile icon before saving.",
-            avatarChoose: "Choose image",
-            portfolio: "Portfolio images",
-            portfolioHelp: "At least 3 images are required.",
-            portfolioChoose: "Add images",
-
-            menuTitle: "Menus",
-            menuBody: "Create at least one menu brands can order.",
-            menuType: "Menu type",
-            customMenuName: "Menu name",
-            price: "Example: 11,000",
-            addMenu: "Add menu",
-
-            termsTitle: "Confirm",
-            termsLabel: "I agree to the Terms",
-            privacyLabel: "I agree to the Privacy Policy",
-            termsLink: "Terms",
-            privacyLink: "Privacy Policy",
-
-            continue: "Next",
-            back: "Back",
-            finish: "Sign up",
-            loading: "Processing...",
-            selectPlease: "Please select",
-            login: "Login",
-            reset: "Reset",
-
-            displayNameRequired: "Please enter your username",
-            genderRequired: "Please select your gender",
-            birthDateRequired: "Please select your date of birth",
-            ageRequired: "You must be 18 or older to register",
-            emailRequired: "Please enter your email address",
-            emailInvalid: "Please enter a valid email address",
-            passwordRequired: "Password must be at least 8 characters",
-            passwordConfirmRequired: "Please enter the password again",
-            passwordMismatchError: "The two passwords do not match",
-            categoryRequired: "Please select at least one category",
-            categoryLimit: "You can select up to 5 categories",
-            areaRequired: "Please select at least one available area",
-            productPrRequired: "Please select whether you can receive products",
-            socialRequired: "Please add at least one valid social account",
-            avatarRequired: "Please add a profile image",
-            portfolioRequired: "Please add at least 3 portfolio images",
-            menuRequired: "Please add at least one valid menu",
-            customMenuNameRequired: "Please enter a menu name",
-            termsRequired: "You must agree to the Terms and Privacy Policy",
-            signupFailed: "Sign up failed",
-            existingEmailSignInFailed:
-              "This email address is already registered. Check the password used when registering, or use a different email address.",
-            companyAccountConflict:
-              "This email address is registered to a company account. Please use a different account to register as a Creator.",
-            imageUploadFailed: "Failed to upload images",
-            sessionMissing:
-              "Could not confirm your signed-in session after account creation. Email confirmation may be required in Supabase Auth settings.",
-          },
-    [appLocale]
-  );
-
-  const copy = useMemo(
-    () => ({ ...baseCopy, ...SIGNUP_FOUNDATION_COPY[locale] }),
-    [baseCopy, locale],
-  );
-
-  const stepTitles = SIGNUP_STEP_TITLES[locale];
+  const copy = creatorSignupDictionary[locale];
+  const stepTitles = creatorSignupStepTitles[locale];
 
   const [step, setStep] = useState(0);
 
@@ -1526,7 +1112,7 @@ export default function SignupCreatorClient({
         return false;
       }
       if (filledMenus.some((menu) => parsePriceNumber(menu.price) < MIN_CREATOR_MENU_PRICE)) {
-        setError(appLocale === "ja" ? "3,000円以上で入力してください" : "Please enter JPY 3,000 or more");
+        setError(copy.minimumPrice);
         return false;
       }
       if (filledMenus.some((menu) => menu.menu_type === "その他" && !menu.custom_menu_name.trim())) {
@@ -1899,46 +1485,8 @@ export default function SignupCreatorClient({
 
   const renderLineSetup = () => {
     const tips = isCreatorOnly
-      ? [
-          {
-            title: appLocale === "ja" ? "仕事相談を見逃さない" : "Do not miss work inquiries",
-            body: appLocale === "ja"
-              ? "Trendre Linkに届いた新しい仕事相談をLINEで確認できます。"
-              : "Get notified on LINE when a new work inquiry arrives through Trendre Link.",
-          },
-          {
-            title: appLocale === "ja" ? "大切なお知らせを受け取る" : "Receive important updates",
-            body: appLocale === "ja"
-              ? "今後の重要な通知も、同じLINEアカウントで受け取れます。"
-              : "Future important notifications will arrive at this same LINE account.",
-          },
-          {
-            title: appLocale === "ja" ? "あとからでも設定できる" : "Set it up anytime",
-            body: appLocale === "ja"
-              ? "LINE連携はプロフィール画面からいつでも設定できます。"
-              : "You can connect LINE later from your profile.",
-          },
-        ]
-      : [
-          {
-            title: appLocale === "ja" ? "注文通知をすぐ受け取る" : "Receive order alerts immediately",
-            body: appLocale === "ja"
-              ? "企業から注文や依頼が届いたときにLINEで確認できます。"
-              : "Get notified on LINE when a brand sends an order or request.",
-          },
-          {
-            title: appLocale === "ja" ? "チャットを見逃さない" : "Do not miss chats",
-            body: appLocale === "ja"
-              ? "案件中の確認や修正依頼にも気づきやすくなります。"
-              : "Stay on top of confirmations and revision requests during jobs.",
-          },
-          {
-            title: appLocale === "ja" ? "プロフィールは後から編集できます" : "You can edit your profile later",
-            body: appLocale === "ja"
-              ? "メニュー数を増やすと、企業に選ばれる機会も増えます。"
-              : "Adding more menus can increase your chances of receiving orders.",
-          },
-        ];
+      ? copy.completionTipsCreatorOnly
+      : copy.completionTipsMarketplace;
 
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7f8_0,#f6f8fb_36%,#f6f8fb_100%)] text-slate-950">
@@ -1963,29 +1511,15 @@ export default function SignupCreatorClient({
                 <div className="relative">
                   <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">✓</span>
-                    {appLocale === "ja"
-                      ? isCreatorOnly ? "登録が完了しました" : "登録内容を保存しました"
-                      : "Your registration has been saved"}
+                    {isCreatorOnly ? copy.registrationSavedCreatorOnly : copy.registrationSavedMarketplace}
                   </div>
 
                   <h1 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950 sm:text-[38px]">
-                    {isCreatorOnly && appLocale === "ja"
-                      ? "仕事の通知をLINEで受け取りましょう"
-                      : isCreatorOnly
-                        ? "Receive work notifications on LINE"
-                        : appLocale === "ja"
-                          ? "あと一歩で、注文を受け取れる状態になります"
-                          : "One more step to start receiving orders"}
+                    {isCreatorOnly ? copy.completionHeadlineCreatorOnly : copy.completionHeadlineMarketplace}
                   </h1>
 
                   <p className="mt-3 max-w-[620px] text-sm font-bold leading-7 text-slate-500">
-                    {isCreatorOnly && appLocale === "ja"
-                      ? "新しい仕事相談や、これからの大切な通知をLINEでお知らせします。LINE連携はあとからプロフィールでも設定できます。"
-                      : isCreatorOnly
-                        ? "Get notified on LINE about new work inquiries and future important updates. You can also connect LINE later from your profile."
-                        : appLocale === "ja"
-                          ? "注文を受けるには、LINEで通知を受け取る設定が必要です。新規注文、チャット、修正依頼、納品承認などの大切な連絡を見逃さないように、先にLINE連携を完了してください。"
-                          : "To receive orders, you need to enable LINE notifications. Connect LINE now so you do not miss new orders, chats, revision requests, or approvals."}
+                    {isCreatorOnly ? copy.completionLeadCreatorOnly : copy.completionLeadMarketplace}
                   </p>
 
                   <div className="mt-5 grid gap-2 sm:max-w-[420px]">
@@ -1998,9 +1532,9 @@ export default function SignupCreatorClient({
                       {lineLinked
                         ? copy.lineLinkedTitle
                         : lineLinkLoading
-                          ? appLocale === "ja" ? "LINEを開いています..." : "Opening LINE..."
+                          ? copy.lineOpening
                           : isCreatorOnly
-                            ? appLocale === "ja" ? "LINEを連携する" : "Connect LINE"
+                            ? copy.lineConnect
                             : copy.lineOpenButton}
                     </button>
 
@@ -2010,23 +1544,17 @@ export default function SignupCreatorClient({
                       disabled={lineLinkLoading}
                       className="h-12 rounded-full bg-white text-sm font-black text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {lineLinked ? copy.lineContinue : appLocale === "ja" ? "あとで設定する" : "Set up later"}
+                      {lineLinked ? copy.lineContinue : copy.lineSetLater}
                     </button>
                   </div>
 
                   <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400 sm:max-w-[420px]">
-                    {isCreatorOnly && appLocale === "ja"
-                      ? "LINE連携は任意です。あとからプロフィールでも設定できます。"
-                      : isCreatorOnly
-                        ? "LINE connection is optional and can be set up later from your profile."
-                        : appLocale === "ja"
-                          ? "LINEの友だちや企業に、通知設定が見えることはありません。"
-                          : "Your LINE notification setting is not visible to your friends or brands."}
+                    {isCreatorOnly ? copy.completionPrivacyCreatorOnly : copy.completionPrivacyMarketplace}
                   </p>
 
                   {lineLinked ? (
                     <div className="mt-4 max-w-[420px] rounded-[18px] bg-emerald-50 px-3 py-3 text-xs font-black leading-5 text-emerald-700 ring-1 ring-emerald-100">
-                      {copy.lineLinkedTitle}{lineDisplayName ? `：${lineDisplayName}` : ""}
+                      {lineDisplayName ? copy.lineLinkedAccount(lineDisplayName) : copy.lineLinkedTitle}
                     </div>
                   ) : null}
 
@@ -2044,18 +1572,10 @@ export default function SignupCreatorClient({
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#06c755] text-sm font-black text-white shadow-[0_12px_26px_rgba(6,199,85,0.24)]">LINE</div>
                     <div>
                       <p className="text-base font-black tracking-[-0.04em] text-slate-950">
-                        {isCreatorOnly && appLocale === "ja"
-                          ? "LINE通知"
-                          : isCreatorOnly
-                            ? "LINE notifications"
-                            : appLocale === "ja" ? "通知設定を完了しましょう" : "Complete notification setup"}
+                        {isCreatorOnly ? copy.completionAsideTitleCreatorOnly : copy.completionAsideTitleMarketplace}
                       </p>
                       <p className="mt-0.5 text-[11px] font-bold leading-5 text-slate-500">
-                        {isCreatorOnly && appLocale === "ja"
-                          ? "仕事相談や大切なお知らせを受け取れます"
-                          : isCreatorOnly
-                            ? "Receive work inquiries and important updates"
-                            : appLocale === "ja" ? "案件対応に必要な連絡を受け取れます" : "Receive the updates needed for orders"}
+                        {isCreatorOnly ? copy.completionAsideBodyCreatorOnly : copy.completionAsideBodyMarketplace}
                       </p>
                     </div>
                   </div>
@@ -2106,7 +1626,7 @@ export default function SignupCreatorClient({
               <Field label={copy.gender}>
                 <SelectInput value={gender} onChange={(e) => setGender(e.target.value)}>
                   {GENDER_OPTIONS.map((item) => (
-                    <option key={item.value || "empty"} value={item.value}>{appLocale === "ja" ? item.ja : item.en}</option>
+                    <option key={item || "empty"} value={item}>{creatorSignupGenderLabels[locale][item]}</option>
                   ))}
                 </SelectInput>
               </Field>
@@ -2132,7 +1652,7 @@ export default function SignupCreatorClient({
 
           {oauthSessionEmail ? (
             <div className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
-              {copy.oauthConnected}: {oauthSessionEmail}
+              {copy.oauthConnectedAccount(oauthSessionEmail)}
             </div>
           ) : null}
 
@@ -2199,7 +1719,7 @@ export default function SignupCreatorClient({
                     onClick={() => setActiveGenreGroup(group.key)}
                     className={`shrink-0 rounded-full px-3 py-2 text-xs font-black transition ${active ? "bg-[#ff3860] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}
                   >
-                    {appLocale === "ja" ? group.ja : group.en}
+                    {creatorSignupGenreLabels[locale][group.key]}
                   </button>
                 );
               })}
@@ -2223,7 +1743,7 @@ export default function SignupCreatorClient({
                   onClick={() => toggleCategory(item)}
                   className={`min-h-[38px] rounded-xl px-2.5 py-2 text-left text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${selected ? "bg-[#ff3860] text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`}
                 >
-                  {item}
+                  {localizeCreatorSignupValue(locale, item, creatorSignupCategoryLabels)}
                 </button>
               );
             })}
@@ -2233,7 +1753,7 @@ export default function SignupCreatorClient({
             <div className="mt-3 flex flex-wrap gap-1.5">
               {selectedCategories.map((item) => (
                 <button key={item} type="button" onClick={() => toggleCategory(item)} className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-[#ff3860] ring-1 ring-rose-100">
-                  {item} ×
+                  {localizeCreatorSignupValue(locale, item, creatorSignupCategoryLabels)} ×
                 </button>
               ))}
             </div>
@@ -2263,7 +1783,7 @@ export default function SignupCreatorClient({
                         aria-pressed={selected}
                         className={`min-h-[38px] rounded-xl px-2.5 py-2 text-left text-xs font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-100 ${selected ? "bg-[#ff3860] text-white shadow-[0_8px_18px_rgba(255,56,96,0.18)]" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`}
                       >
-                        {selected ? "✓ " : ""}{item}
+                        {selected ? "✓ " : ""}{localizeCreatorSignupValue(locale, item, creatorSignupPrefectureLabels)}
                       </button>
                     );
                   })}
@@ -2273,7 +1793,7 @@ export default function SignupCreatorClient({
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {selectedPrefectures.map((item) => (
                       <button key={item} type="button" onClick={() => togglePrefecture(item)} className="rounded-full bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-[#ff3860] ring-1 ring-rose-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-100">
-                        {item} ×
+                        {localizeCreatorSignupValue(locale, item, creatorSignupPrefectureLabels)} ×
                       </button>
                     ))}
                   </div>
@@ -2309,13 +1829,13 @@ export default function SignupCreatorClient({
         <StepShell title={copy.socialTitle} body={copy.socialBody}>
           <div className="space-y-3">
             {socialAccounts.map((social, index) => {
-              const config = getSocialConfig(social.platform, appLocale);
+              const config = getSocialConfig(social.platform, locale);
               const previewUrl = buildSocialPreview(social.platform, social.username_or_url);
 
               return (
                 <div key={index} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-black text-slate-950">SNS {index + 1}</p>
+                    <p className="text-sm font-black text-slate-950">{copy.socialItem(index + 1)}</p>
                     <button type="button" onClick={() => removeSocial(index)} className="text-xs font-black text-[#ff3860]">{copy.remove}</button>
                   </div>
 
@@ -2352,13 +1872,13 @@ export default function SignupCreatorClient({
                       <SelectInput value={social.follower_range} onChange={(e) => updateSocial(index, "follower_range", e.target.value)}>
                         <option value="">{copy.followerRange}</option>
                         {FOLLOWER_RANGE_OPTIONS.map((item) => (
-                          <option key={item} value={item}>{formatOption(item, appLocale, FOLLOWER_RANGE_OPTIONS_EN)}</option>
+                          <option key={item} value={item}>{localizeCreatorSignupValue(locale, item, creatorSignupFollowerRangeLabels)}</option>
                         ))}
                       </SelectInput>
                       <SelectInput value={social.audience_country} onChange={(e) => updateSocial(index, "audience_country", e.target.value)}>
                         <option value="">{copy.audienceCountry}</option>
                         {AUDIENCE_COUNTRY_OPTIONS.map((item) => (
-                          <option key={item} value={item}>{formatOption(item, appLocale, AUDIENCE_COUNTRY_OPTIONS_EN)}</option>
+                          <option key={item} value={item}>{localizeCreatorSignupValue(locale, item, creatorSignupAudienceCountryLabels)}</option>
                         ))}
                       </SelectInput>
                     </div>
@@ -2385,7 +1905,7 @@ export default function SignupCreatorClient({
                 label={copy.avatar}
                 help={copy.avatarHelp}
                 chooseLabel={copy.avatarChoose}
-                locale={appLocale}
+                locale={locale}
                 onConfirm={handleAvatarCropConfirm}
               />
             </div>
@@ -2405,7 +1925,7 @@ export default function SignupCreatorClient({
                   if (preview) {
                     return (
                       <div key={preview} className="relative aspect-square overflow-hidden rounded-xl bg-white ring-1 ring-slate-200">
-                        <img src={preview} alt={`${copy.portfolio} ${index + 1}`} className="h-full w-full object-cover" />
+                        <img src={preview} alt={copy.portfolioImageAlt(index + 1)} className="h-full w-full object-cover" />
                         <button type="button" onClick={() => removePortfolioFile(index)} className="absolute right-1.5 top-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-black text-white">×</button>
                       </div>
                     );
@@ -2433,7 +1953,7 @@ export default function SignupCreatorClient({
           {menus.map((menu, index) => (
             <div key={index} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-black text-slate-950">Menu {index + 1}</p>
+                <p className="text-sm font-black text-slate-950">{copy.menuItem(index + 1)}</p>
                 <button type="button" onClick={() => removeMenu(index)} className="text-xs font-black text-[#ff3860]">{copy.remove}</button>
               </div>
 
@@ -2442,8 +1962,8 @@ export default function SignupCreatorClient({
                   <MenuTypePicker
                     value={menu.menu_type}
                     options={MENU_OPTIONS.map((item) => ({
-                      value: item.value,
-                      label: appLocale === "ja" ? item.labelJa : item.labelEn,
+                      value: item,
+                      label: getMenuLabel(item, locale),
                     }))}
                     onChange={(value) => updateMenu(index, "menu_type", value)}
                   />
@@ -2455,24 +1975,20 @@ export default function SignupCreatorClient({
                       type="text"
                       value={menu.custom_menu_name}
                       onChange={(e) => updateMenu(index, "custom_menu_name", e.target.value)}
-                      placeholder={appLocale === "ja" ? "例）Instagramライブ配信" : "Example: Instagram live stream"}
+                      placeholder={copy.customMenuPlaceholder}
                     />
                   </Field>
                 ) : null}
 
                 {menu.menu_type ? (
                   <p className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold leading-5 text-slate-500 ring-1 ring-slate-100">
-                    {getMenuHelp(menu.menu_type, appLocale)}
+                    {getMenuHelp(menu.menu_type, locale)}
                   </p>
                 ) : null}
 
                 <Field
-                  label={appLocale === "ja" ? "金額（円）" : "Price (JPY)"}
-                  help={
-                    appLocale === "ja"
-                      ? "3,000円以上で入力してください"
-                      : "Please enter JPY 3,000 or more"
-                  }
+                  label={copy.priceLabel}
+                  help={copy.minimumPrice}
                 >
                   <TextInput
                     type="text"
@@ -2489,11 +2005,7 @@ export default function SignupCreatorClient({
                         Number.isFinite(priceNumber) &&
                         priceNumber < MIN_CREATOR_MENU_PRICE
                       ) {
-                        setError(
-                          appLocale === "ja"
-                            ? "3,000円以上で入力してください"
-                            : "Please enter JPY 3,000 or more"
-                        );
+                        setError(copy.minimumPrice);
                       }
                     }}
                     placeholder={copy.price}
@@ -2541,12 +2053,10 @@ export default function SignupCreatorClient({
               <div className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#ff3860] border-t-transparent" />
             </div>
             <p className="mt-4 text-lg font-black tracking-[-0.04em] text-slate-950">
-              {appLocale === "ja" ? "プロフィールを準備しています" : "Preparing your profile"}
+              {copy.preparingTitle}
             </p>
             <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
-              {appLocale === "ja"
-                ? "もう少しで完了です。入力内容は後から変更できます。メニュー数を増やすと、企業に選ばれる機会も広がります。"
-                : "Almost done. You can edit your details later. Adding more menus can increase your chances of receiving orders."}
+              {copy.preparingBody}
             </p>
           </div>
         </div>
@@ -2573,7 +2083,7 @@ export default function SignupCreatorClient({
         <section className="overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-100">
           <div className="border-b border-slate-100 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-[11px] font-black tracking-[0.18em] text-slate-400">{copy.step} {step + 1}/{TOTAL_STEPS}</p>
+              <p className="text-[11px] font-black tracking-[0.18em] text-slate-400">{copy.progress(step + 1, TOTAL_STEPS)}</p>
               <button type="button" onClick={resetForm} className="text-[11px] font-black text-slate-400 underline underline-offset-4">{copy.reset}</button>
             </div>
 
@@ -2632,7 +2142,7 @@ export default function SignupCreatorClient({
                   disabled={loading}
                   className="h-11 rounded-full bg-[#ff3860] text-sm font-black text-white shadow-[0_10px_24px_rgba(255,56,96,0.22)] transition disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {loading ? appLocale === "ja" ? "準備しています..." : "Preparing..." : copy.finish}
+                  {loading ? copy.preparing : copy.finish}
                 </button>
               )}
             </div>
