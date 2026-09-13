@@ -14,7 +14,9 @@ import { useRouter } from "next/navigation";
 import { Link2 } from "lucide-react";
 import { FaInstagram, FaLine, FaTiktok, FaXTwitter, FaYoutube } from "react-icons/fa6";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { useAppLocale } from "@/lib/i18n/locale";
+import { getLegacyContentLocale, useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import LocaleSelector from "@/components/i18n/LocaleSelector";
 import CountrySelector from "@/components/creator/CountrySelector";
 import {
   canonicalizeCreatorLocation,
@@ -38,6 +40,13 @@ import {
 } from "@/app/creator/_components/CreatorDesignSystem";
 
 type Locale = "ja" | "en";
+
+const PROFILE_FOUNDATION_COPY = {
+  ja: { title: "プロフィール", country: "対象国", uiLanguage: "UI言語", uiLanguageBody: "Trend Martの画面表示に使う言語です。活動国や対応言語とは別に設定できます。", save: "保存する", saving: "保存中..." },
+  en: { title: "Profile", country: "Country", uiLanguage: "UI language", uiLanguageBody: "Choose the language used in Trend Mart. This is separate from your country and supported languages.", save: "Save", saving: "Saving..." },
+  ko: { title: "프로필", country: "활동 국가", uiLanguage: "UI 언어", uiLanguageBody: "Trend Mart 화면에 사용할 언어입니다. 활동 국가 및 지원 언어와 별도로 설정할 수 있습니다.", save: "저장", saving: "저장 중..." },
+  "zh-TW": { title: "個人檔案", country: "活動國家／地區", uiLanguage: "介面語言", uiLanguageBody: "選擇 Trend Mart 的介面語言。此設定與活動國家／地區及可使用語言分開管理。", save: "儲存", saving: "儲存中..." },
+} satisfies Record<AppLocale, Record<string, string>>;
 
 type CreatorRow = {
   id: string;
@@ -1058,10 +1067,12 @@ export default function CreatorProfilePage() {
   const isCreatorOnly = useCreatorOnlyRelease();
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const { locale } = useAppLocale();
-  const safeLocale: Locale = locale === "en" ? "en" : "ja";
+  const { locale, setLocale } = useAppLocale({ allLocales: true });
+  // Long-form profile copy remains ja/en until the full translation phase.
+  // Korean and Traditional Chinese deliberately fall back to Japanese here.
+  const safeLocale: Locale = getLegacyContentLocale(locale);
 
-  const copy = useMemo(
+  const baseCopy = useMemo(
     () =>
       safeLocale === "ja"
         ? {
@@ -1259,6 +1270,11 @@ export default function CreatorProfilePage() {
             lineTestFailed: "Failed to send LINE test notification.",
           },
     [safeLocale],
+  );
+
+  const copy = useMemo(
+    () => ({ ...baseCopy, ...PROFILE_FOUNDATION_COPY[locale] }),
+    [baseCopy, locale],
   );
 
   const [creatorId, setCreatorId] = useState<string | null>(null);
@@ -2043,6 +2059,13 @@ export default function CreatorProfilePage() {
       ) : null}
 
       <div className="flex flex-col">
+      <SectionCard className="order-4" title={copy.uiLanguage} description={copy.uiLanguageBody}>
+        <LocaleSelector
+          value={locale}
+          onChange={setLocale}
+          ariaLabel={copy.uiLanguage}
+        />
+      </SectionCard>
       <SectionCard className="order-1" title={copy.photoSection} description={copy.photoBody}>
         <AvatarCropPicker
           label={copy.avatar}

@@ -12,7 +12,9 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { useAppLocale } from "@/lib/i18n/locale";
+import { getLegacyContentLocale, useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
+import LocaleSelector from "@/components/i18n/LocaleSelector";
 import CountrySelector from "@/components/creator/CountrySelector";
 import {
   canonicalizeCreatorLocation,
@@ -31,6 +33,28 @@ import {
 } from "./CreatorSignupPolishControls";
 
 type Locale = "ja" | "en";
+
+const SIGNUP_FOUNDATION_COPY = {
+  ja: {
+    uiLanguage: "UI言語", displayTitle: "基本情報", displayBody: "あとから変更できます。", displayName: "ユーザーネーム", country: "対象国", gender: "性別", birthDate: "生年月日", accountTitle: "ログイン", accountBody: "Google、またはメールで登録します。", categoryTitle: "ジャンル", categoryBody: "得意なジャンルを5つまで選んでください。", areaTitle: "対応エリア", nonJapanAreaTitle: "商品配送PR", socialTitle: "SNS", socialBody: "企業が確認するSNSを1つ以上登録してください。", imagesTitle: "写真", imagesBody: "プロフィール画像1枚とポートフォリオ画像3枚以上が必要です。", menuTitle: "メニュー", menuBody: "企業が購入できるメニューを1つ以上作成してください。", continue: "次へ", back: "戻る", finish: "登録する", login: "ログイン", reset: "最初から", selectPlease: "選択してください",
+  },
+  en: {
+    uiLanguage: "UI language", displayTitle: "Basic info", displayBody: "You can edit this later.", displayName: "Username", country: "Country", gender: "Gender", birthDate: "Date of birth", accountTitle: "Login", accountBody: "Continue with Google or email.", categoryTitle: "Categories", categoryBody: "Select up to 5 categories.", areaTitle: "Area", nonJapanAreaTitle: "Product shipping PR", socialTitle: "Socials", socialBody: "Add at least one social account.", imagesTitle: "Images", imagesBody: "Add one profile image and at least three portfolio images.", menuTitle: "Menus", menuBody: "Create at least one menu brands can order.", continue: "Next", back: "Back", finish: "Sign up", login: "Login", reset: "Reset", selectPlease: "Please select",
+  },
+  ko: {
+    uiLanguage: "UI 언어", displayTitle: "기본 정보", displayBody: "나중에 변경할 수 있습니다.", displayName: "사용자 이름", country: "활동 국가", gender: "성별", birthDate: "생년월일", accountTitle: "로그인", accountBody: "Google 또는 이메일로 가입하세요.", categoryTitle: "카테고리", categoryBody: "잘하는 분야를 최대 5개까지 선택해 주세요.", areaTitle: "활동 지역", nonJapanAreaTitle: "제품 배송 홍보", socialTitle: "SNS", socialBody: "기업이 확인할 SNS 계정을 1개 이상 등록해 주세요.", imagesTitle: "사진", imagesBody: "프로필 사진 1장과 포트폴리오 사진 3장 이상이 필요합니다.", menuTitle: "서비스", menuBody: "기업이 구매할 수 있는 서비스를 1개 이상 만들어 주세요.", continue: "다음", back: "이전", finish: "가입하기", login: "로그인", reset: "처음부터", selectPlease: "선택해 주세요",
+  },
+  "zh-TW": {
+    uiLanguage: "介面語言", displayTitle: "基本資訊", displayBody: "之後仍可修改。", displayName: "使用者名稱", country: "活動國家／地區", gender: "性別", birthDate: "出生日期", accountTitle: "登入", accountBody: "使用 Google 或電子郵件註冊。", categoryTitle: "內容類別", categoryBody: "請選擇最多 5 個擅長領域。", areaTitle: "服務地區", nonJapanAreaTitle: "商品寄送宣傳", socialTitle: "社群帳號", socialBody: "請至少新增一個供品牌查看的社群帳號。", imagesTitle: "照片", imagesBody: "需要 1 張個人檔案照片及至少 3 張作品集照片。", menuTitle: "服務項目", menuBody: "請建立至少一項可供品牌購買的服務。", continue: "下一步", back: "返回", finish: "完成註冊", login: "登入", reset: "重新開始", selectPlease: "請選擇",
+  },
+} satisfies Record<AppLocale, Record<string, string>>;
+
+const SIGNUP_STEP_TITLES: Record<AppLocale, string[]> = {
+  ja: ["基本", "ログイン", "ジャンル", "エリア", "SNS", "写真", "メニュー"],
+  en: ["Basic", "Login", "Categories", "Area", "Socials", "Images", "Menus"],
+  ko: ["기본", "로그인", "카테고리", "지역", "SNS", "사진", "서비스"],
+  "zh-TW": ["基本", "登入", "類別", "地區", "社群", "照片", "服務"],
+};
 
 type SocialAccountForm = {
   platform: string;
@@ -697,10 +721,12 @@ export default function SignupCreatorClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const { locale, setLocale } = useAppLocale();
-  const appLocale = (locale === "en" ? "en" : "ja") as Locale;
+  const { locale, setLocale } = useAppLocale({ allLocales: true });
+  // Long-form page copy remains ja/en until the full translation phase. New
+  // locales deliberately fall back to Japanese instead of being treated as English.
+  const appLocale: Locale = getLegacyContentLocale(locale);
 
-  const copy = useMemo(
+  const baseCopy = useMemo(
     () =>
       appLocale === "ja"
         ? {
@@ -989,13 +1015,12 @@ export default function SignupCreatorClient({
     [appLocale]
   );
 
-  const stepTitles = useMemo(
-    () =>
-      appLocale === "ja"
-        ? ["基本", "ログイン", "ジャンル", "エリア", "SNS", "写真", "メニュー"]
-        : ["Basic", "Login", "Categories", "Area", "Socials", "Images", "Menus"],
-    [appLocale]
+  const copy = useMemo(
+    () => ({ ...baseCopy, ...SIGNUP_FOUNDATION_COPY[locale] }),
+    [baseCopy, locale],
   );
+
+  const stepTitles = SIGNUP_STEP_TITLES[locale];
 
   const [step, setStep] = useState(0);
 
@@ -1921,13 +1946,12 @@ export default function SignupCreatorClient({
           <Link href="/for-creators" className="inline-flex items-center">
             <img src="/brand/trend-mart-logo.png" alt="Trendre" className="h-7 w-auto object-contain" />
           </Link>
-          <button
-            type="button"
-            onClick={() => setLocale(appLocale === "ja" ? "en" : "ja")}
-            className="rounded-full bg-white/90 px-3 py-2 text-[11px] font-black text-slate-700 shadow-sm ring-1 ring-slate-100"
-          >
-            {appLocale === "ja" ? "EN" : "日本語"}
-          </button>
+          <LocaleSelector
+            value={locale}
+            onChange={setLocale}
+            variant="select"
+            ariaLabel={copy.uiLanguage}
+          />
         </header>
 
         <div className="mx-auto w-full max-w-[920px] px-3 pb-24 pt-2">
@@ -2061,6 +2085,13 @@ export default function SignupCreatorClient({
       return (
         <StepShell title={copy.displayTitle} body={copy.displayBody}>
           <div className="grid gap-3">
+            <Field label={copy.uiLanguage}>
+              <LocaleSelector
+                value={locale}
+                onChange={setLocale}
+                ariaLabel={copy.uiLanguage}
+              />
+            </Field>
             <Field label={copy.displayName}>
               <TextInput value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={copy.displayNamePlaceholder} />
             </Field>
@@ -2526,13 +2557,12 @@ export default function SignupCreatorClient({
           <img src="/brand/trend-mart-logo.png" alt="Trendre" className="h-7 w-auto object-contain" />
         </Link>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setLocale(appLocale === "ja" ? "en" : "ja")}
-            className="rounded-full bg-white px-3 py-2 text-[11px] font-black text-slate-700 ring-1 ring-slate-100"
-          >
-            {appLocale === "ja" ? "EN" : "日本語"}
-          </button>
+          <LocaleSelector
+            value={locale}
+            onChange={setLocale}
+            variant="select"
+            ariaLabel={copy.uiLanguage}
+          />
           <Link href="/login" className="rounded-full bg-white px-3 py-2 text-[11px] font-black text-slate-700 ring-1 ring-slate-100">
             {copy.login}
           </Link>

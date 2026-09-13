@@ -17,13 +17,30 @@ import {
 } from "lucide-react";
 
 import NotificationBell from "@/components/NotificationBell";
+import LocaleSelector from "@/components/i18n/LocaleSelector";
 import { useAppLocale } from "@/lib/i18n/locale";
+import type { AppLocale } from "@/lib/i18n/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useCreatorOnlyRelease } from "./CreatorReleaseMode";
 
 type IconProps = { className?: string };
 type DetailNavContext = "orders" | "jobs" | null;
 type NavItem = { href: string; label: string; icon: ReactNode };
+
+const CREATOR_SHELL_COPY: Record<AppLocale, Record<string, string>> = {
+  ja: {
+    notifications: "通知", accountMenu: "アカウント", accountSettings: "アカウント設定", accountSettingsBody: "ログイン情報・本人情報", bank: "銀行口座", bankBody: "報酬の受取口座", earnings: "報酬", earningsBody: "売上・振込履歴", language: "UI言語", help: "ヘルプ", terms: "利用規約", privacy: "プライバシーポリシー", logout: "ログアウト", loggingOut: "ログアウト中…", limitTitle: "現在、取引が一部制限されています", limitReason: "理由", home: "ホーム", orders: "注文", jobs: "案件", link: "リンク", profile: "プロフィール",
+  },
+  en: {
+    notifications: "Notifications", accountMenu: "Account", accountSettings: "Account settings", accountSettingsBody: "Login and identity information", bank: "Bank account", bankBody: "Payout destination", earnings: "Earnings", earningsBody: "Sales and payout history", language: "UI language", help: "Help", terms: "Terms", privacy: "Privacy Policy", logout: "Log out", loggingOut: "Logging out…", limitTitle: "Some account actions are restricted", limitReason: "Reason", home: "Home", orders: "Orders", jobs: "Jobs", link: "Link", profile: "Profile",
+  },
+  ko: {
+    notifications: "알림", accountMenu: "계정", accountSettings: "계정 설정", accountSettingsBody: "로그인 및 본인 정보", bank: "은행 계좌", bankBody: "정산 받을 계좌", earnings: "정산", earningsBody: "매출 및 입금 내역", language: "UI 언어", help: "도움말", terms: "이용약관", privacy: "개인정보 처리방침", logout: "로그아웃", loggingOut: "로그아웃 중…", limitTitle: "현재 일부 거래가 제한되어 있습니다", limitReason: "사유", home: "홈", orders: "주문", jobs: "작업", link: "링크", profile: "프로필",
+  },
+  "zh-TW": {
+    notifications: "通知", accountMenu: "帳號", accountSettings: "帳號設定", accountSettingsBody: "登入與身分資訊", bank: "銀行帳戶", bankBody: "款項收款帳戶", earnings: "收益", earningsBody: "銷售與撥款紀錄", language: "介面語言", help: "說明中心", terms: "使用條款", privacy: "隱私權政策", logout: "登出", loggingOut: "登出中…", limitTitle: "目前部分交易功能受到限制", limitReason: "原因", home: "首頁", orders: "訂單", jobs: "案件", link: "連結", profile: "個人檔案",
+  },
+};
 
 function HomeIcon({ className = "" }: IconProps) {
   return (
@@ -169,17 +186,17 @@ function AccountSheet({
   copy,
   isCreatorOnly,
   onClose,
-  onToggleLocale,
+  onLocaleChange,
   onLogout,
 }: {
   open: boolean;
   email: string | null;
-  locale: string;
+  locale: AppLocale;
   loggingOut: boolean;
   copy: Record<string, string>;
   isCreatorOnly: boolean;
   onClose: () => void;
-  onToggleLocale: () => void;
+  onLocaleChange: (locale: AppLocale) => void;
   onLogout: () => void;
 }) {
   if (!open) return null;
@@ -214,13 +231,10 @@ function AccountSheet({
 
         <div className="my-2 h-px bg-slate-200/70" />
 
-        <button type="button" onClick={onToggleLocale} className="flex min-h-14 w-full items-center gap-3 rounded-[14px] px-3 py-2 text-left outline-none transition duration-150 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-rose-200 active:scale-[0.99] motion-reduce:transition-none">
-          <span className="flex h-9 w-9 items-center justify-center text-[11px] font-semibold text-slate-600">{locale === "ja" ? "EN" : "JA"}</span>
-          <span>
-            <span className="block text-[14px] font-medium">{copy.language}</span>
-            <span className="mt-0.5 block text-[12px] font-normal text-slate-500">{locale === "ja" ? "English" : "日本語"}</span>
-          </span>
-        </button>
+        <div className="flex min-h-14 items-center gap-3 rounded-[14px] px-3 py-2">
+          <span className="min-w-0 flex-1 text-[14px] font-medium">{copy.language}</span>
+          <LocaleSelector value={locale} onChange={onLocaleChange} variant="select" ariaLabel={copy.language} />
+        </div>
         <MenuLink href="/help" icon={<BadgeHelp className="h-5 w-5" />} title={copy.help} onClick={onClose} />
         <MenuLink href="/terms" icon={<ShieldCheck className="h-5 w-5" />} title={copy.terms} onClick={onClose} />
         <MenuLink href="/privacy" icon={<ShieldCheck className="h-5 w-5" />} title={copy.privacy} onClick={onClose} />
@@ -242,7 +256,7 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
   const pathname = usePathname();
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const { locale, setLocale } = useAppLocale();
+  const { locale, setLocale } = useAppLocale({ allLocales: true });
   const isCreatorOnly = useCreatorOnlyRelease();
 
   const isStandaloneLinkEditor = pathname === "/creator/link" || pathname.startsWith("/creator/link/onboarding");
@@ -252,50 +266,14 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
   const [limitReason, setLimitReason] = useState<string | null>(null);
   const [detailContext, setDetailContext] = useState<DetailNavContext>(null);
 
-  const copy = locale === "ja"
-    ? {
-        notifications: "通知",
-        accountMenu: "アカウント",
-        accountSettings: "アカウント設定",
-        accountSettingsBody: "ログイン情報・本人情報",
-        bank: "銀行口座",
-        bankBody: "報酬の受取口座",
-        earnings: "報酬",
-        earningsBody: "売上・振込履歴",
-        language: "言語",
-        help: "ヘルプ",
-        terms: "利用規約",
-        privacy: "プライバシーポリシー",
-        logout: "ログアウト",
-        loggingOut: "ログアウト中…",
-        limitTitle: "現在、取引が一部制限されています",
-        limitReason: "理由",
-      }
-    : {
-        notifications: "Notifications",
-        accountMenu: "Account",
-        accountSettings: "Account settings",
-        accountSettingsBody: "Login and identity information",
-        bank: "Bank account",
-        bankBody: "Payout destination",
-        earnings: "Earnings",
-        earningsBody: "Sales and payout history",
-        language: "Language",
-        help: "Help",
-        terms: "Terms",
-        privacy: "Privacy Policy",
-        logout: "Log out",
-        loggingOut: "Logging out…",
-        limitTitle: "Some account actions are restricted",
-        limitReason: "Reason",
-      };
+  const copy = CREATOR_SHELL_COPY[locale];
 
   const navItems: NavItem[] = [
-    { href: "/creator/dashboard", label: "Home", icon: <House className="h-[22px] w-[22px]" /> },
-    { href: "/creator/orders", label: "Order", icon: <ReceiptText className="h-[22px] w-[22px]" /> },
-    ...(!isCreatorOnly ? [{ href: "/creator/jobs", label: "Job", icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> }] : []),
-    { href: "/creator/link", label: "Link", icon: <Link2 className="h-[22px] w-[22px]" /> },
-    { href: "/creator/profile", label: "Profile", icon: <UserRound className="h-[22px] w-[22px]" /> },
+    { href: "/creator/dashboard", label: copy.home, icon: <House className="h-[22px] w-[22px]" /> },
+    { href: "/creator/orders", label: copy.orders, icon: <ReceiptText className="h-[22px] w-[22px]" /> },
+    ...(!isCreatorOnly ? [{ href: "/creator/jobs", label: copy.jobs, icon: <BriefcaseBusiness className="h-[22px] w-[22px]" /> }] : []),
+    { href: "/creator/link", label: copy.link, icon: <Link2 className="h-[22px] w-[22px]" /> },
+    { href: "/creator/profile", label: copy.profile, icon: <UserRound className="h-[22px] w-[22px]" /> },
   ];
 
   useEffect(() => {
@@ -416,7 +394,7 @@ export default function CreatorLayoutShell({ children }: { children: ReactNode }
         copy={copy}
         isCreatorOnly={isCreatorOnly}
         onClose={() => setUserMenuOpen(false)}
-        onToggleLocale={() => setLocale(locale === "ja" ? "en" : "ja")}
+        onLocaleChange={setLocale}
         onLogout={() => void handleLogout()}
       />
 

@@ -9,15 +9,20 @@ const STORAGE_KEY = "app_locale";
 const COOKIE_KEY = "app_locale";
 const LOCALE_CHANGE_EVENT = "app-locale-change";
 
-function getLocaleCookie(): AppLocale | null {
-  if (typeof document === "undefined") return null;
+export function getLocaleCookie(cookieValue?: string): AppLocale | null {
+  if (cookieValue === undefined && typeof document === "undefined") return null;
   const prefix = `${COOKIE_KEY}=`;
-  const value = document.cookie
+  const value = (cookieValue ?? document.cookie)
     .split(";")
     .map((part) => part.trim())
     .find((part) => part.startsWith(prefix))
     ?.slice(prefix.length);
-  return value === "ja" || value === "en" ? value : null;
+  if (value == null) return null;
+  try {
+    return normalizeLocale(decodeURIComponent(value));
+  } catch {
+    return normalizeLocale(value);
+  }
 }
 
 export function getInitialLocale(): AppLocale {
@@ -26,24 +31,37 @@ export function getInitialLocale(): AppLocale {
   const cookieLocale = getLocaleCookie();
   if (cookieLocale) return cookieLocale;
 
-  const saved = window.localStorage.getItem(STORAGE_KEY);
-  return saved === "en" ? "en" : DEFAULT_LOCALE;
+  return normalizeLocale(window.localStorage.getItem(STORAGE_KEY));
 }
 
 export function setStoredLocale(locale: AppLocale) {
   if (typeof window === "undefined") return;
 
-  window.localStorage.setItem(STORAGE_KEY, locale);
-  document.cookie = `${COOKIE_KEY}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  const normalizedLocale = normalizeLocale(locale);
+
+  window.localStorage.setItem(STORAGE_KEY, normalizedLocale);
+  document.cookie = `${COOKIE_KEY}=${normalizedLocale}; Path=/; Max-Age=31536000; SameSite=Lax`;
 
   window.dispatchEvent(
     new CustomEvent<AppLocale>(LOCALE_CHANGE_EVENT, {
-      detail: locale,
+      detail: normalizedLocale,
     })
   );
 }
 
-export function useAppLocale() {
+type LocaleHookResult<TLocale extends AppLocale> = {
+  locale: TLocale;
+  setLocale: (next: AppLocale) => void;
+  isLocaleReady: boolean;
+};
+
+export function getLegacyContentLocale(locale: AppLocale): "ja" | "en" {
+  return locale === "en" ? "en" : "ja";
+}
+
+export function useAppLocale(options: { allLocales: true }): LocaleHookResult<AppLocale>;
+export function useAppLocale(): LocaleHookResult<"ja" | "en">;
+export function useAppLocale(options?: { allLocales: true }) {
   const [locale, setLocaleState] = useState<AppLocale>(DEFAULT_LOCALE);
   const [isLocaleReady, setIsLocaleReady] = useState(false);
 
@@ -71,9 +89,16 @@ export function useAppLocale() {
   }, []);
 
   const setLocale = (next: AppLocale) => {
-    setStoredLocale(next);
-    setLocaleState(next);
+    const normalizedLocale = normalizeLocale(next);
+    setStoredLocale(normalizedLocale);
+    setLocaleState(normalizedLocale);
   };
 
-  return { locale, setLocale, isLocaleReady };
+  // Until each screen has a four-locale dictionary, legacy consumers receive a
+  // safe Japanese fallback. The stored preference remains unchanged.
+  const visibleLocale = options?.allLocales
+    ? locale
+    : getLegacyContentLocale(locale);
+
+  return { locale: visibleLocale, setLocale, isLocaleReady };
 }

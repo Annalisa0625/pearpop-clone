@@ -32,6 +32,8 @@ const requestStatusDictionary: Record<
       shortLabel: "Pending",
       tone: "yellow",
     },
+    ko: { label: "승인 대기", shortLabel: "승인 대기", tone: "yellow" },
+    "zh-TW": { label: "等待核准", shortLabel: "待核准", tone: "yellow" },
   },
   accepted: {
     ja: {
@@ -44,6 +46,8 @@ const requestStatusDictionary: Record<
       shortLabel: "In Progress",
       tone: "blue",
     },
+    ko: { label: "진행 중", shortLabel: "진행 중", tone: "blue" },
+    "zh-TW": { label: "進行中", shortLabel: "進行中", tone: "blue" },
   },
   delivered: {
     ja: {
@@ -56,6 +60,8 @@ const requestStatusDictionary: Record<
       shortLabel: "Delivered",
       tone: "green",
     },
+    ko: { label: "납품 완료", shortLabel: "납품 완료", tone: "green" },
+    "zh-TW": { label: "已交付", shortLabel: "已交付", tone: "green" },
   },
   completed: {
     ja: {
@@ -68,6 +74,8 @@ const requestStatusDictionary: Record<
       shortLabel: "Completed",
       tone: "green",
     },
+    ko: { label: "완료", shortLabel: "완료", tone: "green" },
+    "zh-TW": { label: "已完成", shortLabel: "已完成", tone: "green" },
   },
   rejected: {
     ja: {
@@ -80,6 +88,8 @@ const requestStatusDictionary: Record<
       shortLabel: "Rejected",
       tone: "red",
     },
+    ko: { label: "거절", shortLabel: "거절", tone: "red" },
+    "zh-TW": { label: "已拒絕", shortLabel: "已拒絕", tone: "red" },
   },
 };
 
@@ -92,17 +102,13 @@ export function getRequestStatusMeta(
   locale: AppLocale
 ): RequestStatusMeta {
   if (!status || !isRequestStatus(status)) {
-    return locale === "ja"
-      ? {
-          label: "不明",
-          shortLabel: "不明",
-          tone: "gray",
-        }
-      : {
-          label: "Unknown",
-          shortLabel: "Unknown",
-          tone: "gray",
-        };
+    const unknown: Record<AppLocale, RequestStatusMeta> = {
+      ja: { label: "不明", shortLabel: "不明", tone: "gray" },
+      en: { label: "Unknown", shortLabel: "Unknown", tone: "gray" },
+      ko: { label: "알 수 없음", shortLabel: "알 수 없음", tone: "gray" },
+      "zh-TW": { label: "未知", shortLabel: "未知", tone: "gray" },
+    };
+    return unknown[locale];
   }
 
   return requestStatusDictionary[status][locale];
