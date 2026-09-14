@@ -17,6 +17,7 @@ import {
   CreatorPage,
   CreatorSkeleton,
 } from "@/app/creator/_components/CreatorDesignSystem";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 type CreatorMenu = {
   id: string;
@@ -407,6 +408,7 @@ export default function CreatorMenusPage() {
   const [menus, setMenus] = useState<CreatorMenu[]>([]);
   const [socials, setSocials] = useState<SocialAccount[]>([]);
   const [creatorId, setCreatorId] = useState<string | null>(null);
+  const [paidMarketplaceEnabled, setPaidMarketplaceEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -441,7 +443,7 @@ export default function CreatorMenusPage() {
 
     const { data: creator, error: creatorError } = await supabase
       .from("creators")
-      .select("id")
+      .select("id, country")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -452,7 +454,15 @@ export default function CreatorMenusPage() {
       return;
     }
 
+    if (!isCreatorPaidMarketplaceEnabled(creator.country)) {
+      setPaidMarketplaceEnabled(false);
+      setLoading(false);
+      router.replace("/creator/profile");
+      return;
+    }
+
     setCreatorId(creator.id);
+    setPaidMarketplaceEnabled(true);
 
     const [
       { data: menuRows, error: menuError },
@@ -490,7 +500,24 @@ export default function CreatorMenusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const canMutatePaidMenu = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data: creator } = await supabase
+      .from("creators")
+      .select("id, country")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    return creator?.id === creatorId &&
+      isCreatorPaidMarketplaceEnabled(creator?.country);
+  };
+
   const toggleActive = async (id: string, current: boolean | null) => {
+    if (!paidMarketplaceEnabled) return;
+    if (!(await canMutatePaidMenu())) {
+      router.replace("/creator/profile");
+      return;
+    }
     setActionLoadingId(id);
 
     let query = supabase
@@ -519,6 +546,11 @@ export default function CreatorMenusPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!paidMarketplaceEnabled) return;
+    if (!(await canMutatePaidMenu())) {
+      router.replace("/creator/profile");
+      return;
+    }
     if (!window.confirm(copy.confirmDelete)) return;
 
     setActionLoadingId(id);

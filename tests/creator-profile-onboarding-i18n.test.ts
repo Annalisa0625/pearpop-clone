@@ -36,9 +36,14 @@ test("Creator Onboarding dictionary has four complete slides in every locale", (
     const copy = creatorOnboardingDictionary[locale];
     assert.deepEqual(keys(copy), expected, locale);
     assert.equal(copy.slides.length, 4, locale);
+    assert.equal(copy.nonPaidSlides.length, 3, locale);
     for (const slide of copy.slides) {
       assert.ok(slide.title.trim(), `${locale} title`);
       assert.ok(slide.body.trim(), `${locale} body`);
+    }
+    for (const slide of copy.nonPaidSlides) {
+      assert.ok(slide.title.trim(), `${locale} non-paid title`);
+      assert.ok(slide.body.trim(), `${locale} non-paid body`);
     }
   }
 });
@@ -61,6 +66,8 @@ test("Korean and Taiwan Profile and Onboarding copy do not fall back to Japanese
     }
     assert.notEqual(creatorOnboardingDictionary[locale].slides[0].body, creatorOnboardingDictionary.ja.slides[0].body);
     assert.notEqual(creatorOnboardingDictionary[locale].slides[0].body, creatorOnboardingDictionary.en.slides[0].body);
+    assert.notEqual(creatorOnboardingDictionary[locale].nonPaidSlides[0].body, creatorOnboardingDictionary.ja.nonPaidSlides[0].body);
+    assert.notEqual(creatorOnboardingDictionary[locale].nonPaidSlides[0].body, creatorOnboardingDictionary.en.nonPaidSlides[0].body);
   }
 });
 

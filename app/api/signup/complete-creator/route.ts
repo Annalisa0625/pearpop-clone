@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal/release";
 import { canonicalizeCreatorLocation } from "@/lib/creator/country";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 type SignupServerDeps = {
   supabaseAdmin: any;
@@ -252,11 +253,14 @@ export async function POST(req: Request) {
       return errorResponse(error instanceof Error ? error.message : "SNS URLを確認してください", 400);
     }
 
-    const normalizedMenus = normalizeMenus(body);
-    if (normalizedMenus.length === 0) return errorResponse("メニューを少なくとも1つ追加してください", 400);
-    if (normalizedMenus.some((menu) => !menu.menu_type || !Number.isFinite(menu.price) || menu.price <= 0)) return errorResponse("メニュー種別と価格を正しく入力してください", 400);
-    if (normalizedMenus.some((menu) => menu.price < MIN_CREATOR_MENU_PRICE)) {
-      return errorResponse("3,000円以上で入力してください", 400, "MENU_PRICE_TOO_LOW");
+    const paidMarketplaceEnabled = isCreatorPaidMarketplaceEnabled(normalizedCountry);
+    const normalizedMenus = paidMarketplaceEnabled ? normalizeMenus(body) : [];
+    if (paidMarketplaceEnabled) {
+      if (normalizedMenus.length === 0) return errorResponse("メニューを少なくとも1つ追加してください", 400);
+      if (normalizedMenus.some((menu) => !menu.menu_type || !Number.isFinite(menu.price) || menu.price <= 0)) return errorResponse("メニュー種別と価格を正しく入力してください", 400);
+      if (normalizedMenus.some((menu) => menu.price < MIN_CREATOR_MENU_PRICE)) {
+        return errorResponse("3,000円以上で入力してください", 400, "MENU_PRICE_TOO_LOW");
+      }
     }
 
     const { supabaseAdmin } = await signupServerDepsLoader();

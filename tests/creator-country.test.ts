@@ -19,6 +19,11 @@ import {
   normalizeCreatorDraftLocation,
   restoreCreatorSignupDraftLocation,
 } from "../lib/creator/country.ts";
+import {
+  getCreatorMarketplaceAvailability,
+  isCreatorPaidMarketplaceEnabled,
+  shouldIncludeCreatorInCompanyDirectory,
+} from "../lib/creator/marketplaceAvailability.ts";
 
 const root = resolve(process.cwd());
 const signupClient = readFileSync(
@@ -180,6 +185,15 @@ test("Creator Country accepts only the three canonical database values", () => {
   assert.equal(isCreatorCountry(""), false);
 });
 
+test("V1 paid Marketplace availability is centralized and fail-closed", () => {
+  assert.deepEqual(getCreatorMarketplaceAvailability("日本"), {
+    paidMarketplaceEnabled: true,
+  });
+  for (const country of ["韓国", "台湾", null, "JP"]) {
+    assert.equal(isCreatorPaidMarketplaceEnabled(country), false);
+  }
+});
+
 test("Japan requires one or more of the 47 supported prefectures", () => {
   assert.equal(JAPAN_PREFECTURES.length, 47);
 
@@ -325,8 +339,43 @@ for (const scenario of [
       calls.rpcs[0].args.p_payload.prefecture,
       scenario.expectedPrefecture,
     );
+    assert.equal(
+      calls.rpcs[0].args.p_payload.menus.length,
+      scenario.country === "日本" ? 1 : 0,
+    );
   });
 }
+
+test("Japan signup still requires a paid JPY menu", async () => {
+  const calls = mockSignupRoute();
+  const response = await postSignup(validSignupBody({ first_menus: undefined }));
+
+  assert.equal(response.status, 400);
+  assert.equal(calls.rpcs.length, 0);
+});
+
+for (const country of ["韓国", "台湾"] as const) {
+  test(`${country} signup completes without menus and discards injected paid menus`, async () => {
+    const calls = mockSignupRoute();
+    const response = await postSignup(validSignupBody({
+      country,
+      prefecture: null,
+      first_menus: [{ menu_type: "Instagram投稿", price: 999999 }],
+    }));
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls.rpcs[0].args.p_payload.menus, []);
+  });
+}
+
+test("Company directory keeps Japan purchase requirements but permits read-only KR/TW profiles", () => {
+  assert.equal(shouldIncludeCreatorInCompanyDirectory("日本", true, 1), true);
+  assert.equal(shouldIncludeCreatorInCompanyDirectory("日本", false, 1), false);
+  assert.equal(shouldIncludeCreatorInCompanyDirectory("日本", true, 0), false);
+  assert.equal(shouldIncludeCreatorInCompanyDirectory("韓国", false, 0), true);
+  assert.equal(shouldIncludeCreatorInCompanyDirectory("台湾", false, 0), true);
+  assert.equal(shouldIncludeCreatorInCompanyDirectory(null, false, 0), false);
+});
 
 for (const scenario of [
   { name: "missing country", overrides: { country: undefined } },
@@ -392,6 +441,21 @@ test("Signup and Profile clients consume the tested state helpers", () => {
 
   assert.match(profileClient, /getCreatorProfileLocationState\(/);
   assert.match(profileClient, /getCreatorLocationAfterCountryChange\(/);
+});
+
+test("paid Menu UI and Company purchase UI use the shared country availability guard", () => {
+  for (const path of [
+    "app/creator/menus/page.tsx",
+    "app/creator/menus/new/page.tsx",
+    "app/creator/menus/[id]/edit/page.tsx",
+    "app/creator/profile/page.tsx",
+    "app/creator/dashboard/page.tsx",
+    "app/b/creators/page.tsx",
+    "app/b/creators/[id]/page.tsx",
+  ]) {
+    const source = readFileSync(resolve(root, path), "utf8");
+    assert.match(source, /PaidMarketplaceEnabled|paidMarketplaceEnabled/);
+  }
 });
 
 test("Country selector uses native radio controls and local flag assets", () => {

@@ -14,6 +14,7 @@ type CreatorOnboardingCopy = {
   start: string;
   languageLabel: string;
   slides: ReadonlyArray<{ title: string; body: string }>;
+  nonPaidSlides: ReadonlyArray<{ title: string; body: string }>;
 };
 
 export const creatorOnboardingDictionary = {
@@ -36,6 +37,11 @@ export const creatorOnboardingDictionary = {
       { title: "案件の流れ", body: "企業から依頼が届いたら、承認または拒否できます。承認後は案件詳細ページ内でチャットし、納品URLを提出します。" },
       { title: "今後の設定", body: "今後、報酬受け取り設定や支払い関連の設定を追加予定です。現時点ではダッシュボードと参考条件カードの整備を優先してください。" },
     ],
+    nonPaidSlides: [
+      { title: "ようこそ", body: "プロフィールとSNS情報を公開し、企業に活動内容を知ってもらうためのサービスです。" },
+      { title: "まずやること", body: "プロフィールとSNS情報を確認し、作品や活動内容が伝わる状態に整えてください。" },
+      { title: "公開後", body: "公開プロフィールは企業が閲覧できます。内容はプロフィール画面からいつでも更新できます。" },
+    ],
   },
   en: {
     badge: "Creator Onboarding",
@@ -55,6 +61,11 @@ export const creatorOnboardingDictionary = {
       { title: "What to do first", body: "After approval, add your rate cards from the dashboard. You can register platforms, reference pricing, and whether secondary use is allowed." },
       { title: "How projects work", body: "When a company sends a request, you can approve or reject it. After approval, you will chat inside the request detail page and later submit your delivery URL." },
       { title: "What comes next", body: "Payout settings and payment-related setup will be added later. For now, please focus on preparing your dashboard and rate cards." },
+    ],
+    nonPaidSlides: [
+      { title: "Welcome", body: "Publish your profile and social accounts so companies can learn about your work." },
+      { title: "What to do first", body: "Review your profile, social accounts, and portfolio so they clearly represent your work." },
+      { title: "After publishing", body: "Companies can view your public profile, and you can update it at any time from your profile page." },
     ],
   },
   ko: {
@@ -76,6 +87,11 @@ export const creatorOnboardingDictionary = {
       { title: "협업 진행 방식", body: "브랜드의 제안이 도착하면 수락하거나 거절할 수 있습니다. 수락 후에는 협업 상세 화면에서 채팅하고 결과물 URL을 제출합니다." },
       { title: "추가 설정 안내", body: "수익금 수령 및 결제 관련 설정은 추후 제공될 예정입니다. 지금은 대시보드와 PR 메뉴를 먼저 완성해 주세요." },
     ],
+    nonPaidSlides: [
+      { title: "환영합니다", body: "프로필과 SNS 정보를 공개해 브랜드에 활동과 포트폴리오를 소개할 수 있습니다." },
+      { title: "먼저 준비할 것", body: "프로필, SNS 계정, 포트폴리오를 확인하고 활동 내용이 잘 드러나도록 정리해 주세요." },
+      { title: "공개 후", body: "브랜드가 공개 프로필을 확인할 수 있으며, 프로필 화면에서 언제든 내용을 수정할 수 있습니다." },
+    ],
   },
   "zh-TW": {
     badge: "Creator Onboarding",
@@ -95,6 +111,11 @@ export const creatorOnboardingDictionary = {
       { title: "先完成這些設定", body: "通過審核後，請從儀表板新增合作方案。你可以設定社群平台、參考報價與二次使用授權等內容。" },
       { title: "合作流程", body: "收到品牌邀約後，你可以接受或婉拒。接受後可在合作詳情中與品牌對話，並提交成果連結。" },
       { title: "後續設定", body: "報酬收款與付款相關功能將於日後提供。現階段請先完善儀表板與合作方案。" },
+    ],
+    nonPaidSlides: [
+      { title: "歡迎加入", body: "公開個人檔案與社群帳號，讓品牌認識你的創作內容與作品。" },
+      { title: "先完成這些設定", body: "確認個人檔案、社群帳號與作品集，清楚呈現你的創作特色。" },
+      { title: "公開後", body: "品牌可以瀏覽你的公開個人檔案，你也能隨時從個人檔案頁面更新內容。" },
     ],
   },
 } satisfies Record<AppLocale, CreatorOnboardingCopy>;

@@ -9,6 +9,7 @@ import type { AppLocale } from "@/lib/i18n/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import type { CreatorLinkInquiryInboxResponse } from "@/lib/trendre-link/inquiry-inbox";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 type Period = 7 | 30 | 90;
 type Metric = "link" | "profile";
@@ -21,6 +22,7 @@ type HomeState = {
   linkSlug: string | null;
   pendingOrders: number;
   activeJobs: number;
+  paidMarketplaceEnabled: boolean;
 };
 
 type AnalyticsState = {
@@ -45,6 +47,7 @@ const EMPTY_HOME: HomeState = {
   linkSlug: null,
   pendingOrders: 0,
   activeJobs: 0,
+  paidMarketplaceEnabled: false,
 };
 
 const EMPTY_ANALYTICS: AnalyticsState = {
@@ -273,7 +276,11 @@ export default function CreatorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
-  const copy = getCreatorDashboardCopy(locale, isCreatorOnly);
+  const copy = getCreatorDashboardCopy(
+    locale,
+    isCreatorOnly || !state.paidMarketplaceEnabled,
+    state.paidMarketplaceEnabled,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -286,7 +293,7 @@ export default function CreatorDashboardPage() {
       }
 
       const [creatorResult, userStateResult, linkResult, pendingResult, jobsResult, inquiryResult] = await Promise.all([
-        supabase.from("creators").select("display_name, full_name").eq("user_id", user.id).maybeSingle(),
+        supabase.from("creators").select("display_name, full_name, country").eq("user_id", user.id).maybeSingle(),
         supabase.from("user_states").select("creator_profile_completed").eq("user_id", user.id).maybeSingle(),
         supabase.from("creator_link_pages").select("slug, status").eq("owner_user_id", user.id).maybeSingle(),
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("creator_user_id", user.id).eq("status", "authorized_pending_creator"),
@@ -298,7 +305,8 @@ export default function CreatorDashboardPage() {
 
       if (cancelled) return;
 
-      const creator = creatorResult.data as { display_name?: string | null; full_name?: string | null } | null;
+      const creator = creatorResult.data as { display_name?: string | null; full_name?: string | null; country?: string | null } | null;
+      const paidMarketplaceEnabled = isCreatorPaidMarketplaceEnabled(creator?.country);
       const martStarted = Boolean((userStateResult.data as { creator_profile_completed?: boolean } | null)?.creator_profile_completed);
       const link = linkResult.data as { slug?: string | null } | null;
       const inquiryCount = inquiryResult?.response.ok && inquiryResult.body?.ok
@@ -314,8 +322,11 @@ export default function CreatorDashboardPage() {
         linkStarted: Boolean(link?.slug),
         martStarted,
         linkSlug: link?.slug ?? null,
-        pendingOrders: isCreatorOnly ? inquiryCount : (pendingResult.count ?? 0) + inquiryCount,
-        activeJobs: jobsResult.count ?? 0,
+        pendingOrders: isCreatorOnly || !paidMarketplaceEnabled
+          ? inquiryCount
+          : (pendingResult.count ?? 0) + inquiryCount,
+        activeJobs: paidMarketplaceEnabled ? jobsResult.count ?? 0 : 0,
+        paidMarketplaceEnabled,
       });
       setLoading(false);
     };
@@ -448,7 +459,7 @@ export default function CreatorDashboardPage() {
             count={state.pendingOrders}
             notify
           />
-          {!isCreatorOnly ? <AttentionRow
+          {!isCreatorOnly && state.paidMarketplaceEnabled ? <AttentionRow
             href="/creator/jobs"
             title={copy.jobs}
             description={copy.jobsBody}

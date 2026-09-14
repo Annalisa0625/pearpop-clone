@@ -2,6 +2,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
   type FormEvent,
@@ -23,6 +24,7 @@ import {
   CreatorPage,
   CreatorStickyFooter,
 } from "@/app/creator/_components/CreatorDesignSystem";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 type Locale = AppLocale;
 
@@ -37,6 +39,7 @@ type MenuOption = {
 type CreatorLite = {
   id: string;
   category: string | null;
+  country: string | null;
 };
 
 type SocialAccount = {
@@ -478,7 +481,7 @@ async function getCreatorAndSocials(
 ) {
   const { data: creator, error: creatorError } = await supabase
     .from("creators")
-    .select("id, category")
+    .select("id, category, country")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -528,8 +531,37 @@ export default function NewMenuPage() {
   const [secondaryUseDenied, setSecondaryUseDenied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availabilityChecked, setAvailabilityChecked] = useState(false);
 
   const selectedMenu = getSelectedMenu(menuValue);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAvailability = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: creator } = await supabase
+        .from("creators")
+        .select("country")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (!isCreatorPaidMarketplaceEnabled(creator?.country)) {
+        router.replace("/creator/profile");
+        return;
+      }
+      setAvailabilityChecked(true);
+    };
+
+    void checkAvailability();
+    return () => { cancelled = true; };
+  }, [router, supabase]);
 
   const validate = () => {
     if (!selectedMenu) return copy.menuRequired;
@@ -583,6 +615,12 @@ export default function NewMenuPage() {
       return;
     }
 
+    if (!isCreatorPaidMarketplaceEnabled(creator.country)) {
+      router.replace("/creator/profile");
+      setSaving(false);
+      return;
+    }
+
     const priceNumber = parseYenInput(price);
     const now = new Date().toISOString();
     const platform = derivePlatform(selectedMenu.value);
@@ -624,6 +662,8 @@ export default function NewMenuPage() {
 
     router.push("/creator/menus");
   };
+
+  if (!availabilityChecked) return null;
 
   return (
     <CreatorPage>

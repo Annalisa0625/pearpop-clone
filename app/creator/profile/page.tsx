@@ -38,6 +38,7 @@ import {
   JAPAN_PREFECTURES,
   type CreatorCountry,
 } from "@/lib/creator/country";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 import { useCreatorOnlyRelease } from "../CreatorReleaseMode";
 import { AvatarCropPicker } from "@/app/signup/creator/CreatorSignupPolishControls";
 import {
@@ -1773,7 +1774,7 @@ export default function CreatorProfilePage() {
         />
       </SectionCard>
 
-      <section className="order-2 border-t border-slate-200/80 py-7 sm:py-9">
+      {isCreatorPaidMarketplaceEnabled(country) ? <section className="order-2 border-t border-slate-200/80 py-7 sm:py-9">
         <div className="mb-4">
           <h2 className="text-[22px] font-semibold tracking-[-0.045em] text-slate-950">{copy.servicesTitle}</h2>
         </div>
@@ -1782,7 +1783,7 @@ export default function CreatorProfilePage() {
           title={copy.menusTitle}
           body={copy.menusBody}
         />
-      </section>
+      </section> : null}
 
       <SectionCard className="order-5" title={copy.categoryTitle} description={copy.categoryBody}>
         {selectedCategories.length > 0 ? (
@@ -2209,13 +2210,13 @@ export default function CreatorProfilePage() {
         generating={lineGenerating}
         unlinking={lineUnlinking}
         testing={lineTesting}
-        isCreatorOnly={isCreatorOnly}
+        isCreatorOnly={isCreatorOnly || !isCreatorPaidMarketplaceEnabled(country)}
         onGenerate={() => void generateLineLinkCode()}
         onUnlink={() => void unlinkLine()}
         onTest={() => void sendLineTestNotification()}
       />
 
-      {!isCreatorOnly ? <SectionCard className="order-7" title={copy.payoutsSectionTitle}>
+      {!isCreatorOnly && isCreatorPaidMarketplaceEnabled(country) ? <SectionCard className="order-7" title={copy.payoutsSectionTitle}>
         <section className="grid gap-2">
           <QuickLink
             href="/creator/payouts"

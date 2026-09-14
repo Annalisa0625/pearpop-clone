@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import CompanySignupGateModal from "@/components/CompanySignupGateModal";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 const BILLING_PATH = "/b/billing";
 
@@ -14,7 +15,7 @@ type Creator = {
   display_name: string;
   avatar_url: string | null;
   category: string | null;
-  user_id: string;
+  country: string | null;
 };
 
 type MenuCard = {
@@ -66,10 +67,6 @@ type CompanyGateState = {
 };
 
 type SavedCreatorRow = {
-  creator_id: string;
-};
-
-type PayoutReadyCreatorRow = {
   creator_id: string;
 };
 
@@ -784,6 +781,7 @@ export default function CreatorDetailPage() {
     number | null
   >(null);
   const [orderSummaryFloating, setOrderSummaryFloating] = useState(false);
+  const paidMarketplaceEnabled = isCreatorPaidMarketplaceEnabled(creator?.country);
 
   const openSignupGate = () => {
     const nextPath =
@@ -888,13 +886,14 @@ export default function CreatorDetailPage() {
         }
       }
 
-      const { data: payoutReadyRows, error: payoutReadyError } =
-        await supabase.rpc("get_payout_ready_creator_ids");
+      const response = await fetch(
+        `/api/b/creators/${encodeURIComponent(creatorId)}`,
+        { credentials: "same-origin" },
+      ).catch(() => null);
 
       if (!isMounted) return;
 
-      if (payoutReadyError) {
-        console.error("payout ready creator rpc error:", payoutReadyError);
+      if (!response?.ok) {
         setCreator(null);
         setMenuCards([]);
         setSocialAccounts([]);
@@ -903,109 +902,20 @@ export default function CreatorDetailPage() {
         setLoading(false);
         return;
       }
+      const payload = (await response.json()) as {
+        creator: Creator;
+        menus?: MenuCard[];
+        socialAccounts?: SocialAccount[];
+        portfolioAssets?: PortfolioAsset[];
+      };
+      const creatorData = payload.creator;
+      const nextMenus = payload.menus ?? [];
+      const nextSocials = payload.socialAccounts ?? [];
+      const nextPortfolio = (payload.portfolioAssets ?? []).filter(
+        (asset) => asset.asset_type === "image",
+      );
 
-      const isPayoutReady = ((payoutReadyRows ?? []) as PayoutReadyCreatorRow[]).some(
-  (row) => row.creator_id === creatorId
-);
-      if (!isPayoutReady) {
-        setCreator(null);
-        setMenuCards([]);
-        setSocialAccounts([]);
-        setPortfolioAssets([]);
-        setGate(nextGate);
-        setLoading(false);
-        return;
-      }
-
-      const { data: creatorData, error: creatorError } = await supabase
-        .from("creators")
-        .select("id, display_name, avatar_url, category, user_id")
-        .eq("id", creatorId)
-        .eq("is_public", true)
-        .eq("approval_status", "approved")
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (creatorError || !creatorData) {
-        console.error("creator load error:", creatorError);
-        setCreator(null);
-        setMenuCards([]);
-        setSocialAccounts([]);
-        setPortfolioAssets([]);
-        setGate(nextGate);
-        setLoading(false);
-        return;
-      }
-
-      setCreator(creatorData as Creator);
-
-      const [
-        { data: menuData, error: menuError },
-        { data: socialData, error: socialError },
-        { data: portfolioData, error: portfolioError },
-      ] = await Promise.all([
-        supabase
-          .from("creator_menus")
-          .select(
-            `
-              id,
-              creator_id,
-              title,
-              description,
-              platform,
-              sns,
-              menu_type,
-              category,
-              price,
-              currency,
-              deliverables,
-              delivery_days,
-              account_url,
-              reference_price_text,
-              allow_secondary_use,
-              notes,
-              is_active,
-              sort_order
-            `
-          )
-          .eq("creator_id", creatorData.id)
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("creator_social_accounts")
-          .select(
-            "id, creator_id, platform, audience_country, follower_range, url"
-          )
-          .eq("creator_id", creatorData.id),
-        supabase
-          .from("creator_portfolio_assets")
-          .select(
-            "id, creator_id, asset_url, asset_type, title, sort_order, is_public, created_at"
-          )
-          .eq("creator_id", creatorData.id)
-          .eq("is_public", true)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: true }),
-      ]);
-
-      if (!isMounted) return;
-
-      const nextMenus = menuError ? [] : ((menuData as MenuCard[]) ?? []);
-      const nextSocials = socialError
-        ? []
-        : ((socialData as SocialAccount[]) ?? []);
-      const nextPortfolio = portfolioError
-        ? []
-        : ((portfolioData as PortfolioAsset[]) ?? []).filter(
-            (asset) => asset.asset_type === "image"
-          );
-
-      if (menuError) console.error("menu load error:", menuError);
-      if (socialError) console.error("social load error:", socialError);
-      if (portfolioError) console.error("portfolio load error:", portfolioError);
-
+      setCreator(creatorData);
       setMenuCards(nextMenus);
       setSocialAccounts(nextSocials);
       setPortfolioAssets(nextPortfolio);
@@ -1022,7 +932,10 @@ export default function CreatorDetailPage() {
   }, [creatorId, supabase]);
 
   useEffect(() => {
-    if (!creator) return;
+    if (!creator || !paidMarketplaceEnabled) {
+      setOrderSummaryFloating(false);
+      return;
+    }
 
     const updateFloatingState = () => {
       const anchor = orderSummaryAnchorRef.current;
@@ -1044,7 +957,7 @@ export default function CreatorDetailPage() {
       window.removeEventListener("scroll", updateFloatingState);
       window.removeEventListener("resize", updateFloatingState);
     };
-  }, [creator]);
+  }, [creator, paidMarketplaceEnabled]);
 
   const packageTabs = useMemo(() => {
     const platforms = uniqueNonEmpty(
@@ -1356,9 +1269,9 @@ export default function CreatorDetailPage() {
         showAllLabel={copy.showAllPhotos}
       />
 
-      <div ref={orderSummaryAnchorRef} className="h-px" />
+      {paidMarketplaceEnabled ? <div ref={orderSummaryAnchorRef} className="h-px" /> : null}
 
-      <section className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <section className={`grid items-start gap-8 ${paidMarketplaceEnabled ? "lg:grid-cols-[minmax(0,1fr)_380px]" : ""}`}>
         <div className="min-w-0 space-y-8">
           <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="-mt-14 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -1403,7 +1316,7 @@ export default function CreatorDetailPage() {
             </div>
           </div>
 
-          <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
+          {paidMarketplaceEnabled ? <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-5">
               <h2 className="text-2xl font-black tracking-tight text-slate-950">
                 {copy.packages}
@@ -1457,9 +1370,9 @@ export default function CreatorDetailPage() {
                 ))}
               </div>
             )}
-          </section>
+          </section> : null}
 
-          <div className="lg:hidden">{renderOrderSummaryCard()}</div>
+          {paidMarketplaceEnabled ? <div className="lg:hidden">{renderOrderSummaryCard()}</div> : null}
 
           <section className="rounded-[30px] border border-white/80 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">
@@ -1496,7 +1409,7 @@ export default function CreatorDetailPage() {
           </section>
         </div>
 
-        <aside className="hidden lg:block">
+        {paidMarketplaceEnabled ? <aside className="hidden lg:block">
           <div
             className={`transition-opacity duration-200 ${
               orderSummaryFloating
@@ -1506,10 +1419,10 @@ export default function CreatorDetailPage() {
           >
             {renderOrderSummaryCard()}
           </div>
-        </aside>
+        </aside> : null}
       </section>
 
-      {orderSummaryFloating ? (
+      {paidMarketplaceEnabled && orderSummaryFloating ? (
         <div
           className="fixed top-[112px] z-40 hidden w-[380px] lg:block"
           style={{

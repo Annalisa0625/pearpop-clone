@@ -37,6 +37,7 @@ import {
   restoreCreatorSignupDraftLocation,
   type CreatorCountry,
 } from "@/lib/creator/country";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import {
   AvatarCropPicker,
@@ -636,6 +637,8 @@ export default function SignupCreatorClient({
   const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
 
   const [menus, setMenus] = useState<MenuForm[]>([createEmptyMenu()]);
+  const paidMarketplaceEnabled = isCreatorPaidMarketplaceEnabled(country);
+  const creatorOnlyExperience = isCreatorOnly || !paidMarketplaceEnabled;
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
@@ -1098,26 +1101,28 @@ export default function SignupCreatorClient({
     }
 
     if (step === 6) {
-      const filledMenus = menus.filter((menu) => menu.menu_type.trim() || menu.price.trim());
-      if (filledMenus.length === 0) {
-        setError(copy.menuRequired);
-        return false;
-      }
-      const hasInvalidMenu = filledMenus.some((menu) => {
-        const priceNumber = parsePriceNumber(menu.price);
-        return !menu.menu_type.trim() || !menu.price.trim() || !Number.isFinite(priceNumber) || priceNumber <= 0;
-      });
-      if (hasInvalidMenu) {
-        setError(copy.menuRequired);
-        return false;
-      }
-      if (filledMenus.some((menu) => parsePriceNumber(menu.price) < MIN_CREATOR_MENU_PRICE)) {
-        setError(copy.minimumPrice);
-        return false;
-      }
-      if (filledMenus.some((menu) => menu.menu_type === "その他" && !menu.custom_menu_name.trim())) {
-        setError(copy.customMenuNameRequired);
-        return false;
+      if (paidMarketplaceEnabled) {
+        const filledMenus = menus.filter((menu) => menu.menu_type.trim() || menu.price.trim());
+        if (filledMenus.length === 0) {
+          setError(copy.menuRequired);
+          return false;
+        }
+        const hasInvalidMenu = filledMenus.some((menu) => {
+          const priceNumber = parsePriceNumber(menu.price);
+          return !menu.menu_type.trim() || !menu.price.trim() || !Number.isFinite(priceNumber) || priceNumber <= 0;
+        });
+        if (hasInvalidMenu) {
+          setError(copy.menuRequired);
+          return false;
+        }
+        if (filledMenus.some((menu) => parsePriceNumber(menu.price) < MIN_CREATOR_MENU_PRICE)) {
+          setError(copy.minimumPrice);
+          return false;
+        }
+        if (filledMenus.some((menu) => menu.menu_type === "その他" && !menu.custom_menu_name.trim())) {
+          setError(copy.customMenuNameRequired);
+          return false;
+        }
       }
       if (!agreedToTerms || !agreedToPrivacy) {
         setError(copy.termsRequired);
@@ -1345,7 +1350,7 @@ export default function SignupCreatorClient({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          return_to: isCreatorOnly
+          return_to: creatorOnlyExperience
             ? "/creator/dashboard"
             : "/creator/payouts?from=signup&line=linked",
         }),
@@ -1360,7 +1365,7 @@ export default function SignupCreatorClient({
   };
 
   const finishSignupAfterLine = () => {
-    if (isCreatorOnly) {
+    if (creatorOnlyExperience) {
       router.replace("/creator/dashboard");
       return;
     }
@@ -1395,14 +1400,16 @@ export default function SignupCreatorClient({
       if (!avatarFile) throw new Error(copy.avatarRequired);
       if (portfolioFiles.length < 3) throw new Error(copy.portfolioRequired);
 
-      const validMenus = menus
-        .map((menu) => ({
-          menu_type: (menu.menu_type === "その他" ? menu.custom_menu_name : menu.menu_type).trim(),
-          price: parsePriceNumber(menu.price),
-          description: null,
-        }))
-        .filter((menu) => menu.menu_type && menu.price >= MIN_CREATOR_MENU_PRICE);
-      if (validMenus.length === 0) throw new Error(copy.menuRequired);
+      const validMenus = paidMarketplaceEnabled
+        ? menus
+            .map((menu) => ({
+              menu_type: (menu.menu_type === "その他" ? menu.custom_menu_name : menu.menu_type).trim(),
+              price: parsePriceNumber(menu.price),
+              description: null,
+            }))
+            .filter((menu) => menu.menu_type && menu.price >= MIN_CREATOR_MENU_PRICE)
+        : [];
+      if (paidMarketplaceEnabled && validMenus.length === 0) throw new Error(copy.menuRequired);
 
       const internalUsername = username.trim().toLowerCase() || (await ensureAvailableUsername());
       const session = await ensureAuthenticatedSession();
@@ -1484,7 +1491,7 @@ export default function SignupCreatorClient({
   };
 
   const renderLineSetup = () => {
-    const tips = isCreatorOnly
+    const tips = creatorOnlyExperience
       ? copy.completionTipsCreatorOnly
       : copy.completionTipsMarketplace;
 
@@ -1511,15 +1518,15 @@ export default function SignupCreatorClient({
                 <div className="relative">
                   <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#06c755] text-[10px] font-black text-white">✓</span>
-                    {isCreatorOnly ? copy.registrationSavedCreatorOnly : copy.registrationSavedMarketplace}
+                    {creatorOnlyExperience ? copy.registrationSavedCreatorOnly : copy.registrationSavedMarketplace}
                   </div>
 
                   <h1 className="mt-4 text-[28px] font-black leading-tight tracking-[-0.06em] text-slate-950 sm:text-[38px]">
-                    {isCreatorOnly ? copy.completionHeadlineCreatorOnly : copy.completionHeadlineMarketplace}
+                    {creatorOnlyExperience ? copy.completionHeadlineCreatorOnly : copy.completionHeadlineMarketplace}
                   </h1>
 
                   <p className="mt-3 max-w-[620px] text-sm font-bold leading-7 text-slate-500">
-                    {isCreatorOnly ? copy.completionLeadCreatorOnly : copy.completionLeadMarketplace}
+                    {creatorOnlyExperience ? copy.completionLeadCreatorOnly : copy.completionLeadMarketplace}
                   </p>
 
                   <div className="mt-5 grid gap-2 sm:max-w-[420px]">
@@ -1533,7 +1540,7 @@ export default function SignupCreatorClient({
                         ? copy.lineLinkedTitle
                         : lineLinkLoading
                           ? copy.lineOpening
-                          : isCreatorOnly
+                          : creatorOnlyExperience
                             ? copy.lineConnect
                             : copy.lineOpenButton}
                     </button>
@@ -1549,7 +1556,7 @@ export default function SignupCreatorClient({
                   </div>
 
                   <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400 sm:max-w-[420px]">
-                    {isCreatorOnly ? copy.completionPrivacyCreatorOnly : copy.completionPrivacyMarketplace}
+                    {creatorOnlyExperience ? copy.completionPrivacyCreatorOnly : copy.completionPrivacyMarketplace}
                   </p>
 
                   {lineLinked ? (
@@ -1572,10 +1579,10 @@ export default function SignupCreatorClient({
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#06c755] text-sm font-black text-white shadow-[0_12px_26px_rgba(6,199,85,0.24)]">LINE</div>
                     <div>
                       <p className="text-base font-black tracking-[-0.04em] text-slate-950">
-                        {isCreatorOnly ? copy.completionAsideTitleCreatorOnly : copy.completionAsideTitleMarketplace}
+                        {creatorOnlyExperience ? copy.completionAsideTitleCreatorOnly : copy.completionAsideTitleMarketplace}
                       </p>
                       <p className="mt-0.5 text-[11px] font-bold leading-5 text-slate-500">
-                        {isCreatorOnly ? copy.completionAsideBodyCreatorOnly : copy.completionAsideBodyMarketplace}
+                        {creatorOnlyExperience ? copy.completionAsideBodyCreatorOnly : copy.completionAsideBodyMarketplace}
                       </p>
                     </div>
                   </div>
@@ -1948,7 +1955,11 @@ export default function SignupCreatorClient({
     }
 
     return (
-      <StepShell title={copy.menuTitle} body={copy.menuBody}>
+      <StepShell
+        title={paidMarketplaceEnabled ? copy.menuTitle : copy.nonPaidMarketplaceTitle}
+        body={paidMarketplaceEnabled ? copy.menuBody : copy.nonPaidMarketplaceBody}
+      >
+        {paidMarketplaceEnabled ? <>
         <div className="space-y-3">
           {menus.map((menu, index) => (
             <div key={index} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
@@ -2019,6 +2030,7 @@ export default function SignupCreatorClient({
         <button type="button" onClick={addMenu} className="mt-3 h-10 w-full rounded-full bg-white text-xs font-black text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50">
           + {copy.addMenu}
         </button>
+        </> : null}
 
         <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
           <p className="text-sm font-black text-slate-950">{copy.termsTitle}</p>
@@ -2056,7 +2068,7 @@ export default function SignupCreatorClient({
               {copy.preparingTitle}
             </p>
             <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
-              {copy.preparingBody}
+              {paidMarketplaceEnabled ? copy.preparingBody : copy.nonPaidPreparingBody}
             </p>
           </div>
         </div>
@@ -2103,7 +2115,8 @@ export default function SignupCreatorClient({
                         : "bg-slate-50 text-slate-400 ring-1 ring-slate-100"
                   }`}
                 >
-                  {index < step ? "✓ " : ""}{title}
+                  {index < step ? "✓ " : ""}
+                  {index === TOTAL_STEPS - 1 && !paidMarketplaceEnabled ? copy.termsTitle : title}
                 </button>
               ))}
             </div>

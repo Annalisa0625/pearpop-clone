@@ -25,6 +25,7 @@ import {
   CreatorSkeleton,
   CreatorStickyFooter,
 } from "@/app/creator/_components/CreatorDesignSystem";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 type Locale = AppLocale;
 
@@ -39,6 +40,7 @@ type MenuOption = {
 type CreatorLite = {
   id: string;
   category: string | null;
+  country: string | null;
 };
 
 type SocialAccount = {
@@ -480,7 +482,7 @@ async function getCreatorAndSocials(
 ) {
   const { data: creator, error: creatorError } = await supabase
     .from("creators")
-    .select("id, category")
+    .select("id, category, country")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -672,7 +674,7 @@ export default function EditMenuPage() {
 
       const { data: creator, error: creatorError } = await supabase
         .from("creators")
-        .select("id")
+        .select("id, country")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -680,6 +682,12 @@ export default function EditMenuPage() {
         console.error("creator load error:", creatorError);
         setError(copy.creatorNotFound);
         router.push("/creator/menus");
+        return;
+      }
+
+      if (!isCreatorPaidMarketplaceEnabled(creator.country)) {
+        setLoading(false);
+        router.replace("/creator/profile");
         return;
       }
 
@@ -758,6 +766,12 @@ export default function EditMenuPage() {
     if (loadError || !creator) {
       console.error("creator/social load error:", loadError);
       setError(copy.creatorNotFound);
+      setSaving(false);
+      return;
+    }
+
+    if (!isCreatorPaidMarketplaceEnabled(creator.country)) {
+      router.replace("/creator/profile");
       setSaving(false);
       return;
     }

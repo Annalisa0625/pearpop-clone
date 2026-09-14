@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppLocale } from "@/lib/i18n/locale";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 type FilterMenu =
   | "platform"
@@ -45,6 +46,7 @@ type CreatorRow = {
   display_name?: string | null;
   avatar_url?: string | null;
   category?: string | null;
+  country?: string | null;
   prefecture?: string | null;
   can_receive_products?: boolean | null;
   rating?: number | null;
@@ -98,6 +100,8 @@ type CreatorCard = {
   topMenuTitle: string | null;
   rating: number | null;
   reviewCount: number;
+  country: string | null;
+  paidMarketplaceEnabled: boolean;
 };
 
 const FOLLOWER_MIN = 0;
@@ -1412,7 +1416,7 @@ function CreatorCardItem({
             </div>
           </div>
 
-          <div className="shrink-0 text-right">
+          {creator.paidMarketplaceEnabled ? <div className="shrink-0 text-right">
             <p className="text-base font-black text-slate-950">
               {formatStartingPrice(creator.startingPrice, creator.startingCurrency)}
             </p>
@@ -1420,7 +1424,7 @@ function CreatorCardItem({
               {creator.menuCount}{" "}
               {creator.menuCount === 1 ? copy.menu : copy.menus}
             </p>
-          </div>
+          </div> : null}
         </div>
       </Link>
     </article>
@@ -1681,28 +1685,6 @@ export default function CompanyCreatorsPage() {
           setCurrentUserId(user?.id ?? null);
         }
 
-        const payoutResult = await supabase.rpc("get_payout_ready_creator_ids");
-
-        if (payoutResult.error) {
-          console.error("payout ready creator ids load error", payoutResult.error);
-
-          if (isMounted) {
-            setCreators([]);
-            setSavedCreatorIds([]);
-            setError(copy.fetchError);
-          }
-
-          return;
-        }
-
-        const payoutReadyCreatorIds = Array.from(
-          new Set(
-            ((payoutResult.data ?? []) as { creator_id: string | null }[])
-              .map((row) => row.creator_id)
-              .filter((id): id is string => Boolean(id))
-          )
-        );
-
         let savedRows: SavedCreatorRow[] = [];
 
         if (user) {
@@ -1718,91 +1700,21 @@ export default function CompanyCreatorsPage() {
           }
         }
 
-        if (payoutReadyCreatorIds.length === 0) {
-          if (isMounted) {
-            setCreators([]);
-            setSavedCreatorIds(savedRows.map((row) => row.creator_id));
-          }
-
+        const response = await fetch("/api/b/creators?limit=100&offset=0", {
+          credentials: "same-origin",
+        });
+        if (!response.ok) {
+          if (isMounted) setError(copy.fetchError);
           return;
         }
-
-        const creatorsResult = await supabase
-          .from("creators")
-          .select(
-            `
-            id,
-            display_name,
-            avatar_url,
-            category,
-            prefecture,
-            can_receive_products,
-            rating,
-            total_orders,
-            creator_social_accounts (
-              platform,
-              url,
-              handle,
-              follower_range,
-              audience_country
-            )
-            `
-          )
-          .eq("approval_status", "approved")
-          .eq("is_public", true)
-          .in("id", payoutReadyCreatorIds)
-          .order("created_at", { ascending: false });
-
-        if (creatorsResult.error) {
-          console.error({
-            creatorsError: creatorsResult.error,
-          });
-
-          if (isMounted) {
-            setError(copy.fetchError);
-          }
-
-          return;
-        }
-
-        const rows = (creatorsResult.data ?? []) as CreatorRow[];
-        const creatorIds = rows.map((row) => row.id);
-
-        let menuRows: MenuRow[] = [];
-        let portfolioRows: PortfolioAssetRow[] = [];
-
-        if (creatorIds.length > 0) {
-          const [menusResult, portfolioResult] = await Promise.all([
-            supabase
-              .from("creator_menus")
-              .select("id, creator_id, title, price, currency, is_active")
-              .in("creator_id", creatorIds)
-              .eq("is_active", true),
-
-            supabase
-              .from("creator_portfolio_assets")
-              .select(
-                "id, creator_id, asset_url, asset_type, sort_order, is_public, created_at"
-              )
-              .in("creator_id", creatorIds)
-              .eq("is_public", true)
-              .eq("asset_type", "image")
-              .order("sort_order", { ascending: true })
-              .order("created_at", { ascending: true }),
-          ]);
-
-          if (menusResult.error) {
-            console.error("creator menus load error", menusResult.error);
-          } else {
-            menuRows = (menusResult.data ?? []) as MenuRow[];
-          }
-
-          if (portfolioResult.error) {
-            console.error("creator portfolio load error", portfolioResult.error);
-          } else {
-            portfolioRows = (portfolioResult.data ?? []) as PortfolioAssetRow[];
-          }
-        }
+        const payload = (await response.json()) as {
+          creators?: CreatorRow[];
+          menus?: MenuRow[];
+          portfolioAssets?: PortfolioAssetRow[];
+        };
+        const rows = payload.creators ?? [];
+        const menuRows = payload.menus ?? [];
+        const portfolioRows = payload.portfolioAssets ?? [];
 
         const menuMap = new Map<string, MenuRow[]>();
 
@@ -1888,9 +1800,10 @@ export default function CompanyCreatorsPage() {
               topMenuTitle: startingMenu?.title ?? null,
               rating,
               reviewCount,
+              country: row.country?.trim() || null,
+              paidMarketplaceEnabled: isCreatorPaidMarketplaceEnabled(row.country),
             };
-          })
-          .filter((card) => card.menuCount > 0);
+          });
 
         if (isMounted) {
           setCreators(nextCreators);

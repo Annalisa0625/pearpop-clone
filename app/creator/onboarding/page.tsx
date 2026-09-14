@@ -1,19 +1,21 @@
 //app/creator/onboarding/page.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import LocaleSelector from "@/components/i18n/LocaleSelector";
 import { creatorOnboardingDictionary } from "@/lib/i18n/creatorOnboarding";
+import { isCreatorPaidMarketplaceEnabled } from "@/lib/creator/marketplaceAvailability";
 
 export default function CreatorOnboardingPage() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { locale, setLocale } = useAppLocale({ allLocales: true });
   const copy = creatorOnboardingDictionary[locale];
-  const slides = copy.slides;
+  const [paidMarketplaceEnabled, setPaidMarketplaceEnabled] = useState<boolean | null>(null);
+  const slides = paidMarketplaceEnabled ? copy.slides : copy.nonPaidSlides;
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -21,6 +23,33 @@ export default function CreatorOnboardingPage() {
 
   const isLast = step === slides.length - 1;
   const current = slides[step];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAvailability = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) setPaidMarketplaceEnabled(false);
+        return;
+      }
+
+      const { data: creator } = await supabase
+        .from("creators")
+        .select("country")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!cancelled) {
+        setPaidMarketplaceEnabled(
+          isCreatorPaidMarketplaceEnabled(creator?.country),
+        );
+      }
+    };
+
+    void loadAvailability();
+    return () => { cancelled = true; };
+  }, [supabase]);
 
   const completeOnboarding = async () => {
     setLoading(true);
