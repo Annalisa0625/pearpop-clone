@@ -266,7 +266,7 @@ function Promotion({
 }
 
 export default function CreatorDashboardPage() {
-  const { locale } = useAppLocale();
+  const { locale } = useAppLocale({ allLocales: true });
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const isCreatorOnly = useCreatorOnlyRelease();
   const [state, setState] = useState<HomeState>(EMPTY_HOME);

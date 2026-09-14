@@ -582,7 +582,7 @@ function OrderCard({
 }
 
 export default function CreatorRequestsPage() {
-  const { locale } = useAppLocale();
+  const { locale } = useAppLocale({ allLocales: true });
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const mountedRef = useRef(true);
 

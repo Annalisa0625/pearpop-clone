@@ -3,9 +3,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useCreatorOnlyRelease } from "@/app/creator/CreatorReleaseMode";
+import { useAppLocale } from "@/lib/i18n/locale";
+import { creatorShellDictionary } from "@/lib/i18n/creatorShell";
 
 type IconProps = { className?: string };
-type NavItem = { href: string; label: string; icon: ReactNode };
+type NavItem = { href: string; labelKey: "home" | "orders" | "jobs" | "link" | "profile"; icon: ReactNode };
 
 function HomeIcon({ className = "" }: IconProps) {
   return (
@@ -54,15 +56,17 @@ function ProfileIcon({ className = "" }: IconProps) {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/creator/dashboard", label: "Home", icon: <HomeIcon className="h-[22px] w-[22px]" /> },
-  { href: "/creator/orders", label: "Order", icon: <OrderIcon className="h-[22px] w-[22px]" /> },
-  { href: "/creator/jobs", label: "Job", icon: <JobIcon className="h-[22px] w-[22px]" /> },
-  { href: "/creator/link", label: "Link", icon: <LinkFeatureIcon className="h-[22px] w-[22px]" /> },
-  { href: "/creator/profile", label: "Profile", icon: <ProfileIcon className="h-[22px] w-[22px]" /> },
+  { href: "/creator/dashboard", labelKey: "home", icon: <HomeIcon className="h-[22px] w-[22px]" /> },
+  { href: "/creator/orders", labelKey: "orders", icon: <OrderIcon className="h-[22px] w-[22px]" /> },
+  { href: "/creator/jobs", labelKey: "jobs", icon: <JobIcon className="h-[22px] w-[22px]" /> },
+  { href: "/creator/link", labelKey: "link", icon: <LinkFeatureIcon className="h-[22px] w-[22px]" /> },
+  { href: "/creator/profile", labelKey: "profile", icon: <ProfileIcon className="h-[22px] w-[22px]" /> },
 ];
 
 export default function CreatorLinkWorkspaceNav() {
   const isCreatorOnly = useCreatorOnlyRelease();
+  const { locale } = useAppLocale({ allLocales: true });
+  const copy = creatorShellDictionary[locale];
   const navItems = isCreatorOnly
     ? NAV_ITEMS.filter((item) => item.href !== "/creator/jobs")
     : NAV_ITEMS;
@@ -84,7 +88,7 @@ export default function CreatorLinkWorkspaceNav() {
                 <span className={`flex h-8 w-10 items-center justify-center rounded-xl transition ${active ? "bg-slate-950 text-white" : "bg-transparent"}`}>
                   {item.icon}
                 </span>
-                <span>{item.label}</span>
+                <span>{copy[item.labelKey]}</span>
               </Link>
             );
           })}

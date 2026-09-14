@@ -18,7 +18,7 @@ function MailIcon() {
 
 export default function CreatorLinkInboxShortcut() {
   const pathname = usePathname();
-  const { locale } = useAppLocale();
+  const { locale } = useAppLocale({ allLocales: true });
   const [newCount, setNewCount] = useState(0);
 
   useEffect(() => {
@@ -48,7 +48,12 @@ export default function CreatorLinkInboxShortcut() {
 
   if (pathname !== "/creator/link") return null;
 
-  const label = locale === "ja" ? "仕事相談" : "Inquiries";
+  const label = {
+    ja: "仕事相談",
+    en: "Inquiries",
+    ko: "협업 문의",
+    "zh-TW": "合作諮詢",
+  }[locale];
 
   return (
     <Link

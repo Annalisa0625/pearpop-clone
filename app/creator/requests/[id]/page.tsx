@@ -53,7 +53,7 @@ export default function CreatorRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const { locale } = useAppLocale();
+  const { locale } = useAppLocale({ allLocales: true });
   const t = useMemo(() => getCommonText(locale), [locale]);
 
   const copy = creatorRequestDetailDictionary[locale];

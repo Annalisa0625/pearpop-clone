@@ -278,7 +278,7 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 }
 
 export default function CreatorJobsPage() {
-  const { locale } = useAppLocale();
+  const { locale } = useAppLocale({ allLocales: true });
   const isCreatorOnly = useCreatorOnlyRelease();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [tab, setTab] = useState<TabKey>("jobs");

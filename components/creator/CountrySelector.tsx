@@ -32,7 +32,7 @@ export default function CountrySelector({
   onChange,
   ariaLabel = "Creator country",
 }: {
-  value: CreatorCountry;
+  value: CreatorCountry | null;
   onChange: (country: CreatorCountry) => void;
   ariaLabel?: string;
 }) {

@@ -151,12 +151,14 @@ test("LocaleSelector exposes four controlled, accessible choices", () => {
 });
 
 test("Signup and Profile wire Country and UI Locale to independent handlers", () => {
-  for (const file of [
-    "app/signup/creator/SignupCreatorClient.tsx",
-    "app/creator/profile/page.tsx",
-  ]) {
-    const source = readFileSync(resolve(root, file), "utf8");
-    assert.match(source, /<CountrySelector[\s\S]*?onChange=\{handleCountryChange\}/);
-    assert.match(source, /<LocaleSelector[\s\S]*?value=\{locale\}[\s\S]*?onChange=\{setLocale\}/);
-  }
+  const signupSource = readFileSync(
+    resolve(root, "app/signup/creator/SignupCreatorClient.tsx"),
+    "utf8",
+  );
+  assert.match(signupSource, /<CountrySelector[\s\S]*?onChange=\{handleInitialCountrySelection\}/);
+  assert.match(signupSource, /<LocaleSelector[\s\S]*?value=\{locale\}[\s\S]*?onChange=\{handleLocaleChange\}/);
+
+  const profileSource = readFileSync(resolve(root, "app/creator/profile/page.tsx"), "utf8");
+  assert.match(profileSource, /<CountrySelector[\s\S]*?onChange=\{handleCountryChange\}/);
+  assert.match(profileSource, /<LocaleSelector[\s\S]*?value=\{locale\}[\s\S]*?onChange=\{setLocale\}/);
 });

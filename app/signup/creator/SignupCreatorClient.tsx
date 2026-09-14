@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type InputHTMLAttributes,
   type ReactNode,
@@ -14,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAppLocale } from "@/lib/i18n/locale";
 import type { AppLocale } from "@/lib/i18n/types";
+import { getLocaleAfterInitialCreatorCountrySelection } from "@/lib/i18n/options";
 import {
   creatorSignupAudienceCountryLabels,
   creatorSignupCategoryLabels,
@@ -61,6 +63,7 @@ type MenuForm = {
 
 type DraftState = {
   step: number;
+  countrySelectionCompleted?: boolean;
   displayName: string;
   username: string;
   gender: string;
@@ -610,6 +613,8 @@ export default function SignupCreatorClient({
   const stepTitles = creatorSignupStepTitles[locale];
 
   const [step, setStep] = useState(0);
+  const [countrySelectionCompleted, setCountrySelectionCompleted] = useState(false);
+  const localeManuallySelectedRef = useRef(false);
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -705,6 +710,8 @@ export default function SignupCreatorClient({
     portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
 
     setStep(0);
+    setCountrySelectionCompleted(false);
+    localeManuallySelectedRef.current = false;
     setDisplayName("");
     setUsername("");
     setGender("");
@@ -747,7 +754,8 @@ export default function SignupCreatorClient({
 
     try {
       const draft = JSON.parse(raw) as Partial<DraftState>;
-      setStep(typeof draft.step === "number" ? Math.max(0, Math.min(draft.step, TOTAL_STEPS - 1)) : 0);
+      const restoredStep = typeof draft.step === "number" ? Math.max(0, Math.min(draft.step, TOTAL_STEPS - 1)) : 0;
+      setStep(restoredStep);
       setDisplayName(safeString(draft.displayName));
       setUsername(safeString(draft.username));
       setGender(safeString(draft.gender));
@@ -755,6 +763,12 @@ export default function SignupCreatorClient({
       setEmail(safeString(draft.email));
       const draftLocation = restoreCreatorSignupDraftLocation(draft);
       setCountry(draftLocation.country);
+      setCountrySelectionCompleted(
+        draft.countrySelectionCompleted === true ||
+          restoredStep > 0 ||
+          draftLocation.country !== DEFAULT_CREATOR_COUNTRY ||
+          Boolean(safeString(draft.displayName) || safeString(draft.email)),
+      );
       setPrefecture(draftLocation.prefecture);
       setCanReceiveProductsChoice(safeString(draft.canReceiveProductsChoice));
       setActiveGenreGroup(safeString(draft.activeGenreGroup, GENRE_GROUPS[0].key));
@@ -798,6 +812,7 @@ export default function SignupCreatorClient({
   useEffect(() => {
     const draft: DraftState = {
       step,
+      countrySelectionCompleted,
       displayName,
       username,
       gender,
@@ -816,6 +831,7 @@ export default function SignupCreatorClient({
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
   }, [
     step,
+    countrySelectionCompleted,
     displayName,
     username,
     gender,
@@ -932,6 +948,23 @@ export default function SignupCreatorClient({
     setCountry(location.country);
     setPrefecture(location.prefecture ?? "");
     setError(null);
+  };
+
+  const handleInitialCountrySelection = (nextCountry: CreatorCountry) => {
+    handleCountryChange(nextCountry);
+    setLocale(
+      getLocaleAfterInitialCreatorCountrySelection(
+        nextCountry,
+        locale,
+        localeManuallySelectedRef.current,
+      ),
+    );
+    setCountrySelectionCompleted(true);
+  };
+
+  const handleLocaleChange = (nextLocale: AppLocale) => {
+    localeManuallySelectedRef.current = true;
+    setLocale(nextLocale);
   };
 
   const updateSocial = (index: number, key: keyof SocialAccountForm, value: string) => {
@@ -1141,7 +1174,10 @@ export default function SignupCreatorClient({
 
   const goBack = () => {
     setError(null);
-    if (step <= 0) return;
+    if (step <= 0) {
+      setCountrySelectionCompleted(false);
+      return;
+    }
     if (typeof window !== "undefined") {
       const currentState = window.history.state;
       if (currentState?.trendreCreatorSignupStep === step) {
@@ -1503,7 +1539,7 @@ export default function SignupCreatorClient({
           </Link>
           <LocaleSelector
             value={locale}
-            onChange={setLocale}
+            onChange={handleLocaleChange}
             variant="select"
             ariaLabel={copy.uiLanguage}
           />
@@ -1608,26 +1644,27 @@ export default function SignupCreatorClient({
   };
 
   const renderStep = () => {
+    if (!countrySelectionCompleted) {
+      return (
+        <StepShell
+          title={copy.countrySelectionTitle}
+          body={copy.countrySelectionBody}
+        >
+          <CountrySelector
+            value={null}
+            onChange={handleInitialCountrySelection}
+            ariaLabel={copy.countrySelectionTitle}
+          />
+        </StepShell>
+      );
+    }
+
     if (step === 0) {
       return (
         <StepShell title={copy.displayTitle} body={copy.displayBody}>
           <div className="grid gap-3">
-            <Field label={copy.uiLanguage}>
-              <LocaleSelector
-                value={locale}
-                onChange={setLocale}
-                ariaLabel={copy.uiLanguage}
-              />
-            </Field>
             <Field label={copy.displayName}>
               <TextInput value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={copy.displayNamePlaceholder} />
-            </Field>
-            <Field label={copy.country}>
-              <CountrySelector
-                value={country}
-                onChange={handleCountryChange}
-                ariaLabel={copy.country}
-              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label={copy.gender}>
@@ -2081,7 +2118,7 @@ export default function SignupCreatorClient({
         <div className="flex items-center gap-2">
           <LocaleSelector
             value={locale}
-            onChange={setLocale}
+            onChange={handleLocaleChange}
             variant="select"
             ariaLabel={copy.uiLanguage}
           />
@@ -2093,7 +2130,7 @@ export default function SignupCreatorClient({
 
       <div className="mx-auto w-full max-w-[760px] px-3 pb-24">
         <section className="overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-100">
-          <div className="border-b border-slate-100 p-4">
+          {countrySelectionCompleted ? <div className="border-b border-slate-100 p-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[11px] font-black tracking-[0.18em] text-slate-400">{copy.progress(step + 1, TOTAL_STEPS)}</p>
               <button type="button" onClick={resetForm} className="text-[11px] font-black text-slate-400 underline underline-offset-4">{copy.reset}</button>
@@ -2120,7 +2157,7 @@ export default function SignupCreatorClient({
                 </button>
               ))}
             </div>
-          </div>
+          </div> : null}
 
           <div className="p-4">
             {renderStep()}
@@ -2129,11 +2166,11 @@ export default function SignupCreatorClient({
               <div className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-xs font-black leading-5 text-rose-700 ring-1 ring-rose-100">{error}</div>
             ) : null}
 
-            <div className="mt-5 grid grid-cols-[96px_minmax(0,1fr)] gap-2">
+            {countrySelectionCompleted ? <div className="mt-5 grid grid-cols-[96px_minmax(0,1fr)] gap-2">
               <button
                 type="button"
                 onClick={goBack}
-                disabled={step === 0 || loading}
+                disabled={loading}
                 className="h-11 rounded-full bg-white text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {copy.back}
@@ -2158,7 +2195,7 @@ export default function SignupCreatorClient({
                   {loading ? copy.preparing : copy.finish}
                 </button>
               )}
-            </div>
+            </div> : null}
           </div>
         </section>
       </div>
